@@ -1,0 +1,77 @@
+local n
+local env2 = tundra.environment.Create(nil, {
+	["C++"] = {"g++"},
+	["LIBPATH"] = {},
+	["LIB"] = {"ar"},
+	["RM"] = {"rm -f"},
+	["CCCOM"] = {"$(CC) $(CFLAGS) -c -o $(@) $(<)"},
+	["OBJECTDIR"] = {"."},
+	["C++FLAGS"] = {},
+	["LIBSUFFIX"] = {".a"},
+	["OBJECTSUFFIX"] = {".o"},
+	["LIBCOM"] = {"$(LIB) $(LIBFLAGS) $(@) $(<)"},
+	["LIBFLAGS"] = {"-ru"},
+	["CC"] = {"gcc"},
+	["CPPCOM"] = {"$(C++) $(C++FLAGS) -c -o $(@) $(<)"},
+	["CFLAGS"] = {},
+	["RMCOM"] = {"$(RM) $(<)"},
+})
+n = tundra.depgraph.CreateNode(env2, {
+	FromDisk = true,
+	Cachable = true,
+	Type = 1,
+	Label = "Scan headers for h2.hpp",
+	Action = "lua ScanHeaders",
+	InputFiles = {
+		"h2.hpp",
+	},
+})
+n = tundra.depgraph.CreateNode(env2, {
+	FromDisk = true,
+	Cachable = true,
+	Type = 1,
+	Label = "Scan headers for h1.hpp",
+	Action = "lua ScanHeaders",
+	InputFiles = {
+		"h1.hpp",
+	},
+})
+n:AddDependency(assert(tundra.depgraph.NodesFromDisk["be721515b720933edbcccb0e002097c8"]))
+local env3 = tundra.environment.Create(env2, {
+	["C++"] = {"cl /nologo"},
+	["CCCOM"] = {"$(C) $(CPPDEFINES:p/D) $(CPPPATH:p/I) $(CFLAGS) /c /Fo$(@:b) $(<:b)"},
+	["RMCOM"] = {"$(RM) $(<:b)"},
+	["CPPPATH"] = {},
+	["C++FLAGS"] = {"/W4"},
+	["LIB"] = {"lib"},
+	["OBJECTSUFFIX"] = {".obj"},
+	["RM"] = {"del /f /q"},
+	["CPPDEFINES"] = {"WIN32"},
+	["CPPCOM"] = {"$(C++) $(CPPDEFINES:p/D) $(CPPPATH:p/I) $(C++FLAGS) /c /Fo$(@:b) $(<:b)"},
+	["LIBFLAGS"] = {"/nologo"},
+	["LIBSUFFIX"] = {".lib"},
+	["LIBCOM"] = {"$(LIB) $(LIBFLAGS) /out:$(@:b) $(LIBPATH:p/libpath\\:) $(<:b)"},
+})
+n = tundra.depgraph.CreateNode(env3, {
+	FromDisk = true,
+	Cachable = true,
+	Type = 1,
+	Label = "Scan headers for a.cpp",
+	Action = "lua ScanHeaders",
+	InputFiles = {
+		"a.cpp",
+	},
+})
+n:AddDependency(assert(tundra.depgraph.NodesFromDisk["85e7b98a052ac1a3d9da7223fe35a500"]))
+n:AddDependency(assert(tundra.depgraph.NodesFromDisk["be721515b720933edbcccb0e002097c8"]))
+n = tundra.depgraph.CreateNode(env3, {
+	FromDisk = true,
+	Cachable = true,
+	Type = 1,
+	Label = "Scan headers for b.cpp",
+	Action = "lua ScanHeaders",
+	InputFiles = {
+		"b.cpp",
+	},
+})
+n:AddDependency(assert(tundra.depgraph.NodesFromDisk["be721515b720933edbcccb0e002097c8"]))
