@@ -35,6 +35,10 @@ function GetExtension(fn)
 	return fn:match("(%.[^.]+)$") or ""
 end
 
+function DropSuffix(fn)
+	return fn:match("^([^.]*)%.[^.]+") or fn
+end
+
 function GetFilenameBase(fn)
 	assert(fn, "nil filename")
 	local _,_,stem = fn:find("([^/\\]+)%.[^.]*$")

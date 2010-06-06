@@ -104,7 +104,6 @@ function SpliceOutputs(nodes, exts)
 			return false
 		end)
 	end
-	print("RES:", util.tostring(result))
 	return result
 end
 

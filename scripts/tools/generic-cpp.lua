@@ -5,11 +5,11 @@ local path = require("tundra.path")
 do
 	local cc_compile = function(env, args)
 		local function GetObjectFilename(fn)
-			return '$(OBJECTDIR)/' .. path.GetFilenameBase(fn) .. '$(OBJECTSUFFIX)'
+			return '$(OBJECTDIR)/' .. path.DropSuffix(fn) .. '$(OBJECTSUFFIX)'
 		end
-		assert(type(args) == "table", "CppObject expects single c++ source file")
-		local fn = assert(args[1], "Expected C++ source file")
-		assert(type(fn) == "string", "Argument must be a string")
+		assert(type(args) == "table", "expected single source file")
+		local fn = assert(args[1], "expected c source file")
+		assert(type(fn) == "string", "argument must be a string")
 		local object_fn = GetObjectFilename(fn)
 		local node = env:MakeNode {
 			Label = 'Cc $(@)',

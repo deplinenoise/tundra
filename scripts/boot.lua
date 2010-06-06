@@ -71,13 +71,14 @@ DefaultEnvironment:SetMany {
 	["LIB"] = "ar",
 	["LIBFLAGS"] = "-ru",
 	["LIBSUFFIX"] = ".a",
-	["OBJECTDIR"] = ".",
+	["OBJECTDIR"] = "tundra-output",
 	["OBJECTSUFFIX"] = ".o",
 	["CC"] = "gcc",
 	["CFLAGS"] = "",
 	["C++FLAGS"] = "",
 	["C++"] = "g++",
-	["CCCOM"] = "$(CC) $(CFLAGS) -c -o $(@) $(<)",
+	["CPPPATH"] = "",
+	["CCCOM"] = "$(CC) $(CFLAGS) $(CPPPATH:p-I) -c -o $(@) $(<)",
 	["CPPCOM"] = "$(C++) $(C++FLAGS) -c -o $(@) $(<)",
 	["PROGSUFFIX"] = ".exe",
 	["PROGFLAGS"] = "",
@@ -122,13 +123,28 @@ end
 local native = require("tundra.native")
 
 function Glob(directory, pattern)
+	local result = {}
 	for dir, dirs, files in native.walk_path(directory) do
-		return util.FilterInPlace(files, function (val) return string.match(val, pattern) end)
+		util.FilterInPlace(files, function (val) return string.match(val, pattern) end)
+		for _, fn in ipairs(files) do
+			table.insert(result, dir .. '/' .. fn)
+		end
 	end
+	return result
 end
 
 function Build(node)
-	print(util.tostring(node))
+	local function PrintTree(n, level)
+		local indent = string.rep("    ", level)
+		printf("%s=> %s", indent, n:GetAnnotation())
+		printf("%scmd: %s", indent, n:GetAction())
+		for _, fn in util.NilIPairs(n:GetInputFiles()) do printf("%s   [ input: %s ]", indent, fn) end
+		for _, fn in util.NilIPairs(n:GetOutputFiles()) do printf("%s   [ output: %s ]", indent, fn) end
+		for _, dep in util.NilIPairs(n:GetDependencies()) do
+			PrintTree(dep, level + 1)
+		end
+	end
+	PrintTree(node, 0)
 end
 
 RunBuildScript("tundra.lua")
