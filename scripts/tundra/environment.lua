@@ -1,6 +1,7 @@
 module(..., package.seeall)
 
 local util = require('tundra.util')
+local path = require('tundra.path')
 local depgraph = require('tundra.depgraph')
 
 --[==[
@@ -19,14 +20,7 @@ Missing keys trigger errors unless a default value is specified.
 ]==]--
 
 local Environment = {
-	SequenceNo = 1,
 }
-
-local function NextSequenceNo()
-	local sno = Environment.SequenceNo
-	Environment.SequenceNo = sno + 1
-	return sno
-end
 
 function Environment:Create(parent, assignments, obj)
 	obj = obj or {}
@@ -35,10 +29,9 @@ function Environment:Create(parent, assignments, obj)
 
 	obj.vars = {}
 	obj.parent = parent
-	obj.id = 'env' .. NextSequenceNo() -- For graph dumping purposes
 
 	-- Set up the table of make functions
-	obj.MakeFunctions = {} 
+	obj._make = {} 
 	obj.Make = setmetatable({}, {
 		__index = function(table, key) return obj:_lookup_make(key) end,
 		__newindex = function(table, key, value) obj:RegisterMakeFn(key, value) end
@@ -58,7 +51,7 @@ end
 
 function Environment:_lookup_make(name, real_env)
 	real_env = real_env or self
-	local entry = self.MakeFunctions[name]
+	local entry = self._make[name]
 	if entry then
 		assert(entry.Name == name)
 		local fn = function(args)
@@ -68,18 +61,48 @@ function Environment:_lookup_make(name, real_env)
 	elseif self.parent then
 		return self.parent:_lookup_make(name, real_env)
 	else
-		error("'" .. name .. "': no such make function")
+		error("'" .. name .. "': no such make function", 2)
 	end
 end
 
 function Environment:RegisterMakeFn(name, fn, docstring)
 	assert(type(name) == "string")
 	assert(type(fn) == "function")
-	self.MakeFunctions[name] = {
+	self._make[name] = {
 		Name = name,
 		Function = fn,
 		Doc = docstring or ""
 	}
+end
+
+function Environment:RegisterImplicitMakeFn(ext, fn, docstring)
+	assert(type(ext) == "string")
+	assert(type(fn) == "function")
+	if not ext:match("^%.") then
+		ext = "." .. ext -- we want the dot in the extension
+	end
+
+	if not self._implicit_exts then
+		self._implicit_exts = {}
+	end
+	self._implicit_exts[ext] = {
+		Function = fn,
+		Doc = docstring or "",
+	}
+end
+
+function Environment:GetImplicitMakeFn(filename)
+	local ext = path.GetExtension(filename)
+	local chain = self
+	while chain do
+		local t = chain._implicit_exts
+		if t then
+			local v = t[ext]
+			if v then return v.Function end
+		end
+		chain = chain.parent
+	end
+	error(string.format("%s: no implicit make function for ext %s", filename, ext), 2)
 end
 
 function Environment:HasKey(key)

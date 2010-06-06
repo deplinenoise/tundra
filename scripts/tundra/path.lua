@@ -1,7 +1,5 @@
 module(..., package.seeall)
 
-local engine = require("tundra.native.engine")
-
 function SplitPath(fn)
 	local dir, file = fn:match("^(.*)[/\\]([^\\/]*)$")
 	if not dir then
@@ -11,7 +9,19 @@ function SplitPath(fn)
 	end
 end
 
-NormalizePath = engine.NormalizePath
+function NormalizePath(fn)
+	local pieces = {}
+	for piece in string.gmatch(fn, "[^/\\]+") do
+		if piece == ".." then
+			table.remove(pieces)
+		elseif piece == "." then
+			-- nop
+		else
+			pieces[#pieces + 1] = piece
+		end
+	end
+	return table.concat(pieces, '/')
+end
 
 function JoinPath(dir, fn)
 	return engine.NormalizePath(dir, fn)
@@ -22,8 +32,7 @@ function GetFilenameDir(fn)
 end
 
 function GetExtension(fn)
-	local _,_,ext = fn:find("%.([^.]+)$")
-	return ext
+	return fn:match("(%.[^.]+)$") or ""
 end
 
 function GetFilenameBase(fn)

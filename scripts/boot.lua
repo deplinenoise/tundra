@@ -7,6 +7,11 @@ do
 	package.path = string.format("%s/scripts/?.lua;%s/lua/etc/?.lua", TundraRootDir, TundraRootDir)
 end
 
+function printf(msg, ...)
+	local str = string.format(msg, ...)
+	print(str)
+end
+
 -- Use "strict" when developing to flag accesses to nil global variables
 require("strict")
 
@@ -47,21 +52,7 @@ do
 	end
 end
 
-local engine = require("tundra.native.engine")
-engine.Init()
-
 local environment = require("tundra.environment")
-local depgraph = require("tundra.depgraph")
-local make = require("tundra.make")
-
-if Options.SelfTest then
-	local fail_count = dofile(TundraRootDir .. "/scripts/selftest.lua")
-	if fail_count > 0 then
-		return 1
-	else
-		return 0
-	end
-end
 
 if Options.Verbose then
 	print("Options:")
@@ -88,6 +79,9 @@ DefaultEnvironment:SetMany {
 	["C++"] = "g++",
 	["CCCOM"] = "$(CC) $(CFLAGS) -c -o $(@) $(<)",
 	["CPPCOM"] = "$(C++) $(C++FLAGS) -c -o $(@) $(<)",
+	["PROGSUFFIX"] = ".exe",
+	["PROGFLAGS"] = "",
+	["PROGCOM"] = "$(CC) -o $(@) $(PROGFLAGS) $(<)",
 }
 
 -- Initialize tools
@@ -96,17 +90,11 @@ do
 	chunk()
 end
 
-function RunBuildScript(node)
+function RunBuildScript(fn)
 	local script_globals, script_globals_mt = {}, {}
 	script_globals_mt.__index = _G
 	setmetatable(script_globals, script_globals_mt)
 
-	local inputs = node:GetInputFiles()
-	if not inputs or #inputs ~= 1 then
-		error(node:GetAnnotation() .. ": illegal number of inputs")
-	end
-
-	local fn = inputs[1]
 	local chunk = assert(loadfile(fn))
 	setfenv(chunk, script_globals)
 
@@ -116,7 +104,7 @@ function RunBuildScript(node)
 	end
 
 	local function args_stub()
-		return chunk(node)
+		return chunk()
 	end
 
 	local success, result = xpcall(args_stub, stack_dumper)
@@ -129,66 +117,18 @@ function RunBuildScript(node)
 	end
 end
 
---[[
--- Build initial dependency tree
+-- RunBuildScript("tundra.lua")
 
-local root = DefaultEnvironment:MakeNode {
-	Type = depgraph.NodeType.GraphGenerator,
-	Label = "Run tundra-root.lua",
-	Action = "lua RunBuildScript",
-	InputFiles = { "tundra-root.lua" },
-}
+local native = require("tundra.native")
 
--- Pull in old build signatures
-make.ReadSignatureDb()
-
--- Pull in dependency graph cache
-depgraph.ReadNodeCache("tundra-nodecache.db")
-
-make.Make(root)
-
-if not Options.DryRun then
-	make.WriteSignatures()
-	depgraph.WriteNodeCache("tundra-nodecache.db")
+function Glob(directory, pattern)
+	for dir, dirs, files in native.walk_path(directory) do
+		return util.FilterInPlace(files, function (val) return string.match(val, pattern) end)
+	end
 end
 
-if false then
-	local f = io.open("tundra.depgraph", "w")
-	util.SerializeCycle(f, "All", All)
-	f:close()
+function Build(node)
+	print(util.tostring(node))
 end
 
--- Dump debugging GraphViz output
-if Options.WriteGraph then
-	local fn = Options.GraphFilename or "depgraph.dot"
-	depgraph.GenerateDotGraph(fn, { root })
-end
---]]
-
--- Play with the new native graph builder
-
-local g = require"tundra.native.graph"
-
-local gb = g.New()
-local n1 = gb:GetNode { Cacheable = true, Inputs = { "Foo", "Bar" }, Outputs = { "Apa" }, Action = "Foo", Annotation = "Teh annotation" }
-local n2 = gb:GetNode { Cacheable = true, Inputs = { "Foo" }, Outputs = { "Bar" }, Action = "Snask" }
-local n3 = gb:GetNode { Cacheable = true, Inputs = { "Bar" }, Outputs = { "Bar2" }, Action = "Snask2" }
-
-print(n2:GetType(), n2:GetAction(), n2:GetId())
-
-for f in n1:IterInputFiles() do
-	print(f)
-end
-
-print(util.tostring(n1:GetInputFiles()))
-
-for f in n1:IterOutputFiles() do
-	print(f)
-end
-
-n1:AddDependency(n2, n3)
-
-gb:Save("c:\\temp\\graphcache.txt")
-
-local gb2 = g.New()
-gb2:Load("c:\\temp\\graphcache.txt")
+RunBuildScript("tundra.lua")

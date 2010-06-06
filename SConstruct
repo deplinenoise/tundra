@@ -25,4 +25,4 @@ env.Append(CFLAGS=flags)
 env.Append(CPPFLAGS=flags)
 
 env.Append(CPPPATH='#lua/src')
-env.Program('tundra', Glob('src/*.c') + Glob('src/*.cpp') + ['lua/src/luacpp.cpp'])
+env.Program('tundra', Glob('src/*.c') + Glob('lua/src/*.c']))

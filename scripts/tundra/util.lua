@@ -38,10 +38,10 @@ function tostring(value)
 	return str
 end
 
-function map(table, fn)
+function map(t, fn)
 	local result = {}
-	for _, v in ipairs(table) do
-		result[#result+1] = fn(v)
+	for idx = 1, #t do
+		result[idx] = fn(t[idx])
 	end
 	return result
 end
@@ -264,4 +264,26 @@ function NilIPairs(t)
 	else
 		return ReturnNil
 	end
+end
+
+function ClearTable(tab)
+	local key, val = next(tab)
+	while key do
+		tab[key] = nil
+		key, val = next(tab, key)
+	end
+	return tab
+end
+
+function FilterInPlace(tab, predicate)
+	local i, limit = 1, #tab
+	while i <= limit do
+		if not predicate(tab[i]) then
+			table.remove(tab, i)
+			limit = limit - 1
+		else
+			i = i + 1
+		end
+	end
+	return tab
 end
