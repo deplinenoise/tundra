@@ -230,12 +230,28 @@ end
 
 function MergeArrays(...)
 	local result = {}
-	for _, t in ipairs({...}) do
-		for _, v in ipairs(t) do
-			result[#result + 1] = v
+	local count = #...
+	for i = 1, count do
+		local tab = select(i, ...)
+		if tab then
+			for _, v in ipairs(tab) do
+				result[#result + 1] = v
+			end
 		end
 	end
 	return result
+end
+
+function MergeArrays2(a, b)
+	if a and b then
+		return MergeArrays(a, b)
+	elseif a then
+		return a
+	elseif b then
+		return b
+	else
+		return {}
+	end
 end
 
 function MatchesAny(str, patterns)
@@ -286,4 +302,12 @@ function FilterInPlace(tab, predicate)
 		end
 	end
 	return tab
+end
+
+function AppendTable(result, items)
+	local offset = #result
+	for i = 1, #items do
+		result[offset + i] = items[i]
+	end
+	return result
 end

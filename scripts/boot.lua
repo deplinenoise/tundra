@@ -83,6 +83,9 @@ DefaultEnvironment:SetMany {
 	["PROGSUFFIX"] = ".exe",
 	["PROGFLAGS"] = "",
 	["PROGCOM"] = "$(CC) -o $(@) $(PROGFLAGS) $(<)",
+	["CSC"] = "csc.exe",
+	["CSCFLAGS"] = "/nologo /optimize+ /debug- /warn:4",
+	["CSCEXECOM"] = "$(CSC) /out:$(@) /target:exe $(CSCFLAGS) $(<)",
 }
 
 -- Initialize tools

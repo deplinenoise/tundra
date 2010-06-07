@@ -2,6 +2,13 @@ local depgraph = require("tundra.depgraph")
 local util = require("tundra.util")
 local path = require("tundra.path")
 
+local function MakeCppScanner(env, fn)
+	return {
+		Type = "cpp",
+		IncludePaths = util.map(env:GetList("CPPPATH"), function (v) env:Interpolate(v) end),
+	}
+end
+
 do
 	local cc_compile = function(env, args)
 		local function GetObjectFilename(fn)
@@ -13,9 +20,12 @@ do
 		local object_fn = GetObjectFilename(fn)
 		local node = env:MakeNode {
 			Label = 'Cc $(@)',
+			Pass = args.Pass,
 			Action = "$(CCCOM)",
 			InputFiles = { fn },
 			OutputFiles = { object_fn },
+			Scanner = MakeCppScanner(env, fn),
+			Dependencies = args.Dependencies,
 		}
 		return node
 	end
@@ -37,39 +47,78 @@ DefaultEnvironment.Make.Object = function(env, args)
 	return implicitMake(env, args)
 end
 
-DefaultEnvironment.Make.Library = function (env, args)
-	assert(env, "No environment")
-	assert(args, "No args")
-	local name = util.GetNamedArg(args, "Name")
-	local sources = util.GetNamedArg(args, "Sources")
-	local objects = util.map(sources, function(fn) return env.Make.Object { fn } end)
-	assert(#sources == #objects)
+
+-- Analyze source list, returning list of input files and list of dependencies.
+--
+-- This is so you can pass a mix of actions producing files and regular
+-- filenames as inputs to the next step in the chain and the output files of
+-- such nodes will be used automatically.
+--
+-- list - list of source files and nodes that produce source files
+-- suffixes - acceptable source suffixes to pick up from nodes in source list
+-- transformer (optional) - transformer function to make nodes from plain filse
+--
+local function AnalyzeSources(list, suffixes, transformer)
+	if type(list) ~= "table" or #list < 1 then
+		error("no sources provided")
+	end
+
+	local inputs = {}
+	local deps = {}
+
+	for _, src in ipairs(list) do
+		if type(src) == "string" then
+			if transformer then
+				src = transformer(src)
+			end
+		end
+
+		if type(src) == "table" then
+			assert(depgraph.IsNode(src))
+			local outFiles = depgraph.SpliceOutputsSingle(src, suffixes)
+			util.AppendTable(inputs, outFiles)
+			table.insert(deps, src)
+		else
+			table.insert(inputs, src)
+		end
+	end
+
+	return inputs, deps
+end
+
+local function LinkCommon(env, args, label, action, suffix)
+	local inputs, deps = AnalyzeSources(args.Sources, { env:Get("OBJECTSUFFIX") },
+	function(fn) print("objectifying " .. fn); return env.Make.Object { fn } end)
 	local libnode = env:MakeNode {
-		Label = "Library $(@)",
-		Action = "$(LIBCOM)",
-		Dependencies = objects,
-		InputFiles = depgraph.SpliceOutputs(objects, { env:Get("OBJECTSUFFIX") }),
-		OutputFiles = { name .. '$(LIBSUFFIX)' }
+		Label = label .. " $(@)",
+		Pass = args.Pass,
+		Action = action,
+		InputFiles = inputs,
+		OutputFiles = { util.GetNamedArg(args, "Target") .. suffix },
+		Dependencies = util.MergeArrays2(deps, args.Dependencies),
 	}
 	return libnode
 end
 
+DefaultEnvironment.Make.Library = function (env, args)
+	return LinkCommon(env, args, "Library", "$(LIBCOM)", "$(LIBSUFFIX)")
+end
+
 DefaultEnvironment.Make.Program = function (env, args)
-	assert(env, "No environment")
-	assert(args, "No args")
-	local name = util.GetNamedArg(args, "Name")
-	local sources = util.GetNamedArg(args, "Sources")
-	if #sources < 1 then
-		error(string.format("no sources for program %s provided", name))
-	end
-	local objects = util.map(sources, function(fn) return env.Make.Object { fn } end)
-	assert(#sources == #objects)
+	return LinkCommon(env, args, "Program", "$(PROGCOM)", "$(PROGSUFFIX)")
+end
+
+local csSourceExts = { ".cs" }
+
+DefaultEnvironment.Make.CSharpExe = function (env, args)
+	local inputs, deps = AnalyzeSources(args.Sources, csSourceExts)
 	return env:MakeNode {
-		Label = "Program $(@)",
-		Action = "$(PROGCOM)",
-		Dependencies = objects,
-		InputFiles = depgraph.SpliceOutputs(objects, { env:Get("OBJECTSUFFIX"), env:Get("LIBSUFFIX") }),
-		OutputFiles = { name .. '$(PROGSUFFIX)' }
+		Pass = args.Pass,
+		Label = "C# Exe $(@)",
+		Action = "$(CSCEXECOM)",
+		InputFiles = inputs,
+		OutputFiles = { util.GetNamedArg(args, "Target") },
+		Dependencies = util.MergeArrays2(deps, args.Dependencies),
 	}
 end
 

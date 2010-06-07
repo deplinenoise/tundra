@@ -6,15 +6,19 @@ local path = require("tundra.path")
 local Node = {}
 local NodeMeta = { __index = Node }
 
+local default_pass = { Name = "Default", BuildOrder = 100000 }
+
 function CreateNode(env_, data_)
 	assert(env_)
 	local node = setmetatable({
 		env = env_,
+		pass = data_.Pass or default_pass,
 		deps = {},
 	}, NodeMeta)
 
 	node.inputs = util.mapnil(data_.InputFiles, function (x) return path.NormalizePath(env_:Interpolate(x)) end)
 	node.outputs = util.mapnil(data_.OutputFiles, function (x) return path.NormalizePath(env_:Interpolate(x)) end)
+	node.scanner = data_.Scanner
 
 	local expand_env = {
 		['<'] = node.inputs,
@@ -51,6 +55,7 @@ function Node:GetAction()
 end
 
 function Node:AddDependency(dep)
+	assert(IsNode(dep))
 	for _, old_dep in ipairs(self.deps) do
 		if old_dep == dep then
 			return
@@ -80,6 +85,34 @@ end
 
 function Node:GetEnvironment()
 	return self.env
+end
+
+function IsNode(obj)
+	return obj and getmetatable(obj) == NodeMeta
+end
+
+function SpliceOutputsSingle(node, exts)
+	local result = {}
+	local o = node:GetOutputFiles()
+	if o then
+		for _, output in ipairs(o) do
+			table.insert(result, output)
+		end
+	end
+
+	if exts then
+		util.FilterInPlace(result, function (fn)
+			local ext = path.GetExtension(fn)
+			for idx = 1, #exts do
+				if ext == exts[idx] then
+					return true
+				end
+			end
+			return false
+		end)
+	end
+
+	return result
 end
 
 function SpliceOutputs(nodes, exts)
