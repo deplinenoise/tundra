@@ -14,8 +14,7 @@ do
 		local function GetObjectFilename(fn)
 			return '$(OBJECTDIR)/' .. path.DropSuffix(fn) .. '$(OBJECTSUFFIX)'
 		end
-		assert(type(args) == "table", "expected single source file")
-		local fn = assert(args[1], "expected c source file")
+		local fn = args.Source
 		assert(type(fn) == "string", "argument must be a string")
 		local object_fn = GetObjectFilename(fn)
 		local node = env:MakeNode {
@@ -35,8 +34,7 @@ do
 end
 
 DefaultEnvironment.Make.Object = function(env, args)
-	assert(type(args) == "table" and #args == 1, "Object expects a single source node")
-	local input = args[1]
+	local input = args.Source
 
 	-- Allow premade objects to be passed here to e.g. Library's Sources list
 	if type(input) == "table" then
@@ -87,8 +85,10 @@ local function AnalyzeSources(list, suffixes, transformer)
 end
 
 local function LinkCommon(env, args, label, action, suffix)
-	local inputs, deps = AnalyzeSources(args.Sources, { env:Get("OBJECTSUFFIX") },
-	function(fn) print("objectifying " .. fn); return env.Make.Object { fn } end)
+	local function obj_hook(fn)
+		return env.Make.Object { Source = fn, Pass = args.Pass }
+	end
+	local inputs, deps = AnalyzeSources(args.Sources, { env:Get("OBJECTSUFFIX") }, obj_hook)
 	local libnode = env:MakeNode {
 		Label = label .. " $(@)",
 		Pass = args.Pass,

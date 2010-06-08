@@ -136,18 +136,22 @@ function Glob(directory, pattern)
 	return result
 end
 
-function Build(node)
-	local function PrintTree(n, level)
-		local indent = string.rep("    ", level)
-		printf("%s=> %s", indent, n:GetAnnotation())
-		printf("%scmd: %s", indent, n:GetAction())
-		for _, fn in util.NilIPairs(n:GetInputFiles()) do printf("%s   [ input: %s ]", indent, fn) end
-		for _, fn in util.NilIPairs(n:GetOutputFiles()) do printf("%s   [ output: %s ]", indent, fn) end
-		for _, dep in util.NilIPairs(n:GetDependencies()) do
-			PrintTree(dep, level + 1)
-		end
+local function PrintTree(n, level)
+	if not level then level = 0 end
+	local indent = string.rep("    ", level)
+	printf("%s=> %s [pass: %s]", indent, n:GetAnnotation(), n.pass.Name)
+	printf("%scmd: %s", indent, n:GetAction())
+	for _, fn in util.NilIPairs(n:GetInputFiles()) do printf("%s   [ input: %s ]", indent, fn) end
+	for _, fn in util.NilIPairs(n:GetOutputFiles()) do printf("%s   [ output: %s ]", indent, fn) end
+	for _, dep in util.NilIPairs(n:GetDependencies()) do
+		PrintTree(dep, level + 1)
 	end
-	PrintTree(node, 0)
+end
+
+function Build(node)
+	if Options.Verbose then
+		PrintTree(node)
+	end
 end
 
 RunBuildScript("tundra.lua")
