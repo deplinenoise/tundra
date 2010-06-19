@@ -2,16 +2,22 @@
 #include <lua.h>
 #include <lauxlib.h>
 
+#include <string.h>
 #include <assert.h>
 #include <stdio.h>
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__APPLE__) || defined(linux)
+#include <sys/stat.h>
+#include <dirent.h>
+#else
+#error jaha du
 #endif
 
+#ifdef _WIN32
 static void scan_directory(lua_State* L, const char* path)
 {
-#ifdef _WIN32
 	int i;
 	HANDLE h;
 	WIN32_FIND_DATAA find_data;
@@ -53,8 +59,62 @@ static void scan_directory(lua_State* L, const char* path)
 
 	if (!FindClose(h))
 		luaL_error(L, "%s: couldn't close file handle: %d", path, GetLastError());
-#endif
 }
+#endif
+
+#if defined(__APPLE__) || defined(linux)
+static void scan_directory(lua_State* L, const char* path)
+{
+	char full_fn[512];
+	DIR* dir;
+	struct stat statbuf;
+	struct dirent entry;
+	struct dirent* result;
+	const size_t path_len = strlen(path);
+
+	if (!(dir = opendir(path)))
+		return;
+
+	if (path_len + 1 > sizeof(full_fn))
+	{
+		fprintf(stderr, "%s: path\n", path);
+		return;
+	}
+
+	strcpy(full_fn, path);
+
+	lua_newtable(L);
+	lua_newtable(L);
+
+	while (0 == readdir_r(dir, &entry, &result) && result)
+	{
+		if (0 == strcmp(".", entry.d_name) || 0 == strcmp("..", entry.d_name))
+			continue;
+
+		if (strlen(entry.d_name) + path_len + 2 >= sizeof(full_fn))
+		{
+			fprintf(stderr, "%s: name too long\n", entry.d_name);
+			continue;
+		}
+
+		full_fn[path_len] = '/';
+		strcpy(full_fn + path_len + 1, entry.d_name);
+
+		if (0 != stat(full_fn, &statbuf))
+		{
+			fprintf(stderr, "%s: couldn't stat file\n", full_fn);
+			continue;
+		}
+
+		lua_pushlstring(L, entry.d_name, entry.d_namlen);
+
+		int target_table = (S_IFDIR & statbuf.st_mode) ? -3 : -2;
+		lua_rawseti(L, target_table, (int) lua_objlen(L, target_table) + 1);
+	}
+
+	closedir(dir);
+}
+#endif
 
 enum
 {
