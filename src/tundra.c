@@ -64,6 +64,9 @@ static int init_homedir()
 		return 1;
 	if ((tmp = realpath(path, resolved_path))) 
 		return set_homedir(tmp);
+	else
+		return 1;
+
 #elif defined(linux)
 	if (-1 == readlink("/proc/self/exe", path, path_max))
 		return 1;
