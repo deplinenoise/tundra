@@ -9,6 +9,8 @@
 #ifdef _MSC_VER
 #include <windows.h>
 #define snprintf _snprintf
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
 #endif
 
 static int tundra_open(lua_State* L)
@@ -34,32 +36,44 @@ static int tundra_open(lua_State* L)
 
 static char homedir[260];
 
+static int set_homedir(const char* dir)
+{
+	strncpy(homedir, dir, sizeof homedir);
+	homedir[sizeof homedir - 1] = '\0';
+	return 0;
+}
+
 static int init_homedir()
 {
 	char* tmp;
 	if (tmp = getenv("TUNDRA_HOME"))
-	{
-		strncpy(homedir, tmp, sizeof homedir);
-		homedir[sizeof homedir - 1] = '\0';
-	}
-	else
-	{
+		return set_homedir(tmp);
+
 #if defined(_WIN32)
-		if (0 == GetModuleFileNameA(NULL, homedir, (DWORD)sizeof(homedir)))
-			return 1;
+	if (0 == GetModuleFileNameA(NULL, homedir, (DWORD)sizeof(homedir)))
+		return 1;
 
-		if ((tmp = strrchr(homedir, '\\')))
-			*tmp = 0;
-#else
-		if (-1 == readlink("/proc/self/exe", path, path_max))
-			return 1;
-
-		if ((tmp = strrchr(path, '/')))
-			*tmp = 0;
-#endif
-	}
-
+	if ((tmp = strrchr(homedir, '\\')))
+		*tmp = 0;
 	return 0;
+
+#elif defined(__APPLE__)
+	char path[1024], resolved_path[1024];
+	uint32_t size = sizeof(path);
+	if (_NSGetExecutablePath(path, &size) != 0)
+		return 1;
+	if ((tmp = realpath(path, resolved_path))) 
+		return set_homedir(tmp);
+#elif defined(linux)
+	if (-1 == readlink("/proc/self/exe", path, path_max))
+		return 1;
+
+	if ((tmp = strrchr(path, '/')))
+		*tmp = 0;
+	return 0;
+#else
+#error "unsupported platform"
+#endif
 }
 
 static int get_traceback(lua_State *L)
@@ -110,7 +124,7 @@ int main(int argc, char** argv)
 		fprintf(stderr, "%s: syntax error\n%s\n", boot_script, lua_tostring(L, -1));
 		return 1;
 	case LUA_ERRFILE:
-		fprintf(stderr, "%s: file not found", boot_script);
+		fprintf(stderr, "%s: file not found\n", boot_script);
 		return 1;
 	}
 
