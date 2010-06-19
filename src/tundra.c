@@ -13,10 +13,10 @@
 #include <mach-o/dyld.h>
 #endif
 
+extern int tundra_walk_path(lua_State*);
+
 static int tundra_open(lua_State* L)
 {
-	extern int tundra_walk_path(lua_State*);
-
 	static const luaL_Reg engine_entries[] = {
 		{ "walk_path", tundra_walk_path },
 		{ NULL, NULL }
@@ -46,14 +46,14 @@ static int set_homedir(const char* dir)
 static int init_homedir()
 {
 	char* tmp;
-	if (tmp = getenv("TUNDRA_HOME"))
+	if (NULL != (tmp = getenv("TUNDRA_HOME")))
 		return set_homedir(tmp);
 
 #if defined(_WIN32)
 	if (0 == GetModuleFileNameA(NULL, homedir, (DWORD)sizeof(homedir)))
 		return 1;
 
-	if ((tmp = strrchr(homedir, '\\')))
+	if (NULL != (tmp = strrchr(homedir, '\\')))
 		*tmp = 0;
 	return 0;
 
