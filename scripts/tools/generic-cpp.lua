@@ -73,20 +73,29 @@ local function AnalyzeSources(list, suffixes, transformer)
 		end
 
 		if native.is_node(src) then
-			src:insert_output_files(table, suffixes)
+			src:insert_output_files(inputs, suffixes)
+			deps[#deps + 1] = src
 		else
 			inputs[#inputs + 1] = src
 		end
 	end
 
+	if #inputs == 0 then
+		error("no suitable input files (" .. util.tostring(suffixes) .. ") found in list: " .. util.tostring(list))
+	end
+
 	return inputs, deps
 end
 
-local function LinkCommon(env, args, label, action, suffix)
+local function LinkCommon(env, args, label, action, suffix, suffixes)
 	local function obj_hook(fn)
 		return env.Make.Object { Source = fn, Pass = args.Pass }
 	end
-	local inputs, deps = AnalyzeSources(args.Sources, { env:Get("OBJECTSUFFIX") }, obj_hook)
+	local exts = util.map(suffixes, function (x) return env:Get(x) end)
+	if #exts == 0 then
+		error(label .. ": no extensions specified", 1)
+	end
+	local inputs, deps = AnalyzeSources(args.Sources, exts, obj_hook)
 	local libnode = env:MakeNode {
 		Label = label .. " $(@)",
 		Pass = args.Pass,
@@ -98,12 +107,14 @@ local function LinkCommon(env, args, label, action, suffix)
 	return libnode
 end
 
+local common_suffixes = { "LIBSUFFIX", "OBJECTSUFFIX" }
+
 DefaultEnvironment.Make.Library = function (env, args)
-	return LinkCommon(env, args, "Library", "$(LIBCOM)", "$(LIBSUFFIX)")
+	return LinkCommon(env, args, "Library", "$(LIBCOM)", "$(LIBSUFFIX)", common_suffixes)
 end
 
 DefaultEnvironment.Make.Program = function (env, args)
-	return LinkCommon(env, args, "Program", "$(PROGCOM)", "$(PROGSUFFIX)")
+	return LinkCommon(env, args, "Program", "$(PROGCOM)", "$(PROGSUFFIX)", common_suffixes)
 end
 
 local csSourceExts = { ".cs" }

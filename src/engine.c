@@ -226,25 +226,46 @@ build_string_array(lua_State* L, td_engine *engine, int index, int *count_out)
 	return result;
 }
 
+static const char*
+copy_string_field(lua_State* L, td_engine *engine, int index, const char *field_name)
+{
+	const char* str;
+	lua_getfield(L, index, field_name);
+	str = td_engine_strdup_lua(L, engine, -1, field_name);
+	lua_pop(L, 1);
+	return str;
+}
+
+static int
+setup_pass(lua_State* L, td_engine* engine, int index)
+{
+	int pass_index;
+
+	lua_getfield(L, index, "pass");
+	if (lua_isnil(L, -1))
+		luaL_error(L, "no pass specified");
+
+	pass_index = get_pass_index(L, engine, lua_gettop(L));
+	lua_pop(L, 1);
+
+	return pass_index;
+}
+
+
 static int
 make_node(lua_State* L)
 {
 	td_engine *self = (td_engine *) luaL_checkudata(L, 1, TUNDRA_ENGINE_MTNAME);
 	td_node *node = (td_node*) lua_newuserdata(L, sizeof(td_node));
 
-	lua_getfield(L, 2, "annotation");
-	lua_getfield(L, 2, "action");
+	node->annotation = copy_string_field(L, self, 2, "annotation");
+	node->action = copy_string_field(L, self, 2, "action");
+	node->pass_index = setup_pass(L, self, 2);
 
-	node->annotation = td_engine_strdup_lua(L, self, -2, "annotation");
-	node->action = td_engine_strdup_lua(L, self, -1, "action");
-	lua_pop(L, 2);
-
-	lua_getfield(L, 2, "pass");
-	if (lua_isnil(L, -1))
-		luaL_error(L, "no pass associated with %s", node->annotation);
-
-	node->pass_index = get_pass_index(L, self, lua_gettop(L));
-	lua_pop(L, 1);
+	if (node->annotation == strstr(node->annotation, "Program "))
+	{
+		td_debug_dump(L);
+	}
 
 	lua_getfield(L, 2, "inputs");
 	node->inputs = build_string_array(L, self, lua_gettop(L), &node->input_count);
@@ -260,21 +281,23 @@ make_node(lua_State* L)
 }
 
 /*
- * arg 1 - self (a node userdata)
- * arg 2 - array table to append results to
- * arg 3 - array table of extensions
+ * Filter a list of files by extensions, appending matches to a lua array table.
+ *
+ * file_count - #files in array
+ * files - filenames to filter
+ * lua arg 1 - self (a node userdata)
+ * lua arg 2 - array table to append results to
+ * lua arg 3 - array table of extensions
  */
 #define TD_MAX_EXTS 4 
 #define TD_EXTLEN 16 
 
 static int
-insert_output_files(lua_State* L)
+insert_file_list(lua_State* L, int file_count, const char** files)
 {
-	int i, file_count, table_size;
+	int i, table_size;
 	const int ext_count = (int) lua_objlen(L, 3);
 	char exts[TD_MAX_EXTS][TD_EXTLEN] = { { 0 } };
-
-	td_node *self = (td_node *) luaL_checkudata(L, 1, TUNDRA_NODE_MTNAME);
 
 	if (ext_count > TD_MAX_EXTS)
 		luaL_error(L, "only %d extensions supported; %d is too many", TD_MAX_EXTS, ext_count);
@@ -287,13 +310,12 @@ insert_output_files(lua_State* L)
 		exts[i][TD_EXTLEN-1] = '\0';
 	}
 
-	file_count = self->output_count;
 	table_size = (int) lua_objlen(L, 2);
 	for (i = 0; i < file_count; ++i)
 	{
 		int x;
 		const char* ext_pos;
-		const char* fn = self->outputs[i];
+		const char* fn = files[i];
 
 		ext_pos = strrchr(fn, '.');
 		if (!ext_pos)
@@ -312,6 +334,33 @@ insert_output_files(lua_State* L)
 	return 0;
 }
 
+static int
+insert_input_files(lua_State* L)
+{
+	td_node *self = (td_node *) luaL_checkudata(L, 1, TUNDRA_NODE_MTNAME);
+	return insert_file_list(L, self->input_count, self->inputs);
+}
+
+static int
+insert_output_files(lua_State* L)
+{
+	td_node *self = (td_node *) luaL_checkudata(L, 1, TUNDRA_NODE_MTNAME);
+	return insert_file_list(L, self->output_count, self->outputs);
+}
+
+static void dump_node(const td_node *n)
+{
+	int x;
+	printf("annotation: %s\n", n->annotation);
+	printf("action: %s\n", n->action);
+
+	for (x = 0; x < n->input_count; ++x)
+		printf("input %d: %s\n", x+1, n->inputs[x]);
+
+	for (x = 0; x < n->output_count; ++x)
+		printf("output %d: %s\n", x+1, n->outputs[x]);
+}
+
 /*
  * Execute actions needed to update a dependency graph.
  *
@@ -327,8 +376,10 @@ build_nodes(lua_State* L)
 	self = (td_engine *) luaL_checkudata(L, 1, TUNDRA_ENGINE_MTNAME);
 	narg = lua_gettop(L);
 
-	for (i=1; i<=narg; ++i)
+	for (i=2; i<=narg; ++i)
 	{
+		td_node *node = (td_node*) luaL_checkudata(L, i, TUNDRA_NODE_MTNAME);
+		dump_node(node);
 	}
 
 	return 0;
@@ -356,6 +407,7 @@ static const luaL_Reg engine_mt_entries[] = {
 };
 
 static const luaL_Reg node_mt_entries[] = {
+	{ "insert_input_files", insert_input_files },
 	{ "insert_output_files", insert_output_files },
 	{ NULL, NULL }
 };

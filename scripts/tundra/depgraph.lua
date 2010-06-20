@@ -9,9 +9,6 @@ local default_pass = { Name = "Default", BuildOrder = 100000 }
 function CreateNode(env_, data_)
 	local function normalize_paths(paths)
 		return util.mapnil(paths, function (x)
-			if type(x) ~= "string" then
-				error(util.tostring(x) .. " is not a valid filename", 2)
-			end
 			return path.NormalizePath(env_:Interpolate(x))
 		end)
 	end
