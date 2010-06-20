@@ -29,7 +29,7 @@ do
 		{ Name="GraphFilename", Long="dep-graph-filename", Doc="Dependency graph filename", HasValue=true },
 		{ Name="SelfTest", Long="self-test", Doc="Perform self-tests" },
 	}
-	Options, Targets, message = util.ParseCommandline(cmdline_args, option_blueprints)
+	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
 		io.write(message)
 		return 1
@@ -62,8 +62,8 @@ if Options.Verbose then
 	print("Targets:", table.concat(Targets, ", "))
 end
 
-DefaultEnvironment = environment.Create()
-DefaultEnvironment:SetMany {
+DefaultEnvironment = environment.create()
+DefaultEnvironment:set_many {
 	["RM"] = "rm -f",
 	["RMCOM"] = "$(RM) $(<)",
 	["LIBPATH"] = "",
@@ -94,7 +94,7 @@ do
 	chunk()
 end
 
-function RunBuildScript(fn)
+function run_build_script(fn)
 	local script_globals, script_globals_mt = {}, {}
 	script_globals_mt.__index = _G
 	setmetatable(script_globals, script_globals_mt)
@@ -121,16 +121,14 @@ function RunBuildScript(fn)
 	end
 end
 
--- RunBuildScript("tundra.lua")
-
 local native = require("tundra.native")
 
 native_engine = native:make_engine()
 
-function Glob(directory, pattern)
+function glob(directory, pattern)
 	local result = {}
 	for dir, dirs, files in native.walk_path(directory) do
-		util.FilterInPlace(files, function (val) return string.match(val, pattern) end)
+		util.filter_in_place(files, function (val) return string.match(val, pattern) end)
 		for _, fn in ipairs(files) do
 			table.insert(result, dir .. '/' .. fn)
 		end
@@ -138,23 +136,23 @@ function Glob(directory, pattern)
 	return result
 end
 
-local function PrintTree(n, level)
+local function print_tree(n, level)
 	if not level then level = 0 end
 	local indent = string.rep("    ", level)
-	printf("%s=> %s [pass: %s]", indent, n:GetAnnotation(), n.pass.Name)
-	printf("%scmd: %s", indent, n:GetAction())
-	for _, fn in util.NilIPairs(n:GetInputFiles()) do printf("%s   [ input: %s ]", indent, fn) end
-	for _, fn in util.NilIPairs(n:GetOutputFiles()) do printf("%s   [ output: %s ]", indent, fn) end
-	for _, dep in util.NilIPairs(n:GetDependencies()) do
-		PrintTree(dep, level + 1)
+	printf("%s=> %s [pass: %s]", indent, n:get_annotation(), n.pass.Name)
+	printf("%scmd: %s", indent, n:get_action())
+	for _, fn in util.nil_ipairs(n:get_input_files()) do printf("%s   [ input: %s ]", indent, fn) end
+	for _, fn in util.nil_ipairs(n:get_output_files()) do printf("%s   [ output: %s ]", indent, fn) end
+	for _, dep in util.nil_ipairs(n:get_dependencies()) do
+		print_tree(dep, level + 1)
 	end
 end
 
-function Build(node)
+function build(node)
 	--if Options.Verbose then
 	--	PrintTree(node)
 	--end
 	native_engine:build(node)
 end
 
-RunBuildScript("tundra.lua")
+run_build_script("tundra.lua")

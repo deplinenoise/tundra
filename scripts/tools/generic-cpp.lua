@@ -5,7 +5,7 @@ local native = require("tundra.native")
 
 local function get_cpp_scanner(env, fn)
 	local function new_scanner()
-		local paths = util.map(env:GetList("CPPPATH"), function (v) return env:Interpolate(v) end)
+		local paths = util.map(env:get_list("CPPPATH"), function (v) return env:interpolate(v) end)
 		return native_engine:make_cpp_scanner(paths)
 	end
 	return env:memoize("CPPPATH", "_cpp_scanner", new_scanner)
@@ -13,13 +13,13 @@ end
 
 do
 	local cc_compile = function(env, args)
-		local function GetObjectFilename(fn)
-			return '$(OBJECTDIR)/' .. path.DropSuffix(fn) .. '$(OBJECTSUFFIX)'
+		local function obj_fn(fn)
+			return '$(OBJECTDIR)/' .. path.drop_suffix(fn) .. '$(OBJECTSUFFIX)'
 		end
 		local fn = args.Source
 		assert(type(fn) == "string", "argument must be a string")
-		local object_fn = GetObjectFilename(fn)
-		local node = env:MakeNode {
+		local object_fn = obj_fn(fn)
+		local node = env:make_node {
 			Label = 'Cc $(@)',
 			Pass = args.Pass,
 			Action = "$(CCCOM)",
@@ -31,11 +31,11 @@ do
 		return node
 	end
 
-	DefaultEnvironment.Make.CcObject = cc_compile
-	DefaultEnvironment:RegisterImplicitMakeFn("c", cc_compile)
+	DefaultEnvironment.make.CcObject = cc_compile
+	DefaultEnvironment:register_implicit_make_fn("c", cc_compile)
 end
 
-DefaultEnvironment.Make.Object = function(env, args)
+DefaultEnvironment.make.Object = function(env, args)
 	local input = args.Source
 
 	-- Allow premade objects to be passed here to e.g. Library's Sources list
@@ -43,7 +43,7 @@ DefaultEnvironment.Make.Object = function(env, args)
 		return input
 	end
 
-	local implicitMake = env:GetImplicitMakeFn(input)
+	local implicitMake = env:get_implicit_make_fn(input)
 	return implicitMake(env, args)
 end
 
@@ -58,7 +58,7 @@ end
 -- suffixes - acceptable source suffixes to pick up from nodes in source list
 -- transformer (optional) - transformer function to make nodes from plain filse
 --
-local function AnalyzeSources(list, suffixes, transformer)
+local function analyze_sources(list, suffixes, transformer)
 	if type(list) ~= "table" or #list < 1 then
 		error("no sources provided")
 	end
@@ -88,47 +88,47 @@ local function AnalyzeSources(list, suffixes, transformer)
 	return inputs, deps
 end
 
-local function LinkCommon(env, args, label, action, suffix, suffixes)
+local function link_common(env, args, label, action, suffix, suffixes)
 	local function obj_hook(fn)
-		return env.Make.Object { Source = fn, Pass = args.Pass }
+		return env.make.Object { Source = fn, Pass = args.Pass }
 	end
-	local exts = util.map(suffixes, function (x) return env:Get(x) end)
+	local exts = util.map(suffixes, function (x) return env:get(x) end)
 	if #exts == 0 then
 		error(label .. ": no extensions specified", 1)
 	end
-	local inputs, deps = AnalyzeSources(args.Sources, exts, obj_hook)
-	local libnode = env:MakeNode {
+	local inputs, deps = analyze_sources(args.Sources, exts, obj_hook)
+	local libnode = env:make_node {
 		Label = label .. " $(@)",
 		Pass = args.Pass,
 		Action = action,
 		InputFiles = inputs,
-		OutputFiles = { util.GetNamedArg(args, "Target") .. suffix },
-		Dependencies = util.MergeArrays2(deps, args.Dependencies),
+		OutputFiles = { util.get_named_arg(args, "Target") .. suffix },
+		Dependencies = util.merge_arrays_2(deps, args.Dependencies),
 	}
 	return libnode
 end
 
 local common_suffixes = { "LIBSUFFIX", "OBJECTSUFFIX" }
 
-DefaultEnvironment.Make.Library = function (env, args)
-	return LinkCommon(env, args, "Library", "$(LIBCOM)", "$(LIBSUFFIX)", common_suffixes)
+DefaultEnvironment.make.Library = function (env, args)
+	return link_common(env, args, "Library", "$(LIBCOM)", "$(LIBSUFFIX)", common_suffixes)
 end
 
-DefaultEnvironment.Make.Program = function (env, args)
-	return LinkCommon(env, args, "Program", "$(PROGCOM)", "$(PROGSUFFIX)", common_suffixes)
+DefaultEnvironment.make.Program = function (env, args)
+	return link_common(env, args, "Program", "$(PROGCOM)", "$(PROGSUFFIX)", common_suffixes)
 end
 
 local csSourceExts = { ".cs" }
 
-DefaultEnvironment.Make.CSharpExe = function (env, args)
-	local inputs, deps = AnalyzeSources(args.Sources, csSourceExts)
-	return env:MakeNode {
+DefaultEnvironment.make.CSharpExe = function (env, args)
+	local inputs, deps = analyze_sources(args.Sources, csSourceExts)
+	return env:make_node {
 		Pass = args.Pass,
 		Label = "C# Exe $(@)",
 		Action = "$(CSCEXECOM)",
 		InputFiles = inputs,
-		OutputFiles = { util.GetNamedArg(args, "Target") },
-		Dependencies = util.MergeArrays2(deps, args.Dependencies),
+		OutputFiles = { util.get_named_arg(args, "Target") },
+		Dependencies = util.merge_arrays_2(deps, args.Dependencies),
 	}
 end
 

@@ -11,18 +11,17 @@ are always kept as tables, even if there is only a single value.
 
 FOO = { a b c }
 
-e:Interpolate("$(FOO)") -> "a b c"
-e:Interpolate("$(FOO:j=, )") -> "a, b, c"
-e:Interpolate("$(FOO:p=-I)") -> "-Ia -Ib -Ic"
+e:interpolate("$(FOO)") -> "a b c"
+e:interpolate("$(FOO:j=, )") -> "a, b, c"
+e:interpolate("$(FOO:p=-I)") -> "-Ia -Ib -Ic"
 
 Missing keys trigger errors unless a default value is specified.
 
 ]==]--
 
-local Environment = {
-}
+local envclass = {}
 
-function Environment:Create(parent, assignments, obj)
+function envclass:create(parent, assignments, obj)
 	obj = obj or {}
 	setmetatable(obj, self)
 	self.__index = self
@@ -32,26 +31,26 @@ function Environment:Create(parent, assignments, obj)
 	obj.memos = {}
 	obj.memo_keys = {}
 
-	-- Set up the table of make functions
+	-- set up the table of make functions
 	obj._make = {} 
-	obj.Make = setmetatable({}, {
+	obj.make = setmetatable({}, {
 		__index = function(table, key) return obj:_lookup_make(key) end,
-		__newindex = function(table, key, value) obj:RegisterMakeFn(key, value) end
+		__newindex = function(table, key, value) obj:register_make_fn(key, value) end
 	})
 
-	-- Assign initial bindings
+	-- assign initial bindings
 	if assignments then
-		obj:SetMany(assignments)
+		obj:set_many(assignments)
 	end
 
 	return obj
 end
 
-function Environment:Clone(assignments)
-	return Environment:Create(self, assignments)
+function envclass:clone(assignments)
+	return envclass:create(self, assignments)
 end
 
-function Environment:_lookup_make(name, real_env)
+function envclass:_lookup_make(name, real_env)
 	real_env = real_env or self
 	local entry = self._make[name]
 	if entry then
@@ -67,7 +66,7 @@ function Environment:_lookup_make(name, real_env)
 	end
 end
 
-function Environment:RegisterMakeFn(name, fn, docstring)
+function envclass:register_make_fn(name, fn, docstring)
 	assert(type(name) == "string")
 	assert(type(fn) == "function")
 	self._make[name] = {
@@ -77,7 +76,7 @@ function Environment:RegisterMakeFn(name, fn, docstring)
 	}
 end
 
-function Environment:RegisterImplicitMakeFn(ext, fn, docstring)
+function envclass:register_implicit_make_fn(ext, fn, docstring)
 	assert(type(ext) == "string")
 	assert(type(fn) == "function")
 	if not ext:match("^%.") then
@@ -93,8 +92,8 @@ function Environment:RegisterImplicitMakeFn(ext, fn, docstring)
 	}
 end
 
-function Environment:GetImplicitMakeFn(filename)
-	local ext = path.GetExtension(filename)
+function envclass:get_implicit_make_fn(filename)
+	local ext = path.get_extension(filename)
 	local chain = self
 	while chain do
 		local t = chain._implicit_exts
@@ -107,26 +106,26 @@ function Environment:GetImplicitMakeFn(filename)
 	error(string.format("%s: no implicit make function for ext %s", filename, ext), 2)
 end
 
-function Environment:HasKey(key)
+function envclass:has_key(key)
 	return self.vars[key] and true or false
 end
 
-function Environment:GetVars()
+function envclass:get_vars()
 	return self.vars
 end
 
-function Environment:SetMany(table)
+function envclass:set_many(table)
 	for k, v in pairs(table) do
-		self:Set(k, v)
+		self:set(k, v)
 	end
 end
 
-function Environment:Append(key, value)
+function envclass:append(key, value)
 	self:invalidate_memos(key)
-	local t = self:GetList(key, 1)
+	local t = self:get_list(key, 1)
 	local result
 	if type(t) == "table" then
-		result = util.CloneArray(t)
+		result = util.clone_array(t)
 		table.insert(result, value)
 	else
 		result = { value }
@@ -134,12 +133,12 @@ function Environment:Append(key, value)
 	self.vars[key] = result
 end
 
-function Environment:Prepend(key, value)
+function envclass:prepend(key, value)
 	self:invalidate_memos(key)
-	local t = self:GetList(key, 1)
+	local t = self:get_list(key, 1)
 	local result
 	if type(t) == "table" then
-		result = util.CloneArray(t)
+		result = util.clone_array(t)
 		table.insert(result, 1, value)
 	else
 		result = { value }
@@ -147,7 +146,7 @@ function Environment:Prepend(key, value)
 	self.vars[key] = result
 end
 
-function Environment:invalidate_memos(key)
+function envclass:invalidate_memos(key)
 	local name_tab = self.memo_keys[key]
 	if name_tab then
 		for name, _ in pairs(name_tab) do
@@ -156,15 +155,15 @@ function Environment:invalidate_memos(key)
 	end
 end
 
-function Environment:Set(key, value)
+function envclass:set(key, value)
 	self:invalidate_memos(key)
-	assert(key:len() > 0, "Key must not be empty")
-	assert(type(key) == "string", "Key must be a string")
+	assert(key:len() > 0, "key must not be empty")
+	assert(type(key) == "string", "key must be a string")
 	if type(value) == "string" then
 		if value:len() > 0 then
 			self.vars[key] = { value }
 		else
-			-- Let empty strings make empty tables
+			-- let empty strings make empty tables
 			self.vars[key] = {}
 		end
 	elseif type(value) == "table" then
@@ -174,47 +173,47 @@ function Environment:Set(key, value)
 				error("key " .. key .. "'s table value contains non-string value " .. tostring(v))
 			end
 		end
-		self.vars[key] = util.CloneArray(value)
+		self.vars[key] = util.clone_array(value)
 	else
 		error("key " .. key .. "'s value is neither table nor string: " .. tostring(value))
 	end
 end
 
-function Environment:GetId()
+function envclass:get_id()
 	return self.id
 end
 
-function Environment:Get(key, default)
+function envclass:get(key, default)
 	local v = self.vars[key]
 	if v then
 		return table.concat(v, " ")
 	elseif self.parent then
-		return self.parent:Get(key, default)
+		return self.parent:get(key, default)
 	elseif default then
 		return default
 	else
-		error(string.format("Key '%s' not present in environment", key))
+		error(string.format("key '%s' not present in environment", key))
 	end
 end
 
-function Environment:GetList(key, default)
+function envclass:get_list(key, default)
 	local v = self.vars[key]
 	if v then
 		return v -- FIXME: this should be immutable from the outside
 	elseif self.parent then
-		return self.parent:GetList(key, default)
+		return self.parent:get_list(key, default)
 	elseif default then
 		return default
 	else
-		error(string.format("Key '%s' not present in environment", key))
+		error(string.format("key '%s' not present in environment", key))
 	end
 end
 
-function Environment:GetParent()
+function envclass:get_parent()
 	return self.parent
 end
 
-function Environment:Interpolate(str, vars)
+function envclass:interpolate(str, vars)
 	assert(type(str) == "string")
 	assert(not vars or type(vars) == "table")
 
@@ -252,7 +251,7 @@ function Environment:Interpolate(str, vars)
 
 		-- Then the environment dictionary
 		if not v then
-			v = self:GetList(name) -- this will never return nil
+			v = self:get_list(name) -- this will never return nil
 		else
 			if type(v) ~= 'table' then
 				v = { v }
@@ -293,27 +292,27 @@ function Environment:Interpolate(str, vars)
 		end
 	end
 
-	io.stderr:write("Couldn't interpolate \"", str, "\"\n")
-	io.stderr:write("Environment:\n")
+	io.stderr:write("couldn't interpolate \"", str, "\"\n")
+	io.stderr:write("env:\n")
 	for k, v in pairs(self.vars) do
 		io.stderr:write(string.format("%20s = \"%s\"\n", k, v))
 	end
-	io.stderr:write("Vars:\n")
+	io.stderr:write("vars:\n")
 	for k, v in pairs(vars) do
 		io.stderr:write(string.format("%20s = %s\n", util.tostring(k), util.tostring(v)))
 	end
-	error("Couldn't interpolate string " .. str) 
+	error("couldn't interpolate string " .. str) 
 end
 
-function Environment:MakeNode(values)
-	return depgraph.CreateNode(self, values)
+function envclass:make_node(values)
+	return depgraph.create_node(self, values)
 end
 
-function Create(parent, assignments, obj)
-	return Environment:Create(parent, assignments, obj)
+function create(parent, assignments, obj)
+	return envclass:create(parent, assignments, obj)
 end
 
-function Environment:record_memo_var(key, name)
+function envclass:record_memo_var(key, name)
 	local tab = self.memo_keys[key]
 	if not tab then
 		tab = {}
@@ -322,7 +321,7 @@ function Environment:record_memo_var(key, name)
 	tab[name] = true
 end
 
-function Environment:memoize(key, name, fn)
+function envclass:memoize(key, name, fn)
 	local memo = self.memos[name]
 	if not memo then 
 		self:record_memo_var(key, name)

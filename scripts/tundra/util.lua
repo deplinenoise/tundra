@@ -54,7 +54,7 @@ function mapnil(table, fn)
 	end
 end
 
-function GetNamedArg(tab, name, context)
+function get_named_arg(tab, name, context)
 	local v = tab[name]
 	if v then
 		return v
@@ -67,7 +67,7 @@ function GetNamedArg(tab, name, context)
 	end
 end
 
-function ParseCommandline(args, blueprint)
+function parse_cmdline(args, blueprint)
 	local index, max = 2, #args
 	local options, targets = {}, {}
 	local lookup = {}
@@ -212,7 +212,7 @@ function SerializeCycle(stream, name, d, state, is_local)
 	end
 end
 
-function CloneTable(t)
+function clone_table(t)
 	local r = {}
 	for k, v in pairs(t) do
 		r[k] = v
@@ -220,7 +220,7 @@ function CloneTable(t)
 	return r
 end
 
-function CloneArray(t)
+function clone_array(t)
 	local r = {}
 	for k, v in ipairs(t) do
 		r[k] = v
@@ -228,7 +228,7 @@ function CloneArray(t)
 	return r
 end
 
-function MergeArrays(...)
+function merge_arrays(...)
 	local result = {}
 	local count = #...
 	for i = 1, count do
@@ -242,9 +242,9 @@ function MergeArrays(...)
 	return result
 end
 
-function MergeArrays2(a, b)
+function merge_arrays_2(a, b)
 	if a and b then
-		return MergeArrays(a, b)
+		return merge_arrays(a, b)
 	elseif a then
 		return a
 	elseif b then
@@ -254,7 +254,7 @@ function MergeArrays2(a, b)
 	end
 end
 
-function MatchesAny(str, patterns)
+function matches_any(str, patterns)
 	for _, pattern in ipairs(patterns) do
 		if str:match(pattern) then
 			return true
@@ -263,26 +263,26 @@ function MatchesAny(str, patterns)
 	return false
 end
 
-function ReturnNil()
+function return_nil()
 end
 
-function NilPairs(t)
+function nil_pairs(t)
 	if t then
 		return next, t
 	else
-		return ReturnNil
+		return return_nil
 	end
 end
 
-function NilIPairs(t)
+function nil_ipairs(t)
 	if t then
 		return ipairs(t)
 	else
-		return ReturnNil
+		return return_nil
 	end
 end
 
-function ClearTable(tab)
+function clear_table(tab)
 	local key, val = next(tab)
 	while key do
 		tab[key] = nil
@@ -291,7 +291,7 @@ function ClearTable(tab)
 	return tab
 end
 
-function FilterInPlace(tab, predicate)
+function filter_in_place(tab, predicate)
 	local i, limit = 1, #tab
 	while i <= limit do
 		if not predicate(tab[i]) then
@@ -304,7 +304,7 @@ function FilterInPlace(tab, predicate)
 	return tab
 end
 
-function AppendTable(result, items)
+function append_table(result, items)
 	local offset = #result
 	for i = 1, #items do
 		result[offset + i] = items[i]

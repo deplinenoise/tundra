@@ -1,6 +1,6 @@
 module(..., package.seeall)
 
-function SplitPath(fn)
+function split(fn)
 	local dir, file = fn:match("^(.*)[/\\]([^\\/]*)$")
 	if not dir then
 		return ".", fn
@@ -9,7 +9,7 @@ function SplitPath(fn)
 	end
 end
 
-function NormalizePath(fn)
+function normalize(fn)
 	local pieces = {}
 	for piece in string.gmatch(fn, "[^/\\]+") do
 		if piece == ".." then
@@ -23,23 +23,23 @@ function NormalizePath(fn)
 	return table.concat(pieces, '/')
 end
 
-function JoinPath(dir, fn)
-	return engine.NormalizePath(dir, fn)
+function join(dir, fn)
+	return normalize(dir .. '/' .. fn)
 end
 
-function GetFilenameDir(fn)
-	return select(2, SplitPath(fn))
+function get_filename_dir(fn)
+	return select(2, split(fn))
 end
 
-function GetExtension(fn)
+function get_extension(fn)
 	return fn:match("(%.[^.]+)$") or ""
 end
 
-function DropSuffix(fn)
+function drop_suffix(fn)
 	return fn:match("^([^.]*)%.[^.]+") or fn
 end
 
-function GetFilenameBase(fn)
+function get_filename_base(fn)
 	assert(fn, "nil filename")
 	local _,_,stem = fn:find("([^/\\]+)%.[^.]*$")
 	if stem then return stem end
