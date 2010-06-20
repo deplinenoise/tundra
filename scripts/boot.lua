@@ -125,6 +125,8 @@ end
 
 local native = require("tundra.native")
 
+native_engine = native:make_engine()
+
 function Glob(directory, pattern)
 	local result = {}
 	for dir, dirs, files in native.walk_path(directory) do
@@ -149,9 +151,10 @@ local function PrintTree(n, level)
 end
 
 function Build(node)
-	if Options.Verbose then
-		PrintTree(node)
-	end
+	--if Options.Verbose then
+	--	PrintTree(node)
+	--end
+	native_engine:build(node)
 end
 
 RunBuildScript("tundra.lua")

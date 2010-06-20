@@ -1,6 +1,7 @@
 local depgraph = require("tundra.depgraph")
 local util = require("tundra.util")
 local path = require("tundra.path")
+local native = require("tundra.native")
 
 local function MakeCppScanner(env, fn)
 	return {
@@ -71,13 +72,10 @@ local function AnalyzeSources(list, suffixes, transformer)
 			end
 		end
 
-		if type(src) == "table" then
-			assert(depgraph.IsNode(src))
-			local outFiles = depgraph.SpliceOutputsSingle(src, suffixes)
-			util.AppendTable(inputs, outFiles)
-			table.insert(deps, src)
+		if native.is_node(src) then
+			src:insert_output_files(table, suffixes)
 		else
-			table.insert(inputs, src)
+			inputs[#inputs + 1] = src
 		end
 	end
 

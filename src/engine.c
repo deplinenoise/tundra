@@ -3,36 +3,60 @@
 #include <lauxlib.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <assert.h>
 
-struct td_node;
+#include "debug.h"
+
+#define TUNDRA_ENGINE_MTNAME "tundra_engine"
+#define TUNDRA_NODE_MTNAME "tundra_node"
+
+struct td_node_tag;
 struct td_pass;
 struct td_job;
 
-typedef int (*td_scanner_func)(const struct td_node *n, struct td_job *job);
+typedef int (*td_scanner_func)(const struct td_node_tag *n, struct td_job *job);
 
 enum
 {
-	TD_STRING_PAGE_SIZE = 65536,
+	TD_STRING_PAGE_SIZE = 1024*1024,
 	TD_STRING_PAGE_MAX = 100,
 	TD_PASS_MAX = 32
 };
 
+static void
+croak(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
+}
+
 struct td_scanner
 {
-	int (*scan)(struct td_node *node);
+	int (*scan)(struct td_node_tag *node);
 };
 
-struct td_node
+typedef struct td_node_tag
 {
-	const char *label;
+	const char *annotation;
 	const char *action;
+
+	int input_count;
+	const char **inputs;
+
+	int output_count;
+	const char **outputs;
+
 	int pass_index;
 
 	const struct td_scanner *scanner;
 
 	int dep_count;
 	struct td_node *deps;
-};
+} td_node;
 
 struct td_pass
 {
@@ -40,58 +64,107 @@ struct td_pass
 	int build_order;
 };
 
-struct td_engine
+typedef struct td_engine_tag
 {
-	lua_State* L;
+	int magic_value;
 	int page_index;
 	int page_left;
 	char* pages[TD_STRING_PAGE_MAX];
 
 	int pass_count;
 	struct td_pass passes[TD_PASS_MAX];
-};
+} td_engine;
 
-static char *
-td_engine_strdup(struct td_engine *engine, const char* str, size_t len)
+static void*
+td_engine_alloc(td_engine *engine, size_t size)
 {
-	int left, page;
-	char *addr;
-	lua_State* L = engine->L;
+	int left = engine->page_left;
+	int page = engine->page_index;
+	char* addr;
 
-	left = engine->page_left;
-	page = engine->page_index;
-
-	if (left < len)
+	if (left < (int) size)
 	{
 		if (page == TD_STRING_PAGE_MAX)
-			luaL_error(L, "out of string page memory");
+			croak("out of string page memory");
 
 		page = engine->page_index = page + 1;
 		left = engine->page_left = TD_STRING_PAGE_SIZE;
 		engine->pages[page] = malloc(TD_STRING_PAGE_SIZE);
 		if (!engine->pages[page])
-			luaL_error(L, "out of memory allocating string page");
+			croak("out of memory allocating string page");
 	}
 
 	addr = engine->pages[page] + TD_STRING_PAGE_SIZE - left;
-	memcpy(addr, str, len + 1);
-	engine->page_index -= (int) len + 1;
+	engine->page_left -= (int) size;
 	return addr;
 }
 
 static char *
-td_engine_strdup_lua(struct td_engine *engine, int index)
+td_engine_strdup(td_engine *engine, const char* str, size_t len)
+{
+	char *addr = (char*) td_engine_alloc(engine, len + 1);
+
+	memcpy(addr, str, len);
+
+	/* rather than copying len+1, explicitly store a nul byte so strdup can
+	 * work for substrings too. */
+	addr[len] = '\0';
+
+	return addr;
+}
+
+static int make_engine(lua_State* L)
+{
+	td_engine* self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
+	memset(self, 0, sizeof(td_engine));
+	self->magic_value = 0xcafebabe;
+	luaL_getmetatable(L, TUNDRA_ENGINE_MTNAME);
+	lua_setmetatable(L, -2);
+	return 1;
+}
+
+static int engine_gc(lua_State* L)
+{
+	int p;
+	td_engine *self;
+   
+	self = (td_engine *) luaL_checkudata(L, 1, TUNDRA_ENGINE_MTNAME);
+
+	if (self->magic_value != 0xcafebabe)
+		luaL_error(L, "illegal userdatum; magic value check fails");
+
+	for (p = self->page_index; p >= 0; --p)
+	{
+		char* page = self->pages[p];
+		if (page)
+		{
+#ifndef NDEBUG
+			memset(page, 0xdd, TD_STRING_PAGE_SIZE);
+#endif
+			free(page);
+			self->pages[p] = NULL;
+		}
+	}
+
+	self->magic_value = 0xdeadbeef;
+
+	return 0;
+}
+
+static char *
+td_engine_strdup_lua(lua_State* L, td_engine *engine, int index, const char *context)
 {
 	const char *str;
 	size_t len;
-	str = lua_tolstring(engine->L, index, &len);
+	str = lua_tolstring(L, index, &len);
+	if (!str)
+		luaL_error(L, "%s: expected a string", context);
 	return td_engine_strdup(engine, str, len);
 }
 
 static int
-get_pass_index(struct td_engine* engine, int index)
+get_pass_index(lua_State* L, td_engine* engine, int index)
 {
-	lua_State* L = engine->L;
 	int build_order, i, e;
 	size_t name_len;
 	const char* name;
@@ -130,25 +203,113 @@ get_pass_index(struct td_engine* engine, int index)
 	return i;
 }
 
-
-static void
-make_node(struct td_engine *engine, int index, struct td_node *output)
+static const char **
+build_string_array(lua_State* L, td_engine *engine, int index, int *count_out)
 {
-	lua_State* L = engine->L;
+	int i;
+	const int count = (int) lua_objlen(L, index);
+	const char **result;
 
-	lua_getfield(L, index, "Label");
-	output->label = td_engine_strdup_lua(engine, -1);
-	lua_pop(L, 1);
+	*count_out = count;
+	if (!count)
+		return NULL;
+   
+	result = (const char **) td_engine_alloc(engine, sizeof(const char*) * index);
 
-	lua_getfield(L, index, "Action");
-	output->label = td_engine_strdup_lua(engine, -1);
-	lua_pop(L, 1);
+	for (i = 0; i < count; ++i)
+	{
+		lua_rawgeti(L, index, i+1);
+		result[i] = td_engine_strdup_lua(L, engine, -1, "string array");
+		lua_pop(L, 1);
+	}
 
-	lua_getfield(L, index, "Pass");
+	return result;
+}
+
+static int
+make_node(lua_State* L)
+{
+	td_engine *self = (td_engine *) luaL_checkudata(L, 1, TUNDRA_ENGINE_MTNAME);
+	td_node *node = (td_node*) lua_newuserdata(L, sizeof(td_node));
+
+	lua_getfield(L, 2, "annotation");
+	lua_getfield(L, 2, "action");
+
+	node->annotation = td_engine_strdup_lua(L, self, -2, "annotation");
+	node->action = td_engine_strdup_lua(L, self, -1, "action");
+	lua_pop(L, 2);
+
+	lua_getfield(L, 2, "pass");
 	if (lua_isnil(L, -1))
-		luaL_error(L, "no pass associated with %s", output->label);
+		luaL_error(L, "no pass associated with %s", node->annotation);
 
-	output->pass_index = get_pass_index(engine, -1);
+	node->pass_index = get_pass_index(L, self, lua_gettop(L));
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "inputs");
+	node->inputs = build_string_array(L, self, lua_gettop(L), &node->input_count);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "outputs");
+	node->outputs = build_string_array(L, self, lua_gettop(L), &node->output_count);
+	lua_pop(L, 1);
+
+	luaL_getmetatable(L, TUNDRA_NODE_MTNAME);
+	lua_setmetatable(L, -2);
+	return 1;
+}
+
+/*
+ * arg 1 - self (a node userdata)
+ * arg 2 - array table to append results to
+ * arg 3 - array table of extensions
+ */
+#define TD_MAX_EXTS 4 
+#define TD_EXTLEN 16 
+
+static int
+insert_output_files(lua_State* L)
+{
+	int i, file_count, table_size;
+	const int ext_count = (int) lua_objlen(L, 3);
+	char exts[TD_MAX_EXTS][TD_EXTLEN] = { { 0 } };
+
+	td_node *self = (td_node *) luaL_checkudata(L, 1, TUNDRA_NODE_MTNAME);
+
+	if (ext_count > TD_MAX_EXTS)
+		luaL_error(L, "only %d extensions supported; %d is too many", TD_MAX_EXTS, ext_count);
+
+	/* construct a lookup table of all extensions on the stack for speedy access */
+	for (i = 0; i < ext_count; ++i)
+	{
+		lua_rawgeti(L, 3, i+1);
+		strncpy(exts[i], lua_tostring(L, -1), TD_EXTLEN);
+		exts[i][TD_EXTLEN-1] = '\0';
+	}
+
+	file_count = self->output_count;
+	table_size = (int) lua_objlen(L, 2);
+	for (i = 0; i < file_count; ++i)
+	{
+		int x;
+		const char* ext_pos;
+		const char* fn = self->outputs[i];
+
+		ext_pos = strrchr(fn, '.');
+		if (!ext_pos)
+			ext_pos = "";
+
+		for (x = 0; x < ext_count; ++x)
+		{
+			if (0 == strcmp(ext_pos, exts[x]))
+			{
+				lua_pushstring(L, fn);
+				lua_rawseti(L, 2, ++table_size);
+				break;
+			}
+		}
+	}
+	return 0;
 }
 
 /*
@@ -157,16 +318,68 @@ make_node(struct td_engine *engine, int index, struct td_node *output)
  * Input:
  * A list of dag nodes to build.
  */
-int tundra_build(lua_State* L)
+static int
+build_nodes(lua_State* L)
 {
 	int i, narg;
+	td_engine *self;
 
+	self = (td_engine *) luaL_checkudata(L, 1, TUNDRA_ENGINE_MTNAME);
 	narg = lua_gettop(L);
 
-	for (i=0; i<narg; ++i)
+	for (i=1; i<=narg; ++i)
 	{
-
 	}
 
 	return 0;
+}
+
+static int
+is_node(lua_State* L)
+{
+	int status = 0;
+	if (lua_getmetatable(L, 1))
+	{
+		lua_getfield(L, LUA_REGISTRYINDEX, TUNDRA_NODE_MTNAME);
+		status = lua_rawequal(L, -1, -2);
+		lua_pop(L, 2);
+	}
+	lua_pushboolean(L, status);
+	return 1;
+}
+
+static const luaL_Reg engine_mt_entries[] = {
+	{ "make_node", make_node },
+	{ "build", build_nodes },
+	{ "__gc", engine_gc },
+	{ NULL, NULL }
+};
+
+static const luaL_Reg node_mt_entries[] = {
+	{ "insert_output_files", insert_output_files },
+	{ NULL, NULL }
+};
+
+static const luaL_Reg engine_entries[] = {
+	{ "make_engine", make_engine },
+	{ "is_node", is_node },
+	{ NULL, NULL }
+};
+
+static void create_mt(lua_State* L, const char *name, const luaL_Reg entries[])
+{
+	luaL_newmetatable(L, name);
+	lua_pushvalue(L, -1);
+	lua_setfield(L, -2, "__index");
+	luaL_register(L, NULL, entries);
+	lua_pop(L, 1);
+}
+
+void tundra_open_engine(lua_State* L)
+{
+	/* set up engine and node object metatable */
+	create_mt(L, TUNDRA_ENGINE_MTNAME, engine_mt_entries);
+	create_mt(L, TUNDRA_NODE_MTNAME, node_mt_entries);
+
+	luaL_register(L, NULL, engine_entries);
 }

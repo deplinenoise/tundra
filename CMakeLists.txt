@@ -43,7 +43,7 @@ if (WIN32)
 endif (WIN32)
 
 if (APPLE)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall")
 endif (APPLE)
 
 set(LUA_SOURCES 
