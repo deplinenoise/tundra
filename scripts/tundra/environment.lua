@@ -29,6 +29,8 @@ function Environment:Create(parent, assignments, obj)
 
 	obj.vars = {}
 	obj.parent = parent
+	obj.memos = {}
+	obj.memo_keys = {}
 
 	-- Set up the table of make functions
 	obj._make = {} 
@@ -120,7 +122,8 @@ function Environment:SetMany(table)
 end
 
 function Environment:Append(key, value)
-	local t = Environment:GetList(key, 1)
+	self:invalidate_memos(key)
+	local t = self:GetList(key, 1)
 	local result
 	if type(t) == "table" then
 		result = util.CloneArray(t)
@@ -132,6 +135,7 @@ function Environment:Append(key, value)
 end
 
 function Environment:Prepend(key, value)
+	self:invalidate_memos(key)
 	local t = self:GetList(key, 1)
 	local result
 	if type(t) == "table" then
@@ -143,7 +147,17 @@ function Environment:Prepend(key, value)
 	self.vars[key] = result
 end
 
+function Environment:invalidate_memos(key)
+	local name_tab = self.memo_keys[key]
+	if name_tab then
+		for name, _ in pairs(name_tab) do
+			self.memos[name] = nil
+		end
+	end
+end
+
 function Environment:Set(key, value)
+	self:invalidate_memos(key)
 	assert(key:len() > 0, "Key must not be empty")
 	assert(type(key) == "string", "Key must be a string")
 	if type(value) == "string" then
@@ -299,78 +313,21 @@ function Create(parent, assignments, obj)
 	return Environment:Create(parent, assignments, obj)
 end
 
-function Environment:GenerateDotGraph(stream, memo)
-	-- Memoize
-	if not memo[self] then
-		memo[self] = 1
-	else
-		return
+function Environment:record_memo_var(key, name)
+	local tab = self.memo_keys[key]
+	if not tab then
+		tab = {}
+		self.memo_keys[key] = tab
 	end
-
-	local id = self:GetId()
-	local first = true
-
-	stream:write('rankdir=LR;\n')
-
-	stream:write(id)
-	stream:write(' [shape=record, color=blue3, rankdir=LR, label="')
-
-	local fieldno = 1
-
-	for k, v in pairs(self:GetVars()) do
-		if not first then
-			stream:write('|')
-		end
-		first = false
-		stream:write("<f")
-		stream:write(fieldno)
-		stream:write("> ")
-		stream:write(k)
-		stream:write(' = ')
-		stream:write(table.concat(v, " "))
-		fieldno = fieldno + 1
-	end
-
-	stream:write('"];\n')
-
-	local link = self:GetParent()
-	assert(link ~= self)
-	if link then
-		link:GenerateDotGraph(stream, memo)
-		stream:write(id)
-		stream:write(" -> ")
-		stream:write(link:GetId())
-		stream:write(' [style=dotted, label="EnvLink"] ;\n')
-	end
+	tab[name] = true
 end
 
-function Environment:Serialize(f, state)
-	if state[self] then
-		return self.id
-	else
-		state[self] = true
+function Environment:memoize(key, name, fn)
+	local memo = self.memos[name]
+	if not memo then 
+		self:record_memo_var(key, name)
+		memo = fn()
+		self.memos[name] = memo
 	end
-
-	if self.parent then 
-		self.parent:Serialize(f, state)
-	end
-
-	f:write("local ", self.id, " = ")
-	f:write("tundra.environment.Create(")
-	if self.parent then
-		f:write(self.parent.id)
-	else
-		f:write("nil")
-	end
-	f:write(", {\n")
-	for k, varray in pairs(self.vars) do
-		f:write(string.format("\t[%q] = {", k))
-		for _, v in ipairs(varray) do
-			f:write(string.format("%q, ", v))
-		end
-		f:write("},\n")
-	end
-	f:write("})\n")
-	
-	return self.id
+	return memo
 end

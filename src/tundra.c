@@ -14,7 +14,9 @@
 #endif
 
 extern int tundra_walk_path(lua_State*);
-extern void tundra_open_engine(lua_State*);
+extern void td_engine_open(lua_State*);
+extern void td_scanner_open(lua_State*);
+extern void td_cpp_scanner_open(lua_State*);
 
 static int tundra_open(lua_State* L)
 {
@@ -25,7 +27,9 @@ static int tundra_open(lua_State* L)
 
 	luaL_register(L, "tundra.native", engine_entries);
 	/* native table on the top of the stack */
-	tundra_open_engine(L);
+	td_engine_open(L);
+	td_scanner_open(L);
+	td_cpp_scanner_open(L);
 	lua_pop(L, 1);
 	return 0;
 }

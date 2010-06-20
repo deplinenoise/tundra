@@ -62,6 +62,19 @@ set(LUA_SOURCES
 	lua/src/lundump.h lua/src/lvm.h lua/src/lzio.h
 	)
 
-file(GLOB TUNDRA_SOURCES src/*.c src/*.h)
+set(TUNDRA_SOURCES
+src/cpp_scanner.c
+src/cpp_scanner.h
+src/debug.c
+src/debug.h
+src/engine.c
+src/engine.h
+src/luafs.c
+src/md5.h
+src/md5c.c
+src/scanner.c
+src/scanner.h
+src/tundra.c
+	)
 
 add_executable(tundra ${TUNDRA_SOURCES} ${LUA_SOURCES})

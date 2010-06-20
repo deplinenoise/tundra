@@ -3,11 +3,12 @@ local util = require("tundra.util")
 local path = require("tundra.path")
 local native = require("tundra.native")
 
-local function MakeCppScanner(env, fn)
-	return {
-		Type = "cpp",
-		IncludePaths = util.map(env:GetList("CPPPATH"), function (v) env:Interpolate(v) end),
-	}
+local function get_cpp_scanner(env, fn)
+	local function new_scanner()
+		local paths = util.map(env:GetList("CPPPATH"), function (v) return env:Interpolate(v) end)
+		return native_engine:make_cpp_scanner(paths)
+	end
+	return env:memoize("CPPPATH", "_cpp_scanner", new_scanner)
 end
 
 do
@@ -24,7 +25,7 @@ do
 			Action = "$(CCCOM)",
 			InputFiles = { fn },
 			OutputFiles = { object_fn },
-			Scanner = MakeCppScanner(env, fn),
+			Scanner = get_cpp_scanner(env, fn),
 			Dependencies = args.Dependencies,
 		}
 		return node
