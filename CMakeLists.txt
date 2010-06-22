@@ -64,7 +64,6 @@ set(LUA_SOURCES
 
 set(TUNDRA_SOURCES
 src/cpp_scanner.c
-src/cpp_scanner.h
 src/debug.c
 src/debug.h
 src/engine.c
