@@ -36,7 +36,7 @@ if (WIN32)
     # Stick debug into in the object files rather in the PDB file while
     # compiling. Enables parallel builds and prevents msbdpsrv.exe from
     # crashing all the time with msvc 9.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Z7")
+	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Z7")
 
     # General purpose Win32 defines
     add_definitions(/DWIN32 /D_WIN32 /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS)
