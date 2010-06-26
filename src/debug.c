@@ -17,34 +17,40 @@ static void dumpvalue(lua_State* L, int i, int max_depth)
 			break;
 
 		case LUA_TTABLE:
+			if (max_depth > 0)
 			{
-				if (max_depth > 0)
+				printf("{ ");
+				int first = 1;
+				lua_pushnil(L);
+				while (lua_next(L, i))
 				{
-					printf("{ ");
-					int first = 1;
-					lua_pushnil(L);
-					while (lua_next(L, i))
-					{
-						int top = lua_gettop(L);
-						if (!first)
-							printf(", ");
-						dumpvalue(L, top-1, max_depth-1);
-						printf("=");
-						dumpvalue(L, top, max_depth-1);
-						lua_pop(L, 1);
-						first = 0;
-					}
-					printf("}");
+					int top = lua_gettop(L);
+					if (!first)
+						printf(", ");
+					dumpvalue(L, top-1, max_depth-1);
+					printf("=");
+					dumpvalue(L, top, max_depth-1);
+					lua_pop(L, 1);
+					first = 0;
 				}
-				else
-				{
-					printf("{...}");
-				}
+				printf("}");
+			}
+			else
+			{
+				printf("{...}");
 			}
 			break;
 
+		case LUA_TUSERDATA:
+			printf("<userdata>");
+			break;
+
+		case LUA_TNIL:
+			printf("<nil>");
+			break;
+
 		default:
-			printf("{%s}", lua_typename(L, type));
+			printf("[%s]", lua_typename(L, type));
 			break;
 	}
 }

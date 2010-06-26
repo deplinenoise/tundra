@@ -67,14 +67,23 @@ local function analyze_sources(list, suffixes, transformer)
 	local deps = {}
 
 	for _, src in ipairs(list) do
+
 		if type(src) == "string" then
 			if transformer then
+				local old = src
 				src = transformer(src)
+				if not src then
+					error("transformer produced nil value for " .. old)
+				end
 			end
 		end
 
+
 		if native.is_node(src) then
 			src:insert_output_files(inputs, suffixes)
+			for _, x in ipairs(inputs) do
+				assert(x)
+			end
 			deps[#deps + 1] = src
 		else
 			inputs[#inputs + 1] = src

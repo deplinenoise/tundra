@@ -18,6 +18,21 @@ enum
 	TD_PASS_MAX = 32
 };
 
+static unsigned long
+djb2_hash(const char *str_)
+{
+	unsigned const char *str = (unsigned const char*) str_;
+	unsigned long hash = 5381;
+	int c;
+
+	while (0 != (c = *str++))
+	{
+		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+	}
+
+	return hash;
+}
+
 static void
 croak(const char *fmt, ...)
 {
@@ -27,16 +42,25 @@ croak(const char *fmt, ...)
 	va_end(args);
 }
 
+struct td_file_tag
+{
+	const char *filename;
+	td_node *producer;
+	int (*sign_fn)(const char *filename);
+	char signature[16];
+	struct td_file_tag *bucket_next;
+};
+
 struct td_node_tag
 {
 	const char *annotation;
 	const char *action;
 
 	int input_count;
-	const char **inputs;
+	td_file **inputs;
 
 	int output_count;
-	const char **outputs;
+	td_file **outputs;
 
 	int pass_index;
 
@@ -55,10 +79,17 @@ struct td_pass_tag
 struct td_engine_tag
 {
 	int magic_value;
+
+	/* memory allocation */
 	int page_index;
 	int page_left;
 	char* pages[TD_STRING_PAGE_MAX];
 
+	/* file db */
+	int file_hash_size;
+	td_file **file_hash;
+
+	/* build passes */
 	int pass_count;
 	td_pass passes[TD_PASS_MAX];
 };
@@ -100,6 +131,48 @@ td_engine_strdup(td_engine *engine, const char* str, size_t len)
 	return addr;
 }
 
+td_file *td_engine_get_file(td_engine *engine, const char *path)
+{
+	unsigned long hash;
+	int slot;
+	td_file *chain;
+	td_file *f;
+
+	hash = djb2_hash(path);
+
+	slot = (int) (hash % engine->file_hash_size);
+	chain = engine->file_hash[slot];
+	
+	while (chain)
+	{
+		if (0 == strcmp(path, chain->filename))
+			return chain;
+	}
+
+	f = td_engine_alloc(engine, sizeof(td_file));
+	memset(f, 0, sizeof(td_file));
+
+	f->filename = td_engine_strdup(engine, path, strlen(path));
+	f->bucket_next = engine->file_hash[slot];
+	engine->file_hash[slot] = f;
+	return f;
+}
+
+static int get_int_override(lua_State *L, int index, const char *field_name, int default_value)
+{
+	int val = default_value;
+	lua_getfield(L, index, field_name);
+	if (!lua_isnil(L, -1))
+	{
+		if (lua_isnumber(L, -1))
+			val = lua_tointeger(L, -1);
+		else
+			luaL_error(L, "%s: expected an integer, found %s", field_name, lua_typename(L, lua_type(L, -1)));
+	}
+	lua_pop(L, 1);
+	return val;
+}
+
 static int make_engine(lua_State* L)
 {
 	td_engine* self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
@@ -107,6 +180,17 @@ static int make_engine(lua_State* L)
 	self->magic_value = 0xcafebabe;
 	luaL_getmetatable(L, TUNDRA_ENGINE_MTNAME);
 	lua_setmetatable(L, -2);
+
+	self->file_hash_size = 92413;
+
+	/* apply optional overrides */
+	if (lua_gettop(L) == 1 && lua_istable(L, 1))
+	{
+		self->file_hash_size = get_int_override(L, 1, "FileHashSize", self->file_hash_size);
+	}
+
+	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
+
 	return 1;
 }
 
@@ -132,6 +216,9 @@ static int engine_gc(lua_State* L)
 	}
 
 	self->magic_value = 0xdeadbeef;
+
+	free(self->file_hash);
+	self->file_hash = NULL;
 
 	return 0;
 }
@@ -211,6 +298,29 @@ td_build_string_array(lua_State* L, td_engine *engine, int index, int *count_out
 	return result;
 }
 
+td_file **
+td_build_file_array(lua_State* L, td_engine *engine, int index, int *count_out)
+{
+	int i;
+	const int count = (int) lua_objlen(L, index);
+	td_file **result;
+
+	*count_out = count;
+	if (!count)
+		return NULL;
+   
+	result = (td_file **) td_engine_alloc(engine, sizeof(td_file*) * count);
+
+	for (i = 0; i < count; ++i)
+	{
+		lua_rawgeti(L, index, i+1);
+		result[i] = td_engine_get_file(engine, lua_tostring(L, -1));
+		lua_pop(L, 1);
+	}
+
+	return result;
+}
+
 static const char*
 copy_string_field(lua_State* L, td_engine *engine, int index, const char *field_name)
 {
@@ -236,6 +346,45 @@ setup_pass(lua_State* L, td_engine* engine, int index)
 	return pass_index;
 }
 
+static void
+check_input_files(lua_State* L, td_engine *engine, td_node *node)
+{
+	int i, e;
+	const int my_build_order = engine->passes[node->pass_index].build_order;
+
+	for (i = 0, e=node->input_count; i < e; ++i)
+	{
+		td_file *f = node->inputs[i];
+		td_node *producer = f->producer;
+		if (producer)
+		{
+			td_pass* his_pass = &engine->passes[producer->pass_index];
+			if (his_pass->build_order > my_build_order)
+			{
+				luaL_error(L, "%s: file %s is produced in future pass %s (by %s)",
+						node->annotation, f->filename, his_pass->name,
+						f->producer->annotation);
+			}
+		}
+	}
+}
+
+static void
+tag_output_files(lua_State* L, td_node *node)
+{
+	int i, e;
+	for (i = 0, e=node->output_count; i < e; ++i)
+	{
+		td_file *f = node->outputs[i];
+		if (f->producer)
+		{
+			luaL_error(L, "%s: file %s is already an output of %s",
+					node->annotation, f->filename, f->producer->annotation);
+		}
+		f->producer = node;
+	}
+}
+
 static int
 make_node(lua_State* L)
 {
@@ -247,12 +396,14 @@ make_node(lua_State* L)
 	node->pass_index = setup_pass(L, self, 2);
 
 	lua_getfield(L, 2, "inputs");
-	node->inputs = td_build_string_array(L, self, lua_gettop(L), &node->input_count);
+	node->inputs = td_build_file_array(L, self, lua_gettop(L), &node->input_count);
 	lua_pop(L, 1);
+	check_input_files(L, self, node);
 
 	lua_getfield(L, 2, "outputs");
-	node->outputs = td_build_string_array(L, self, lua_gettop(L), &node->output_count);
+	node->outputs = td_build_file_array(L, self, lua_gettop(L), &node->output_count);
 	lua_pop(L, 1);
+	tag_output_files(L, node);
 
 	lua_getfield(L, 2, "scanner");
 	if (!lua_isnil(L, -1))
@@ -277,7 +428,7 @@ make_node(lua_State* L)
 #define TD_EXTLEN 16 
 
 static int
-insert_file_list(lua_State* L, int file_count, const char** files)
+insert_file_list(lua_State *L, int file_count, td_file **files)
 {
 	int i, table_size;
 	const int ext_count = (int) lua_objlen(L, 3);
@@ -299,7 +450,7 @@ insert_file_list(lua_State* L, int file_count, const char** files)
 	{
 		int x;
 		const char* ext_pos;
-		const char* fn = files[i];
+		const char* fn = files[i]->filename;
 
 		ext_pos = strrchr(fn, '.');
 		if (!ext_pos)
@@ -339,10 +490,10 @@ static void dump_node(const td_node *n)
 	printf("action: %s\n", n->action);
 
 	for (x = 0; x < n->input_count; ++x)
-		printf("input %d: %s\n", x+1, n->inputs[x]);
+		printf("input(%d): %s\n", x+1, n->inputs[x]->filename);
 
 	for (x = 0; x < n->output_count; ++x)
-		printf("output %d: %s\n", x+1, n->outputs[x]);
+		printf("output(%d): %s\n", x+1, n->outputs[x]->filename);
 }
 
 /*
@@ -377,9 +528,18 @@ is_node(lua_State* L)
 	{
 		lua_getfield(L, LUA_REGISTRYINDEX, TUNDRA_NODE_MTNAME);
 		status = lua_rawequal(L, -1, -2);
-		lua_pop(L, 2);
 	}
 	lua_pushboolean(L, status);
+	return 1;
+}
+
+static int
+node_str(lua_State *L)
+{
+	lua_pushlstring(L, "{", 1);
+	lua_pushstring(L, td_check_node(L, 1)->annotation);
+	lua_pushlstring(L, "}", 1);
+	lua_concat(L, 3);
 	return 1;
 }
 
@@ -393,6 +553,7 @@ static const luaL_Reg engine_mt_entries[] = {
 static const luaL_Reg node_mt_entries[] = {
 	{ "insert_input_files", insert_input_files },
 	{ "insert_output_files", insert_output_files },
+	{ "__tostring", node_str },
 	{ NULL, NULL }
 };
 
