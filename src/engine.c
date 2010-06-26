@@ -67,7 +67,7 @@ struct td_node_tag
 	td_scanner* scanner;
 
 	int dep_count;
-	struct td_node *deps;
+	td_node **deps;
 };
 
 struct td_pass_tag
@@ -386,6 +386,98 @@ tag_output_files(lua_State* L, td_node *node)
 }
 
 static int
+compare_ptrs(const void *l, const void *r)
+{
+	const td_node *lhs = *(const td_node * const *) l;
+	const td_node *rhs = *(const td_node * const *) r;
+	return lhs - rhs;
+	if (lhs < rhs)
+		return -1;
+	else if (lhs > rhs)
+		return 1;
+	else
+		return 0;
+}
+
+static int
+uniqize_deps(td_node *const *source, int count, td_node **dest)
+{
+	int i, unique_count = 0;
+	td_node *current = NULL;
+	for (i = 0; i < count; ++i)
+	{
+		td_node *candidate = source[i];
+		if (current != candidate)
+		{
+			dest[unique_count++] = candidate;
+			current = candidate;
+		}
+	}
+
+	assert(unique_count <= count);
+	return unique_count;
+}
+
+static td_node**
+setup_deps(lua_State* L, td_engine *engine, td_node *node, int *count_out)
+{
+	int i, e;
+	int count = 0, result_count = 0;
+	int max_deps = 0, dep_array_size = 0;
+	td_node **deps = NULL, **uniq_deps = NULL, **result = NULL;
+
+	/* compute and allocate worst case space for dependencies */
+	lua_getfield(L, 2, "deps");
+	dep_array_size = max_deps = lua_objlen(L, -1);
+
+	max_deps += node->input_count;
+
+	if (0 == max_deps)
+		goto leave;
+
+	deps = (td_node **) alloca(max_deps * sizeof(td_node*));
+
+	/* gather deps */
+	if (lua_istable(L, -1))
+	{
+		for (i = 1, e = dep_array_size; i <= e; ++i)
+		{
+			lua_rawgeti(L, -1, i);
+			deps[count++] = td_check_node(L, -1);
+			lua_pop(L, 1);
+		}
+	}
+
+	for (i = 0, e = node->input_count; i < e; ++i)
+	{
+		td_node *producer = node->inputs[i]->producer;
+		if (producer)
+			deps[count++] = producer;
+	}
+
+	if (0 == count)
+		goto leave;
+
+	/* sort the dependency set to easily remove duplicates */
+	qsort(deps, count, sizeof(td_node*), compare_ptrs);
+
+	/* allocate a new scratch set to write the unique deps into */
+	uniq_deps = (td_node **) alloca(count * sizeof(td_node*));
+
+	/* filter deps into uniq_deps by merging adjecent duplicates */
+	result_count = uniqize_deps(deps, count, uniq_deps);
+
+	/* allocate and fill final result array as a copy of uniq_deps */
+	result = td_engine_alloc(engine, sizeof(td_node*) * result_count);
+	memcpy(result, uniq_deps, sizeof(td_node*) * result_count);
+
+leave:
+	*count_out = result_count;
+	lua_pop(L, 1);
+	return result;
+}
+
+static int
 make_node(lua_State* L)
 {
 	td_engine * const self = td_check_engine(L, 1);
@@ -409,6 +501,8 @@ make_node(lua_State* L)
 	if (!lua_isnil(L, -1))
 		node->scanner = td_check_scanner(L, -1);
 	lua_pop(L, 1);
+
+	node->deps = setup_deps(L, self, node, &node->dep_count);
 
 	luaL_getmetatable(L, TUNDRA_NODE_MTNAME);
 	lua_setmetatable(L, -2);
@@ -494,6 +588,9 @@ static void dump_node(const td_node *n)
 
 	for (x = 0; x < n->output_count; ++x)
 		printf("output(%d): %s\n", x+1, n->outputs[x]->filename);
+
+	for (x = 0; x < n->dep_count; ++x)
+		printf("dep(%d): %s\n", x+1, n->deps[x]->annotation);
 }
 
 /*
