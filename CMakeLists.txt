@@ -62,6 +62,8 @@ set(LUA_SOURCES
 	lua/src/lundump.h lua/src/lvm.h lua/src/lzio.h
 	)
 
+source_group(Lua FILES ${LUA_SOURCES})
+
 set(TUNDRA_SOURCES
 src/cpp_scanner.c
 src/debug.c
@@ -75,5 +77,7 @@ src/scanner.c
 src/scanner.h
 src/tundra.c
 	)
+
+source_group(Tundra FILES ${TUNDRA_SOURCES})
 
 add_executable(tundra ${TUNDRA_SOURCES} ${LUA_SOURCES})
