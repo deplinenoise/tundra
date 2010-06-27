@@ -88,6 +88,9 @@ static void scan_directory(lua_State* L, const char* path)
 
 	while (0 == readdir_r(dir, &entry, &result) && result)
 	{
+		size_t namlen;
+		int target_table;
+
 		if (0 == strcmp(".", entry.d_name) || 0 == strcmp("..", entry.d_name))
 			continue;
 
@@ -105,10 +108,14 @@ static void scan_directory(lua_State* L, const char* path)
 			fprintf(stderr, "%s: couldn't stat file\n", full_fn);
 			continue;
 		}
+#ifdef __APPLE__
+		namlen = entry.d_namlen;
+#else
+		namlen = strlen(entry.d_name);
+#endif
+		lua_pushlstring(L, entry.d_name, namlen);
 
-		lua_pushlstring(L, entry.d_name, entry.d_namlen);
-
-		int target_table = (S_IFDIR & statbuf.st_mode) ? -3 : -2;
+		target_table = (S_IFDIR & statbuf.st_mode) ? -3 : -2;
 		lua_rawseti(L, target_table, (int) lua_objlen(L, target_table) + 1);
 	}
 

@@ -75,10 +75,10 @@ static int init_homedir()
 		return 1;
 
 #elif defined(linux)
-	if (-1 == readlink("/proc/self/exe", path, path_max))
+	if (-1 == readlink("/proc/self/exe", homedir, sizeof(homedir)))
 		return 1;
 
-	if ((tmp = strrchr(path, '/')))
+	if ((tmp = strrchr(homedir, '/')))
 		*tmp = 0;
 	return 0;
 #else

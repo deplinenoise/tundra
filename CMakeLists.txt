@@ -80,4 +80,9 @@ src/tundra.c
 
 source_group(Tundra FILES ${TUNDRA_SOURCES})
 
+if (UNIX)
+	link_libraries(tundra m)
+endif (UNIX)
+
 add_executable(tundra ${TUNDRA_SOURCES} ${LUA_SOURCES})
+
