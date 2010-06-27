@@ -76,6 +76,8 @@ src/md5c.c
 src/scanner.c
 src/scanner.h
 src/tundra.c
+src/util.c
+src/util.h
 	)
 
 source_group(Tundra FILES ${TUNDRA_SOURCES})

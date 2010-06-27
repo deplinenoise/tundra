@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "util.h"
 #include "scanner.h"
 
 #include <lua.h>

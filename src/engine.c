@@ -10,29 +10,11 @@
 
 #include "debug.h"
 #include "scanner.h"
+#include "util.h"
 
 #ifdef _MSC_VER
 #include <malloc.h> /* alloca */
 #endif
-
-enum
-{
-	TD_STRING_PAGE_SIZE = 1024*1024,
-	TD_STRING_PAGE_MAX = 100,
-	TD_PASS_MAX = 32
-};
-
-typedef int (*td_sign_fn)(const char *filename, char digest_out[16]);
-
-typedef struct td_signer_tag
-{
-	int is_lua;
-	union {
-		td_sign_fn function;
-		int lua_reference;
-	} function;
-}
-td_signer;
 
 int td_sign_timestamp(const char *filename, char digest_out[16])
 {
@@ -47,120 +29,6 @@ int td_sign_digest(const char *filename, char digest_out[16])
 static td_signer sign_timestamp = { 0, { td_sign_timestamp } };
 static td_signer sign_digest = { 0, { td_sign_digest } };
 
-static unsigned long
-djb2_hash(const char *str_)
-{
-	unsigned const char *str = (unsigned const char*) str_;
-	unsigned long hash = 5381;
-	int c;
-
-	while (0 != (c = *str++))
-	{
-		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-	}
-
-	return hash;
-}
-
-static void
-croak(const char *fmt, ...)
-{
-	va_list args;
-	va_start(args, fmt);
-	vfprintf(stderr, fmt, args);
-	va_end(args);
-}
-
-struct td_file_tag
-{
-	const char *filename;
-	td_node *producer;
-	td_signer *signer;
-	char signature[16];
-	struct td_file_tag *bucket_next;
-};
-
-struct td_node_tag
-{
-	const char *annotation;
-	const char *action;
-
-	int input_count;
-	td_file **inputs;
-
-	int output_count;
-	td_file **outputs;
-
-	int pass_index;
-
-	td_scanner *scanner;
-
-	int dep_count;
-	td_node **deps;
-
-	td_job *job;
-};
-
-struct td_noderef_tag
-{
-	td_node *node;
-};
-
-typedef enum td_jobstate_tag {
-	TD_JOB_INITIAL         = 0,
-	TD_JOB_RUNNING         = 1,
-	TD_JOB_COMPLETED       = 100,
-	TD_JOB_FAILED          = 101,
-	TD_JOB_CANCELLED       = 102
-} td_jobstate;
-
-typedef struct td_job_chain_tag
-{
-	td_job *job;
-	struct td_job_chain_tag *next;
-} td_job_chain;
-
-struct td_job_tag 
-{
-	td_jobstate state;
-	td_node *node;
-
-	/* implicit dependencies, discovered by the node's scanner */
-	int idep_count;
-	td_file **ideps;
-
-	/* list of jobs this job will unblock once completed */
-	td_job_chain *pending_jobs;
-};
-
-struct td_pass_tag
-{
-	const char *name;
-	int build_order;
-};
-
-struct td_engine_tag
-{
-	int magic_value;
-
-	/* memory allocation */
-	int page_index;
-	int page_left;
-	char *pages[TD_STRING_PAGE_MAX];
-
-	/* file db */
-	int file_hash_size;
-	td_file **file_hash;
-
-	/* build passes */
-	int pass_count;
-	td_pass passes[TD_PASS_MAX];
-
-	td_signer *default_signer;
-
-	lua_State *L;
-};
-
 void *td_engine_alloc(td_engine *engine, size_t size)
 {
 	int left = engine->page_left;
@@ -170,13 +38,13 @@ void *td_engine_alloc(td_engine *engine, size_t size)
 	if (left < (int) size)
 	{
 		if (page == TD_STRING_PAGE_MAX)
-			croak("out of string page memory");
+			td_croak("out of string page memory");
 
 		page = engine->page_index = page + 1;
 		left = engine->page_left = TD_STRING_PAGE_SIZE;
 		engine->pages[page] = malloc(TD_STRING_PAGE_SIZE);
 		if (!engine->pages[page])
-			croak("out of memory allocating string page");
+			td_croak("out of memory allocating string page");
 	}
 
 	addr = engine->pages[page] + TD_STRING_PAGE_SIZE - left;
@@ -185,20 +53,6 @@ void *td_engine_alloc(td_engine *engine, size_t size)
 #ifndef NDEBUG
 	memset(addr, 0xcc, size);
 #endif
-
-	return addr;
-}
-
-char *
-td_engine_strdup(td_engine *engine, const char *str, size_t len)
-{
-	char *addr = (char*) td_engine_alloc(engine, len + 1);
-
-	memcpy(addr, str, len);
-
-	/* rather than copying len+1, explicitly store a nul byte so strdup can
-	 * work for substrings too. */
-	addr[len] = '\0';
 
 	return addr;
 }
@@ -298,17 +152,6 @@ static int engine_gc(lua_State *L)
 	return 0;
 }
 
-char *
-td_engine_strdup_lua(lua_State *L, td_engine *engine, int index, const char *context)
-{
-	const char *str;
-	size_t len;
-	str = lua_tolstring(L, index, &len);
-	if (!str)
-		luaL_error(L, "%s: expected a string", context);
-	return td_engine_strdup(engine, str, len);
-}
-
 static int
 get_pass_index(lua_State *L, td_engine *engine, int index)
 {
@@ -348,52 +191,6 @@ get_pass_index(lua_State *L, td_engine *engine, int index)
 
 	lua_pop(L, 2);
 	return i;
-}
-
-const char **
-td_build_string_array(lua_State *L, td_engine *engine, int index, int *count_out)
-{
-	int i;
-	const int count = (int) lua_objlen(L, index);
-	const char **result;
-
-	*count_out = count;
-	if (!count)
-		return NULL;
-   
-	result = (const char **) td_engine_alloc(engine, sizeof(const char*) * count);
-
-	for (i = 0; i < count; ++i)
-	{
-		lua_rawgeti(L, index, i+1);
-		result[i] = td_engine_strdup_lua(L, engine, -1, "string array");
-		lua_pop(L, 1);
-	}
-
-	return result;
-}
-
-td_file **
-td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
-{
-	int i;
-	const int count = (int) lua_objlen(L, index);
-	td_file **result;
-
-	*count_out = count;
-	if (!count)
-		return NULL;
-   
-	result = (td_file **) td_engine_alloc(engine, sizeof(td_file*) * count);
-
-	for (i = 0; i < count; ++i)
-	{
-		lua_rawgeti(L, index, i+1);
-		result[i] = td_engine_get_file(engine, lua_tostring(L, -1));
-		lua_pop(L, 1);
-	}
-
-	return result;
 }
 
 static const char*
