@@ -93,7 +93,7 @@ struct td_node_tag
 
 	int pass_index;
 
-	td_scanner* scanner;
+	td_scanner *scanner;
 
 	int dep_count;
 	td_node **deps;
@@ -146,7 +146,7 @@ struct td_engine_tag
 	/* memory allocation */
 	int page_index;
 	int page_left;
-	char* pages[TD_STRING_PAGE_MAX];
+	char *pages[TD_STRING_PAGE_MAX];
 
 	/* file db */
 	int file_hash_size;
@@ -161,11 +161,11 @@ struct td_engine_tag
 	lua_State *L;
 };
 
-void* td_engine_alloc(td_engine *engine, size_t size)
+void *td_engine_alloc(td_engine *engine, size_t size)
 {
 	int left = engine->page_left;
 	int page = engine->page_index;
-	char* addr;
+	char *addr;
 
 	if (left < (int) size)
 	{
@@ -190,7 +190,7 @@ void* td_engine_alloc(td_engine *engine, size_t size)
 }
 
 char *
-td_engine_strdup(td_engine *engine, const char* str, size_t len)
+td_engine_strdup(td_engine *engine, const char *str, size_t len)
 {
 	char *addr = (char*) td_engine_alloc(engine, len + 1);
 
@@ -246,9 +246,9 @@ static int get_int_override(lua_State *L, int index, const char *field_name, int
 	return val;
 }
 
-static int make_engine(lua_State* L)
+static int make_engine(lua_State *L)
 {
-	td_engine* self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
+	td_engine *self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
 	memset(self, 0, sizeof(td_engine));
 	self->magic_value = 0xcafebabe;
 	luaL_getmetatable(L, TUNDRA_ENGINE_MTNAME);
@@ -269,17 +269,17 @@ static int make_engine(lua_State* L)
 	return 1;
 }
 
-static int engine_gc(lua_State* L)
+static int engine_gc(lua_State *L)
 {
 	int p;
-	td_engine * const self = td_check_engine(L, 1);
+	td_engine *const self = td_check_engine(L, 1);
 
 	if (self->magic_value != 0xcafebabe)
 		luaL_error(L, "illegal userdatum; magic value check fails");
 
 	for (p = self->page_index; p >= 0; --p)
 	{
-		char* page = self->pages[p];
+		char *page = self->pages[p];
 		if (page)
 		{
 #ifndef NDEBUG
@@ -299,7 +299,7 @@ static int engine_gc(lua_State* L)
 }
 
 char *
-td_engine_strdup_lua(lua_State* L, td_engine *engine, int index, const char *context)
+td_engine_strdup_lua(lua_State *L, td_engine *engine, int index, const char *context)
 {
 	const char *str;
 	size_t len;
@@ -310,11 +310,11 @@ td_engine_strdup_lua(lua_State* L, td_engine *engine, int index, const char *con
 }
 
 static int
-get_pass_index(lua_State* L, td_engine* engine, int index)
+get_pass_index(lua_State *L, td_engine *engine, int index)
 {
 	int build_order, i, e;
 	size_t name_len;
-	const char* name;
+	const char *name;
 
 	lua_getfield(L, index, "BuildOrder");
 	lua_getfield(L, index, "Name");
@@ -351,7 +351,7 @@ get_pass_index(lua_State* L, td_engine* engine, int index)
 }
 
 const char **
-td_build_string_array(lua_State* L, td_engine *engine, int index, int *count_out)
+td_build_string_array(lua_State *L, td_engine *engine, int index, int *count_out)
 {
 	int i;
 	const int count = (int) lua_objlen(L, index);
@@ -374,7 +374,7 @@ td_build_string_array(lua_State* L, td_engine *engine, int index, int *count_out
 }
 
 td_file **
-td_build_file_array(lua_State* L, td_engine *engine, int index, int *count_out)
+td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
 {
 	int i;
 	const int count = (int) lua_objlen(L, index);
@@ -397,7 +397,7 @@ td_build_file_array(lua_State* L, td_engine *engine, int index, int *count_out)
 }
 
 static const char*
-copy_string_field(lua_State* L, td_engine *engine, int index, const char *field_name)
+copy_string_field(lua_State *L, td_engine *engine, int index, const char *field_name)
 {
 	const char* str;
 	lua_getfield(L, index, field_name);
@@ -409,7 +409,7 @@ copy_string_field(lua_State* L, td_engine *engine, int index, const char *field_
 }
 
 static int
-setup_pass(lua_State* L, td_engine* engine, int index)
+setup_pass(lua_State *L, td_engine *engine, int index)
 {
 	int pass_index;
 
@@ -424,7 +424,7 @@ setup_pass(lua_State* L, td_engine* engine, int index)
 }
 
 static void
-check_input_files(lua_State* L, td_engine *engine, td_node *node)
+check_input_files(lua_State *L, td_engine *engine, td_node *node)
 {
 	int i, e;
 	const int my_build_order = engine->passes[node->pass_index].build_order;
@@ -435,7 +435,7 @@ check_input_files(lua_State* L, td_engine *engine, td_node *node)
 		td_node *producer = f->producer;
 		if (producer)
 		{
-			td_pass* his_pass = &engine->passes[producer->pass_index];
+			td_pass *his_pass = &engine->passes[producer->pass_index];
 			if (his_pass->build_order > my_build_order)
 			{
 				luaL_error(L, "%s: file %s is produced in future pass %s (by %s)",
@@ -447,7 +447,7 @@ check_input_files(lua_State* L, td_engine *engine, td_node *node)
 }
 
 static void
-tag_output_files(lua_State* L, td_node *node)
+tag_output_files(lua_State *L, td_node *node)
 {
 	int i, e;
 	for (i = 0, e=node->output_count; i < e; ++i)
@@ -495,7 +495,7 @@ uniqize_deps(td_node *const *source, int count, td_node **dest)
 }
 
 static td_node**
-setup_deps(lua_State* L, td_engine *engine, td_node *node, int *count_out)
+setup_deps(lua_State *L, td_engine *engine, td_node *node, int *count_out)
 {
 	int i, e;
 	int count = 0, result_count = 0;
@@ -579,7 +579,7 @@ setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
 
 		if (lua_isstring(L, -1))
 		{
-			const char* builtin_name = lua_tostring(L, -1);
+			const char *builtin_name = lua_tostring(L, -1);
 			if (0 == strcmp("digest", builtin_name))
 				signer = &sign_digest;
 			else if (0 == strcmp("timestamp", builtin_name))
@@ -618,7 +618,7 @@ dump_node(const td_node *n, int level)
 {
 	int x;
 	int indent_adjust;
-	const char* indent;
+	const char *indent;
 
 	static const char spaces[] =
 		"                                                     "
@@ -651,7 +651,7 @@ dump_node(const td_node *n, int level)
 
 
 static int
-make_node(lua_State* L)
+make_node(lua_State *L)
 {
 	td_engine * const self = td_check_engine(L, 1);
 	td_node *node = (td_node *) td_engine_alloc(self, sizeof(td_node));
@@ -724,8 +724,8 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 	for (i = 0; i < file_count; ++i)
 	{
 		int x;
-		const char* ext_pos;
-		const char* fn = files[i]->filename;
+		const char *ext_pos;
+		const char *fn = files[i]->filename;
 
 		ext_pos = strrchr(fn, '.');
 		if (!ext_pos)
@@ -745,16 +745,16 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 }
 
 static int
-insert_input_files(lua_State* L)
+insert_input_files(lua_State *L)
 {
-	td_node * const self = td_check_noderef(L, 1)->node;
+	td_node *const self = td_check_noderef(L, 1)->node;
 	return insert_file_list(L, self->input_count, self->inputs);
 }
 
 static int
-insert_output_files(lua_State* L)
+insert_output_files(lua_State *L)
 {
-	td_node * const self = td_check_noderef(L, 1)->node;
+	td_node *const self = td_check_noderef(L, 1)->node;
 	return insert_file_list(L, self->output_count, self->outputs);
 }
 
@@ -794,14 +794,14 @@ assign_jobs(td_engine *engine, td_node *root_node)
 {
 	int i, dep_count;
 	td_node **deplist = root_node->deps;
-	td_job* my_job = get_job(engine, root_node);
+	td_job *my_job = get_job(engine, root_node);
 
 	dep_count = root_node->dep_count;
 
 	for (i = 0; i < dep_count; ++i)
 	{
 		td_node *dep = deplist[i];
-		td_job* blocked_job = get_job(engine, dep);
+		td_job *blocked_job = get_job(engine, dep);
 		add_pending_job(engine, my_job, blocked_job);
 	}
 
@@ -823,22 +823,21 @@ build_nodes(lua_State* L)
 {
 	int i, narg;
 	td_engine * const self = td_check_engine(L, 1);
-	(void) self;
 
 	narg = lua_gettop(L);
 
-	for (i=2; i<=narg; ++i)
+	for (i = 2; i <= narg; ++i)
 	{
-		td_noderef *nref = (td_noderef*) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
-		dump_node(nref->node, 0);
+		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
 		assign_jobs(self, nref->node);
+		dump_node(nref->node, 0);
 	}
 
 	return 0;
 }
 
 static int
-is_node(lua_State* L)
+is_node(lua_State *L)
 {
 	int status = 0;
 	if (lua_getmetatable(L, 1))
@@ -880,7 +879,7 @@ static const luaL_Reg engine_entries[] = {
 	{ NULL, NULL }
 };
 
-static void create_mt(lua_State* L, const char *name, const luaL_Reg entries[])
+static void create_mt(lua_State *L, const char *name, const luaL_Reg entries[])
 {
 	luaL_newmetatable(L, name);
 	lua_pushvalue(L, -1);
@@ -889,7 +888,7 @@ static void create_mt(lua_State* L, const char *name, const luaL_Reg entries[])
 	lua_pop(L, 1);
 }
 
-void td_engine_open(lua_State* L)
+void td_engine_open(lua_State *L)
 {
 	/* use the table passed in to add functions defined here */
 	luaL_register(L, NULL, engine_entries);
