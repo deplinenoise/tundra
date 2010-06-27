@@ -410,43 +410,6 @@ leave:
 	lua_pop(L, 1);
 }
 
-static void
-dump_node(const td_node *n, int level)
-{
-	int x;
-	int indent_adjust;
-	const char *indent;
-
-	static const char spaces[] =
-		"                                                     "
-		"                                                     "
-		"                                                     ";
-
-	indent_adjust = sizeof(spaces) - 1 - level * 2;
-	if (indent_adjust < 0)
-		indent_adjust = 0;
-	indent = spaces + indent_adjust;
-	printf("%s{\n%s  annotation: %s\n", indent, indent, n->annotation);
-	printf("%s  action: %s\n", indent, n->action);
-
-	for (x = 0; x < n->input_count; ++x)
-		printf("%s  input(%d): %s\n", indent, x+1, n->inputs[x]->filename);
-
-	for (x = 0; x < n->output_count; ++x)
-		printf("%s  output(%d): %s\n", indent, x+1, n->outputs[x]->filename);
-
-	if (n->dep_count)
-	{
-  		printf("%s  deps:\n", indent);
-		for (x = 0; x < n->dep_count; ++x)
-		{
-			dump_node(n->deps[x], level+1);
-		}
-	}
-	printf("%s}\n", indent);
-}
-
-
 static int
 make_node(lua_State *L)
 {
@@ -627,7 +590,7 @@ build_nodes(lua_State* L)
 	{
 		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
 		assign_jobs(self, nref->node);
-		dump_node(nref->node, 0);
+		td_dump_node(nref->node, 0, -1);
 	}
 
 	return 0;

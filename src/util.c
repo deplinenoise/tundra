@@ -103,4 +103,18 @@ td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
 	return result;
 }
 
+const char *
+td_indent(int level)
+{
+	static const char spaces[] =
+		"                                                     "
+		"                                                     "
+		"                                                     ";
+
+	int adjust = sizeof(spaces) - 1 - level * 2;
+	if (adjust < 0)
+		adjust = 0;
+
+	return spaces + adjust;
+}
 
