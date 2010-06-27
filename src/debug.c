@@ -19,8 +19,8 @@ static void dumpvalue(lua_State* L, int i, int max_depth)
 		case LUA_TTABLE:
 			if (max_depth > 0)
 			{
-				printf("{ ");
 				int first = 1;
+				printf("{ ");
 				lua_pushnil(L);
 				while (lua_next(L, i))
 				{

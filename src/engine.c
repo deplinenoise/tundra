@@ -11,6 +11,10 @@
 #include "debug.h"
 #include "scanner.h"
 
+#ifdef _MSC_VER
+#include <malloc.h> /* alloca */
+#endif
+
 enum
 {
 	TD_STRING_PAGE_SIZE = 1024*1024,
@@ -200,7 +204,7 @@ static int get_int_override(lua_State *L, int index, const char *field_name, int
 	if (!lua_isnil(L, -1))
 	{
 		if (lua_isnumber(L, -1))
-			val = lua_tointeger(L, -1);
+			val = (int) lua_tointeger(L, -1);
 		else
 			luaL_error(L, "%s: expected an integer, found %s", field_name, lua_typename(L, lua_type(L, -1)));
 	}
@@ -427,7 +431,6 @@ compare_ptrs(const void *l, const void *r)
 {
 	const td_node *lhs = *(const td_node * const *) l;
 	const td_node *rhs = *(const td_node * const *) r;
-	return lhs - rhs;
 	if (lhs < rhs)
 		return -1;
 	else if (lhs > rhs)
@@ -465,7 +468,7 @@ setup_deps(lua_State* L, td_engine *engine, td_node *node, int *count_out)
 
 	/* compute and allocate worst case space for dependencies */
 	lua_getfield(L, 2, "deps");
-	dep_array_size = max_deps = lua_objlen(L, -1);
+	dep_array_size = max_deps = (int) lua_objlen(L, -1);
 
 	max_deps += node->input_count;
 
@@ -529,12 +532,14 @@ setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
 	lua_pushnil(L);
 	while (lua_next(L, -2))
 	{
+		const char *filename;
+		td_signer *signer = NULL;
+		td_file *file;
+
 		if (!lua_isstring(L, -2))
 			luaL_error(L, "file signer keys must be strings");
 
-		const char *filename = lua_tostring(L, -2);
-		td_signer *signer;
-		td_file *file;
+		filename = lua_tostring(L, -2);
 
 		if (lua_isstring(L, -1))
 		{
@@ -556,7 +561,9 @@ setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
 			signer->function.lua_reference = luaL_ref(L, -1); /* pops the value */
 		}
 		else
+		{
 			luaL_error(L, "signers must be either builtins (strings) or functions");
+		}
 
 		file = td_engine_get_file(engine, filename);
 
@@ -593,6 +600,8 @@ make_node(lua_State* L)
 	lua_getfield(L, 2, "scanner");
 	if (!lua_isnil(L, -1))
 		node->scanner = td_check_scanner(L, -1);
+	else
+		node->scanner = NULL;
 	lua_pop(L, 1);
 
 	node->deps = setup_deps(L, self, node, &node->dep_count);
