@@ -114,6 +114,11 @@ void* td_engine_alloc(td_engine *engine, size_t size)
 
 	addr = engine->pages[page] + TD_STRING_PAGE_SIZE - left;
 	engine->page_left -= (int) size;
+
+#ifndef NDEBUG
+	memset(addr, 0xcc, size);
+#endif
+
 	return addr;
 }
 
@@ -436,6 +441,8 @@ setup_deps(lua_State* L, td_engine *engine, td_node *node, int *count_out)
 		goto leave;
 
 	deps = (td_node **) alloca(max_deps * sizeof(td_node*));
+	if (!deps)
+		luaL_error(L, "out of stack memory allocating %d bytes", max_deps * sizeof(td_node*));
 
 	/* gather deps */
 	if (lua_istable(L, -1))
@@ -463,6 +470,9 @@ setup_deps(lua_State* L, td_engine *engine, td_node *node, int *count_out)
 
 	/* allocate a new scratch set to write the unique deps into */
 	uniq_deps = (td_node **) alloca(count * sizeof(td_node*));
+
+	if (!uniq_deps)
+		luaL_error(L, "out of stack memory allocating %d bytes", count * sizeof(td_node*));
 
 	/* filter deps into uniq_deps by merging adjecent duplicates */
 	result_count = uniqize_deps(deps, count, uniq_deps);
