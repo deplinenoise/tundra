@@ -40,6 +40,47 @@ typedef struct td_file_tag
 	struct td_file_tag *bucket_next;
 } td_file;
 
+typedef enum td_jobstate_tag
+{
+	TD_JOB_INITIAL         = 0,
+	TD_JOB_BLOCKED         = 1,
+	TD_JOB_SCANNING        = 2,
+	TD_JOB_RUNNING         = 3,
+	TD_JOB_COMPLETED       = 100,
+	TD_JOB_FAILED          = 101,
+	TD_JOB_CANCELLED       = 102
+} td_jobstate;
+
+typedef struct td_job_chain_tag
+{
+	struct td_node_tag *node;
+	struct td_job_chain_tag *next;
+} td_job_chain;
+
+enum
+{
+	TD_JOBF_QUEUED		= 1 << 0,
+	TD_JOBF_ROOT		= 1 << 1
+};
+
+
+typedef struct td_job_tag 
+{
+	int flags;
+	td_jobstate state;
+	struct td_node_tag *node;
+
+	/* implicit dependencies, discovered by the node's scanner */
+	int idep_count;
+	td_file **ideps;
+
+	/* # of jobs that must complete before this job can run */
+	int block_count;
+
+	/* list of jobs this job will unblock once completed */
+	td_job_chain *pending_jobs;
+} td_job;
+
 typedef struct td_node_tag
 {
 	const char *annotation;
@@ -58,41 +99,13 @@ typedef struct td_node_tag
 	int dep_count;
 	struct td_node_tag **deps;
 
-	struct td_job_tag *job;
+	td_job job;
 } td_node;
 
 typedef struct td_noderef_tag
 {
 	td_node *node;
 } td_noderef;
-
-typedef enum td_jobstate_tag
-{
-	TD_JOB_INITIAL         = 0,
-	TD_JOB_RUNNING         = 1,
-	TD_JOB_COMPLETED       = 100,
-	TD_JOB_FAILED          = 101,
-	TD_JOB_CANCELLED       = 102
-} td_jobstate;
-
-typedef struct td_job_chain_tag
-{
-	struct td_job_tag *job;
-	struct td_job_chain_tag *next;
-} td_job_chain;
-
-typedef struct td_job_tag 
-{
-	td_jobstate state;
-	td_node *node;
-
-	/* implicit dependencies, discovered by the node's scanner */
-	int idep_count;
-	td_file **ideps;
-
-	/* list of jobs this job will unblock once completed */
-	td_job_chain *pending_jobs;
-} td_job;
 
 typedef struct td_pass_tag
 {
@@ -118,6 +131,9 @@ typedef struct td_engine_tag
 	td_pass passes[TD_PASS_MAX];
 
 	td_signer *default_signer;
+
+	int node_count;
+	int debug_level;
 
 	struct lua_State *L;
 } td_engine;

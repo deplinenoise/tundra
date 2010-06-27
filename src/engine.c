@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "scanner.h"
 #include "util.h"
+#include "build.h"
 
 #ifdef _MSC_VER
 #include <malloc.h> /* alloca */
@@ -119,6 +120,7 @@ static int make_engine(lua_State *L)
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
 	self->default_signer = &sign_digest;
+	self->node_count = 0;
 
 	return 1;
 }
@@ -441,12 +443,15 @@ make_node(lua_State *L)
 
 	setup_file_signers(L, self, node);
 
-	node->job = NULL;
+	memset(&node->job, 0, sizeof(node->job));
 
 	td_noderef *noderef = (td_noderef*) lua_newuserdata(L, sizeof(td_noderef));
 	noderef->node = node;
 	luaL_getmetatable(L, TUNDRA_NODEREF_MTNAME);
 	lua_setmetatable(L, -2);
+
+	++self->node_count;
+
 	return 1;
 }
 
@@ -518,35 +523,24 @@ insert_output_files(lua_State *L)
 	return insert_file_list(L, self->output_count, self->outputs);
 }
 
-static td_job *
-get_job(td_engine *engine, td_node *node)
-{
-	td_job *result = node->job;
-	if (!result)
-	{
-		result = node->job = td_engine_alloc(engine, sizeof(td_job));
-		memset(result, 0, sizeof(*result));
-	}
-	return result;
-}
-
 static void
-add_pending_job(td_engine *engine, td_job *job, td_job *blocked_job)
+add_pending_job(td_engine *engine, td_node *blocking_node, td_node *blocked_node)
 {
 	td_job_chain *chain;
 
-	chain = job->pending_jobs;
+	chain = blocking_node->job.pending_jobs;
 	while (chain)
 	{
-		if (chain->job == blocked_job)
+		if (chain->node == blocked_node)
 			return;
 		chain = chain->next;
 	}
 
 	chain = (td_job_chain *) td_engine_alloc(engine, sizeof(td_job_chain));
-	chain->job = blocked_job;
-	chain->next = job->pending_jobs;
-	job->pending_jobs = chain;
+	chain->node = blocked_node;
+	chain->next = blocking_node->job.pending_jobs;
+	blocking_node->job.pending_jobs = chain;
+	blocked_node->job.block_count++;
 }
 
 static void
@@ -554,15 +548,13 @@ assign_jobs(td_engine *engine, td_node *root_node)
 {
 	int i, dep_count;
 	td_node **deplist = root_node->deps;
-	td_job *my_job = get_job(engine, root_node);
 
 	dep_count = root_node->dep_count;
 
 	for (i = 0; i < dep_count; ++i)
 	{
 		td_node *dep = deplist[i];
-		td_job *blocked_job = get_job(engine, dep);
-		add_pending_job(engine, my_job, blocked_job);
+		add_pending_job(engine, dep, root_node);
 	}
 
 	for (i = 0; i < dep_count; ++i)
@@ -590,7 +582,8 @@ build_nodes(lua_State* L)
 	{
 		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
 		assign_jobs(self, nref->node);
-		td_dump_node(nref->node, 0, -1);
+		/*td_dump_node(nref->node, 0, -1);*/
+		td_build(self, nref->node, 1);
 	}
 
 	return 0;

@@ -65,6 +65,8 @@ set(LUA_SOURCES
 source_group(Lua FILES ${LUA_SOURCES})
 
 set(TUNDRA_SOURCES
+src/build.c
+src/build.h
 src/cpp_scanner.c
 src/debug.c
 src/debug.h
