@@ -18,6 +18,31 @@ enum
 	TD_PASS_MAX = 32
 };
 
+typedef int (*td_sign_fn)(const char *filename, char digest_out[16]);
+
+typedef struct td_signer_tag
+{
+	int is_lua;
+	union {
+		td_sign_fn function;
+		int lua_reference;
+	} function;
+}
+td_signer;
+
+int td_sign_timestamp(const char *filename, char digest_out[16])
+{
+	return 1;
+}
+
+int td_sign_digest(const char *filename, char digest_out[16])
+{
+	return 1;
+}
+
+static td_signer sign_timestamp = { 0, { td_sign_timestamp } };
+static td_signer sign_digest = { 0, { td_sign_digest } };
+
 static unsigned long
 djb2_hash(const char *str_)
 {
@@ -46,7 +71,7 @@ struct td_file_tag
 {
 	const char *filename;
 	td_node *producer;
-	int (*sign_fn)(const char *filename);
+	td_signer *signer;
 	char signature[16];
 	struct td_file_tag *bucket_next;
 };
@@ -92,6 +117,10 @@ struct td_engine_tag
 	/* build passes */
 	int pass_count;
 	td_pass passes[TD_PASS_MAX];
+
+	td_signer *default_signer;
+
+	lua_State *L;
 };
 
 void* td_engine_alloc(td_engine *engine, size_t size)
@@ -159,6 +188,7 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 
 	f->filename = td_engine_strdup(engine, path, strlen(path));
 	f->bucket_next = engine->file_hash[slot];
+	f->signer = engine->default_signer;
 	engine->file_hash[slot] = f;
 	return f;
 }
@@ -187,6 +217,7 @@ static int make_engine(lua_State* L)
 	lua_setmetatable(L, -2);
 
 	self->file_hash_size = 92413;
+	self->L = L;
 
 	/* apply optional overrides */
 	if (lua_gettop(L) == 1 && lua_istable(L, 1))
@@ -195,6 +226,7 @@ static int make_engine(lua_State* L)
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
+	self->default_signer = &sign_digest;
 
 	return 1;
 }
@@ -487,6 +519,57 @@ leave:
 	return result;
 }
 
+static void
+setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
+{
+	lua_getfield(L, 2, "signers");
+	if (lua_isnil(L, -1))
+		goto leave;
+
+	lua_pushnil(L);
+	while (lua_next(L, -2))
+	{
+		if (!lua_isstring(L, -2))
+			luaL_error(L, "file signer keys must be strings");
+
+		const char *filename = lua_tostring(L, -2);
+		td_signer *signer;
+		td_file *file;
+
+		if (lua_isstring(L, -1))
+		{
+			const char* builtin_name = lua_tostring(L, -1);
+			if (0 == strcmp("digest", builtin_name))
+				signer = &sign_digest;
+			else if (0 == strcmp("timestamp", builtin_name))
+				signer = &sign_timestamp;
+			else
+				luaL_error(L, "%s: unsupported builtin sign function", builtin_name);
+
+			lua_pop(L, 1);
+		}
+		else if(lua_isfunction(L, -1))
+		{
+			/* save the lua closure in the registry so we can call it later */
+			signer = td_engine_alloc(engine, sizeof(td_signer));
+			signer->is_lua = 1;
+			signer->function.lua_reference = luaL_ref(L, -1); /* pops the value */
+		}
+		else
+			luaL_error(L, "signers must be either builtins (strings) or functions");
+
+		file = td_engine_get_file(engine, filename);
+
+		if (file->producer != node)
+			luaL_error(L, "%s isn't produced by this node; can't sign it", filename);
+
+		file->signer = signer;
+	}
+
+leave:
+	lua_pop(L, 1);
+}
+
 static int
 make_node(lua_State* L)
 {
@@ -513,6 +596,8 @@ make_node(lua_State* L)
 	lua_pop(L, 1);
 
 	node->deps = setup_deps(L, self, node, &node->dep_count);
+
+	setup_file_signers(L, self, node);
 
 	luaL_getmetatable(L, TUNDRA_NODE_MTNAME);
 	lua_setmetatable(L, -2);
