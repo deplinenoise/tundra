@@ -34,13 +34,6 @@ static int tundra_open(lua_State* L)
 	return 0;
 }
 
-// Algorithm:
-// 1) Boot native image
-// 2) Load boot lua script
-// 3) Parse command line options
-// 4) Read build scripts (query native side for everything about the FS through Change Journal)
-// 5) Pass DAG to native exector
-
 static char homedir[260];
 
 static int set_homedir(const char* dir)
