@@ -97,6 +97,40 @@ struct td_node_tag
 
 	int dep_count;
 	td_node **deps;
+
+	td_job *job;
+};
+
+struct td_noderef_tag
+{
+	td_node *node;
+};
+
+typedef enum td_jobstate_tag {
+	TD_JOB_INITIAL         = 0,
+	TD_JOB_RUNNING         = 1,
+	TD_JOB_COMPLETED       = 100,
+	TD_JOB_FAILED          = 101,
+	TD_JOB_CANCELLED       = 102
+} td_jobstate;
+
+typedef struct td_job_chain_tag
+{
+	td_job *job;
+	struct td_job_chain_tag *next;
+} td_job_chain;
+
+struct td_job_tag 
+{
+	td_jobstate state;
+	td_node *node;
+
+	/* implicit dependencies, discovered by the node's scanner */
+	int idep_count;
+	td_file **ideps;
+
+	/* list of jobs this job will unblock once completed */
+	td_job_chain *pending_jobs;
 };
 
 struct td_pass_tag
@@ -367,6 +401,8 @@ copy_string_field(lua_State* L, td_engine *engine, int index, const char *field_
 {
 	const char* str;
 	lua_getfield(L, index, field_name);
+	if (!lua_isstring(L, -1))
+		luaL_error(L, "%s: expected a string", field_name);
 	str = td_engine_strdup_lua(L, engine, -1, field_name);
 	lua_pop(L, 1);
 	return str;
@@ -485,7 +521,7 @@ setup_deps(lua_State* L, td_engine *engine, td_node *node, int *count_out)
 		for (i = 1, e = dep_array_size; i <= e; ++i)
 		{
 			lua_rawgeti(L, -1, i);
-			deps[count++] = td_check_node(L, -1);
+			deps[count++] = td_check_noderef(L, -1)->node;
 			lua_pop(L, 1);
 		}
 	}
@@ -556,7 +592,7 @@ setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
 		else if(lua_isfunction(L, -1))
 		{
 			/* save the lua closure in the registry so we can call it later */
-			signer = td_engine_alloc(engine, sizeof(td_signer));
+			signer = (td_signer*) td_engine_alloc(engine, sizeof(td_signer));
 			signer->is_lua = 1;
 			signer->function.lua_reference = luaL_ref(L, -1); /* pops the value */
 		}
@@ -577,11 +613,48 @@ leave:
 	lua_pop(L, 1);
 }
 
+static void
+dump_node(const td_node *n, int level)
+{
+	int x;
+	int indent_adjust;
+	const char* indent;
+
+	static const char spaces[] =
+		"                                                     "
+		"                                                     "
+		"                                                     ";
+
+	indent_adjust = sizeof(spaces) - 1 - level * 2;
+	if (indent_adjust < 0)
+		indent_adjust = 0;
+	indent = spaces + indent_adjust;
+	printf("%s{\n%s  annotation: %s\n", indent, indent, n->annotation);
+	printf("%s  action: %s\n", indent, n->action);
+
+	for (x = 0; x < n->input_count; ++x)
+		printf("%s  input(%d): %s\n", indent, x+1, n->inputs[x]->filename);
+
+	for (x = 0; x < n->output_count; ++x)
+		printf("%s  output(%d): %s\n", indent, x+1, n->outputs[x]->filename);
+
+	if (n->dep_count)
+	{
+  		printf("%s  deps:\n", indent);
+		for (x = 0; x < n->dep_count; ++x)
+		{
+			dump_node(n->deps[x], level+1);
+		}
+	}
+	printf("%s}\n", indent);
+}
+
+
 static int
 make_node(lua_State* L)
 {
 	td_engine * const self = td_check_engine(L, 1);
-	td_node *node = (td_node*) lua_newuserdata(L, sizeof(td_node));
+	td_node *node = (td_node *) td_engine_alloc(self, sizeof(td_node));
 
 	node->annotation = copy_string_field(L, self, 2, "annotation");
 	node->action = copy_string_field(L, self, 2, "action");
@@ -608,7 +681,11 @@ make_node(lua_State* L)
 
 	setup_file_signers(L, self, node);
 
-	luaL_getmetatable(L, TUNDRA_NODE_MTNAME);
+	node->job = NULL;
+
+	td_noderef *noderef = (td_noderef*) lua_newuserdata(L, sizeof(td_noderef));
+	noderef->node = node;
+	luaL_getmetatable(L, TUNDRA_NODEREF_MTNAME);
 	lua_setmetatable(L, -2);
 	return 1;
 }
@@ -670,31 +747,69 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 static int
 insert_input_files(lua_State* L)
 {
-	td_node * const self = td_check_node(L, 1);
+	td_node * const self = td_check_noderef(L, 1)->node;
 	return insert_file_list(L, self->input_count, self->inputs);
 }
 
 static int
 insert_output_files(lua_State* L)
 {
-	td_node * const self = td_check_node(L, 1);
+	td_node * const self = td_check_noderef(L, 1)->node;
 	return insert_file_list(L, self->output_count, self->outputs);
 }
 
-static void dump_node(const td_node *n)
+static td_job *
+get_job(td_engine *engine, td_node *node)
 {
-	int x;
-	printf("annotation: %s\n", n->annotation);
-	printf("action: %s\n", n->action);
+	td_job *result = node->job;
+	if (!result)
+	{
+		result = node->job = td_engine_alloc(engine, sizeof(td_job));
+		memset(result, 0, sizeof(*result));
+	}
+	return result;
+}
 
-	for (x = 0; x < n->input_count; ++x)
-		printf("input(%d): %s\n", x+1, n->inputs[x]->filename);
+static void
+add_pending_job(td_engine *engine, td_job *job, td_job *blocked_job)
+{
+	td_job_chain *chain;
 
-	for (x = 0; x < n->output_count; ++x)
-		printf("output(%d): %s\n", x+1, n->outputs[x]->filename);
+	chain = job->pending_jobs;
+	while (chain)
+	{
+		if (chain->job == blocked_job)
+			return;
+		chain = chain->next;
+	}
 
-	for (x = 0; x < n->dep_count; ++x)
-		printf("dep(%d): %s\n", x+1, n->deps[x]->annotation);
+	chain = (td_job_chain *) td_engine_alloc(engine, sizeof(td_job_chain));
+	chain->job = blocked_job;
+	chain->next = job->pending_jobs;
+	job->pending_jobs = chain;
+}
+
+static void
+assign_jobs(td_engine *engine, td_node *root_node)
+{
+	int i, dep_count;
+	td_node **deplist = root_node->deps;
+	td_job* my_job = get_job(engine, root_node);
+
+	dep_count = root_node->dep_count;
+
+	for (i = 0; i < dep_count; ++i)
+	{
+		td_node *dep = deplist[i];
+		td_job* blocked_job = get_job(engine, dep);
+		add_pending_job(engine, my_job, blocked_job);
+	}
+
+	for (i = 0; i < dep_count; ++i)
+	{
+		td_node *dep = deplist[i];
+		assign_jobs(engine, dep);
+	}
 }
 
 /*
@@ -714,8 +829,9 @@ build_nodes(lua_State* L)
 
 	for (i=2; i<=narg; ++i)
 	{
-		td_node *node = (td_node*) luaL_checkudata(L, i, TUNDRA_NODE_MTNAME);
-		dump_node(node);
+		td_noderef *nref = (td_noderef*) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
+		dump_node(nref->node, 0);
+		assign_jobs(self, nref->node);
 	}
 
 	return 0;
@@ -727,7 +843,7 @@ is_node(lua_State* L)
 	int status = 0;
 	if (lua_getmetatable(L, 1))
 	{
-		lua_getfield(L, LUA_REGISTRYINDEX, TUNDRA_NODE_MTNAME);
+		lua_getfield(L, LUA_REGISTRYINDEX, TUNDRA_NODEREF_MTNAME);
 		status = lua_rawequal(L, -1, -2);
 	}
 	lua_pushboolean(L, status);
@@ -738,7 +854,7 @@ static int
 node_str(lua_State *L)
 {
 	lua_pushlstring(L, "{", 1);
-	lua_pushstring(L, td_check_node(L, 1)->annotation);
+	lua_pushstring(L, td_check_noderef(L, 1)->node->annotation);
 	lua_pushlstring(L, "}", 1);
 	lua_concat(L, 3);
 	return 1;
@@ -780,5 +896,5 @@ void td_engine_open(lua_State* L)
 
 	/* set up engine and node object metatable */
 	create_mt(L, TUNDRA_ENGINE_MTNAME, engine_mt_entries);
-	create_mt(L, TUNDRA_NODE_MTNAME, node_mt_entries);
+	create_mt(L, TUNDRA_NODEREF_MTNAME, node_mt_entries);
 }
