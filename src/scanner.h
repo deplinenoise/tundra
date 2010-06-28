@@ -3,13 +3,16 @@
 
 struct lua_State;
 struct td_node_tag;
-struct td_job_tag;
+struct td_engine_tag;
+struct td_scanner_tag;
 
 #define TUNDRA_SCANNER_MTNAME "tundra_scanner"
 
+typedef int (*td_scan_fn)(struct td_engine_tag *engine, struct td_node_tag *node, struct td_scanner_tag *state);
+
 typedef struct td_scanner_tag {
 	const char *ident;
-	void (*scan_fn)(struct td_node_tag *node, struct td_job_tag *job, struct td_scanner_tag *state);
+	td_scan_fn scan_fn;
 } td_scanner;
 
 td_scanner *td_alloc_scanner(struct lua_State* L, int size);

@@ -1,6 +1,7 @@
 
 #include "engine.h"
 #include "util.h"
+#include "scanner.h"
 
 #include <string.h>
 #include <pthread.h>
@@ -23,13 +24,24 @@ typedef struct td_job_queue_tag
 } td_job_queue;
 
 static int
-scan_implicit_deps(td_job_queue *queue, td_node *job)
+scan_implicit_deps(td_job_queue *queue, td_node *node)
 {
-	return 1;
+	td_scanner *scanner = node->scanner;
+	int result;
+
+	if (!scanner)
+		return 0;
+
+	pthread_mutex_unlock(&queue->mutex);
+
+	result = (*scanner->scan_fn)(queue->engine, node, scanner);
+
+	pthread_mutex_lock(&queue->mutex);
+	return result;
 }
 
 static int
-run_job(td_job_queue *queue, td_node *job)
+run_job(td_job_queue *queue, td_node *node)
 {
 	return 1;
 }

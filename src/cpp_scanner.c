@@ -12,10 +12,11 @@ typedef struct td_cpp_scanner_tag
 	const char **paths;
 } td_cpp_scanner;
 
-static void scan_cpp(td_node *node, td_job *job, td_scanner *state)
+static int scan_cpp(td_engine *engine, td_node *node, td_scanner *state)
 {
 	td_cpp_scanner *self = (td_cpp_scanner *) state;
 	(void) self;
+	return 1;
 }
 
 static int make_cpp_scanner(lua_State *L)
