@@ -118,7 +118,7 @@ advance_job(td_job_queue *queue, td_node *node)
 					if (!is_completed(dep))
 					{
 						++bc;
-						if (!is_queued(dep))
+						if (!is_queued(dep) && dep->job.state < TD_JOB_BLOCKED)
 							enqueue(queue, dep);
 					}
 				}
@@ -160,10 +160,15 @@ advance_job(td_job_queue *queue, td_node *node)
 		}
 	}
 
-	/* unblock all jobs that are waiting for this job and enqueue them */
+	if (is_completed(node))
 	{
 		int qcount = 0;
 		td_job_chain *chain = node->job.pending_jobs;
+
+		if (queue->engine->debug_level > 10)
+			printf("%s completed - enqueing blocked jobs\n", node->annotation);
+
+		/* unblock all jobs that are waiting for this job and enqueue them */
 		while (chain)
 		{
 			td_node *n = chain->node;

@@ -111,6 +111,9 @@ typedef struct td_pass_tag
 {
 	const char *name;
 	int build_order;
+	td_node *barrier_node;
+	int node_count;
+	td_job_chain *nodes;
 } td_pass;
 
 typedef struct td_engine_tag

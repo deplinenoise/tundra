@@ -103,6 +103,7 @@ static int get_int_override(lua_State *L, int index, const char *field_name, int
 
 static int make_engine(lua_State *L)
 {
+	const char *debug_level;
 	td_engine *self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
 	memset(self, 0, sizeof(td_engine));
 	self->magic_value = 0xcafebabe;
@@ -121,6 +122,9 @@ static int make_engine(lua_State *L)
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
 	self->default_signer = &sign_digest;
 	self->node_count = 0;
+
+	if (NULL != (debug_level = getenv("TUNDRA_DEBUG")))
+		self->debug_level = atoi(debug_level);
 
 	return 1;
 }
@@ -152,6 +156,15 @@ static int engine_gc(lua_State *L)
 	self->file_hash = NULL;
 
 	return 0;
+}
+
+static td_node *
+make_pass_barrier(td_engine *engine, const td_pass *pass)
+{
+	td_node *result = (td_node *) td_engine_alloc(engine, sizeof(td_node));
+	memset(result, 0, sizeof(*result));
+	result->annotation = pass->name;
+	return result;
 }
 
 static int
@@ -190,6 +203,7 @@ get_pass_index(lua_State *L, td_engine *engine, int index)
 
 	engine->passes[i].name = td_engine_strdup(engine, name, name_len);
 	engine->passes[i].build_order = build_order;
+	engine->passes[i].barrier_node = make_pass_barrier(engine, &engine->passes[i]);
 
 	lua_pop(L, 2);
 	return i;
@@ -208,8 +222,10 @@ copy_string_field(lua_State *L, td_engine *engine, int index, const char *field_
 }
 
 static int
-setup_pass(lua_State *L, td_engine *engine, int index)
+setup_pass(lua_State *L, td_engine *engine, int index, td_node *node)
 {
+	td_pass *pass;
+	td_job_chain *chain;
 	int pass_index;
 
 	lua_getfield(L, index, "pass");
@@ -218,6 +234,15 @@ setup_pass(lua_State *L, td_engine *engine, int index)
 
 	pass_index = get_pass_index(L, engine, lua_gettop(L));
 	lua_pop(L, 1);
+
+	pass = &engine->passes[pass_index];
+
+	/* link this node into the node list of the pass */
+	chain = (td_job_chain *) td_engine_alloc(engine, sizeof(td_job_chain));
+	chain->node = node;
+	chain->next = pass->nodes;
+	pass->nodes = chain;
+	++pass->node_count;
 
 	return pass_index;
 }
@@ -307,8 +332,7 @@ setup_deps(lua_State *L, td_engine *engine, td_node *node, int *count_out)
 
 	max_deps += node->input_count;
 
-	if (0 == max_deps)
-		goto leave;
+	++max_deps; /* for the pass barrier */
 
 	deps = (td_node **) alloca(max_deps * sizeof(td_node*));
 	if (!deps)
@@ -330,6 +354,12 @@ setup_deps(lua_State *L, td_engine *engine, td_node *node, int *count_out)
 		td_node *producer = node->inputs[i]->producer;
 		if (producer)
 			deps[count++] = producer;
+	}
+
+	/* always depend on the pass barrier */
+	{
+		td_pass *pass = &engine->passes[node->pass_index];
+		deps[count++] = pass->barrier_node;
 	}
 
 	if (0 == count)
@@ -420,7 +450,7 @@ make_node(lua_State *L)
 
 	node->annotation = copy_string_field(L, self, 2, "annotation");
 	node->action = copy_string_field(L, self, 2, "action");
-	node->pass_index = setup_pass(L, self, 2);
+	node->pass_index = setup_pass(L, self, 2, node);
 
 	lua_getfield(L, 2, "inputs");
 	node->inputs = td_build_file_array(L, self, lua_gettop(L), &node->input_count);
@@ -564,6 +594,53 @@ assign_jobs(td_engine *engine, td_node *root_node)
 	}
 }
 
+static int
+comp_pass_ptrs(const void *l, const void *r)
+{
+	const td_pass **lhs = (const td_pass **)l;
+	const td_pass **rhs = (const td_pass **)r;
+	return (*lhs)->build_order - (*rhs)->build_order;
+}
+
+static void add_pass_deps(td_engine *engine, td_pass *prec, td_pass *succ)
+{
+	int count;
+	td_node **dep_array;
+	td_job_chain *chain;
+   
+	dep_array = td_engine_alloc(engine, sizeof(td_node*) * prec->node_count);
+	count = 0;
+	chain = prec->nodes;
+	while (chain)
+	{
+		dep_array[count++] = chain->node;
+		chain = chain->next;
+	}
+	assert(count == prec->node_count);
+
+	succ->barrier_node->dep_count = count;
+	succ->barrier_node->deps = dep_array;
+}
+
+static void
+connect_pass_barriers(td_engine *engine)
+{
+	int i, count;
+	td_pass *passes[TD_PASS_MAX];
+
+	count = engine->pass_count;
+	for (i = 0; i < count; ++i)
+		passes[i] = &engine->passes[i];
+
+	qsort(&passes[0], count, sizeof(td_pass *), comp_pass_ptrs);
+
+	/* arrange for job barriers to depend on all nodes in the preceding pass */
+	for (i = 1; i < count; ++i)
+	{
+		add_pass_deps(engine, passes[i-1], passes[i]);
+	}
+}
+
 /*
  * Execute actions needed to update a dependency graph.
  *
@@ -578,11 +655,12 @@ build_nodes(lua_State* L)
 
 	narg = lua_gettop(L);
 
+	connect_pass_barriers(self);
+
 	for (i = 2; i <= narg; ++i)
 	{
 		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
 		assign_jobs(self, nref->node);
-		/*td_dump_node(nref->node, 0, -1);*/
 		td_build(self, nref->node, 1);
 	}
 
