@@ -5,6 +5,6 @@ struct td_engine_tag;
 struct td_node_tag;
 
 int
-td_build(struct td_engine_tag *engine, struct td_node_tag *node, int thread_count);
+td_build(struct td_engine_tag *engine, struct td_node_tag *node);
 
 #endif

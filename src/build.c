@@ -59,7 +59,7 @@ enqueue(td_job_queue *queue, td_node *node)
 
 	assert((queue->tail - queue->head) < queue->array_size);
 
-	if (queue->engine->debug_level > 10)
+	if (td_debug_check(queue->engine, 10))
 		printf("enqueueing %s\n", node->annotation);
 
 	queue->array[queue->tail % queue->array_size] = node;
@@ -86,7 +86,7 @@ jobstate_name(td_jobstate s)
 static void
 transition_job(td_job_queue *queue, td_node *node, td_jobstate new_state)
 {
-	if (queue->engine->debug_level > 9)
+	if (td_debug_check(queue->engine, 9))
 	{
 		printf("[%s] %s -> %s { %d blockers }\n",
 				node->annotation,
@@ -165,7 +165,7 @@ advance_job(td_job_queue *queue, td_node *node)
 		int qcount = 0;
 		td_job_chain *chain = node->job.pending_jobs;
 
-		if (queue->engine->debug_level > 10)
+		if (td_debug_check(queue->engine, 10))
 			printf("%s completed - enqueing blocked jobs\n", node->annotation);
 
 		/* unblock all jobs that are waiting for this job and enqueue them */
@@ -222,6 +222,7 @@ build_worker(void *arg)
 	}
 
 	pthread_mutex_unlock(&queue->mutex);
+	pthread_cond_broadcast(&queue->work_avail);
 
 	return NULL;
 }
@@ -229,9 +230,10 @@ build_worker(void *arg)
 #define TD_MAX_THREADS (32)
 
 int
-td_build(td_engine *engine, td_node *node, int thread_count)
+td_build(td_engine *engine, td_node *node)
 {
 	int i;
+	int thread_count;
 	pthread_t threads[TD_MAX_THREADS];
 
 	td_job_queue queue;
@@ -243,11 +245,17 @@ td_build(td_engine *engine, td_node *node, int thread_count)
 	queue.array_size = engine->node_count;
 	queue.array = (td_node **) calloc(engine->node_count, sizeof(td_node*));
 
+	thread_count = engine->settings.thread_count;
 	if (thread_count > TD_MAX_THREADS)
 		thread_count = TD_MAX_THREADS;
 
+	if (td_debug_check(engine, 5))
+		printf("using %d build threads\n", thread_count);
+
 	for (i = 0; i < thread_count-1; ++i)
 	{
+		if (td_debug_check(engine, 6))
+			printf("starting thread %d\n", i);
 		int rc = pthread_create(&threads[i], NULL, build_worker, &queue);
 		if (0 != rc)
 			td_croak("couldn't start thread %d: %s", i, strerror(rc));
@@ -263,7 +271,6 @@ td_build(td_engine *engine, td_node *node, int thread_count)
 
 	build_worker(&queue);
 
-	pthread_cond_broadcast(&queue.work_avail);
 	for (i = thread_count - 2; i >= 0; --i)
 	{
 		void *res;

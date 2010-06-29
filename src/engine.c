@@ -101,9 +101,23 @@ static int get_int_override(lua_State *L, int index, const char *field_name, int
 	return val;
 }
 
+static void configure_from_env(td_engine *engine)
+{
+	const char *tmp;
+
+	if (NULL != (tmp = getenv("TUNDRA_DEBUG")))
+		engine->settings.debug_level = atoi(tmp);
+	else
+		engine->settings.debug_level = 0;
+
+	if (NULL != (tmp = getenv("TUNDRA_THREADS")))
+		engine->settings.thread_count = atoi(tmp);
+	else
+		engine->settings.thread_count = 1;
+}
+
 static int make_engine(lua_State *L)
 {
-	const char *debug_level;
 	td_engine *self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
 	memset(self, 0, sizeof(td_engine));
 	self->magic_value = 0xcafebabe;
@@ -123,8 +137,7 @@ static int make_engine(lua_State *L)
 	self->default_signer = &sign_digest;
 	self->node_count = 0;
 
-	if (NULL != (debug_level = getenv("TUNDRA_DEBUG")))
-		self->debug_level = atoi(debug_level);
+	configure_from_env(self);
 
 	return 1;
 }
@@ -661,7 +674,7 @@ build_nodes(lua_State* L)
 	{
 		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
 		assign_jobs(self, nref->node);
-		td_build(self, nref->node, 1);
+		td_build(self, nref->node);
 	}
 
 	return 0;

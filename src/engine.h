@@ -136,11 +136,17 @@ typedef struct td_engine_tag
 	td_signer *default_signer;
 
 	int node_count;
-	int debug_level;
+
+	struct {
+		int debug_level;
+		int thread_count;
+	} settings;
 
 	struct lua_State *L;
 } td_engine;
 
+
+#define td_debug_check(engine, level) ((engine)->settings.debug_level >= (level))
 
 #define td_check_noderef(L, index) ((struct td_noderef_tag *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
 #define td_check_engine(L, index) ((struct td_engine_tag *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))
