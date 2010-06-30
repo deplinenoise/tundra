@@ -375,9 +375,6 @@ setup_deps(lua_State *L, td_engine *engine, td_node *node, int *count_out)
 		deps[count++] = pass->barrier_node;
 	}
 
-	if (0 == count)
-		goto leave;
-
 	/* sort the dependency set to easily remove duplicates */
 	qsort(deps, count, sizeof(td_node*), compare_ptrs);
 
@@ -394,7 +391,6 @@ setup_deps(lua_State *L, td_engine *engine, td_node *node, int *count_out)
 	result = td_engine_alloc(engine, sizeof(td_node*) * result_count);
 	memcpy(result, uniq_deps, sizeof(td_node*) * result_count);
 
-leave:
 	*count_out = result_count;
 	lua_pop(L, 1);
 	return result;
