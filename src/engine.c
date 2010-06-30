@@ -460,6 +460,7 @@ make_node(lua_State *L)
 {
 	td_engine * const self = td_check_engine(L, 1);
 	td_node *node = (td_node *) td_engine_alloc(self, sizeof(td_node));
+	td_noderef *noderef;
 
 	node->annotation = copy_string_field(L, self, 2, "annotation");
 	node->action = copy_string_field(L, self, 2, "action");
@@ -488,7 +489,7 @@ make_node(lua_State *L)
 
 	memset(&node->job, 0, sizeof(node->job));
 
-	td_noderef *noderef = (td_noderef*) lua_newuserdata(L, sizeof(td_noderef));
+	noderef = (td_noderef*) lua_newuserdata(L, sizeof(td_noderef));
 	noderef->node = node;
 	luaL_getmetatable(L, TUNDRA_NODEREF_MTNAME);
 	lua_setmetatable(L, -2);
