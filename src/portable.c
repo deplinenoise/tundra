@@ -99,10 +99,11 @@ static thread_data* alloc_thread(void)
 	exit(1);
 }
 
-static void thread_start(void *args_)
+static unsigned thread_start(void *args_)
 {
 	thread_data* args = (thread_data*) args_;
 	args->result = (*args->func)(args->input_arg);
+	return 0;
 }
 
 int pthread_create(pthread_t *result, void* options, pthread_thread_routine start, void *routine_arg)
@@ -110,7 +111,7 @@ int pthread_create(pthread_t *result, void* options, pthread_thread_routine star
 	thread_data* data = alloc_thread();
 	data->func = start;
 	data->input_arg = routine_arg;
-	data->thread = _beginthread(thread_start, 0, data);
+	data->thread = _beginthreadex(NULL, 0, thread_start, data, 0, NULL);
 	result->index = (int) (data - &setup[0]);
 	return 0;
 }
@@ -123,10 +124,15 @@ int pthread_join(pthread_t thread, void **result_out)
 
 	if (WAIT_OBJECT_0 == WaitForSingleObject((HANDLE) data->thread, INFINITE))
 	{
+		CloseHandle((HANDLE) data->thread);
 		*result_out = data->result;
 		memset(data, 0, sizeof(thread_data));
+		return 0;
 	}
-	return 0;
+	else
+	{
+		return EINVAL;
+	}
 }
 
 #endif
