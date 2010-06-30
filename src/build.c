@@ -4,10 +4,10 @@
 #include "scanner.h"
 
 #include <string.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "portable.h"
 
 typedef struct td_job_queue_tag
 {
@@ -254,9 +254,10 @@ td_build(td_engine *engine, td_node *node)
 
 	for (i = 0; i < thread_count-1; ++i)
 	{
+		int rc;
 		if (td_debug_check(engine, 6))
 			printf("starting thread %d\n", i);
-		int rc = pthread_create(&threads[i], NULL, build_worker, &queue);
+		rc = pthread_create(&threads[i], NULL, build_worker, &queue);
 		if (0 != rc)
 			td_croak("couldn't start thread %d: %s", i, strerror(rc));
 	}

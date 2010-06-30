@@ -80,6 +80,8 @@ src/scanner.h
 src/tundra.c
 src/util.c
 src/util.h
+src/portable.c
+src/portable.h
 	)
 
 source_group(Tundra FILES ${TUNDRA_SOURCES})
