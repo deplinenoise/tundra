@@ -146,7 +146,11 @@ typedef struct td_engine_tag
 } td_engine;
 
 
+#ifndef NDEBUG
 #define td_debug_check(engine, level) ((engine)->settings.debug_level >= (level))
+#else
+#define td_debug_check(engine, level) (0)
+#endif
 
 #define td_check_noderef(L, index) ((struct td_noderef_tag *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
 #define td_check_engine(L, index) ((struct td_engine_tag *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))
