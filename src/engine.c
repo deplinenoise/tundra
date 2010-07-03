@@ -86,6 +86,73 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 	return f;
 }
 
+td_file **
+td_engine_get_relations(td_engine *engine, const char *string, unsigned int salt, int *count_out)
+{
+	unsigned long hash = djb2_hash(string);
+	td_relcell *chain;
+	int bucket;
+
+	hash ^= salt;
+	bucket = hash % engine->relhash_size;
+	chain = engine->relhash[bucket];
+
+	while (chain)
+	{
+		if (salt == chain->salt && 0 == strcmp(chain->string, string))
+		{
+			*count_out = chain->count;
+			return chain->files;
+		}
+	}
+
+	*count_out = 0;
+	return NULL;
+}
+
+static void
+populate_relcell(
+		td_engine *engine,
+		td_relcell* cell,
+		const char *string,
+		unsigned int salt,
+		int count,
+		td_file **files)
+{
+	size_t memsize = sizeof(td_file*) * count;
+	cell->string = td_page_strdup(&engine->alloc, string, strlen(string));
+	cell->salt = salt;
+	cell->count = count;
+	cell->files = (td_file **) td_page_alloc(&engine->alloc, memsize);
+	memcpy(&cell->files[0], files, memsize);
+}
+
+void
+td_engine_set_relations(td_engine *engine, const char *string, unsigned int salt, int count, td_file **files)
+{
+	unsigned long hash = djb2_hash(string);
+	td_relcell *chain;
+	int bucket;
+
+	hash ^= salt;
+	bucket = hash % engine->relhash_size;
+	chain = engine->relhash[bucket];
+
+	while (chain)
+	{
+		if (salt == chain->salt && 0 == strcmp(chain->string, string))
+		{
+			populate_relcell(engine, chain, string, salt, count, files);
+			return;
+		}
+	}
+
+	chain = (td_relcell*) td_page_alloc(&engine->alloc, sizeof(td_relcell));
+	populate_relcell(engine, chain, string, salt, count, files);
+	chain->bucket_next = engine->relhash[bucket];
+	engine->relhash[bucket] = chain;
+}
+
 static int get_int_override(lua_State *L, int index, const char *field_name, int default_value)
 {
 	int val = default_value;
@@ -128,15 +195,18 @@ static int make_engine(lua_State *L)
 	td_alloc_init(&self->alloc, 100, 1024 * 1024);
 
 	self->file_hash_size = 92413;
+	self->relhash_size = 92413;
 	self->L = L;
 
 	/* apply optional overrides */
-	if (lua_gettop(L) == 1 && lua_istable(L, 1))
+	if (1 <= lua_gettop(L) && lua_istable(L, 1))
 	{
 		self->file_hash_size = get_int_override(L, 1, "FileHashSize", self->file_hash_size);
+		self->relhash_size = get_int_override(L, 1, "RelationHashSize", self->relhash_size);
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
+	self->relhash = (td_relcell **) calloc(sizeof(td_relcell*), self->relhash_size);
 	self->default_signer = &sign_digest;
 	self->node_count = 0;
 
@@ -149,8 +219,6 @@ static int engine_gc(lua_State *L)
 {
 	td_engine *const self = td_check_engine(L, 1);
 
-	td_alloc_cleanup(&self->alloc);
-
 	if (self->magic_value != 0xcafebabe)
 		luaL_error(L, "illegal userdatum; magic value check fails");
 
@@ -158,6 +226,11 @@ static int engine_gc(lua_State *L)
 
 	free(self->file_hash);
 	self->file_hash = NULL;
+
+	free(self->relhash);
+	self->relhash = NULL;
+
+	td_alloc_cleanup(&self->alloc);
 
 	return 0;
 }

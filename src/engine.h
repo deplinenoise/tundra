@@ -127,6 +127,15 @@ typedef struct td_alloc_tag
 	char **pages;
 } td_alloc;
 
+typedef struct td_relcell_tag
+{
+	const char *string;
+	unsigned int salt;
+	int count;
+	td_file **files;
+	struct td_relcell_tag *bucket_next;
+} td_relcell;
+
 typedef struct td_engine_tag
 {
 	int magic_value;
@@ -137,6 +146,10 @@ typedef struct td_engine_tag
 	/* file db */
 	int file_hash_size;
 	td_file **file_hash;
+
+	/* file relation cache */
+	int relhash_size;
+	td_relcell **relhash;
 
 	/* build passes */
 	int pass_count;
@@ -154,7 +167,6 @@ typedef struct td_engine_tag
 	struct lua_State *L;
 } td_engine;
 
-
 #ifndef NDEBUG
 #define td_debug_check(engine, level) ((engine)->settings.debug_level >= (level))
 #else
@@ -166,5 +178,11 @@ typedef struct td_engine_tag
 
 void *td_page_alloc(td_alloc *engine, size_t size);
 td_file *td_engine_get_file(td_engine *engine, const char *path);
+
+td_file **
+td_engine_get_relations(td_engine *engine, const char *string, unsigned int salt, int *count_out);
+
+void
+td_engine_set_relations(td_engine *engine, const char *string, unsigned int salt, int count, td_file **files);
 
 #endif
