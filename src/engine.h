@@ -14,8 +14,6 @@ struct lua_State;
 
 enum
 {
-	TD_STRING_PAGE_SIZE = 1024*1024,
-	TD_STRING_PAGE_MAX = 100,
 	TD_PASS_MAX = 32
 };
 
@@ -77,6 +75,9 @@ typedef struct td_job_tag
 	/* # of jobs that must complete before this job can run */
 	int block_count;
 
+	/* # of dependencies that have failed */
+	int failed_deps;
+
 	/* list of jobs this job will unblock once completed */
 	td_job_chain *pending_jobs;
 } td_job;
@@ -116,14 +117,22 @@ typedef struct td_pass_tag
 	td_job_chain *nodes;
 } td_pass;
 
+typedef struct td_alloc_tag
+{
+	/* memory allocation */
+	int page_index;
+	int page_left;
+	int page_size;
+	int total_page_count;
+	char **pages;
+} td_alloc;
+
 typedef struct td_engine_tag
 {
 	int magic_value;
 
 	/* memory allocation */
-	int page_index;
-	int page_left;
-	char *pages[TD_STRING_PAGE_MAX];
+	td_alloc alloc;
 
 	/* file db */
 	int file_hash_size;
@@ -155,7 +164,7 @@ typedef struct td_engine_tag
 #define td_check_noderef(L, index) ((struct td_noderef_tag *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
 #define td_check_engine(L, index) ((struct td_engine_tag *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))
 
-void *td_engine_alloc(td_engine *engine, size_t size);
+void *td_page_alloc(td_alloc *engine, size_t size);
 td_file *td_engine_get_file(td_engine *engine, const char *path);
 
 #endif

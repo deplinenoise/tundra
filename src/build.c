@@ -34,7 +34,7 @@ scan_implicit_deps(td_job_queue *queue, td_node *node)
 
 	pthread_mutex_unlock(&queue->mutex);
 
-	result = (*scanner->scan_fn)(queue->engine, node, scanner);
+	result = (*scanner->scan_fn)(queue->engine, &queue->mutex, node, scanner);
 
 	pthread_mutex_lock(&queue->mutex);
 	return result;
@@ -49,6 +49,7 @@ run_job(td_job_queue *queue, td_node *node)
 static int is_queued(td_node *node) { return node->job.flags & TD_JOBF_QUEUED; }
 static int is_root(td_node *node) { return node->job.flags >= TD_JOBF_ROOT; }
 static int is_completed(td_node *node) { return node->job.state >= TD_JOB_COMPLETED; }
+static int is_failed(td_node *node) { return node->job.state == TD_JOB_FAILED; }
 
 static void
 enqueue(td_job_queue *queue, td_node *node)
@@ -136,14 +137,17 @@ advance_job(td_job_queue *queue, td_node *node)
 
 		case TD_JOB_BLOCKED:
 			assert(0 == node->job.block_count);
-			transition_job(queue, node, TD_JOB_SCANNING);
+			if (0 == node->job.failed_deps)
+				transition_job(queue, node, TD_JOB_SCANNING);
+			else
+				transition_job(queue, node, TD_JOB_FAILED);
 			break;
 
 		case TD_JOB_SCANNING:
-			if (0 != scan_implicit_deps(queue, node))
-				transition_job(queue, node, TD_JOB_FAILED);
-			else
+			if (0 == scan_implicit_deps(queue, node))
 				transition_job(queue, node, TD_JOB_RUNNING);
+			else
+				transition_job(queue, node, TD_JOB_FAILED);
 			break;
 
 		case TD_JOB_RUNNING:
@@ -172,7 +176,13 @@ advance_job(td_job_queue *queue, td_node *node)
 		while (chain)
 		{
 			td_node *n = chain->node;
+
+			if (is_failed(node))
+				n->job.failed_deps++;
+
+			/* nodes blocked on this node can't be completed yet */
 			assert(!is_completed(n));
+
 			if (0 == --n->job.block_count)
 			{
 				if (!is_queued(n))

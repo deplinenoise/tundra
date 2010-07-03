@@ -33,9 +33,9 @@ djb2_hash(const char *str_)
 }
 
 char *
-td_engine_strdup(td_engine *engine, const char *str, size_t len)
+td_page_strdup(td_alloc *alloc, const char *str, size_t len)
 {
-	char *addr = (char*) td_engine_alloc(engine, len + 1);
+	char *addr = (char*) td_page_alloc(alloc, len + 1);
 
 	memcpy(addr, str, len);
 
@@ -47,18 +47,18 @@ td_engine_strdup(td_engine *engine, const char *str, size_t len)
 }
 
 char *
-td_engine_strdup_lua(lua_State *L, td_engine *engine, int index, const char *context)
+td_page_strdup_lua(lua_State *L, td_alloc *alloc, int index, const char *context)
 {
 	const char *str;
 	size_t len;
 	str = lua_tolstring(L, index, &len);
 	if (!str)
 		luaL_error(L, "%s: expected a string", context);
-	return td_engine_strdup(engine, str, len);
+	return td_page_strdup(alloc, str, len);
 }
 
 const char **
-td_build_string_array(lua_State *L, td_engine *engine, int index, int *count_out)
+td_build_string_array(lua_State *L, td_alloc *alloc, int index, int *count_out)
 {
 	int i;
 	const int count = (int) lua_objlen(L, index);
@@ -68,12 +68,12 @@ td_build_string_array(lua_State *L, td_engine *engine, int index, int *count_out
 	if (!count)
 		return NULL;
    
-	result = (const char **) td_engine_alloc(engine, sizeof(const char*) * count);
+	result = (const char **) td_page_alloc(alloc, sizeof(const char*) * count);
 
 	for (i = 0; i < count; ++i)
 	{
 		lua_rawgeti(L, index, i+1);
-		result[i] = td_engine_strdup_lua(L, engine, -1, "string array");
+		result[i] = td_page_strdup_lua(L, alloc, -1, "string array");
 		lua_pop(L, 1);
 	}
 
@@ -91,7 +91,7 @@ td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
 	if (!count)
 		return NULL;
    
-	result = (td_file **) td_engine_alloc(engine, sizeof(td_file*) * count);
+	result = (td_file **) td_page_alloc(&engine->alloc, sizeof(td_file*) * count);
 
 	for (i = 0; i < count; ++i)
 	{
@@ -117,4 +117,35 @@ td_indent(int level)
 
 	return spaces + adjust;
 }
+
+void
+td_alloc_init(struct td_alloc_tag *alloc, int page_count_max, int page_size)
+{
+	alloc->page_index = alloc->page_left = 0;
+	alloc->page_size = page_size;
+	alloc->total_page_count = page_count_max;
+	alloc->pages = (char **) calloc(page_count_max, sizeof(char*));
+}
+
+void
+td_alloc_cleanup(td_alloc *self)
+{
+	int p;
+	for (p = self->page_index; p >= 0; --p)
+	{
+		char *page = self->pages[p];
+		if (page)
+		{
+#ifndef NDEBUG
+			memset(page, 0xdd, self->page_size);
+#endif
+			free(page);
+		}
+	}
+
+	free(self->pages);
+	self->pages = NULL;
+}
+
+
 

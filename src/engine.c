@@ -30,26 +30,26 @@ int td_sign_digest(const char *filename, char digest_out[16])
 static td_signer sign_timestamp = { 0, { td_sign_timestamp } };
 static td_signer sign_digest = { 0, { td_sign_digest } };
 
-void *td_engine_alloc(td_engine *engine, size_t size)
+void *td_page_alloc(td_alloc *alloc, size_t size)
 {
-	int left = engine->page_left;
-	int page = engine->page_index;
+	int left = alloc->page_left;
+	int page = alloc->page_index;
 	char *addr;
 
 	if (left < (int) size)
 	{
-		if (page == TD_STRING_PAGE_MAX)
+		if (page == alloc->total_page_count)
 			td_croak("out of string page memory");
 
-		page = engine->page_index = page + 1;
-		left = engine->page_left = TD_STRING_PAGE_SIZE;
-		engine->pages[page] = malloc(TD_STRING_PAGE_SIZE);
-		if (!engine->pages[page])
+		page = alloc->page_index = page + 1;
+		left = alloc->page_left = alloc->page_size;
+		alloc->pages[page] = malloc(alloc->page_size);
+		if (!alloc->pages[page])
 			td_croak("out of memory allocating string page");
 	}
 
-	addr = engine->pages[page] + TD_STRING_PAGE_SIZE - left;
-	engine->page_left -= (int) size;
+	addr = alloc->pages[page] + alloc->page_size - left;
+	alloc->page_left -= (int) size;
 
 #ifndef NDEBUG
 	memset(addr, 0xcc, size);
@@ -76,10 +76,10 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 			return chain;
 	}
 
-	f = td_engine_alloc(engine, sizeof(td_file));
+	f = td_page_alloc(&engine->alloc, sizeof(td_file));
 	memset(f, 0, sizeof(td_file));
 
-	f->filename = td_engine_strdup(engine, path, strlen(path));
+	f->filename = td_page_strdup(&engine->alloc, path, strlen(path));
 	f->bucket_next = engine->file_hash[slot];
 	f->signer = engine->default_signer;
 	engine->file_hash[slot] = f;
@@ -124,6 +124,9 @@ static int make_engine(lua_State *L)
 	luaL_getmetatable(L, TUNDRA_ENGINE_MTNAME);
 	lua_setmetatable(L, -2);
 
+	/* Allow max 100 x 1 MB pages for nodes, filenames and such */
+	td_alloc_init(&self->alloc, 100, 1024 * 1024);
+
 	self->file_hash_size = 92413;
 	self->L = L;
 
@@ -144,24 +147,12 @@ static int make_engine(lua_State *L)
 
 static int engine_gc(lua_State *L)
 {
-	int p;
 	td_engine *const self = td_check_engine(L, 1);
+
+	td_alloc_cleanup(&self->alloc);
 
 	if (self->magic_value != 0xcafebabe)
 		luaL_error(L, "illegal userdatum; magic value check fails");
-
-	for (p = self->page_index; p >= 0; --p)
-	{
-		char *page = self->pages[p];
-		if (page)
-		{
-#ifndef NDEBUG
-			memset(page, 0xdd, TD_STRING_PAGE_SIZE);
-#endif
-			free(page);
-			self->pages[p] = NULL;
-		}
-	}
 
 	self->magic_value = 0xdeadbeef;
 
@@ -174,7 +165,7 @@ static int engine_gc(lua_State *L)
 static td_node *
 make_pass_barrier(td_engine *engine, const td_pass *pass)
 {
-	td_node *result = (td_node *) td_engine_alloc(engine, sizeof(td_node));
+	td_node *result = (td_node *) td_page_alloc(&engine->alloc, sizeof(td_node));
 	memset(result, 0, sizeof(*result));
 	result->annotation = pass->name;
 	return result;
@@ -214,7 +205,7 @@ get_pass_index(lua_State *L, td_engine *engine, int index)
 
 	i = engine->pass_count++;
 
-	engine->passes[i].name = td_engine_strdup(engine, name, name_len);
+	engine->passes[i].name = td_page_strdup(&engine->alloc, name, name_len);
 	engine->passes[i].build_order = build_order;
 	engine->passes[i].barrier_node = make_pass_barrier(engine, &engine->passes[i]);
 
@@ -229,7 +220,7 @@ copy_string_field(lua_State *L, td_engine *engine, int index, const char *field_
 	lua_getfield(L, index, field_name);
 	if (!lua_isstring(L, -1))
 		luaL_error(L, "%s: expected a string", field_name);
-	str = td_engine_strdup_lua(L, engine, -1, field_name);
+	str = td_page_strdup_lua(L, &engine->alloc, -1, field_name);
 	lua_pop(L, 1);
 	return str;
 }
@@ -251,7 +242,7 @@ setup_pass(lua_State *L, td_engine *engine, int index, td_node *node)
 	pass = &engine->passes[pass_index];
 
 	/* link this node into the node list of the pass */
-	chain = (td_job_chain *) td_engine_alloc(engine, sizeof(td_job_chain));
+	chain = (td_job_chain *) td_page_alloc(&engine->alloc, sizeof(td_job_chain));
 	chain->node = node;
 	chain->next = pass->nodes;
 	pass->nodes = chain;
@@ -388,7 +379,7 @@ setup_deps(lua_State *L, td_engine *engine, td_node *node, int *count_out)
 	result_count = uniqize_deps(deps, count, uniq_deps);
 
 	/* allocate and fill final result array as a copy of uniq_deps */
-	result = td_engine_alloc(engine, sizeof(td_node*) * result_count);
+	result = td_page_alloc(&engine->alloc, sizeof(td_node*) * result_count);
 	memcpy(result, uniq_deps, sizeof(td_node*) * result_count);
 
 	*count_out = result_count;
@@ -430,7 +421,7 @@ setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
 		else if(lua_isfunction(L, -1))
 		{
 			/* save the lua closure in the registry so we can call it later */
-			signer = (td_signer*) td_engine_alloc(engine, sizeof(td_signer));
+			signer = (td_signer*) td_page_alloc(&engine->alloc, sizeof(td_signer));
 			signer->is_lua = 1;
 			signer->function.lua_reference = luaL_ref(L, -1); /* pops the value */
 		}
@@ -455,7 +446,7 @@ static int
 make_node(lua_State *L)
 {
 	td_engine * const self = td_check_engine(L, 1);
-	td_node *node = (td_node *) td_engine_alloc(self, sizeof(td_node));
+	td_node *node = (td_node *) td_page_alloc(&self->alloc, sizeof(td_node));
 	td_noderef *noderef;
 
 	node->annotation = copy_string_field(L, self, 2, "annotation");
@@ -576,7 +567,7 @@ add_pending_job(td_engine *engine, td_node *blocking_node, td_node *blocked_node
 		chain = chain->next;
 	}
 
-	chain = (td_job_chain *) td_engine_alloc(engine, sizeof(td_job_chain));
+	chain = (td_job_chain *) td_page_alloc(&engine->alloc, sizeof(td_job_chain));
 	chain->node = blocked_node;
 	chain->next = blocking_node->job.pending_jobs;
 	blocking_node->job.pending_jobs = chain;
@@ -618,7 +609,7 @@ static void add_pass_deps(td_engine *engine, td_pass *prec, td_pass *succ)
 	td_node **dep_array;
 	td_job_chain *chain;
    
-	dep_array = td_engine_alloc(engine, sizeof(td_node*) * prec->node_count);
+	dep_array = td_page_alloc(&engine->alloc, sizeof(td_node*) * prec->node_count);
 	count = 0;
 	chain = prec->nodes;
 	while (chain)
