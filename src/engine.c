@@ -58,28 +58,50 @@ void *td_page_alloc(td_alloc *alloc, size_t size)
 	return addr;
 }
 
+static const char*
+find_basename(const char *path, int path_len)
+{
+	int i;
+
+	/* find the filename part of the path */
+	for (i = path_len; i >= 0; --i)
+	{
+		char ch = path[i];
+		if ('/' == ch || '\\' == ch)
+		{
+			return &path[i+1];
+		}
+	}
+
+	return path;
+}
+
 td_file *td_engine_get_file(td_engine *engine, const char *path)
 {
-	unsigned long hash;
+	unsigned int hash;
 	int slot;
 	td_file *chain;
 	td_file *f;
+	int path_len;
 
-	hash = djb2_hash(path);
+	hash = (unsigned int) djb2_hash(path);
 
 	slot = (int) (hash % engine->file_hash_size);
 	chain = engine->file_hash[slot];
 	
 	while (chain)
 	{
-		if (0 == strcmp(path, chain->filename))
+		if (chain->hash == hash && 0 == strcmp(path, chain->path))
 			return chain;
+		chain = chain->bucket_next;
 	}
 
 	f = td_page_alloc(&engine->alloc, sizeof(td_file));
 	memset(f, 0, sizeof(td_file));
 
-	f->filename = td_page_strdup(&engine->alloc, path, strlen(path));
+	path_len = (int) strlen(path);
+	f->path = td_page_strdup(&engine->alloc, path, path_len);
+	f->name = find_basename(f->path, path_len);
 	f->bucket_next = engine->file_hash[slot];
 	f->signer = engine->default_signer;
 	engine->file_hash[slot] = f;
@@ -87,23 +109,25 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 }
 
 td_file **
-td_engine_get_relations(td_engine *engine, const char *string, unsigned int salt, int *count_out)
+td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int *count_out)
 {
-	unsigned long hash = djb2_hash(string);
 	td_relcell *chain;
 	int bucket;
+	unsigned int hash;
 
-	hash ^= salt;
+	hash = file->hash ^ salt;
 	bucket = hash % engine->relhash_size;
+	assert(bucket >= 0 && bucket < engine->relhash_size);
 	chain = engine->relhash[bucket];
 
 	while (chain)
 	{
-		if (salt == chain->salt && 0 == strcmp(chain->string, string))
+		if (salt == chain->salt && file == chain->file)
 		{
 			*count_out = chain->count;
 			return chain->files;
 		}
+		chain = chain->bucket_next;
 	}
 
 	*count_out = 0;
@@ -114,13 +138,13 @@ static void
 populate_relcell(
 		td_engine *engine,
 		td_relcell* cell,
-		const char *string,
+		td_file *file,
 		unsigned int salt,
 		int count,
 		td_file **files)
 {
 	size_t memsize = sizeof(td_file*) * count;
-	cell->string = td_page_strdup(&engine->alloc, string, strlen(string));
+	cell->file = file;
 	cell->salt = salt;
 	cell->count = count;
 	cell->files = (td_file **) td_page_alloc(&engine->alloc, memsize);
@@ -128,27 +152,27 @@ populate_relcell(
 }
 
 void
-td_engine_set_relations(td_engine *engine, const char *string, unsigned int salt, int count, td_file **files)
+td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files)
 {
-	unsigned long hash = djb2_hash(string);
+	unsigned int hash;
 	td_relcell *chain;
 	int bucket;
 
-	hash ^= salt;
+	hash = file->hash ^ salt;
 	bucket = hash % engine->relhash_size;
 	chain = engine->relhash[bucket];
 
 	while (chain)
 	{
-		if (salt == chain->salt && 0 == strcmp(chain->string, string))
+		if (salt == chain->salt && file == chain->file)
 		{
-			populate_relcell(engine, chain, string, salt, count, files);
+			populate_relcell(engine, chain, file, salt, count, files);
 			return;
 		}
 	}
 
 	chain = (td_relcell*) td_page_alloc(&engine->alloc, sizeof(td_relcell));
-	populate_relcell(engine, chain, string, salt, count, files);
+	populate_relcell(engine, chain, file, salt, count, files);
 	chain->bucket_next = engine->relhash[bucket];
 	engine->relhash[bucket] = chain;
 }
@@ -340,7 +364,7 @@ check_input_files(lua_State *L, td_engine *engine, td_node *node)
 			if (his_pass->build_order > my_build_order)
 			{
 				luaL_error(L, "%s: file %s is produced in future pass %s (by %s)",
-						node->annotation, f->filename, his_pass->name,
+						node->annotation, f->path, his_pass->name,
 						f->producer->annotation);
 			}
 		}
@@ -357,7 +381,7 @@ tag_output_files(lua_State *L, td_node *node)
 		if (f->producer)
 		{
 			luaL_error(L, "%s: file %s is already an output of %s",
-					node->annotation, f->filename, f->producer->annotation);
+					node->annotation, f->path, f->producer->annotation);
 		}
 		f->producer = node;
 	}
@@ -594,7 +618,7 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 	{
 		int x;
 		const char *ext_pos;
-		const char *fn = files[i]->filename;
+		const char *fn = files[i]->path;
 
 		ext_pos = strrchr(fn, '.');
 		if (!ext_pos)

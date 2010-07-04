@@ -31,7 +31,9 @@ typedef struct td_signer_tag
 
 typedef struct td_file_tag
 {
-	const char *filename;
+	unsigned int hash;
+	const char *path;
+	const char *name;
 	struct td_node_tag *producer;
 	td_signer *signer;
 	char signature[16];
@@ -127,12 +129,24 @@ typedef struct td_alloc_tag
 	char **pages;
 } td_alloc;
 
+/* Caches a relation between a file and set of other files (such as set of
+ * included files) */
 typedef struct td_relcell_tag
 {
-	const char *string;
+	/* source file */
+	td_file *file;
+
+	/* a salt value to make this relation unique */
 	unsigned int salt;
+
+	/* the related files */
 	int count;
 	td_file **files;
+
+	/* the digest of file when the relation was cached */
+	td_digest file_digest;
+
+	/* for hash table linked list maintenance */
 	struct td_relcell_tag *bucket_next;
 } td_relcell;
 
@@ -180,9 +194,9 @@ void *td_page_alloc(td_alloc *engine, size_t size);
 td_file *td_engine_get_file(td_engine *engine, const char *path);
 
 td_file **
-td_engine_get_relations(td_engine *engine, const char *string, unsigned int salt, int *count_out);
+td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int *count_out);
 
 void
-td_engine_set_relations(td_engine *engine, const char *string, unsigned int salt, int count, td_file **files);
+td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files);
 
 #endif

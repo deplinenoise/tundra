@@ -33,5 +33,12 @@ int pthread_join(pthread_t thread, void **result_out);
 
 #endif
 
+typedef struct td_stat {
+	int is_dir;
+	unsigned long long size;
+	time_t timestamp;
+} td_stat;
+
+int td_stat_file(const char *filename, td_stat *stat_out);
 
 #endif

@@ -147,5 +147,18 @@ td_alloc_cleanup(td_alloc *self)
 	self->pages = NULL;
 }
 
+void
+td_build_path(char *buffer, int buffer_size, const td_file *base, const char *subpath, int subpath_len)
+{
+	int path_len = (int) (base->name - base->path);
+
+	if (path_len + subpath_len + 1 > buffer_size)
+		td_croak("combined path too long: %s -> include %s (limit: %d)", base->path, subpath, buffer_size);
+
+	memcpy(buffer, base->path, path_len);
+	memcpy(buffer + path_len, subpath, subpath_len);
+	buffer[path_len + subpath_len] = '\0';
+}
+
 
 

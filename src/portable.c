@@ -1,5 +1,9 @@
 #include "portable.h"
 
+#if defined(__APPLE__) || defined(linux)
+#include <sys/stat.h>
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #include <stdlib.h>
@@ -136,3 +140,26 @@ int pthread_join(pthread_t thread, void **result_out)
 }
 
 #endif
+
+int
+td_stat_file(const char *filename, td_stat *stat_out)
+{
+#if defined(__APPLE__) || defined(linux)
+	int err;
+	struct stat s;
+	if (0 != (err = stat(filename, &s)))
+		return err;
+
+	stat_out->is_dir = 0 != (s.st_mode & S_IFDIR);
+	stat_out->size = s.st_size;
+	stat_out->timestamp = s.st_mtime;
+
+#elif defined(_WIN32)
+#error meh
+#else
+#error meh
+#endif
+
+	return 0;
+}
+
