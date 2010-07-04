@@ -34,6 +34,7 @@ typedef struct td_file_tag
 	unsigned int hash;
 	const char *path;
 	const char *name;
+	int path_len;
 	struct td_node_tag *producer;
 	td_signer *signer;
 	char signature[16];

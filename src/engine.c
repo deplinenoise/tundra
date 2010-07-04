@@ -99,7 +99,7 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 	f = td_page_alloc(&engine->alloc, sizeof(td_file));
 	memset(f, 0, sizeof(td_file));
 
-	path_len = (int) strlen(path);
+	f->path_len = path_len = (int) strlen(path);
 	f->path = td_page_strdup(&engine->alloc, path, path_len);
 	f->name = find_basename(f->path, path_len);
 	f->bucket_next = engine->file_hash[slot];

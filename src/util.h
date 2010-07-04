@@ -21,6 +21,17 @@ const char ** td_build_string_array(struct lua_State* L, struct td_alloc_tag *al
 struct td_file_tag **td_build_file_array(struct lua_State* L, struct td_engine_tag *alloc, int index, int *count_out);
 const char *td_indent(int level);
 
-void td_build_path(char *buffer, int buffer_size, const struct td_file_tag *base, const char *subpath, int subpath_len);
+typedef enum {
+	TD_BUILD_REPLACE_NAME,
+	TD_BUILD_CONCAT,
+} td_build_path_mode;
+
+void td_build_path(
+		char *buffer,
+		int buffer_size,
+		const struct td_file_tag *base,
+		const char *subpath,
+		int subpath_len,
+		td_build_path_mode mode);
 
 #endif

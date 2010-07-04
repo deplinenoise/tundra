@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -148,16 +149,35 @@ td_alloc_cleanup(td_alloc *self)
 }
 
 void
-td_build_path(char *buffer, int buffer_size, const td_file *base, const char *subpath, int subpath_len)
+td_build_path(char *buffer, int buffer_size, const td_file *base, const char *subpath, int subpath_len, td_build_path_mode mode)
 {
-	int path_len = (int) (base->name - base->path);
+	int offset = 0;
+	int path_len = 0;
+	switch (mode)
+	{
+		case TD_BUILD_CONCAT:
+			path_len = base->path_len;
+			break;
 
-	if (path_len + subpath_len + 1 > buffer_size)
+		case TD_BUILD_REPLACE_NAME:
+			path_len = (int) (base->name - base->path);
+			break;
+
+		default:
+			assert(0);
+			break;
+	}
+
+	if (path_len + subpath_len + 2 > buffer_size)
 		td_croak("combined path too long: %s -> include %s (limit: %d)", base->path, subpath, buffer_size);
 
 	memcpy(buffer, base->path, path_len);
-	memcpy(buffer + path_len, subpath, subpath_len);
-	buffer[path_len + subpath_len] = '\0';
+	offset = path_len;
+	if (path_len > 0 && buffer[offset-1] != '/' && buffer[offset-1] != '\\')
+		buffer[offset++] = '/'; /* fixme: win32 */
+	memcpy(buffer + offset, subpath, subpath_len);
+	offset += subpath_len;
+	buffer[offset] = '\0';
 }
 
 
