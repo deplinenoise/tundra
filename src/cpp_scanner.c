@@ -12,6 +12,33 @@
 
 /* a simple c preprocessor #include scanner */
 
+enum {
+	TD_MAX_INCLUDES = 5000,
+	TD_MAX_INCLUDES_IN_FILE = 2000
+};
+
+typedef struct {
+	int count;
+	td_file *files[TD_MAX_INCLUDES];
+} include_set;
+
+static int push_include(include_set *set, td_file *f)
+{
+	int i, count;
+	for (i = 0, count = set->count; i < count; ++i)
+	{
+		if (f == set->files[i])
+			return 0;
+	}
+
+	if (TD_MAX_INCLUDES == set->count)
+		td_croak("too many includes");
+
+	set->files[set->count++] = f;
+	return 1;
+}
+
+
 typedef struct td_cpp_scanner_tag
 {
 	td_scanner head;
@@ -32,9 +59,8 @@ static unsigned int relation_salt_cpp(const td_cpp_scanner *config)
 
 typedef struct cpp_include_tag {
 	const char *string;
-	int string_len;
-	int is_system_include;
-	struct cpp_include_tag *next;
+	unsigned short string_len;
+	unsigned char is_system_include;
 } cpp_include;
 
 static td_file *
@@ -63,43 +89,40 @@ find_file(td_file *base_file, td_engine *engine, const cpp_include *inc, const t
 	return NULL;
 }
 
-static cpp_include*
-scan_line(td_alloc *alloc, const char *start, cpp_include *head)
+static int
+scan_line(td_alloc *scratch, const char *start, cpp_include *dest)
 {
 	char separator;
 	const char *str_start;
-	cpp_include *result = head;
 
 	while (isspace(*start))
 		++start;
 
 	if (*start++ != '#')
-		return head;
+		return 0;
 
 	while (isspace(*start))
 		++start;
 	
 	if (0 != strncmp("include", start, 7))
-		return head;
+		return 0;
 
 	start += 7;
 
 	if (!isspace(*start++))
-		return head;
+		return 0;
 
 	while (isspace(*start))
 		++start;
 
-	result = (cpp_include *) td_page_alloc(alloc, sizeof(cpp_include));
-
 	separator = *start++;
 	if ('<' == separator)
 	{
-		result->is_system_include = 1;
+		dest->is_system_include = 1;
 		separator = '>';
 	}
 	else
-		result->is_system_include = 0;
+		dest->is_system_include = 0;
 	
 	str_start = start;
 	for (;;)
@@ -108,28 +131,25 @@ scan_line(td_alloc *alloc, const char *start, cpp_include *head)
 		if (ch == separator)
 			break;
 		if (!ch)
-			return head;
+			return 0;
 	}
 
-	result->string_len = start - str_start - 1;
-	result->string = td_page_strdup(alloc, str_start, result->string_len);
-	result->next = head;
-
-	return result;
+	dest->string_len = (unsigned short) (start - str_start - 1);
+	dest->string = td_page_strdup(scratch, str_start, dest->string_len);
+	return 1;
 }
 
-cpp_include*
-scan_includes(td_alloc *alloc, td_file *file, int *count_out)
+static int
+scan_includes(td_alloc *scratch, td_file *file, cpp_include *out, int max_count)
 {
 	FILE *f;
 	int file_count = 0;
-	cpp_include *head = NULL;
 	char line_buffer[1024];
 	char *buffer_start = line_buffer;
 	int buffer_size = sizeof(line_buffer);
 
 	if (NULL == (f = fopen(file->path, "r")))
-		return NULL;
+		return 0;
 
 	for (;;)
 	{
@@ -146,11 +166,10 @@ scan_includes(td_alloc *alloc, td_file *file, int *count_out)
 		{
 			if ('\n' == *p)
 			{
-				cpp_include *prev = head;
 				*p = 0;
-				head = scan_line(alloc, line, head);
-				if (prev != head)
-					++file_count;
+				if (file_count == max_count)
+					td_croak("%s: too many includes", file->path);
+				file_count += scan_line(scratch, line, &out[file_count]);
 				line = p+1;
 			}
 		}
@@ -164,50 +183,22 @@ scan_includes(td_alloc *alloc, td_file *file, int *count_out)
 		buffer_size = sizeof(line_buffer) - remain;
 	}
 
-	*count_out = file_count;
-
 	fclose(f);
-	return head;
+	return file_count;
 }
 
-typedef struct cpp_fileset_tag
-{
-	int count;
-	td_file** files;
-	struct cpp_fileset_tag *next;
-} cpp_fileset;
-
-static cpp_fileset *
-make_fileset(td_alloc *alloc, int count, td_file **files, int copy_files)
-{
-	cpp_fileset *result = (cpp_fileset*) td_page_alloc(alloc, sizeof(cpp_fileset));
-
-	result->next = NULL;
-	result->count = count;
-
-	if (copy_files)
-	{
-		result->files = (td_file **) td_page_alloc(alloc, sizeof(td_file *) * count);
-		memcpy(result->files, files, sizeof(td_file *) * count);
-	}
-	else
-		result->files = files;
-
-	return result;
-}
-
-static cpp_fileset *
+static void
 scan_file(
 	td_engine *engine,
-	td_alloc *alloc,
+	td_alloc *scratch,
 	pthread_mutex_t *mutex,
 	td_file *file,
 	td_cpp_scanner *config,
-	unsigned int salt)
+	unsigned int salt,
+	include_set *set)
 {
-	cpp_include *include_chain;
+	int i, count;
 	td_file **files;
-	int i, count, valid_count;
 
 	/* see if there is a cached include set for this file */
 	pthread_mutex_lock(mutex);
@@ -215,22 +206,39 @@ scan_file(
 	pthread_mutex_unlock(mutex);
 
 	if (files)
-		return make_fileset(alloc, count, files, 1);
-
-	count = 0;
-	include_chain = scan_includes(alloc, file, &count);
-
-	files = (td_file **) td_page_alloc(alloc, sizeof(td_file *) * count);
-	valid_count = 0;
-	for (i = 0; i < count; ++i)
 	{
-		assert(include_chain);
-		if (NULL != (files[valid_count] = find_file(file, engine, include_chain, config)))
-			valid_count++;
-		include_chain = include_chain->next;
+		if (td_debug_check(engine, 20))
+			printf("%s: hit relation cache; %d entries\n", file->path, count);
+		for (i = 0; i < count; ++i)
+			push_include(set, files[i]);
+		return;
 	}
 
-	return make_fileset(alloc, valid_count, files, 0);
+	{
+		if (td_debug_check(engine, 20))
+			printf("%s: scanning\n", file->path);
+
+		int found_count = 0;
+		td_file* found_files[TD_MAX_INCLUDES_IN_FILE];
+		cpp_include includes[TD_MAX_INCLUDES_IN_FILE];
+		count = scan_includes(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]));
+
+		for (i = 0; i < count; ++i)
+		{
+			if (NULL != (found_files[found_count] = find_file(file, engine, &includes[i], config)))
+				++found_count;
+		}
+
+		for (i = 0; i < found_count; ++i)
+			push_include(set, found_files[i]);
+
+		if (td_debug_check(engine, 20))
+			printf("%s: inserting %d entries in relation cache\n", file->path, found_count);
+
+		pthread_mutex_lock(mutex);
+		td_engine_set_relations(engine, file, salt, found_count, found_files);
+		pthread_mutex_unlock(mutex);
+	}
 }
 
 static int
@@ -240,23 +248,33 @@ scan_cpp(td_engine *engine, void *mutex, td_node *node, td_scanner *state)
 	int i, count;
 	td_cpp_scanner *config = (td_cpp_scanner *) state;
 	unsigned int salt = relation_salt_cpp(config);
+	int set_cursor;
+	include_set *set;
 
 	td_alloc_init(&scratch, 10, 1024 * 1024);
 
-	cpp_fileset* set_chain = NULL;
+	set = (include_set *) td_page_alloc(&scratch, sizeof(include_set));
+	set->count = 0;
 
 	for (i = 0, count = node->input_count; i < count; ++i)
+		push_include(set, node->inputs[i]);
+
+	set_cursor = 0;
+	while (set_cursor < set->count)
 	{
-		cpp_fileset *chain = NULL;
-		td_file *input = node->inputs[i];
-		chain = scan_file(engine, &scratch, (pthread_mutex_t *)mutex, input, config, salt);
-		chain->next = set_chain;
-		set_chain = chain;
+		td_file *input = set->files[set_cursor++];
+		scan_file(engine, &scratch, (pthread_mutex_t *)mutex, input, config, salt, set);
 	}
+
+	pthread_mutex_lock((pthread_mutex_t *)mutex);
+	node->job.idep_count = set->count - node->input_count;
+	node->job.ideps = (td_file **) td_page_alloc(&engine->alloc, sizeof(td_file*) * node->job.idep_count);
+	memcpy(&node->job.ideps[0], &set->files[node->input_count], sizeof(td_file*) * node->job.idep_count);
+	pthread_mutex_unlock((pthread_mutex_t *)mutex);
 
 	td_alloc_cleanup(&scratch);
 
-	return 1;
+	return 0;
 }
 
 static int make_cpp_scanner(lua_State *L)
