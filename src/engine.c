@@ -101,6 +101,7 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 
 	f->path_len = path_len = (int) strlen(path);
 	f->path = td_page_strdup(&engine->alloc, path, path_len);
+	f->hash = hash;
 	f->name = find_basename(f->path, path_len);
 	f->bucket_next = engine->file_hash[slot];
 	f->signer = engine->default_signer;
@@ -169,6 +170,8 @@ td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int
 			populate_relcell(engine, chain, file, salt, count, files);
 			return;
 		}
+
+		chain = chain->bucket_next;
 	}
 
 	chain = (td_relcell*) td_page_alloc(&engine->alloc, sizeof(td_relcell));
