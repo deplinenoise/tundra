@@ -88,10 +88,10 @@ td_dump_node(const td_node *n, int level, int outer_index)
 	printf("%s  action: %s\n", indent, n->action);
 
 	for (x = 0; x < n->input_count; ++x)
-		printf("%s  input(%d): %s\n", indent, x+1, n->inputs[x]->filename);
+		printf("%s  input(%d): %s\n", indent, x+1, n->inputs[x]->path);
 
 	for (x = 0; x < n->output_count; ++x)
-		printf("%s  output(%d): %s\n", indent, x+1, n->outputs[x]->filename);
+		printf("%s  output(%d): %s\n", indent, x+1, n->outputs[x]->path);
 
 	if (n->dep_count)
 	{
