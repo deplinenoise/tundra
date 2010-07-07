@@ -87,7 +87,7 @@ src/portable.h
 source_group(Tundra FILES ${TUNDRA_SOURCES})
 
 if (UNIX)
-	link_libraries(tundra m)
+	link_libraries(tundra m pthread)
 endif (UNIX)
 
 add_executable(tundra ${TUNDRA_SOURCES} ${LUA_SOURCES})
