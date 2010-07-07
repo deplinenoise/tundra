@@ -1,10 +1,10 @@
 #ifndef TUNDRA_PORTABLE_H
 #define TUNDRA_PORTABLE_H
 
+struct td_stat;
+
 #ifndef _WIN32
-
 #include <pthread.h>
-
 #else
 
 struct w32_pthread { int index; };
@@ -33,12 +33,6 @@ int pthread_join(pthread_t thread, void **result_out);
 
 #endif
 
-typedef struct td_stat {
-	int is_dir;
-	unsigned long long size;
-	time_t timestamp;
-} td_stat;
-
-int td_stat_file(const char *filename, td_stat *stat_out);
+int fs_stat_file(const char *filename, struct td_stat *out);
 
 #endif

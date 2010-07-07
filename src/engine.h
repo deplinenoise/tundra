@@ -28,17 +28,32 @@ typedef struct td_signer_tag
 	} function;
 } td_signer;
 
+enum {
+	TD_STAT_DIR = 1 << 0,
+	TD_STAT_EXISTS = 1 << 1
+};
+
+typedef struct td_stat {
+	int flags;
+	unsigned long long size;
+	unsigned long timestamp;
+} td_stat;
 
 typedef struct td_file_tag
 {
 	unsigned int hash;
 	const char *path;
-	const char *name;
-	int path_len;
+	const char *name; /* points into path */
+	int path_len; /* # characters in path string */
+
 	struct td_node_tag *producer;
 	td_signer *signer;
+
 	char signature[16];
 	struct td_file_tag *bucket_next;
+
+	int stat_dirty;
+	struct td_stat stat;
 } td_file;
 
 typedef enum td_jobstate_tag
@@ -179,6 +194,11 @@ typedef struct td_engine_tag
 		int thread_count;
 	} settings;
 
+	struct {
+		int file_count;
+		int stat_calls;
+	} stats;
+
 	struct lua_State *L;
 } td_engine;
 
@@ -199,5 +219,9 @@ td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int
 
 void
 td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files);
+
+const td_stat* td_stat_file(td_engine *engine, td_file *f);
+void td_touch_file(td_file *f);
+
 
 #endif

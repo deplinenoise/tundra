@@ -68,22 +68,23 @@ find_file(td_file *base_file, td_engine *engine, const cpp_include *inc, const t
 {
 	int i, count;
 	char path[512];
-	td_stat stat;
 
 	/* for non-system includes, try a path relative to the base file */
 	if (!inc->is_system_include)
 	{
 		td_build_path(&path[0], sizeof(path), base_file, inc->string, inc->string_len, TD_BUILD_REPLACE_NAME);
-		if (0 == td_stat_file(path, &stat))
-			return td_engine_get_file(engine, path);
+		td_file *file = td_engine_get_file(engine ,path);
+		if (TD_STAT_EXISTS & td_stat_file(engine, file)->flags)
+			return file;
 	}
 	
 	for (i = 0, count = config->path_count; i < count; ++i)
 	{
 		const td_file *dir = config->paths[i];
 		td_build_path(&path[0], sizeof(path), dir, inc->string, inc->string_len, TD_BUILD_CONCAT);
-		if (0 == td_stat_file(path, &stat))
-			return td_engine_get_file(engine, path);
+		td_file *file = td_engine_get_file(engine ,path);
+		if (TD_STAT_EXISTS & td_stat_file(engine, file)->flags)
+			return file;
 	}
 
 	return NULL;

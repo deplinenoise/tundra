@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "portable.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -96,6 +97,7 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 		chain = chain->bucket_next;
 	}
 
+	++engine->stats.file_count;
 	f = td_page_alloc(&engine->alloc, sizeof(td_file));
 	memset(f, 0, sizeof(td_file));
 
@@ -105,6 +107,7 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 	f->name = find_basename(f->path, path_len);
 	f->bucket_next = engine->file_hash[slot];
 	f->signer = engine->default_signer;
+	f->stat_dirty = 1;
 	engine->file_hash[slot] = f;
 	return f;
 }
@@ -752,11 +755,14 @@ static int
 build_nodes(lua_State* L)
 {
 	int i, narg;
+	int pre_file_count;
 	td_engine * const self = td_check_engine(L, 1);
 
 	narg = lua_gettop(L);
 
 	connect_pass_barriers(self);
+
+	pre_file_count = self->stats.file_count;
 
 	for (i = 2; i <= narg; ++i)
 	{
@@ -764,6 +770,14 @@ build_nodes(lua_State* L)
 		assign_jobs(self, nref->node);
 		td_build(self, nref->node);
 	}
+
+	if (td_debug_check(self, 1))
+	{
+		printf("post-build stats:\n");
+		printf("  file nodes created: %d (was %d initially)\n", self->stats.file_count, pre_file_count);
+		printf("  stat() calls: %d\n", self->stats.stat_calls);
+	}
+
 
 	return 0;
 }
@@ -829,3 +843,28 @@ void td_engine_open(lua_State *L)
 	create_mt(L, TUNDRA_ENGINE_MTNAME, engine_mt_entries);
 	create_mt(L, TUNDRA_NODEREF_MTNAME, node_mt_entries);
 }
+
+const td_stat *
+td_stat_file(td_engine *engine, td_file *f)
+{
+	if (f->stat_dirty)
+	{
+		++engine->stats.stat_calls;
+		if (0 != fs_stat_file(f->path, &f->stat))
+		{
+			f->stat_dirty = 0;
+			f->stat.flags = 0;
+			f->stat.size = 0;
+			f->stat.timestamp = 0;
+		}
+		f->stat_dirty = 0;
+	}
+	return &f->stat;
+}
+
+void
+td_touch_file(td_file *f)
+{
+	f->stat_dirty = 1;
+}
+
