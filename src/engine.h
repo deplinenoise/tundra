@@ -6,8 +6,11 @@
 #define TUNDRA_ENGINE_MTNAME "tundra_engine"
 #define TUNDRA_NODEREF_MTNAME "tundra_noderef"
 
+struct td_engine_tag;
+struct td_file_tag;
+
 typedef struct td_digest {
-	char data[16];
+	unsigned char data[16];
 } td_digest;
 
 struct lua_State;
@@ -17,7 +20,7 @@ enum
 	TD_PASS_MAX = 32
 };
 
-typedef int (*td_sign_fn)(const char *filename, char digest_out[16]);
+typedef void (*td_sign_fn)(struct td_engine_tag *engine, struct td_file_tag *f, td_digest *out);
 
 typedef struct td_signer_tag
 {
@@ -41,16 +44,18 @@ typedef struct td_stat {
 
 typedef struct td_file_tag
 {
+	struct td_file_tag *bucket_next;
+
 	unsigned int hash;
 	const char *path;
 	const char *name; /* points into path */
 	int path_len; /* # characters in path string */
 
 	struct td_node_tag *producer;
-	td_signer *signer;
+	td_signer* signer;
 
-	char signature[16];
-	struct td_file_tag *bucket_next;
+	int signature_dirty;
+	td_digest signature;
 
 	int stat_dirty;
 	struct td_stat stat;
@@ -64,7 +69,8 @@ typedef enum td_jobstate_tag
 	TD_JOB_RUNNING         = 3,
 	TD_JOB_COMPLETED       = 100,
 	TD_JOB_FAILED          = 101,
-	TD_JOB_CANCELLED       = 102
+	TD_JOB_CANCELLED       = 102,
+	TD_JOB_UPTODATE        = 103
 } td_jobstate;
 
 typedef struct td_job_chain_tag
@@ -76,7 +82,8 @@ typedef struct td_job_chain_tag
 enum
 {
 	TD_JOBF_QUEUED		= 1 << 0,
-	TD_JOBF_ROOT		= 1 << 1
+	TD_JOBF_ROOT		= 1 << 1,
+	TD_JOBF_ANCESTOR_UPDATED = 1 << 16
 };
 
 
@@ -98,7 +105,17 @@ typedef struct td_job_tag
 
 	/* list of jobs this job will unblock once completed */
 	td_job_chain *pending_jobs;
+
+	td_digest input_signature;
 } td_job;
+
+typedef struct td_ancestor_data
+{
+	td_digest guid;
+	td_digest input_signature;
+	unsigned int access_time;
+	int job_result;
+} td_ancestor_data;
 
 typedef struct td_node_tag
 {
@@ -117,6 +134,9 @@ typedef struct td_node_tag
 
 	int dep_count;
 	struct td_node_tag **deps;
+
+	td_digest guid;
+	const td_ancestor_data *ancestor_data;
 
 	td_job job;
 } td_node;
@@ -159,9 +179,6 @@ typedef struct td_relcell_tag
 	int count;
 	td_file **files;
 
-	/* the digest of file when the relation was cached */
-	td_digest file_digest;
-
 	/* for hash table linked list maintenance */
 	struct td_relcell_tag *bucket_next;
 } td_relcell;
@@ -199,6 +216,9 @@ typedef struct td_engine_tag
 		int stat_calls;
 	} stats;
 
+	int ancestor_count;
+	struct td_ancestor_data *ancestors;
+
 	struct lua_State *L;
 } td_engine;
 
@@ -222,6 +242,7 @@ td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int
 
 const td_stat* td_stat_file(td_engine *engine, td_file *f);
 void td_touch_file(td_file *f);
-
+td_digest *td_get_signature(td_engine *engine, td_file *f);
+const td_digest *td_get_old_input_signature(td_engine *engine, td_node *node);
 
 #endif

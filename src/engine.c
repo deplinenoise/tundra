@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "portable.h"
+#include "md5.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -18,14 +19,49 @@
 #include <malloc.h> /* alloca */
 #endif
 
-int td_sign_timestamp(const char *filename, char digest_out[16])
+#define TD_ANCESTOR_FILE ".tundra-ancestors"
+
+#define TD_STATIC_ASSERT(expr) \
+	static const char _static_assert ## __LINE__ [ (expr) ? 1 : -1]
+
+void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 {
-	return 1;
+	int zero_size;
+	const td_stat *stat;
+	stat = td_stat_file(engine, f);
+
+	zero_size = sizeof(out->data) - sizeof(stat->timestamp);
+
+	memcpy(&out->data[0], &stat->timestamp, sizeof(stat->timestamp));
+	memset(&out->data[zero_size], 0, zero_size);
 }
 
-int td_sign_digest(const char *filename, char digest_out[16])
+void td_sign_digest(td_engine *engine, td_file *file, td_digest *out)
 {
-	return 1;
+	FILE* f;
+
+	if ((f = fopen(file->path, "rb")))
+	{
+		unsigned char buffer[8192];
+		MD5_CTX md5;
+		int read_count;
+
+		MD5Init(&md5);
+
+		do {
+			read_count = fread(buffer, 1, sizeof(buffer), f);
+			MD5Update(&md5, buffer, read_count);
+		} while (read_count > 0);
+
+		fclose(f);
+
+		MD5Final(out->data, &md5);
+	}
+	else
+	{
+		fprintf(stderr, "warning: couldn't open %s for signing\n", file->path);
+		memset(out->data, 0, sizeof(out->data));
+	}
 }
 
 static td_signer sign_timestamp = { 0, { td_sign_timestamp } };
@@ -58,6 +94,13 @@ void *td_page_alloc(td_alloc *alloc, size_t size)
 
 	return addr;
 }
+
+static int compare_ancestors(const void* l_, const void* r_)
+{
+	const td_ancestor_data *l = (const td_ancestor_data *) l_, *r = (const td_ancestor_data *) r_;
+	return memcmp(l->guid.data, r->guid.data, sizeof(l->guid.data));
+}
+
 
 static const char*
 find_basename(const char *path, int path_len)
@@ -108,6 +151,7 @@ td_file *td_engine_get_file(td_engine *engine, const char *path)
 	f->bucket_next = engine->file_hash[slot];
 	f->signer = engine->default_signer;
 	f->stat_dirty = 1;
+	f->signature_dirty = 1;
 	engine->file_hash[slot] = f;
 	return f;
 }
@@ -213,6 +257,123 @@ static void configure_from_env(td_engine *engine)
 		engine->settings.thread_count = 1;
 }
 
+TD_STATIC_ASSERT(sizeof(td_ancestor_data) == 40);
+
+static void
+load_ancestors(td_engine *engine)
+{
+	FILE* f;
+	int count;
+	long file_size;
+	size_t read_count;
+
+	if (NULL == (f = fopen(TD_ANCESTOR_FILE, "rb")))
+		return;
+
+	fseek(f, 0, SEEK_END);
+	file_size = ftell(f);
+	rewind(f);
+
+	if (file_size % sizeof(td_ancestor_data) != 0)
+		td_croak("illegal ancestor file: %ld not a multiple of %d bytes",
+				file_size, sizeof(td_ancestor_data));
+
+	engine->ancestor_count = count = (int) (file_size / sizeof(td_ancestor_data));
+	engine->ancestors = malloc(file_size);
+	read_count = fread(engine->ancestors, sizeof(td_ancestor_data), count, f);
+
+	if (read_count != (size_t) count)
+		td_croak("only read %d items, wanted %d", read_count, count);
+
+	fclose(f);
+}
+
+static void
+update_ancestors(
+		td_engine *engine,
+		td_node *node,
+		time_t now,
+		int *cursor,
+		td_ancestor_data *output,
+		unsigned char *visited)
+{
+	const td_ancestor_data *data;
+	int i, count, output_index;
+
+	if (node->job.flags & TD_JOBF_ANCESTOR_UPDATED)
+		return;
+
+	node->job.flags |= TD_JOBF_ANCESTOR_UPDATED;
+
+	/* If this node had an ancestor record, flag it as visited. This way it
+	 * will be disregarded when writing out all the other ancestors that
+	 * weren't used this build session. */
+	if ((data = node->ancestor_data))
+	{
+		size_t index = (size_t) (data - engine->ancestors);
+		visited[index] = 1;
+	}
+
+	output_index = *cursor;
+	*cursor += 1;
+	output[output_index].guid = node->guid;
+	output[output_index].input_signature = node->job.input_signature;
+	output[output_index].access_time = now;
+	output[output_index].job_result = node->job.state;
+
+	for (i = 0, count = node->dep_count; i < count; ++i)
+		update_ancestors(engine, node->deps[i], now, cursor, output, visited);
+}
+
+static void
+save_ancestors(td_engine *engine, td_node **nodes, int node_count)
+{
+	FILE* f;
+	int i, count, max_count;
+	int output_cursor, write_count;
+	td_ancestor_data *output;
+	unsigned char *visited;
+	time_t now;
+	const int ttl_days = 7;
+	const time_t ancestor_ttl = (60 * 60 * 24) * ttl_days;
+
+	if (NULL == (f = fopen(TD_ANCESTOR_FILE ".tmp", "wb")))
+	{
+		fprintf(stderr, "warning: couldn't save ancestors\n");
+		return;
+	}
+
+	max_count = engine->node_count + engine->ancestor_count;
+	output = (td_ancestor_data *) malloc(sizeof(td_ancestor_data) * max_count);
+	visited = (unsigned char *) calloc(1, max_count);
+
+	output_cursor = 0;
+	for (i = 0; i < node_count; ++i)
+	{
+		update_ancestors(engine, nodes[i], time(NULL), &output_cursor, output, visited);
+	}
+
+	for (i = 0, count = engine->ancestor_count; i < count; ++i)
+	{
+		const td_ancestor_data *a = &engine->ancestors[i];
+		if (!visited[i] && (a->access_time + ancestor_ttl > now))
+			output[output_cursor++] = *a;
+	}
+
+	qsort(output, output_cursor, sizeof(td_ancestor_data), compare_ancestors);
+
+	write_count = (int) fwrite(output, sizeof(td_ancestor_data), output_cursor, f);
+
+	fclose(f);
+	free(visited);
+	free(output);
+
+	if (write_count != output_cursor)
+		td_croak("couldn't write %d entries; only wrote %d", output_cursor, write_count);
+
+	rename(TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE);
+}
+
 static int make_engine(lua_State *L)
 {
 	td_engine *self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
@@ -240,6 +401,8 @@ static int make_engine(lua_State *L)
 	self->default_signer = &sign_digest;
 	self->node_count = 0;
 
+	load_ancestors(self);
+
 	configure_from_env(self);
 
 	return 1;
@@ -259,6 +422,9 @@ static int engine_gc(lua_State *L)
 
 	free(self->relhash);
 	self->relhash = NULL;
+
+	free(self->ancestors);
+	self->ancestors = NULL;
 
 	td_alloc_cleanup(&self->alloc);
 
@@ -545,6 +711,46 @@ leave:
 	lua_pop(L, 1);
 }
 
+static void
+md5_string(MD5_CTX *context, const char *string)
+{
+	static unsigned char zero_byte = 0;
+
+	if (string)
+		MD5Update(context, (unsigned char*) string, strlen(string)+1);
+	else
+		MD5Update(context, &zero_byte, 1);
+}
+
+static void
+compute_node_guid(td_node *node)
+{
+	MD5_CTX context;
+	MD5Init(&context);
+	md5_string(&context, node->action);
+	md5_string(&context, node->annotation);
+	MD5Final(node->guid.data, &context);
+}
+
+static void
+setup_ancestor_data(td_engine *engine, td_node *node)
+{
+	compute_node_guid(node);
+
+	if (engine->ancestors)
+	{
+		td_ancestor_data key;
+		key.guid = node->guid; /* only key field is relevant */
+
+		node->ancestor_data = (td_ancestor_data *)
+			bsearch(&key, engine->ancestors, engine->ancestor_count, sizeof(td_ancestor_data), compare_ancestors);
+	}
+	else
+	{
+		node->ancestor_data = NULL;
+	}
+}
+
 static int
 make_node(lua_State *L)
 {
@@ -583,6 +789,8 @@ make_node(lua_State *L)
 	noderef->node = node;
 	luaL_getmetatable(L, TUNDRA_NODEREF_MTNAME);
 	lua_setmetatable(L, -2);
+
+	setup_ancestor_data(self, node);
 
 	++self->node_count;
 
@@ -757,8 +965,12 @@ build_nodes(lua_State* L)
 	int i, narg;
 	int pre_file_count;
 	td_engine * const self = td_check_engine(L, 1);
+	td_node *roots[64];
 
 	narg = lua_gettop(L);
+
+	if ((narg - 1) > (sizeof(roots)/sizeof(roots[0])))
+		luaL_error(L, "too many nodes to build at once");
 
 	connect_pass_barriers(self);
 
@@ -767,8 +979,10 @@ build_nodes(lua_State* L)
 	for (i = 2; i <= narg; ++i)
 	{
 		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
-		assign_jobs(self, nref->node);
-		td_build(self, nref->node);
+		td_node *node = nref->node;
+		roots[i-2] = node;
+		assign_jobs(self, node);
+		td_build(self, node);
 	}
 
 	if (td_debug_check(self, 1))
@@ -778,6 +992,7 @@ build_nodes(lua_State* L)
 		printf("  stat() calls: %d\n", self->stats.stat_calls);
 	}
 
+	save_ancestors(self, roots, narg-1);
 
 	return 0;
 }
@@ -866,5 +1081,32 @@ void
 td_touch_file(td_file *f)
 {
 	f->stat_dirty = 1;
+	f->signature_dirty = 1;
 }
 
+td_digest *
+td_get_signature(td_engine *engine, td_file *f)
+{
+	if (f->signature_dirty)
+	{
+		assert(f->signer);
+
+		if (f->signer->is_lua)
+			td_croak("lua signers not implemented yet");
+		else
+			(*f->signer->function.function)(engine, f, &f->signature);
+
+		f->signature_dirty = 0;
+	}
+	return &f->signature;
+}
+
+const td_digest *td_get_old_input_signature(td_engine *engine, td_node *node)
+{
+	const td_ancestor_data *ancestor = node->ancestor_data;
+
+	if (ancestor)
+		return &ancestor->input_signature;
+	else
+		return NULL;
+}

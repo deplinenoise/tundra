@@ -2,6 +2,7 @@
 #include "engine.h"
 #include "util.h"
 #include "scanner.h"
+#include "md5.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -79,6 +80,7 @@ jobstate_name(td_jobstate s)
 	case TD_JOB_COMPLETED: return "completed";
 	case TD_JOB_FAILED: return "failed";
 	case TD_JOB_CANCELLED: return "cancelled";
+	case TD_JOB_UPTODATE: return "up-to-date";
 	}
 	assert(0);
 	return "";
@@ -97,6 +99,77 @@ transition_job(td_job_queue *queue, td_node *node, td_jobstate new_state)
 	}
 
 	node->job.state = new_state;
+}
+
+static void
+update_input_signature(td_engine *engine, td_node *node)
+{
+	static unsigned char zero_byte = 0;
+
+	int i, count;
+	MD5_CTX context;
+
+	MD5Init(&context);
+
+	for (i = 0, count = node->input_count; i < count; ++i)
+	{
+		td_file *input_file = node->inputs[i];
+		td_digest *digest = td_get_signature(engine, input_file);
+		MD5Update(&context, digest->data, sizeof(digest->data));
+	}
+
+	/* add a separator between the inputs and implicit deps */
+	MD5Update(&context, &zero_byte, 1);
+
+	for (i = 0, count = node->job.idep_count; i < count; ++i)
+	{
+		td_file *dep = node->job.ideps[i];
+		td_digest *digest = td_get_signature(engine, dep);
+		MD5Update(&context, digest->data, sizeof(digest->data));
+	}
+
+	MD5Final(node->job.input_signature.data, &context);
+}
+
+static int
+is_up_to_date(td_job_queue *queue, td_node *node)
+{
+	int i, count;
+	const td_digest *prev_signature;
+	td_engine *engine = queue->engine;
+
+	/* rebuild if any output files are missing */
+	for (i = 0, count = node->output_count; i < count; ++i)
+	{
+		td_file *file = node->outputs[i];
+		const td_stat *stat = td_stat_file(engine, file);
+		if (0 == (stat->flags & TD_STAT_EXISTS))
+		{
+			if (td_debug_check(engine, 1))
+				printf("%s: output file %s is missing\n", node->annotation, file->path);
+			return 0;
+		}
+	}
+
+	prev_signature = td_get_old_input_signature(engine, node);
+
+	/* rebuild if there is no stored signature */
+	if (!prev_signature)
+	{
+		if (td_debug_check(engine, 1))
+			printf("%s: no previous input signature\n", node->annotation);
+		return 0;
+	}
+
+	/* rebuild if the input signatures have changed */
+	if (0 != memcmp(prev_signature->data, node->job.input_signature.data, sizeof(td_digest)))
+	{
+		if (td_debug_check(engine, 1))
+			printf("%s: input signature differs\n", node->annotation);
+	}
+
+	/* otherwise, the node is up to date */
+	return 1;
 }
 
 static void
@@ -144,10 +217,21 @@ advance_job(td_job_queue *queue, td_node *node)
 			break;
 
 		case TD_JOB_SCANNING:
+
 			if (0 == scan_implicit_deps(queue, node))
-				transition_job(queue, node, TD_JOB_RUNNING);
+			{
+				update_input_signature(queue->engine, node);
+
+				if (is_up_to_date(queue, node))
+					transition_job(queue, node, TD_JOB_UPTODATE);
+				else
+					transition_job(queue, node, TD_JOB_RUNNING);
+			}
 			else
+			{
+				/* implicit dependency scanning failed */
 				transition_job(queue, node, TD_JOB_FAILED);
+			}
 			break;
 
 		case TD_JOB_RUNNING:
