@@ -155,10 +155,20 @@ fs_stat_file(const char *path, td_stat *out)
 	out->size = s.st_size;
 	out->timestamp = s.st_mtime;
 #elif defined(_WIN32)
-#error meh
+#define EPOCH_DIFF 0x019DB1DED53E8000LL /* 116444736000000000 nsecs */
+#define RATE_DIFF 10000000 /* 100 nsecs */
+	WIN32_FIND_DATAA data;
+	HANDLE h = FindFirstFileA(path, &data);
+	unsigned __int64 ft;
+	if (h == INVALID_HANDLE_VALUE)
+		return 1;
+	out->flags = TD_STAT_EXISTS | ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? TD_STAT_DIR : 0);
+	out->size = ((unsigned __int64)(data.nFileSizeHigh) << 32) | data.nFileSizeLow;
+	ft = ((unsigned __int64)(data.ftLastAccessTime.dwHighDateTime) << 32) | data.ftLastAccessTime.dwLowDateTime;
+	out->timestamp = (unsigned long) ((ft - EPOCH_DIFF) / RATE_DIFF);
+	return 0;
 #else
 #error meh
-#endif
-
 	return 0;
+#endif
 }
