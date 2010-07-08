@@ -72,8 +72,9 @@ find_file(td_file *base_file, td_engine *engine, const cpp_include *inc, const t
 	/* for non-system includes, try a path relative to the base file */
 	if (!inc->is_system_include)
 	{
+		td_file *file;
 		td_build_path(&path[0], sizeof(path), base_file, inc->string, inc->string_len, TD_BUILD_REPLACE_NAME);
-		td_file *file = td_engine_get_file(engine ,path);
+		file = td_engine_get_file(engine ,path);
 		if (TD_STAT_EXISTS & td_stat_file(engine, file)->flags)
 			return file;
 	}
@@ -81,8 +82,9 @@ find_file(td_file *base_file, td_engine *engine, const cpp_include *inc, const t
 	for (i = 0, count = config->path_count; i < count; ++i)
 	{
 		const td_file *dir = config->paths[i];
+		td_file *file;
 		td_build_path(&path[0], sizeof(path), dir, inc->string, inc->string_len, TD_BUILD_CONCAT);
-		td_file *file = td_engine_get_file(engine ,path);
+		file = td_engine_get_file(engine ,path);
 		if (TD_STAT_EXISTS & td_stat_file(engine, file)->flags)
 			return file;
 	}
@@ -156,7 +158,7 @@ scan_includes(td_alloc *scratch, td_file *file, cpp_include *out, int max_count)
 	{
 		char *p, *line;
 		int count, remain;
-		count = fread(buffer_start, 1, buffer_size, f);
+		count = (int) fread(buffer_start, 1, (int) buffer_size, f);
 		if (0 == count)
 			break;
 
@@ -178,7 +180,7 @@ scan_includes(td_alloc *scratch, td_file *file, cpp_include *out, int max_count)
 		if (line > buffer_start)
 			line = buffer_start;
 		   
-		remain = buffer_start - line;
+		remain = (int) (buffer_start - line);
 		memmove(line_buffer, line, remain);
 		buffer_start = line_buffer + remain;
 		buffer_size = sizeof(line_buffer) - remain;
@@ -216,12 +218,13 @@ scan_file(
 	}
 
 	{
-		if (td_debug_check(engine, 20))
-			printf("%s: scanning\n", file->path);
-
 		int found_count = 0;
 		td_file* found_files[TD_MAX_INCLUDES_IN_FILE];
 		cpp_include includes[TD_MAX_INCLUDES_IN_FILE];
+
+		if (td_debug_check(engine, 20))
+			printf("%s: scanning\n", file->path);
+
 		count = scan_includes(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]));
 
 		for (i = 0; i < count; ++i)
