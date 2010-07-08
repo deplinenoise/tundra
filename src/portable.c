@@ -154,6 +154,7 @@ fs_stat_file(const char *path, td_stat *out)
 	out->flags = TD_STAT_EXISTS | ((s.st_mode & S_IFDIR) ? TD_STAT_DIR : 0);
 	out->size = s.st_size;
 	out->timestamp = s.st_mtime;
+	return 0;
 #elif defined(_WIN32)
 #define EPOCH_DIFF 0x019DB1DED53E8000LL /* 116444736000000000 nsecs */
 #define RATE_DIFF 10000000 /* 100 nsecs */
