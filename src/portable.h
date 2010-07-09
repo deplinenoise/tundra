@@ -33,6 +33,7 @@ int pthread_join(pthread_t thread, void **result_out);
 
 #endif
 
+int td_mkdir(const char *path);
 int fs_stat_file(const char *filename, struct td_stat *out);
 
 #endif

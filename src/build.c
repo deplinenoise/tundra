@@ -42,9 +42,81 @@ scan_implicit_deps(td_job_queue *queue, td_node *node)
 }
 
 static int
+ensure_dir_exists(td_engine *engine, td_file *dir)
+{
+	int result;
+	const td_stat *stat;
+	td_file *parent_dir;
+
+	parent_dir = td_parent_dir(engine, dir);
+	if (parent_dir)
+	{
+		if (0 != (result = ensure_dir_exists(engine, parent_dir)))
+			return result;
+	}
+
+	stat = td_stat_file(engine, dir);
+	if (TD_STAT_EXISTS & stat->flags)
+	{
+		if (0 == (stat->flags & TD_STAT_DIR))
+		{
+			fprintf(stderr, "%s: couldn't create directory; file exists\n", dir->path);
+			return 1;
+		}
+		else
+			return 0;
+	}
+	else
+	{
+		if (0 != (result = td_mkdir(dir->path)))
+		{
+			fprintf(stderr, "%s: couldn't create directory\n", dir->path);
+			return result;
+		}
+
+		/* could optimize to just set as a directory rather than stat again */
+		td_touch_file(dir);
+		return 0;
+	}
+}
+
+static int
 run_job(td_job_queue *queue, td_node *node)
 {
-	return 1;
+	td_engine *engine = queue->engine;
+	int i, count, result;
+	const char *command = node->action;
+
+	if (!command)
+		return 0;
+
+	/* ensure directories for output files exist */
+	for (i = 0, count = node->output_count; i < count; ++i)
+	{
+		td_file *dir = td_parent_dir(engine, node->outputs[i]);
+		if (0 != (result = ensure_dir_exists(engine, dir)))
+			return result;
+	}
+
+	pthread_mutex_unlock(&queue->mutex);
+	printf("%s\n", node->annotation);
+	result = system(command);
+	pthread_mutex_lock(&queue->mutex);
+
+	if (0 != result)
+	{
+		pthread_mutex_unlock(&queue->mutex);
+		/* remove all output files */
+		for (i = 0, count = node->output_count; i < count; ++i)
+			remove(node->outputs[i]->path);
+		pthread_mutex_lock(&queue->mutex);
+	}
+
+	/* mark all output files as dirty */
+	for (i = 0, count = node->output_count; i < count; ++i)
+		td_touch_file(node->outputs[i]);
+
+	return result;
 }
 
 static int is_queued(td_node *node) { return node->job.flags & TD_JOBF_QUEUED; }

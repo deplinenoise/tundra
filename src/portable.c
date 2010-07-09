@@ -143,6 +143,19 @@ int pthread_join(pthread_t thread, void **result_out)
 #endif
 
 int
+td_mkdir(const char *path)
+{
+#if defined(__APPLE__) || defined(linux)
+	return mkdir(path, 0777);
+#elif defined(_WIN32)
+#error meh
+#else
+#error meh
+#endif
+
+}
+
+int
 fs_stat_file(const char *path, td_stat *out)
 {
 #if defined(__APPLE__) || defined(linux)

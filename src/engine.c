@@ -1112,3 +1112,26 @@ const td_digest *td_get_old_input_signature(td_engine *engine, td_node *node)
 	else
 		return NULL;
 }
+
+td_file *td_parent_dir(td_engine *engine, td_file *f)
+{
+	int i;
+	char path_buf[512];
+
+	if (f->path_len >= sizeof(path_buf) - 1)
+		td_croak("path too long: %s", f->path);
+
+	strncpy(path_buf, f->path, sizeof(path_buf));
+
+	for (i = f->path_len - 1; i >= 0; --i)
+	{
+		char ch = path_buf[i];
+		if ('/' == ch || '\\' == ch)
+		{
+			path_buf[i] = '\0';
+			return td_engine_get_file(engine, path_buf);
+		}
+	}
+
+	return NULL;
+}

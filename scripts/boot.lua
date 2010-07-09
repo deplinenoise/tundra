@@ -83,7 +83,7 @@ DefaultEnvironment:set_many {
 	["PROGSUFFIX"] = ".exe",
 	["PROGFLAGS"] = "",
 	["PROGCOM"] = "$(CC) -o $(@) $(PROGFLAGS) $(<)",
-	["CSC"] = "csc.exe",
+	["CSC"] = "gmcs",
 	["CSCFLAGS"] = "/nologo /optimize+ /debug- /warn:4",
 	["CSCEXECOM"] = "$(CSC) /out:$(@) /target:exe $(CSCFLAGS) $(<)",
 }

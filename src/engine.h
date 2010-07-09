@@ -249,4 +249,6 @@ void td_touch_file(td_file *f);
 td_digest *td_get_signature(td_engine *engine, td_file *f);
 const td_digest *td_get_old_input_signature(td_engine *engine, td_node *node);
 
+td_file *td_parent_dir(td_engine *engine, td_file *f);
+
 #endif
