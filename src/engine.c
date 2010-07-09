@@ -22,7 +22,7 @@
 #define TD_ANCESTOR_FILE ".tundra-ancestors"
 
 #define TD_STATIC_ASSERT(expr) \
-	static const char _static_assert ## __LINE__ [ (expr) ? 1 : -1]
+	static const char _static_assert ## __LINE__ [ (expr) ? 1 : -1] = {0}
 
 void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 {
@@ -40,7 +40,7 @@ void td_sign_digest(td_engine *engine, td_file *file, td_digest *out)
 {
 	FILE* f;
 
-	if ((f = fopen(file->path, "rb")))
+	if (NULL != (f = fopen(file->path, "rb")))
 	{
 		unsigned char buffer[8192];
 		MD5_CTX md5;
@@ -49,7 +49,7 @@ void td_sign_digest(td_engine *engine, td_file *file, td_digest *out)
 		MD5Init(&md5);
 
 		do {
-			read_count = fread(buffer, 1, sizeof(buffer), f);
+			read_count = (int) fread(buffer, 1, sizeof(buffer), f);
 			MD5Update(&md5, buffer, read_count);
 		} while (read_count > 0);
 
@@ -93,6 +93,27 @@ void *td_page_alloc(td_alloc *alloc, size_t size)
 #endif
 
 	return addr;
+}
+
+static void
+md5_string(MD5_CTX *context, const char *string)
+{
+	static unsigned char zero_byte = 0;
+
+	if (string)
+		MD5Update(context, (unsigned char*) string, (int) strlen(string)+1);
+	else
+		MD5Update(context, &zero_byte, 1);
+}
+
+static void
+compute_node_guid(td_node *node)
+{
+	MD5_CTX context;
+	MD5Init(&context);
+	md5_string(&context, node->action);
+	md5_string(&context, node->annotation);
+	MD5Final(node->guid.data, &context);
 }
 
 static int compare_ancestors(const void* l_, const void* r_)
@@ -257,8 +278,6 @@ static void configure_from_env(td_engine *engine)
 		engine->settings.thread_count = 1;
 }
 
-TD_STATIC_ASSERT(sizeof(td_ancestor_data) == 40);
-
 static void
 load_ancestors(td_engine *engine)
 {
@@ -308,7 +327,7 @@ update_ancestors(
 	/* If this node had an ancestor record, flag it as visited. This way it
 	 * will be disregarded when writing out all the other ancestors that
 	 * weren't used this build session. */
-	if ((data = node->ancestor_data))
+	if (NULL != (data = node->ancestor_data))
 	{
 		size_t index = (size_t) (data - engine->ancestors);
 		visited[index] = 1;
@@ -333,7 +352,7 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 	int output_cursor, write_count;
 	td_ancestor_data *output;
 	unsigned char *visited;
-	time_t now;
+	time_t now = time(NULL);
 	const int ttl_days = 7;
 	const time_t ancestor_ttl = (60 * 60 * 24) * ttl_days;
 
@@ -437,6 +456,8 @@ make_pass_barrier(td_engine *engine, const td_pass *pass)
 	td_node *result = (td_node *) td_page_alloc(&engine->alloc, sizeof(td_node));
 	memset(result, 0, sizeof(*result));
 	result->annotation = pass->name;
+	compute_node_guid(result);
+	++engine->node_count;
 	return result;
 }
 
@@ -709,27 +730,6 @@ setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
 
 leave:
 	lua_pop(L, 1);
-}
-
-static void
-md5_string(MD5_CTX *context, const char *string)
-{
-	static unsigned char zero_byte = 0;
-
-	if (string)
-		MD5Update(context, (unsigned char*) string, strlen(string)+1);
-	else
-		MD5Update(context, &zero_byte, 1);
-}
-
-static void
-compute_node_guid(td_node *node)
-{
-	MD5_CTX context;
-	MD5Init(&context);
-	md5_string(&context, node->action);
-	md5_string(&context, node->annotation);
-	MD5Final(node->guid.data, &context);
 }
 
 static void

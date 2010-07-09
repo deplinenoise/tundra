@@ -2,6 +2,7 @@
 #define TUNDRA_ENGINE_H
 
 #include <stddef.h>
+#include <time.h>
 
 #define TUNDRA_ENGINE_MTNAME "tundra_engine"
 #define TUNDRA_NODEREF_MTNAME "tundra_noderef"
@@ -113,8 +114,8 @@ typedef struct td_ancestor_data
 {
 	td_digest guid;
 	td_digest input_signature;
-	unsigned int access_time;
 	int job_result;
+	time_t access_time;
 } td_ancestor_data;
 
 typedef struct td_node_tag
