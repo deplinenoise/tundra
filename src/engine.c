@@ -107,10 +107,11 @@ md5_string(MD5_CTX *context, const char *string)
 }
 
 static void
-compute_node_guid(td_node *node)
+compute_node_guid(td_engine *engine, td_node *node)
 {
 	MD5_CTX context;
 	MD5Init(&context);
+	md5_string(&context, engine->build_id);
 	md5_string(&context, node->action);
 	md5_string(&context, node->annotation);
 	MD5Final(node->guid.data, &context);
@@ -393,6 +394,18 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 	rename(TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE);
 }
 
+static const char*
+copy_string_field(lua_State *L, td_engine *engine, int index, const char *field_name)
+{
+	const char* str;
+	lua_getfield(L, index, field_name);
+	if (!lua_isstring(L, -1))
+		luaL_error(L, "%s: expected a string", field_name);
+	str = td_page_strdup_lua(L, &engine->alloc, -1, field_name);
+	lua_pop(L, 1);
+	return str;
+}
+
 static int make_engine(lua_State *L)
 {
 	td_engine *self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
@@ -413,6 +426,7 @@ static int make_engine(lua_State *L)
 	{
 		self->file_hash_size = get_int_override(L, 1, "FileHashSize", self->file_hash_size);
 		self->relhash_size = get_int_override(L, 1, "RelationHashSize", self->relhash_size);
+		self->build_id = copy_string_field(L, self, 1, "BuildId");
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
@@ -456,7 +470,7 @@ make_pass_barrier(td_engine *engine, const td_pass *pass)
 	td_node *result = (td_node *) td_page_alloc(&engine->alloc, sizeof(td_node));
 	memset(result, 0, sizeof(*result));
 	result->annotation = pass->name;
-	compute_node_guid(result);
+	compute_node_guid(engine, result);
 	++engine->node_count;
 	return result;
 }
@@ -501,18 +515,6 @@ get_pass_index(lua_State *L, td_engine *engine, int index)
 
 	lua_pop(L, 2);
 	return i;
-}
-
-static const char*
-copy_string_field(lua_State *L, td_engine *engine, int index, const char *field_name)
-{
-	const char* str;
-	lua_getfield(L, index, field_name);
-	if (!lua_isstring(L, -1))
-		luaL_error(L, "%s: expected a string", field_name);
-	str = td_page_strdup_lua(L, &engine->alloc, -1, field_name);
-	lua_pop(L, 1);
-	return str;
 }
 
 static int
@@ -735,7 +737,7 @@ leave:
 static void
 setup_ancestor_data(td_engine *engine, td_node *node)
 {
-	compute_node_guid(node);
+	compute_node_guid(engine, node);
 
 	if (engine->ancestors)
 	{

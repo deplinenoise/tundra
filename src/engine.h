@@ -191,6 +191,9 @@ typedef struct td_engine_tag
 	/* memory allocation */
 	td_alloc alloc;
 
+	/* Some string e.g. "win32-release". Used to salt node guids. */
+	const char *build_id;
+
 	/* file db */
 	int file_hash_size;
 	td_file **file_hash;

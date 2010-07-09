@@ -123,7 +123,11 @@ end
 
 local native = require("tundra.native")
 
-native_engine = native:make_engine()
+native_engine = native.make_engine {
+	FileHashSize = 51921,
+	RelationHashSize = 79127,
+	BuildId = "test-build",
+}
 
 function glob(directory, pattern)
 	local result = {}
