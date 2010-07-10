@@ -83,7 +83,7 @@ run_job(td_job_queue *queue, td_node *node)
 	int i, count, result;
 	const char *command = node->action;
 
-	if (!command)
+	if (!command || '\0' == command[0])
 		return 0;
 
 	/* ensure directories for output files exist */

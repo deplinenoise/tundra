@@ -13,7 +13,7 @@ local function get_cpp_scanner(env, fn)
 end
 
 do
-	local cc_compile = function(env, args)
+	local _anyc_compile = function(env, args, label, action)
 		local function obj_fn(fn)
 			if fn:match('^%$%(OBJECTDIR%)') then
 				return path.drop_suffix(fn) .. '$(OBJECTSUFFIX)'
@@ -24,7 +24,7 @@ do
 		local fn = args.Source
 		assert(type(fn) == "string", "argument must be a string")
 		local object_fn = obj_fn(fn)
-		local node = env:make_node {
+		return env:make_node {
 			Label = 'Cc $(@)',
 			Pass = args.Pass,
 			Action = "$(CCCOM)",
@@ -33,11 +33,21 @@ do
 			Scanner = get_cpp_scanner(env, fn),
 			Dependencies = args.Dependencies,
 		}
-		return node
+	end
+
+	local cc_compile = function(env, args)
+		return _anyc_compile(env, args, "Cc $(@)", "$(CCCOM)")
+	end
+
+	local cxx_compile = function(env, args)
+		return _anyc_compile(env, args, "C++ $(@)", "$(CXXCOM)")
 	end
 
 	_outer_env.make.CcObject = cc_compile
 	_outer_env:register_implicit_make_fn("c", cc_compile)
+	_outer_env:register_implicit_make_fn("cpp", cxx_compile)
+	_outer_env:register_implicit_make_fn("cc", cxx_compile)
+	_outer_env:register_implicit_make_fn("cxx", cxx_compile)
 end
 
 _outer_env.make.Object = function(env, args)

@@ -28,6 +28,7 @@ env:set_many {
 	["CPPDEFS"] = "_WIN32",
 	["CCOPTS"] = "/W3",
 	["CCCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) /Fo$(@:b) $(<:b)",
+	["CXXCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) /Fo$(@:b) $(<:b)",
 	["CSC"] = "csc.exe",
 	["CSCEXECOM"] = "$(CSC) /nologo /target:exe /warn:4 /optimize /out:$(@:b) $(<:b)",
 	["PROGLIBS"] = "",
