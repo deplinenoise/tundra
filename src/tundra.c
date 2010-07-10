@@ -2,9 +2,13 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include "util.h"
+#include "bin_alloc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -211,8 +215,15 @@ static int get_traceback(lua_State *L)
 	return 1;
 }
 
+static int on_lua_panic(lua_State *L)
+{
+	printf("lua panic! -- shutting down\n");
+	exit(1);
+}
+
 int main(int argc, char** argv)
 {
+	td_bin_allocator bin_alloc;
 	char boot_script[260];
 	int res, rc, i;
 	lua_State* L;
@@ -220,7 +231,14 @@ int main(int argc, char** argv)
 	if (0 != init_homedir())
 		return 1;
 
-	L = luaL_newstate();
+	td_bin_allocator_init(&bin_alloc);
+
+	L = lua_newstate(td_lua_alloc, &bin_alloc);
+	if (!L)
+		exit(1);
+
+	lua_atpanic(L, on_lua_panic);
+
 	luaL_openlibs(L);
 
 	tundra_open(L);
@@ -268,6 +286,8 @@ int main(int argc, char** argv)
 	}
 
 	lua_close(L);
+
+	td_bin_allocator_cleanup(&bin_alloc);
 
 	return rc;
 }
