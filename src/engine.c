@@ -492,9 +492,13 @@ setup_ancestor_data(td_engine *engine, td_node *node)
 static td_node *
 make_pass_barrier(td_engine *engine, const td_pass *pass)
 {
+	char name[256];
+	snprintf(name, sizeof(name), "<<pass barrier '%s'>>", pass->name);
+	name[sizeof(name)-1] = '\0';
+
 	td_node *result = (td_node *) td_page_alloc(&engine->alloc, sizeof(td_node));
 	memset(result, 0, sizeof(*result));
-	result->annotation = pass->name;
+	result->annotation = td_page_strdup(&engine->alloc, name, strlen(name));
 	compute_node_guid(engine, result);
 	setup_ancestor_data(engine, result);
 	++engine->node_count;
