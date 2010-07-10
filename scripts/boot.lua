@@ -64,35 +64,8 @@ end
 
 DefaultEnvironment = environment.create()
 DefaultEnvironment:set_many {
-	["RM"] = "rm -f",
-	["RMCOM"] = "$(RM) $(<)",
-	["LIBPATH"] = "",
-	["LIBCOM"] = "$(LIB) $(LIBFLAGS) $(@) $(<)",
-	["LIB"] = "ar",
-	["LIBFLAGS"] = "-ru",
-	["LIBSUFFIX"] = ".a",
 	["OBJECTDIR"] = "tundra-output",
-	["OBJECTSUFFIX"] = ".o",
-	["CC"] = "gcc",
-	["CFLAGS"] = "",
-	["C++FLAGS"] = "",
-	["C++"] = "g++",
-	["CPPPATH"] = "",
-	["CCCOM"] = "$(CC) $(CFLAGS) $(CPPPATH:p-I) -c -o $(@) $(<)",
-	["CPPCOM"] = "$(C++) $(C++FLAGS) -c -o $(@) $(<)",
-	["PROGSUFFIX"] = ".exe",
-	["PROGFLAGS"] = "",
-	["PROGCOM"] = "$(CC) -o $(@) $(PROGFLAGS) $(<)",
-	["CSC"] = "gmcs",
-	["CSCFLAGS"] = "/nologo /optimize+ /debug- /warn:4",
-	["CSCEXECOM"] = "$(CSC) /out:$(@) /target:exe $(CSCFLAGS) $(<)",
 }
-
--- Initialize tools
-do
-	local chunk = loadfile(TundraRootDir .. "/scripts/tools.lua")
-	chunk()
-end
 
 function run_build_script(fn)
 	local script_globals, script_globals_mt = {}, {}
@@ -123,18 +96,29 @@ end
 
 local native = require("tundra.native")
 
+do
+	local host_script = TundraRootDir .. "/scripts/host/" .. native.host_platform .. ".lua"
+	if Options.Verbose then
+		print("loading host settings from " .. host_script) 
+	end
+	local chunk = assert(loadfile(host_script))
+	chunk(DefaultEnvironment)
+end
+
 native_engine = native.make_engine {
 	FileHashSize = 51921,
 	RelationHashSize = 79127,
 	BuildId = "test-build",
 }
 
+SEP = native.host_platform == "windows" and "\\" or "/"
+
 function glob(directory, pattern)
 	local result = {}
 	for dir, dirs, files in native.walk_path(directory) do
 		util.filter_in_place(files, function (val) return string.match(val, pattern) end)
 		for _, fn in ipairs(files) do
-			table.insert(result, dir .. '/' .. fn)
+			result[#result + 1] = dir .. SEP .. fn
 		end
 	end
 	return result
@@ -157,6 +141,15 @@ function build(node)
 	--	PrintTree(node)
 	--end
 	native_engine:build(node)
+end
+
+function load_toolset(id, env)
+	local path = TundraRootDir .. "/scripts/tools/" .. id ..".lua"
+	if Options.Verbose then
+		print("loading toolset " .. id .. " from " .. path) 
+	end
+	local chunk = assert(loadfile(path))
+	chunk(env)
 end
 
 run_build_script("tundra.lua")

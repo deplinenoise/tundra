@@ -227,11 +227,15 @@ scan_file(
 
 		count = scan_includes(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]));
 
+		/* TODO: Improve lock scope here; find_file() will create new file nodes and stat
+		them. Can get a lot of speedup in syscalls by interleaving them */
+		pthread_mutex_lock(mutex);
 		for (i = 0; i < count; ++i)
 		{
 			if (NULL != (found_files[found_count] = find_file(file, engine, &includes[i], config)))
 				++found_count;
 		}
+		pthread_mutex_unlock(mutex);
 
 		for (i = 0; i < found_count; ++i)
 			push_include(set, found_files[i]);
@@ -284,7 +288,7 @@ scan_cpp(td_engine *engine, void *mutex, td_node *node, td_scanner *state)
 static int make_cpp_scanner(lua_State *L)
 {
 	td_engine *engine = td_check_engine(L, 1);
-	td_cpp_scanner *self = (td_cpp_scanner *) td_alloc_scanner(L, sizeof(td_cpp_scanner));
+	td_cpp_scanner *self = (td_cpp_scanner *) td_alloc_scanner(engine, L, sizeof(td_cpp_scanner));
 
 	self->head.ident = "cpp";
 	self->head.scan_fn = &scan_cpp;

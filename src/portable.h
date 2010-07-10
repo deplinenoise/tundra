@@ -3,6 +3,16 @@
 
 struct td_stat;
 
+int td_mkdir(const char *path);
+int fs_stat_file(const char *filename, struct td_stat *out);
+int td_move_file(const char *source, const char *dest);
+
+#ifdef _WIN32
+#define TD_PATHSEP '\\'
+#else
+#define TD_PATHSEP '/'
+#endif
+
 #ifndef _WIN32
 #include <pthread.h>
 #else
@@ -32,8 +42,5 @@ int pthread_create(pthread_t *result, void* options, pthread_thread_routine, voi
 int pthread_join(pthread_t thread, void **result_out);
 
 #endif
-
-int td_mkdir(const char *path);
-int fs_stat_file(const char *filename, struct td_stat *out);
 
 #endif

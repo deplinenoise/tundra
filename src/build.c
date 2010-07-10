@@ -33,11 +33,7 @@ scan_implicit_deps(td_job_queue *queue, td_node *node)
 	if (!scanner)
 		return 0;
 
-	pthread_mutex_unlock(&queue->mutex);
-
 	result = (*scanner->scan_fn)(queue->engine, &queue->mutex, node, scanner);
-
-	pthread_mutex_lock(&queue->mutex);
 	return result;
 }
 
@@ -100,6 +96,8 @@ run_job(td_job_queue *queue, td_node *node)
 
 	pthread_mutex_unlock(&queue->mutex);
 	printf("%s\n", node->annotation);
+	if (td_debug_check(engine, 2))
+		printf("%s\n", command);
 	result = system(command);
 	pthread_mutex_lock(&queue->mutex);
 

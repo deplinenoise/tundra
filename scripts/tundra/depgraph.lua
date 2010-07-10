@@ -13,16 +13,23 @@ function create_node(env_, data_)
 		end)
 	end
 
+	-- these are the inputs that $(<) expand to
+	local regular_inputs = normalize_paths(data_.InputFiles)
+
+	-- these are other, auxillary input files that shouldn't appear on the command line
+	-- useful to e.g. add an input dependency on a tool
+	local implicit_inputs = normalize_paths(data_.ImplicitInputs)
+
 	local params = {
 		pass = data_.Pass or default_pass,
 		scanner = data_.Scanner,
 		deps = data_.Dependencies,
-		inputs = normalize_paths(data_.InputFiles),
+		inputs = util.merge_arrays_2(regular_inputs, implicit_inputs),
 		outputs = normalize_paths(data_.OutputFiles),
 	}
 
 	local expand_env = {
-		['<'] = params.inputs,
+		['<'] = normalize_paths(regular_inputs),
 		['@'] = params.outputs
 	}
 

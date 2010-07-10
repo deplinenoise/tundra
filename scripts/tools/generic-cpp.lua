@@ -1,3 +1,4 @@
+local _outer_env = ...
 local depgraph = require("tundra.depgraph")
 local util = require("tundra.util")
 local path = require("tundra.path")
@@ -14,7 +15,11 @@ end
 do
 	local cc_compile = function(env, args)
 		local function obj_fn(fn)
-			return '$(OBJECTDIR)/' .. path.drop_suffix(fn) .. '$(OBJECTSUFFIX)'
+			if fn:match('^%$%(OBJECTDIR%)') then
+				return path.drop_suffix(fn) .. '$(OBJECTSUFFIX)'
+			else
+				return '$(OBJECTDIR)/' .. path.drop_suffix(fn) .. '$(OBJECTSUFFIX)'
+			end
 		end
 		local fn = args.Source
 		assert(type(fn) == "string", "argument must be a string")
@@ -31,11 +36,11 @@ do
 		return node
 	end
 
-	DefaultEnvironment.make.CcObject = cc_compile
-	DefaultEnvironment:register_implicit_make_fn("c", cc_compile)
+	_outer_env.make.CcObject = cc_compile
+	_outer_env:register_implicit_make_fn("c", cc_compile)
 end
 
-DefaultEnvironment.make.Object = function(env, args)
+_outer_env.make.Object = function(env, args)
 	local input = args.Source
 
 	-- Allow premade objects to be passed here to e.g. Library's Sources list
@@ -119,17 +124,17 @@ end
 
 local common_suffixes = { "LIBSUFFIX", "OBJECTSUFFIX" }
 
-DefaultEnvironment.make.Library = function (env, args)
+_outer_env.make.Library = function (env, args)
 	return link_common(env, args, "Library", "$(LIBCOM)", "$(LIBSUFFIX)", common_suffixes)
 end
 
-DefaultEnvironment.make.Program = function (env, args)
+_outer_env.make.Program = function (env, args)
 	return link_common(env, args, "Program", "$(PROGCOM)", "$(PROGSUFFIX)", common_suffixes)
 end
 
 local csSourceExts = { ".cs" }
 
-DefaultEnvironment.make.CSharpExe = function (env, args)
+_outer_env.make.CSharpExe = function (env, args)
 	local inputs, deps = analyze_sources(args.Sources, csSourceExts)
 	return env:make_node {
 		Pass = args.Pass,

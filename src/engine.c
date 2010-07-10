@@ -17,6 +17,7 @@
 
 #ifdef _MSC_VER
 #include <malloc.h> /* alloca */
+#define snprintf _snprintf
 #endif
 
 #define TD_ANCESTOR_FILE ".tundra-ancestors"
@@ -107,6 +108,22 @@ md5_string(MD5_CTX *context, const char *string)
 }
 
 static void
+digest_to_string(const td_digest *digest, char buffer[33])
+{
+	int i;
+	static const char hex_tab[] = "0123456789abcdef";
+	for (i = 0; i < 16; ++i)
+	{
+		unsigned char byte = digest->data[i];
+		unsigned int lo = byte & 0xf;
+		unsigned int hi = (byte & 0xf0) >> 4;
+		buffer[i * 2] = hex_tab[hi];
+		buffer[i * 2 + 1] = hex_tab[lo];
+	}
+	buffer[32] = '\0';
+}
+
+static void
 compute_node_guid(td_engine *engine, td_node *node)
 {
 	MD5_CTX context;
@@ -115,6 +132,13 @@ compute_node_guid(td_engine *engine, td_node *node)
 	md5_string(&context, node->action);
 	md5_string(&context, node->annotation);
 	MD5Final(node->guid.data, &context);
+
+	if (td_debug_check(engine, 10))
+	{
+		char guidstr[33];
+		digest_to_string(&node->guid, guidstr);
+		printf("%s with guid %s\n", node->annotation, guidstr);
+	}
 }
 
 static int compare_ancestors(const void* l_, const void* r_)
@@ -133,7 +157,7 @@ find_basename(const char *path, int path_len)
 	for (i = path_len; i >= 0; --i)
 	{
 		char ch = path[i];
-		if ('/' == ch || '\\' == ch)
+		if (TD_PATHSEP == ch)
 		{
 			return &path[i+1];
 		}
@@ -142,13 +166,32 @@ find_basename(const char *path, int path_len)
 	return path;
 }
 
-td_file *td_engine_get_file(td_engine *engine, const char *path)
+static void sanitize_path(char *buffer)
+{
+	for (;;)
+	{
+		char ch = *buffer;
+		if (!ch)
+			break;
+		if (ch == '/' || ch == '\\')
+			*buffer = TD_PATHSEP;
+		++buffer;
+	}
+}
+
+td_file *td_engine_get_file(td_engine *engine, const char *input_path)
 {
 	unsigned int hash;
 	int slot;
 	td_file *chain;
 	td_file *f;
 	int path_len;
+
+	char path[512];
+	strncpy(path, input_path, sizeof(path));
+	path[sizeof(path)-1] = '\0';
+
+	sanitize_path(path);
 
 	hash = (unsigned int) djb2_hash(path);
 
@@ -283,12 +326,16 @@ static void
 load_ancestors(td_engine *engine)
 {
 	FILE* f;
-	int count;
+	int i, count;
 	long file_size;
 	size_t read_count;
 
 	if (NULL == (f = fopen(TD_ANCESTOR_FILE, "rb")))
+	{
+		if (td_debug_check(engine, 10))
+			printf("couldn't open %s; no ancestor information present\n", TD_ANCESTOR_FILE);
 		return;
+	}
 
 	fseek(f, 0, SEEK_END);
 	file_size = ftell(f);
@@ -302,8 +349,32 @@ load_ancestors(td_engine *engine)
 	engine->ancestors = malloc(file_size);
 	read_count = fread(engine->ancestors, sizeof(td_ancestor_data), count, f);
 
+	if (td_debug_check(engine, 10))
+		printf("read %d ancestors\n", count);
+
 	if (read_count != (size_t) count)
 		td_croak("only read %d items, wanted %d", read_count, count);
+
+	for (i = 1; i < count; ++i)
+	{
+		int cmp = compare_ancestors(&engine->ancestors[i-1], &engine->ancestors[i]);
+		if (cmp == 0)
+			td_croak("bad ancestor file; duplicate item (%d/%d)", i, count);
+		if (cmp > 0)
+			td_croak("bad ancestor file; bad sort order on item (%d/%d)", i, count);
+	}
+
+	if (td_debug_check(engine, 30))
+	{
+		printf("full ancestor dump on load:\n");
+		for (i = 0; i < count; ++i)
+		{
+			char guid[33], sig[33];
+			digest_to_string(&engine->ancestors[i].guid, guid);
+			digest_to_string(&engine->ancestors[i].input_signature, sig);
+			printf("%s %s %ld %d\n", guid, sig, engine->ancestors[i].access_time, engine->ancestors[i].job_result);
+		}
+	}
 
 	fclose(f);
 }
@@ -317,7 +388,6 @@ update_ancestors(
 		td_ancestor_data *output,
 		unsigned char *visited)
 {
-	const td_ancestor_data *data;
 	int i, count, output_index;
 
 	if (node->job.flags & TD_JOBF_ANCESTOR_UPDATED)
@@ -328,21 +398,39 @@ update_ancestors(
 	/* If this node had an ancestor record, flag it as visited. This way it
 	 * will be disregarded when writing out all the other ancestors that
 	 * weren't used this build session. */
-	if (NULL != (data = node->ancestor_data))
 	{
-		size_t index = (size_t) (data - engine->ancestors);
-		visited[index] = 1;
+		const td_ancestor_data *data;
+		if (NULL != (data = node->ancestor_data))
+		{
+			size_t index = (size_t) (data - engine->ancestors);
+			assert(index < engine->ancestor_count);
+			assert(0 == visited[index]);
+			visited[index] = 1;
+		}
 	}
 
 	output_index = *cursor;
 	*cursor += 1;
-	output[output_index].guid = node->guid;
-	output[output_index].input_signature = node->job.input_signature;
+	memset(&output[output_index], 0, sizeof(td_ancestor_data));
+
+	memcpy(&output[output_index].guid, &node->guid, sizeof(td_digest));
+	memcpy(&output[output_index].input_signature, &node->job.input_signature, sizeof(td_digest));
 	output[output_index].access_time = now;
 	output[output_index].job_result = node->job.state;
 
 	for (i = 0, count = node->dep_count; i < count; ++i)
 		update_ancestors(engine, node->deps[i], now, cursor, output, visited);
+}
+
+enum {
+	TD_ANCESTOR_TTL_DAYS = 7,
+	TD_ANCESTOR_TTL_SECS = (60 * 60 * 24) * TD_ANCESTOR_TTL_DAYS,
+};
+
+static int
+ancestor_timed_out(const td_ancestor_data *data, time_t now)
+{
+	return data->access_time + TD_ANCESTOR_TTL_SECS < now;
 }
 
 static void
@@ -354,8 +442,6 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 	td_ancestor_data *output;
 	unsigned char *visited;
 	time_t now = time(NULL);
-	const int ttl_days = 7;
-	const time_t ancestor_ttl = (60 * 60 * 24) * ttl_days;
 
 	if (NULL == (f = fopen(TD_ANCESTOR_FILE ".tmp", "wb")))
 	{
@@ -365,22 +451,40 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 
 	max_count = engine->node_count + engine->ancestor_count;
 	output = (td_ancestor_data *) malloc(sizeof(td_ancestor_data) * max_count);
-	visited = (unsigned char *) calloc(1, max_count);
+	visited = (unsigned char *) calloc(engine->ancestor_count, 1);
 
 	output_cursor = 0;
 	for (i = 0; i < node_count; ++i)
 	{
-		update_ancestors(engine, nodes[i], time(NULL), &output_cursor, output, visited);
+		update_ancestors(engine, nodes[i], now, &output_cursor, output, visited);
 	}
+
+	if (td_debug_check(engine, 10))
+		printf("refreshed %d ancestors\n", output_cursor);
 
 	for (i = 0, count = engine->ancestor_count; i < count; ++i)
 	{
 		const td_ancestor_data *a = &engine->ancestors[i];
-		if (!visited[i] && (a->access_time + ancestor_ttl > now))
+		if (!visited[i] && !ancestor_timed_out(a, now))
 			output[output_cursor++] = *a;
 	}
 
+	if (td_debug_check(engine, 10))
+		printf("%d ancestors to save in total\n", output_cursor);
+
 	qsort(output, output_cursor, sizeof(td_ancestor_data), compare_ancestors);
+
+	if (td_debug_check(engine, 30))
+	{
+		printf("full ancestor dump on save:\n");
+		for (i = 0; i < output_cursor; ++i)
+		{
+			char guid[33], sig[33];
+			digest_to_string(&output[i].guid, guid);
+			digest_to_string(&output[i].input_signature, sig);
+			printf("%s %s %ld %d\n", guid, sig, output[i].access_time, output[i].job_result);
+		}
+	}
 
 	write_count = (int) fwrite(output, sizeof(td_ancestor_data), output_cursor, f);
 
@@ -391,7 +495,8 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 	if (write_count != output_cursor)
 		td_croak("couldn't write %d entries; only wrote %d", output_cursor, write_count);
 
-	rename(TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE);
+	if (0 != td_move_file(TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE))
+		td_croak("couldn't rename %s to %s", TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE);
 }
 
 static const char*
@@ -434,9 +539,9 @@ static int make_engine(lua_State *L)
 	self->default_signer = &sign_digest;
 	self->node_count = 0;
 
-	load_ancestors(self);
-
 	configure_from_env(self);
+
+	load_ancestors(self);
 
 	return 1;
 }
@@ -480,7 +585,18 @@ setup_ancestor_data(td_engine *engine, td_node *node)
 			bsearch(&key, engine->ancestors, engine->ancestor_count, sizeof(td_ancestor_data), compare_ancestors);
 
 		if (node->ancestor_data)
+		{
 			++engine->stats.ancestor_nodes;
+		}
+		else
+		{
+			if (1 || td_debug_check(engine, 10))
+			{
+				char guidstr[33];
+				digest_to_string(&node->guid, guidstr);
+				printf("no ancestor for %s with guid %s\n", node->annotation, guidstr);
+			}
+		}
 	}
 	else
 	{
@@ -493,13 +609,14 @@ static td_node *
 make_pass_barrier(td_engine *engine, const td_pass *pass)
 {
 	char name[256];
+	td_node *result;
+
 	snprintf(name, sizeof(name), "<<pass barrier '%s'>>", pass->name);
 	name[sizeof(name)-1] = '\0';
 
-	td_node *result = (td_node *) td_page_alloc(&engine->alloc, sizeof(td_node));
+	result = (td_node *) td_page_alloc(&engine->alloc, sizeof(td_node));
 	memset(result, 0, sizeof(*result));
 	result->annotation = td_page_strdup(&engine->alloc, name, strlen(name));
-	compute_node_guid(engine, result);
 	setup_ancestor_data(engine, result);
 	++engine->node_count;
 	return result;
@@ -1128,7 +1245,7 @@ td_file *td_parent_dir(td_engine *engine, td_file *f)
 	for (i = f->path_len - 1; i >= 0; --i)
 	{
 		char ch = path_buf[i];
-		if ('/' == ch || '\\' == ch)
+		if (TD_PATHSEP == ch)
 		{
 			path_buf[i] = '\0';
 			return td_engine_get_file(engine, path_buf);

@@ -1,5 +1,6 @@
 #include "util.h"
 #include "engine.h"
+#include "portable.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -174,7 +175,7 @@ td_build_path(char *buffer, int buffer_size, const td_file *base, const char *su
 	memcpy(buffer, base->path, path_len);
 	offset = path_len;
 	if (path_len > 0 && buffer[offset-1] != '/' && buffer[offset-1] != '\\')
-		buffer[offset++] = '/'; /* fixme: win32 */
+		buffer[offset++] = TD_PATHSEP;
 	memcpy(buffer + offset, subpath, subpath_len);
 	offset += subpath_len;
 	buffer[offset] = '\0';

@@ -148,7 +148,18 @@ td_mkdir(const char *path)
 #if defined(__APPLE__) || defined(linux)
 	return mkdir(path, 0777);
 #elif defined(_WIN32)
-#error meh
+	if (!CreateDirectoryA(path, NULL))
+	{
+		switch (GetLastError())
+		{
+		case ERROR_ALREADY_EXISTS:
+			return 0;
+		default:
+			return 1;
+		}
+	}
+	else
+		return 0;
 #else
 #error meh
 #endif
@@ -185,4 +196,19 @@ fs_stat_file(const char *path, td_stat *out)
 #error meh
 	return 0;
 #endif
+}
+
+int td_move_file(const char *source, const char *dest)
+{
+#if defined(__APPLE__) || defined(linux)
+	return rename(source, dest);
+#elif defined(_WIN32)
+	if (MoveFileExA(source, dest, MOVEFILE_REPLACE_EXISTING))
+		return 0;
+	else
+		return GetLastError();
+#else
+#error meh
+#endif
+
 }

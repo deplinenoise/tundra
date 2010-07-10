@@ -235,8 +235,7 @@ function envclass:interpolate(str, vars)
 
 		for match in str:gmatch(":([^:]+)") do
 			options = options or {}
-			match = match:gsub(string.char(1), ":")
-			table.insert(options, match)
+			options[#options + 1] = match:gsub(string.char(1), ":")
 		end
 
 		if options then
@@ -263,7 +262,9 @@ function envclass:interpolate(str, vars)
 		if options then
 			for _, o in ipairs(options) do
 				local first_char = o:sub(1, 1)
-				if 'f' == first_char then
+				if '[' == first_char and ']' == o:sub(-1) then
+					v = { v[tonumber(o:sub(2, -2))] }
+				elseif 'f' == first_char then
 					v = gsub_all(v, '[/\\]', '/')
 				elseif 'b' == first_char then
 					v = gsub_all(v, '[/\\]', '\\')
