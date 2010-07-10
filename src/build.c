@@ -207,8 +207,9 @@ static int
 is_up_to_date(td_job_queue *queue, td_node *node)
 {
 	int i, count;
-	const td_digest *prev_signature;
+	const td_digest *prev_signature = NULL;
 	td_engine *engine = queue->engine;
+	const td_ancestor_data *ancestor;
 
 	/* rebuild if any output files are missing */
 	for (i = 0, count = node->output_count; i < count; ++i)
@@ -223,7 +224,8 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 		}
 	}
 
-	prev_signature = td_get_old_input_signature(engine, node);
+	if (NULL != (ancestor = node->ancestor_data))
+		prev_signature = &ancestor->input_signature;
 
 	/* rebuild if there is no stored signature */
 	if (!prev_signature)
@@ -233,11 +235,20 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 		return 0;
 	}
 
+	/* rebuild if the job failed last time */
+	if (TD_JOB_FAILED == ancestor->job_result)
+	{
+		if (td_debug_check(engine, 1))
+			printf("%s: build failed last time\n", node->annotation);
+		return 0;
+	}
+
 	/* rebuild if the input signatures have changed */
 	if (0 != memcmp(prev_signature->data, node->job.input_signature.data, sizeof(td_digest)))
 	{
 		if (td_debug_check(engine, 1))
 			printf("%s: input signature differs\n", node->annotation);
+		return 0;
 	}
 
 	/* otherwise, the node is up to date */

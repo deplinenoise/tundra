@@ -218,6 +218,8 @@ typedef struct td_engine_tag
 	struct {
 		int file_count;
 		int stat_calls;
+		int ancestor_checks;
+		int ancestor_nodes;
 	} stats;
 
 	int ancestor_count;
@@ -247,7 +249,6 @@ td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int
 const td_stat* td_stat_file(td_engine *engine, td_file *f);
 void td_touch_file(td_file *f);
 td_digest *td_get_signature(td_engine *engine, td_file *f);
-const td_digest *td_get_old_input_signature(td_engine *engine, td_node *node);
 
 td_file *td_parent_dir(td_engine *engine, td_file *f);
 

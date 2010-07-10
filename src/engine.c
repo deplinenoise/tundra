@@ -464,6 +464,31 @@ static int engine_gc(lua_State *L)
 	return 0;
 }
 
+static void
+setup_ancestor_data(td_engine *engine, td_node *node)
+{
+	compute_node_guid(engine, node);
+
+	++engine->stats.ancestor_checks;
+
+	if (engine->ancestors)
+	{
+		td_ancestor_data key;
+		key.guid = node->guid; /* only key field is relevant */
+
+		node->ancestor_data = (td_ancestor_data *)
+			bsearch(&key, engine->ancestors, engine->ancestor_count, sizeof(td_ancestor_data), compare_ancestors);
+
+		if (node->ancestor_data)
+			++engine->stats.ancestor_nodes;
+	}
+	else
+	{
+		node->ancestor_data = NULL;
+	}
+}
+
+
 static td_node *
 make_pass_barrier(td_engine *engine, const td_pass *pass)
 {
@@ -471,6 +496,7 @@ make_pass_barrier(td_engine *engine, const td_pass *pass)
 	memset(result, 0, sizeof(*result));
 	result->annotation = pass->name;
 	compute_node_guid(engine, result);
+	setup_ancestor_data(engine, result);
 	++engine->node_count;
 	return result;
 }
@@ -734,25 +760,6 @@ leave:
 	lua_pop(L, 1);
 }
 
-static void
-setup_ancestor_data(td_engine *engine, td_node *node)
-{
-	compute_node_guid(engine, node);
-
-	if (engine->ancestors)
-	{
-		td_ancestor_data key;
-		key.guid = node->guid; /* only key field is relevant */
-
-		node->ancestor_data = (td_ancestor_data *)
-			bsearch(&key, engine->ancestors, engine->ancestor_count, sizeof(td_ancestor_data), compare_ancestors);
-	}
-	else
-	{
-		node->ancestor_data = NULL;
-	}
-}
-
 static int
 make_node(lua_State *L)
 {
@@ -992,6 +999,7 @@ build_nodes(lua_State* L)
 		printf("post-build stats:\n");
 		printf("  file nodes created: %d (was %d initially)\n", self->stats.file_count, pre_file_count);
 		printf("  stat() calls: %d\n", self->stats.stat_calls);
+		printf("  nodes with ancestry: %d of %d possible\n", self->stats.ancestor_nodes, self->stats.ancestor_checks);
 	}
 
 	save_ancestors(self, roots, narg-1);
@@ -1101,16 +1109,6 @@ td_get_signature(td_engine *engine, td_file *f)
 		f->signature_dirty = 0;
 	}
 	return &f->signature;
-}
-
-const td_digest *td_get_old_input_signature(td_engine *engine, td_node *node)
-{
-	const td_ancestor_data *ancestor = node->ancestor_data;
-
-	if (ancestor)
-		return &ancestor->input_signature;
-	else
-		return NULL;
 }
 
 td_file *td_parent_dir(td_engine *engine, td_file *f)
