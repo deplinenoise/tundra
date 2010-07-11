@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 static const int bin_sizes[BIN_COUNT] = { 16, 32, 40, 48, 56, 64, 80, 88, 128, 160, 256 };
 
@@ -57,7 +58,7 @@ static void size_bin_free(td_size_bin *bin, void *ptr)
 
 static void size_bin_init(td_size_bin *bin, int size)
 {
-	assert(size != 0 && size < BIN_ALLOC_SIZE_MAX);
+	assert(size != 0 && size <= BIN_ALLOC_SIZE_MAX);
 	bin->size = size;
 	bin->free_list = NULL;
 	memset(bin->pages, 0, sizeof(bin->pages));
