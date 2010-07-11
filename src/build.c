@@ -27,13 +27,19 @@ typedef struct td_job_queue
 static int
 scan_implicit_deps(td_job_queue *queue, td_node *node)
 {
+	double t1, t2;
 	td_scanner *scanner = node->scanner;
 	int result;
 
 	if (!scanner)
 		return 0;
 
+	t1 = td_timestamp();
 	result = (*scanner->scan_fn)(queue->engine, &queue->mutex, node, scanner);
+	t2 = td_timestamp();
+
+	queue->engine->stats.scan_time += t2 - t1;
+
 	return result;
 }
 
@@ -79,6 +85,7 @@ ensure_dir_exists(td_engine *engine, td_file *dir)
 static int
 run_job(td_job_queue *queue, td_node *node)
 {
+	double t1, t2;
 	td_engine *engine = queue->engine;
 	int i, count, result;
 	const char *command = node->action;
@@ -86,6 +93,7 @@ run_job(td_job_queue *queue, td_node *node)
 	if (!command || '\0' == command[0])
 		return 0;
 
+	t1 = td_timestamp();
 	/* ensure directories for output files exist */
 	for (i = 0, count = node->output_count; i < count; ++i)
 	{
@@ -93,13 +101,19 @@ run_job(td_job_queue *queue, td_node *node)
 		if (0 != (result = ensure_dir_exists(engine, dir)))
 			return result;
 	}
+	t2 = td_timestamp();
+	engine->stats.mkdir_time += t2 - t1;
 
 	pthread_mutex_unlock(&queue->mutex);
 	printf("%s\n", node->annotation);
+	t1 = td_timestamp();
 	if (td_debug_check(engine, 2))
 		printf("%s\n", command);
 	result = system(command);
+	t2 = td_timestamp();
 	pthread_mutex_lock(&queue->mutex);
+
+	engine->stats.build_time += t2 - t1;
 
 	if (0 != result)
 	{
@@ -175,7 +189,6 @@ static void
 update_input_signature(td_engine *engine, td_node *node)
 {
 	static unsigned char zero_byte = 0;
-
 	int i, count;
 	MD5_CTX context;
 
@@ -204,11 +217,16 @@ update_input_signature(td_engine *engine, td_node *node)
 static int
 is_up_to_date(td_job_queue *queue, td_node *node)
 {
+	double t1, t2;
+
 	int i, count;
 	const td_digest *prev_signature = NULL;
 	td_engine *engine = queue->engine;
 	const td_ancestor_data *ancestor;
 
+	int up_to_date = 0;
+
+	t1 = td_timestamp();
 	/* rebuild if any output files are missing */
 	for (i = 0, count = node->output_count; i < count; ++i)
 	{
@@ -218,7 +236,7 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 		{
 			if (td_debug_check(engine, 1))
 				printf("%s: output file %s is missing\n", node->annotation, file->path);
-			return 0;
+			goto leave;
 		}
 	}
 
@@ -230,7 +248,7 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 	{
 		if (td_debug_check(engine, 1))
 			printf("%s: no previous input signature\n", node->annotation);
-		return 0;
+		goto leave;
 	}
 
 	/* rebuild if the job failed last time */
@@ -238,7 +256,7 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 	{
 		if (td_debug_check(engine, 1))
 			printf("%s: build failed last time\n", node->annotation);
-		return 0;
+		goto leave;
 	}
 
 	/* rebuild if the input signatures have changed */
@@ -246,11 +264,16 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 	{
 		if (td_debug_check(engine, 1))
 			printf("%s: input signature differs\n", node->annotation);
-		return 0;
+		goto leave;
 	}
 
 	/* otherwise, the node is up to date */
-	return 1;
+	up_to_date = 1;
+
+leave:
+	t2 = td_timestamp();
+	engine->stats.up2date_check_time += t2 - t1;
+	return up_to_date;
 }
 
 static void

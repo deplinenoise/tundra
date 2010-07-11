@@ -4,6 +4,7 @@
 
 #include "util.h"
 #include "bin_alloc.h"
+#include "portable.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -228,6 +229,8 @@ int main(int argc, char** argv)
 	int res, rc, i;
 	lua_State* L;
 
+	td_init_timer();
+
 	if (0 != init_homedir())
 		return 1;
 
@@ -271,7 +274,13 @@ int main(int argc, char** argv)
 		lua_rawseti(L, -2, i+1);
 	}
 
-	res = lua_pcall(L, /*narg:*/1, /*nres:*/1, /*errorfunc:*/ -3);
+	{
+		double t1, t2;
+		t1 = td_timestamp();
+		res = lua_pcall(L, /*narg:*/1, /*nres:*/1, /*errorfunc:*/ -3);
+		t2 = td_timestamp();
+		printf("total time spent: %5.4fs\n", t2-t1);
+	}
 
 	rc = 0;
 

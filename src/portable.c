@@ -1,5 +1,6 @@
 #include "portable.h"
 #include "engine.h"
+#include "util.h"
 
 #if defined(__APPLE__) || defined(linux)
 #include <sys/stat.h>
@@ -211,4 +212,36 @@ int td_move_file(const char *source, const char *dest)
 #error meh
 #endif
 
+}
+
+#if defined(_WIN32)
+static double perf_to_secs;
+static LARGE_INTEGER initial_time;
+#endif
+
+void td_init_timer(void)
+{
+#if defined(_WIN32)
+	LARGE_INTEGER perf_freq;
+	if (!QueryPerformanceFrequency(&perf_freq))
+		td_croak("QueryPerformanceFrequency failed: %d", (int) GetLastError());
+	if (!QueryPerformanceCounter(&initial_time))
+		td_croak("QueryPerformanceCounter failed: %d", (int) GetLastError());
+
+	perf_to_secs = 1.0 / (double) perf_freq.QuadPart;
+#endif
+}
+
+double td_timestamp(void)
+{
+#if defined(__APPLE__) || defined(linux)
+#error Implement me
+#elif defined(_WIN32)
+	LARGE_INTEGER c;
+	if (!QueryPerformanceCounter(&c))
+		td_croak("QueryPerformanceCounter failed: %d", (int) GetLastError());
+	return (double) c.QuadPart * perf_to_secs;
+#else
+#error Meh
+#endif
 }

@@ -35,6 +35,8 @@ void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 
 	memcpy(&out->data[0], &stat->timestamp, sizeof(stat->timestamp));
 	memset(&out->data[zero_size], 0, zero_size);
+
+	++engine->stats.timestamp_sign_count;
 }
 
 void td_sign_digest(td_engine *engine, td_file *file, td_digest *out)
@@ -63,6 +65,8 @@ void td_sign_digest(td_engine *engine, td_file *file, td_digest *out)
 		fprintf(stderr, "warning: couldn't open %s for signing\n", file->path);
 		memset(out->data, 0, sizeof(out->data));
 	}
+
+	++engine->stats.md5_sign_count;
 }
 
 static td_signer sign_timestamp = { 0, { td_sign_timestamp } };
@@ -1096,6 +1100,7 @@ build_nodes(lua_State* L)
 	int pre_file_count;
 	td_engine * const self = td_check_engine(L, 1);
 	td_node *roots[64];
+	double t1, t2;
 
 	narg = lua_gettop(L);
 
@@ -1106,6 +1111,7 @@ build_nodes(lua_State* L)
 
 	pre_file_count = self->stats.file_count;
 
+	t1 = td_timestamp();
 	for (i = 2; i <= narg; ++i)
 	{
 		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
@@ -1114,13 +1120,22 @@ build_nodes(lua_State* L)
 		assign_jobs(self, node);
 		td_build(self, node);
 	}
+	t2 = td_timestamp();
 
 	if (td_debug_check(self, 1))
 	{
 		printf("post-build stats:\n");
 		printf("  file nodes created: %d (was %d initially)\n", self->stats.file_count, pre_file_count);
-		printf("  stat() calls: %d\n", self->stats.stat_calls);
 		printf("  nodes with ancestry: %d of %d possible\n", self->stats.ancestor_nodes, self->stats.ancestor_checks);
+		printf("  total time spent in build loop: %.3fs\n", t2-t1);
+		printf("    - implicit dependency scanning: %.3fs\n", self->stats.scan_time);
+		printf("    - output directory creation/mgmt: %.3fs\n", self->stats.mkdir_time);
+		printf("    - command execution: %.3fs\n", self->stats.build_time);
+		printf("    - stat() time: %.3fs (%d calls out of %d queries)\n", self->stats.stat_time, self->stats.stat_calls, self->stats.stat_checks);
+		printf("    - file signing time: %.3fs (md5: %d, timestamp: %d)\n", self->stats.file_signing_time, self->stats.md5_sign_count, self->stats.timestamp_sign_count);
+		printf("    - up2date checks time: %.3fs\n", self->stats.up2date_check_time);
+		if (t2 > t1)
+			printf("  efficiency: %.2f%%\n", (self->stats.build_time * 100.0) / (t2-t1));
 	}
 
 	save_ancestors(self, roots, narg-1);
@@ -1193,6 +1208,9 @@ void td_engine_open(lua_State *L)
 const td_stat *
 td_stat_file(td_engine *engine, td_file *f)
 {
+	double t1, t2;
+	t1 = td_timestamp();
+	++engine->stats.stat_checks;
 	if (f->stat_dirty)
 	{
 		++engine->stats.stat_calls;
@@ -1205,6 +1223,9 @@ td_stat_file(td_engine *engine, td_file *f)
 		}
 		f->stat_dirty = 0;
 	}
+	t2 = td_timestamp();
+	engine->stats.stat_time += t2 - t1;
+
 	return &f->stat;
 }
 
@@ -1218,8 +1239,11 @@ td_touch_file(td_file *f)
 td_digest *
 td_get_signature(td_engine *engine, td_file *f)
 {
+	double t1, t2;
+
 	if (f->signature_dirty)
 	{
+		t1 = td_timestamp();
 		assert(f->signer);
 
 		if (f->signer->is_lua)
@@ -1228,6 +1252,8 @@ td_get_signature(td_engine *engine, td_file *f)
 			(*f->signer->function.function)(engine, f, &f->signature);
 
 		f->signature_dirty = 0;
+		t2 = td_timestamp();
+		engine->stats.file_signing_time += t2 - t1;
 	}
 	return &f->signature;
 }

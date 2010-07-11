@@ -218,8 +218,17 @@ typedef struct td_engine
 	struct {
 		int file_count;
 		int stat_calls;
+		int stat_checks;
 		int ancestor_checks;
 		int ancestor_nodes;
+		int md5_sign_count;
+		int timestamp_sign_count;
+		double scan_time;
+		double build_time;
+		double mkdir_time;
+		double stat_time;
+		double up2date_check_time;
+		double file_signing_time;
 	} stats;
 
 	int ancestor_count;
@@ -228,11 +237,7 @@ typedef struct td_engine
 	struct lua_State *L;
 } td_engine;
 
-#ifndef NDEBUG
 #define td_debug_check(engine, level) ((engine)->settings.debug_level >= (level))
-#else
-#define td_debug_check(engine, level) (0)
-#endif
 
 #define td_check_noderef(L, index) ((struct td_noderef *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
 #define td_check_engine(L, index) ((struct td_engine *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))

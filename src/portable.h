@@ -7,6 +7,9 @@ int td_mkdir(const char *path);
 int fs_stat_file(const char *filename, struct td_stat *out);
 int td_move_file(const char *source, const char *dest);
 
+void td_init_timer(void);
+double td_timestamp(void);
+
 #ifdef _WIN32
 #define TD_PATHSEP '\\'
 #else
