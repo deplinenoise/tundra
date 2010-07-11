@@ -10,7 +10,7 @@
 #include <assert.h>
 #include "portable.h"
 
-typedef struct td_job_queue_tag
+typedef struct td_job_queue
 {
 	pthread_mutex_t mutex;
 	pthread_cond_t work_avail;

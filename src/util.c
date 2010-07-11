@@ -121,7 +121,7 @@ td_indent(int level)
 }
 
 void
-td_alloc_init(struct td_alloc_tag *alloc, int page_count_max, int page_size)
+td_alloc_init(struct td_alloc *alloc, int page_count_max, int page_size)
 {
 	alloc->page_index = alloc->page_left = 0;
 	alloc->page_size = page_size;

@@ -7,8 +7,8 @@
 #define TUNDRA_ENGINE_MTNAME "tundra_engine"
 #define TUNDRA_NODEREF_MTNAME "tundra_noderef"
 
-struct td_engine_tag;
-struct td_file_tag;
+struct td_engine;
+struct td_file;
 
 typedef struct td_digest {
 	unsigned char data[16];
@@ -21,9 +21,9 @@ enum
 	TD_PASS_MAX = 32
 };
 
-typedef void (*td_sign_fn)(struct td_engine_tag *engine, struct td_file_tag *f, td_digest *out);
+typedef void (*td_sign_fn)(struct td_engine *engine, struct td_file *f, td_digest *out);
 
-typedef struct td_signer_tag
+typedef struct td_signer
 {
 	int is_lua;
 	union {
@@ -43,16 +43,16 @@ typedef struct td_stat {
 	unsigned long timestamp;
 } td_stat;
 
-typedef struct td_file_tag
+typedef struct td_file
 {
-	struct td_file_tag *bucket_next;
+	struct td_file *bucket_next;
 
 	unsigned int hash;
 	const char *path;
 	const char *name; /* points into path */
 	int path_len; /* # characters in path string */
 
-	struct td_node_tag *producer;
+	struct td_node *producer;
 	td_signer* signer;
 
 	int signature_dirty;
@@ -62,7 +62,7 @@ typedef struct td_file_tag
 	struct td_stat stat;
 } td_file;
 
-typedef enum td_jobstate_tag
+typedef enum td_jobstate
 {
 	TD_JOB_INITIAL         = 0,
 	TD_JOB_BLOCKED         = 1,
@@ -74,10 +74,10 @@ typedef enum td_jobstate_tag
 	TD_JOB_UPTODATE        = 103
 } td_jobstate;
 
-typedef struct td_job_chain_tag
+typedef struct td_job_chain
 {
-	struct td_node_tag *node;
-	struct td_job_chain_tag *next;
+	struct td_node *node;
+	struct td_job_chain *next;
 } td_job_chain;
 
 enum
@@ -88,11 +88,11 @@ enum
 };
 
 
-typedef struct td_job_tag 
+typedef struct td_job 
 {
 	int flags;
 	td_jobstate state;
-	struct td_node_tag *node;
+	struct td_node *node;
 
 	/* implicit dependencies, discovered by the node's scanner */
 	int idep_count;
@@ -118,7 +118,7 @@ typedef struct td_ancestor_data
 	time_t access_time;
 } td_ancestor_data;
 
-typedef struct td_node_tag
+typedef struct td_node
 {
 	const char *annotation;
 	const char *action;
@@ -131,10 +131,10 @@ typedef struct td_node_tag
 
 	int pass_index;
 
-	struct td_scanner_tag *scanner;
+	struct td_scanner *scanner;
 
 	int dep_count;
-	struct td_node_tag **deps;
+	struct td_node **deps;
 
 	td_digest guid;
 	const td_ancestor_data *ancestor_data;
@@ -142,12 +142,12 @@ typedef struct td_node_tag
 	td_job job;
 } td_node;
 
-typedef struct td_noderef_tag
+typedef struct td_noderef
 {
 	td_node *node;
 } td_noderef;
 
-typedef struct td_pass_tag
+typedef struct td_pass
 {
 	const char *name;
 	int build_order;
@@ -156,7 +156,7 @@ typedef struct td_pass_tag
 	td_job_chain *nodes;
 } td_pass;
 
-typedef struct td_alloc_tag
+typedef struct td_alloc
 {
 	/* memory allocation */
 	int page_index;
@@ -168,7 +168,7 @@ typedef struct td_alloc_tag
 
 /* Caches a relation between a file and set of other files (such as set of
  * included files) */
-typedef struct td_relcell_tag
+typedef struct td_relcell
 {
 	/* source file */
 	td_file *file;
@@ -181,10 +181,10 @@ typedef struct td_relcell_tag
 	td_file **files;
 
 	/* for hash table linked list maintenance */
-	struct td_relcell_tag *bucket_next;
+	struct td_relcell *bucket_next;
 } td_relcell;
 
-typedef struct td_engine_tag
+typedef struct td_engine
 {
 	int magic_value;
 
@@ -234,8 +234,8 @@ typedef struct td_engine_tag
 #define td_debug_check(engine, level) (0)
 #endif
 
-#define td_check_noderef(L, index) ((struct td_noderef_tag *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
-#define td_check_engine(L, index) ((struct td_engine_tag *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))
+#define td_check_noderef(L, index) ((struct td_noderef *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
+#define td_check_engine(L, index) ((struct td_engine *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))
 
 void *td_page_alloc(td_alloc *engine, size_t size);
 td_file *td_engine_get_file(td_engine *engine, const char *path);
