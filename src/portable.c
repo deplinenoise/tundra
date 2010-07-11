@@ -4,6 +4,8 @@
 
 #if defined(__APPLE__) || defined(linux)
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <stdio.h>
 #endif
 
 #ifdef _WIN32
@@ -16,7 +18,6 @@
 
 int pthread_mutex_init(pthread_mutex_t *mutex, void *args)
 {
-	assert(args == NULL);
 	mutex->handle = (PCRITICAL_SECTION)malloc(sizeof(CRITICAL_SECTION));
 	if (!mutex->handle)
 		return ENOMEM;
@@ -217,17 +218,28 @@ int td_move_file(const char *source, const char *dest)
 #if defined(_WIN32)
 static double perf_to_secs;
 static LARGE_INTEGER initial_time;
+#elif defined(__APPLE__) || defined(linux)
+static double start_time;
+static double dtime_now(void)
+{
+	static const double micros = 1.0/1000000.0;
+	struct timeval t;
+	if (0 != gettimeofday(&t, NULL))
+		td_croak("gettimeofday failed");
+	return t.tv_sec + t.tv_usec * micros;
+}
 #endif
 
 void td_init_timer(void)
 {
-#if defined(_WIN32)
+#if defined(__APPLE__) || defined(linux)
+	start_time = dtime_now();
+#elif defined(_WIN32)
 	LARGE_INTEGER perf_freq;
 	if (!QueryPerformanceFrequency(&perf_freq))
 		td_croak("QueryPerformanceFrequency failed: %d", (int) GetLastError());
 	if (!QueryPerformanceCounter(&initial_time))
 		td_croak("QueryPerformanceCounter failed: %d", (int) GetLastError());
-
 	perf_to_secs = 1.0 / (double) perf_freq.QuadPart;
 #endif
 }
@@ -235,7 +247,7 @@ void td_init_timer(void)
 double td_timestamp(void)
 {
 #if defined(__APPLE__) || defined(linux)
-#error Implement me
+	return dtime_now() - start_time;
 #elif defined(_WIN32)
 	LARGE_INTEGER c;
 	if (!QueryPerformanceCounter(&c))
