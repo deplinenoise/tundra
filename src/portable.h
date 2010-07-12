@@ -23,10 +23,15 @@ double td_timestamp(void);
 struct w32_pthread { int index; };
 struct w32_pthread_mutex { void *handle; };
 struct w32_pthread_cond { void *handle; };
+struct w32_mutexattr { char dummy; };
 
 typedef struct w32_pthread pthread_t;
 typedef struct w32_pthread_mutex pthread_mutex_t;
 typedef struct w32_pthread_cond pthread_cond_t;
+typedef struct w32_mutexattr pthread_mutexattr_t;
+
+#define pthread_mutexattr_init(attr) do {} while(0)
+#define pthread_mutexattr_settype(attr, type) do {} while(0)
 
 int pthread_mutex_lock(pthread_mutex_t *lock);
 int pthread_mutex_unlock(pthread_mutex_t *lock);
