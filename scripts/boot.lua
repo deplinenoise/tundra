@@ -23,16 +23,51 @@ do
 	local option_blueprints = {
 		{ Name="Help", Short="h", Long="help", Doc="This message" },
 		{ Name="Verbose", Short="v", Long="verbose", Doc="Be verbose" },
+		{ Name="VeryVerbose", Short="w", Long="very-verbose", Doc="Be very verbose" },
 		{ Name="DryRun", Short="n", Long="dry-run", Doc="Don't execute any actions" },
 		{ Name="WriteGraph", Long="dep-graph", Doc="Generate dependency graph" },
 		{ Name="GraphEnv", Long="dep-graph-env", Doc="Include environments in dependency graph" },
 		{ Name="GraphFilename", Long="dep-graph-filename", Doc="Dependency graph filename", HasValue=true },
 		{ Name="SelfTest", Long="self-test", Doc="Perform self-tests" },
+		{ Name="ThreadCount", Short="j", Long="threads", Doc="Specify number of build threads", HasValue=true },
+		{ Name="DebugQueue", Long="debug-queue", Doc="Show build queue debug information" },
+		{ Name="DebugNodes", Long="debug-nodes", Doc="Show DAG node debug information" },
+		{ Name="DebugAncestors", Long="debug-ancestors", Doc="Show ancestor debug information" },
+		{ Name="DebugStats", Long="debug-stats", Doc="Show statistics on the build session" },
+		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
+		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
 		io.write(message)
 		return 1
+	end
+
+	Options.DebugFlags = 0
+	do
+		local flag_values = {
+			[1] = Options.DebugQueue,
+			[2] = Options.DebugNodes,
+			[4] = Options.DebugAncestors,
+			[8] = Options.DebugStats,
+			[16] = Options.DebugReason,
+			[32] = Options.DebugScan,
+		}
+
+		for k, v in pairs(flag_values) do
+			if v then
+				Options.DebugFlags = Options.DebugFlags + k
+			end
+		end
+	end
+
+	if Options.VeryVerbose then
+		Options.Verbosity = 2
+		Options.Verbose = true
+	elseif Options.Verbose then
+		Options.Verbosity = 1
+	else
+		Options.Verbosity = 0
 	end
 
 	if #Targets == 0 then
@@ -54,7 +89,7 @@ end
 
 local environment = require("tundra.environment")
 
-if Options.Verbose then
+if Options.VeryVerbose then
 	print("Options:")
 	for k, v in pairs(Options) do
 		print(k, v)
@@ -109,6 +144,9 @@ native_engine = native.make_engine {
 	FileHashSize = 51921,
 	RelationHashSize = 79127,
 	BuildId = "test-build",
+	DebugFlags = Options.DebugFlags,
+	Verbosity = Options.Verbosity,
+	ThreadCount = tonumber(Options.ThreadCount),
 }
 
 SEP = native.host_platform == "windows" and "\\" or "/"

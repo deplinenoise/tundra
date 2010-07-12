@@ -210,7 +210,7 @@ scan_file(
 
 	if (files)
 	{
-		if (td_debug_check(engine, 20))
+		if (td_debug_check(engine, TD_DEBUG_SCAN))
 			printf("%s: hit relation cache; %d entries\n", file->path, count);
 		for (i = 0; i < count; ++i)
 			push_include(set, files[i]);
@@ -222,7 +222,7 @@ scan_file(
 		td_file* found_files[TD_MAX_INCLUDES_IN_FILE];
 		cpp_include includes[TD_MAX_INCLUDES_IN_FILE];
 
-		if (td_debug_check(engine, 20))
+		if (td_debug_check(engine, TD_DEBUG_SCAN))
 			printf("%s: scanning\n", file->path);
 
 		count = scan_includes(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]));
@@ -240,7 +240,7 @@ scan_file(
 		for (i = 0; i < found_count; ++i)
 			push_include(set, found_files[i]);
 
-		if (td_debug_check(engine, 20))
+		if (td_debug_check(engine, TD_DEBUG_SCAN))
 			printf("%s: inserting %d entries in relation cache\n", file->path, found_count);
 
 		pthread_mutex_lock(mutex);

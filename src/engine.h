@@ -184,6 +184,16 @@ typedef struct td_relcell
 	struct td_relcell *bucket_next;
 } td_relcell;
 
+enum
+{
+	TD_DEBUG_QUEUE = 1 << 0,
+	TD_DEBUG_NODES = 1 << 1,
+	TD_DEBUG_ANCESTORS = 1 << 2,
+	TD_DEBUG_STATS = 1 << 3,
+	TD_DEBUG_REASON = 1 << 4,
+	TD_DEBUG_SCAN = 1 << 5
+};
+
 typedef struct td_engine
 {
 	int magic_value;
@@ -211,7 +221,8 @@ typedef struct td_engine
 	int node_count;
 
 	struct {
-		int debug_level;
+		int verbosity;
+		int debug_flags;
 		int thread_count;
 	} settings;
 
@@ -237,7 +248,8 @@ typedef struct td_engine
 	struct lua_State *L;
 } td_engine;
 
-#define td_debug_check(engine, level) ((engine)->settings.debug_level >= (level))
+#define td_verbosity_check(engine, level) ((engine)->settings.verbosity >= (level))
+#define td_debug_check(engine, flags) ((engine)->settings.debug_flags & (flags))
 
 #define td_check_noderef(L, index) ((struct td_noderef *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
 #define td_check_engine(L, index) ((struct td_engine *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))

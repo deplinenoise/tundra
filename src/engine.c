@@ -137,7 +137,7 @@ compute_node_guid(td_engine *engine, td_node *node)
 	md5_string(&context, node->annotation);
 	MD5Final(node->guid.data, &context);
 
-	if (td_debug_check(engine, 10))
+	if (td_debug_check(engine, TD_DEBUG_NODES))
 	{
 		char guidstr[33];
 		digest_to_string(&node->guid, guidstr);
@@ -316,14 +316,10 @@ static void configure_from_env(td_engine *engine)
 	const char *tmp;
 
 	if (NULL != (tmp = getenv("TUNDRA_DEBUG")))
-		engine->settings.debug_level = atoi(tmp);
-	else
-		engine->settings.debug_level = 0;
+		engine->settings.debug_flags = atoi(tmp);
 
 	if (NULL != (tmp = getenv("TUNDRA_THREADS")))
 		engine->settings.thread_count = atoi(tmp);
-	else
-		engine->settings.thread_count = 1;
 }
 
 static void
@@ -336,7 +332,7 @@ load_ancestors(td_engine *engine)
 
 	if (NULL == (f = fopen(TD_ANCESTOR_FILE, "rb")))
 	{
-		if (td_debug_check(engine, 10))
+		if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
 			printf("couldn't open %s; no ancestor information present\n", TD_ANCESTOR_FILE);
 		return;
 	}
@@ -353,7 +349,7 @@ load_ancestors(td_engine *engine)
 	engine->ancestors = malloc(file_size);
 	read_count = fread(engine->ancestors, sizeof(td_ancestor_data), count, f);
 
-	if (td_debug_check(engine, 10))
+	if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
 		printf("read %d ancestors\n", count);
 
 	if (read_count != (size_t) count)
@@ -368,7 +364,7 @@ load_ancestors(td_engine *engine)
 			td_croak("bad ancestor file; bad sort order on item (%d/%d)", i, count);
 	}
 
-	if (td_debug_check(engine, 30))
+	if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
 	{
 		printf("full ancestor dump on load:\n");
 		for (i = 0; i < count; ++i)
@@ -446,6 +442,7 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 	td_ancestor_data *output;
 	unsigned char *visited;
 	time_t now = time(NULL);
+	const int dbg = td_debug_check(engine, TD_DEBUG_ANCESTORS);
 
 	if (NULL == (f = fopen(TD_ANCESTOR_FILE ".tmp", "wb")))
 	{
@@ -463,7 +460,7 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 		update_ancestors(engine, nodes[i], now, &output_cursor, output, visited);
 	}
 
-	if (td_debug_check(engine, 10))
+	if (dbg)
 		printf("refreshed %d ancestors\n", output_cursor);
 
 	for (i = 0, count = engine->ancestor_count; i < count; ++i)
@@ -473,12 +470,12 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 			output[output_cursor++] = *a;
 	}
 
-	if (td_debug_check(engine, 10))
+	if (dbg)
 		printf("%d ancestors to save in total\n", output_cursor);
 
 	qsort(output, output_cursor, sizeof(td_ancestor_data), compare_ancestors);
 
-	if (td_debug_check(engine, 30))
+	if (dbg)
 	{
 		printf("full ancestor dump on save:\n");
 		for (i = 0; i < output_cursor; ++i)
@@ -536,6 +533,9 @@ static int make_engine(lua_State *L)
 		self->file_hash_size = get_int_override(L, 1, "FileHashSize", self->file_hash_size);
 		self->relhash_size = get_int_override(L, 1, "RelationHashSize", self->relhash_size);
 		self->build_id = copy_string_field(L, self, 1, "BuildId");
+		self->settings.debug_flags = get_int_override(L, 1, "DebugFlags", 0);
+		self->settings.verbosity = get_int_override(L, 1, "Verbosity", 0);
+		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", 1);
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
@@ -594,7 +594,7 @@ setup_ancestor_data(td_engine *engine, td_node *node)
 		}
 		else
 		{
-			if (1 || td_debug_check(engine, 10))
+			if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
 			{
 				char guidstr[33];
 				digest_to_string(&node->guid, guidstr);
@@ -1122,7 +1122,7 @@ build_nodes(lua_State* L)
 	}
 	t2 = td_timestamp();
 
-	if (td_debug_check(self, 1))
+	if (td_debug_check(self, TD_DEBUG_STATS))
 	{
 		printf("post-build stats:\n");
 		printf("  file nodes created: %d (was %d initially)\n", self->stats.file_count, pre_file_count);

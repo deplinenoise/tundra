@@ -105,9 +105,10 @@ run_job(td_job_queue *queue, td_node *node)
 	engine->stats.mkdir_time += t2 - t1;
 
 	pthread_mutex_unlock(&queue->mutex);
-	printf("%s\n", node->annotation);
+	if (td_verbosity_check(engine, 1))
+		printf("%s\n", node->annotation);
 	t1 = td_timestamp();
-	if (td_debug_check(engine, 2))
+	if (td_verbosity_check(engine, 2))
 		printf("%s\n", command);
 	result = system(command);
 	t2 = td_timestamp();
@@ -145,7 +146,7 @@ enqueue(td_job_queue *queue, td_node *node)
 
 	assert((queue->tail - queue->head) < queue->array_size);
 
-	if (td_debug_check(queue->engine, 10))
+	if (td_debug_check(queue->engine, TD_DEBUG_QUEUE))
 		printf("enqueueing %s\n", node->annotation);
 
 	queue->array[queue->tail % queue->array_size] = node;
@@ -173,7 +174,7 @@ jobstate_name(td_jobstate s)
 static void
 transition_job(td_job_queue *queue, td_node *node, td_jobstate new_state)
 {
-	if (td_debug_check(queue->engine, 9))
+	if (td_debug_check(queue->engine, TD_DEBUG_QUEUE))
 	{
 		printf("[%s] %s -> %s { %d blockers }\n",
 				node->annotation,
@@ -234,7 +235,7 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 		const td_stat *stat = td_stat_file(engine, file);
 		if (0 == (stat->flags & TD_STAT_EXISTS))
 		{
-			if (td_debug_check(engine, 1))
+			if (td_debug_check(engine, TD_DEBUG_REASON))
 				printf("%s: output file %s is missing\n", node->annotation, file->path);
 			goto leave;
 		}
@@ -246,7 +247,7 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 	/* rebuild if there is no stored signature */
 	if (!prev_signature)
 	{
-		if (td_debug_check(engine, 1))
+		if (td_debug_check(engine, TD_DEBUG_REASON))
 			printf("%s: no previous input signature\n", node->annotation);
 		goto leave;
 	}
@@ -254,7 +255,7 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 	/* rebuild if the job failed last time */
 	if (TD_JOB_FAILED == ancestor->job_result)
 	{
-		if (td_debug_check(engine, 1))
+		if (td_debug_check(engine, TD_DEBUG_REASON))
 			printf("%s: build failed last time\n", node->annotation);
 		goto leave;
 	}
@@ -262,7 +263,7 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 	/* rebuild if the input signatures have changed */
 	if (0 != memcmp(prev_signature->data, node->job.input_signature.data, sizeof(td_digest)))
 	{
-		if (td_debug_check(engine, 1))
+		if (td_debug_check(engine, TD_DEBUG_REASON))
 			printf("%s: input signature differs\n", node->annotation);
 		goto leave;
 	}
@@ -357,7 +358,7 @@ advance_job(td_job_queue *queue, td_node *node)
 		int qcount = 0;
 		td_job_chain *chain = node->job.pending_jobs;
 
-		if (td_debug_check(queue->engine, 10))
+		if (td_debug_check(queue->engine, TD_DEBUG_QUEUE))
 			printf("%s completed - enqueing blocked jobs\n", node->annotation);
 
 		/* unblock all jobs that are waiting for this job and enqueue them */
@@ -450,13 +451,13 @@ td_build(td_engine *engine, td_node *node)
 	if (thread_count > TD_MAX_THREADS)
 		thread_count = TD_MAX_THREADS;
 
-	if (td_debug_check(engine, 5))
+	if (td_debug_check(engine, TD_DEBUG_QUEUE))
 		printf("using %d build threads\n", thread_count);
 
 	for (i = 0; i < thread_count-1; ++i)
 	{
 		int rc;
-		if (td_debug_check(engine, 6))
+		if (td_debug_check(engine, TD_DEBUG_QUEUE))
 			printf("starting thread %d\n", i);
 		rc = pthread_create(&threads[i], NULL, build_worker, &queue);
 		if (0 != rc)
