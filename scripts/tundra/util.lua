@@ -12,27 +12,23 @@ function tostring(value)
 		end
 	else
 		local auxTable = {}
-		table.foreach(value, function(i, v)
-			if (tonumber(i) ~= i) then
-				table.insert(auxTable, i)
-			else
-				table.insert(auxTable, tostring(i))
-			end
-		end)
-		table.sort(auxTable)
+		for k, v in pairs(value) do
+			auxTable[#auxTable + 1] = k
+		end
+		table.sort(auxTable, function (a, b) return _tostring(a) < _tostring(b) end)
 
 		str = str..'{'
 		local separator = ""
 		local entry = ""
-		table.foreachi (auxTable, function (i, fieldName)
+		for index, fieldName in ipairs(auxTable) do
 			if ((tonumber(fieldName)) and (tonumber(fieldName) > 0)) then
 				entry = tostring(value[tonumber(fieldName)])
 			else
-				entry = fieldName.." = "..tostring(rawget(value, fieldName))
+				entry = tostring(fieldName) .. " = " .. tostring(rawget(value, fieldName))
 			end
 			str = str..separator..entry
 			separator = ", "
-		end)
+		end
 		str = str..'}'
 	end
 	return str
