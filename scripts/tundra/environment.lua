@@ -331,3 +331,9 @@ function envclass:memoize(key, name, fn)
 	end
 	return memo
 end
+
+
+function is_environment(datum)
+	return getmetatable(datum) == envclass
+end
+

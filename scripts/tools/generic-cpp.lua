@@ -151,7 +151,7 @@ _outer_env.make.CSharpExe = function (env, args)
 		Label = "C# Exe $(@)",
 		Action = "$(CSCEXECOM)",
 		InputFiles = inputs,
-		OutputFiles = { util.get_named_arg(args, "Target") },
+		OutputFiles = { env:interpolate(util.get_named_arg(args, "Target")) },
 		Dependencies = util.merge_arrays_2(deps, args.Dependencies),
 	}
 end
