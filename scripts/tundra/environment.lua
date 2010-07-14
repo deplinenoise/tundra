@@ -103,7 +103,7 @@ function envclass:get_implicit_make_fn(filename)
 		end
 		chain = chain.parent
 	end
-	error(string.format("%s: no implicit make function for ext %s", filename, ext), 2)
+	return nil
 end
 
 function envclass:has_key(key)

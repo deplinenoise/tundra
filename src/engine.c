@@ -940,7 +940,7 @@ make_node(lua_State *L)
  * lua arg 2 - array table to append results to
  * lua arg 3 - array table of extensions
  */
-#define TD_MAX_EXTS 4 
+#define TD_MAX_EXTS 16 
 #define TD_EXTLEN 16 
 
 static int

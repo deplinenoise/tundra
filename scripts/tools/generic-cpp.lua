@@ -43,12 +43,7 @@ do
 		return _anyc_compile(env, args, "C++ $(@)", "$(CXXCOM)")
 	end
 
-	local h_compile = function(env, args)
-		return nil, true -- supress this file
-	end
-
 	_outer_env.make.CcObject = cc_compile
-	_outer_env:register_implicit_make_fn("h", h_compile)
 	_outer_env:register_implicit_make_fn("c", cc_compile)
 	_outer_env:register_implicit_make_fn("cpp", cxx_compile)
 	_outer_env:register_implicit_make_fn("cc", cxx_compile)
@@ -64,7 +59,11 @@ _outer_env.make.Object = function(env, args)
 	end
 
 	local implicitMake = env:get_implicit_make_fn(input)
-	return implicitMake(env, args)
+	if implicitMake then
+		return implicitMake(env, args)
+	else
+		return nil
+	end
 end
 
 
@@ -83,29 +82,26 @@ local function analyze_sources(list, suffixes, transformer)
 		error("no sources provided")
 	end
 
-	local inputs = {}
+	local source_files = {}
 	local deps = {}
 
 	for _, src in ipairs(list) do
-
-		if type(src) == "string" then
-			if transformer then
-				local old = src
-				local supress
-				src, supress = transformer(src)
-				if not supress and not src then
-					error("transformer produced nil value for " .. old)
-				end
-			end
-		end
-
-
 		if native.is_node(src) then
-			src:insert_output_files(inputs, suffixes)
-			for _, x in ipairs(inputs) do
-				assert(x)
-			end
+			local prev = #source_files
+			src:insert_output_files(source_files, suffixes)
 			deps[#deps + 1] = src
+		else
+			source_files[#source_files + 1] = src
+		end
+	end
+
+	local inputs = {}
+	for _, src in ipairs(source_files) do
+		if transformer then
+			src = transformer(src)
+			if src then
+				src:insert_output_files(inputs, suffixes)
+			end
 		else
 			inputs[#inputs + 1] = src
 		end
@@ -122,7 +118,7 @@ local function link_common(env, args, label, action, suffix, suffixes)
 	local function obj_hook(fn)
 		return env.make.Object { Source = fn, Pass = args.Pass }
 	end
-	local exts = util.map(suffixes, function (x) return env:get(x) end)
+	local exts = util.map(suffixes, function (x) return env:get(x, x) end)
 	if #exts == 0 then
 		error(label .. ": no extensions specified", 1)
 	end
@@ -138,7 +134,7 @@ local function link_common(env, args, label, action, suffix, suffixes)
 	return libnode
 end
 
-local common_suffixes = { "LIBSUFFIX", "OBJECTSUFFIX" }
+local common_suffixes = { "LIBSUFFIX", "OBJECTSUFFIX", ".c", ".cpp", ".cc" }
 
 _outer_env.make.Library = function (env, args)
 	return link_common(env, args, "Library", "$(LIBCOM)", "$(LIBSUFFIX)", common_suffixes)
