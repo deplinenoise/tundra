@@ -10,6 +10,7 @@ function make_decl_env()
 		ProjectTypes = {},
 		SourceGen = {},
 		Results = {},
+		DefaultName = "",
 	}
 
 	local outer_env = _G
@@ -32,6 +33,12 @@ function make_decl_env()
 
 		local fn = obj.SourceGen[var]
 		if fn then return fn end
+
+		if var == "Default" then
+			return function(default_name)
+				obj.DefaultName = default_name
+			end
+		end
 
 		return outer_env[var]
 	end
@@ -63,5 +70,5 @@ function decl_meta:parse(file)
 
 	setfenv(chunk, self.FunctionEnv)
 	chunk()
-	return self.Results
+	return self.Results, self.DefaultName
 end

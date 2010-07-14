@@ -12,7 +12,11 @@ function create_node(env_, data_)
 
 	local function normalize_paths(paths)
 		return util.mapnil(paths, function (x)
-			return path.normalize(env_:interpolate(x))
+			if type(x) == "string" then
+				return path.normalize(env_:interpolate(x))
+			else
+				return x
+			end
 		end)
 	end
 

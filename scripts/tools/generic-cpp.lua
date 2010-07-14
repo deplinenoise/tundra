@@ -43,7 +43,12 @@ do
 		return _anyc_compile(env, args, "C++ $(@)", "$(CXXCOM)")
 	end
 
+	local h_compile = function(env, args)
+		return nil, true -- supress this file
+	end
+
 	_outer_env.make.CcObject = cc_compile
+	_outer_env:register_implicit_make_fn("h", h_compile)
 	_outer_env:register_implicit_make_fn("c", cc_compile)
 	_outer_env:register_implicit_make_fn("cpp", cxx_compile)
 	_outer_env:register_implicit_make_fn("cc", cxx_compile)
@@ -86,8 +91,9 @@ local function analyze_sources(list, suffixes, transformer)
 		if type(src) == "string" then
 			if transformer then
 				local old = src
-				src = transformer(src)
-				if not src then
+				local supress
+				src, supress = transformer(src)
+				if not supress and not src then
 					error("transformer produced nil value for " .. old)
 				end
 			end
