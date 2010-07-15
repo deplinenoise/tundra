@@ -253,6 +253,7 @@ function envclass:interpolate(str, vars)
 			v = self:get_list(name) -- this will never return nil
 		else
 			if type(v) ~= 'table' then
+				assert(type(v) == "string")
 				v = { v }
 			end
 		end

@@ -31,9 +31,9 @@ env:set_many {
 	["CXXCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) /Fo$(@:b) $(<:b)",
 	["CSC"] = "csc.exe",
 	["CSCEXECOM"] = "$(CSC) /nologo /target:exe /warn:4 /optimize /out:$(@:b) $(<:b)",
-	["PROGLIBS"] = "",
+	["LIBS"] = "",
 	["PROGOPTS"] = "",
-	["PROGCOM"] = "$(LD) /machine:x86 /nologo $(PROGOPTS) $(PROGLIBS) /out:$(@:b) $(<:b)",
+	["PROGCOM"] = "$(LD) /machine:x86 /nologo $(PROGOPTS) $(LIBS) /out:$(@:b) $(<:b)",
 	["LIBOPTS"] = "",
 	["LIBCOM"] = "$(LIB) /nologo $(LIBOPTS) /out:$(@:b) $(<:b)",
 }

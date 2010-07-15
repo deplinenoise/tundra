@@ -81,37 +81,43 @@ local function analyze_sources(list, suffixes, transformer)
 	if type(list) ~= "table" or #list < 1 then
 		error("no sources provided")
 	end
-
-	local source_files = {}
 	local deps = {}
 
-	for _, src in ipairs(list) do
-		if native.is_node(src) then
-			local prev = #source_files
-			src:insert_output_files(source_files, suffixes)
-			deps[#deps + 1] = src
-		else
-			source_files[#source_files + 1] = src
-		end
-	end
-
-	local inputs = {}
-	for _, src in ipairs(source_files) do
+	local function transform(output, fn)
+		assert(type(fn) == "string")
 		if transformer then
-			src = transformer(src)
-			if src then
-				src:insert_output_files(inputs, suffixes)
+			local t = transformer(fn)
+			if t then
+				deps[#deps + 1] = t
+				t:insert_output_files(output, suffixes)
+			else
+				output[#output + 1] = fn
 			end
 		else
-			inputs[#inputs + 1] = src
+			output[#output + 1] = fn
 		end
 	end
 
-	if #inputs == 0 then
+	local files = {}
+	for _, src in ipairs(list) do
+		if native.is_node(src) then
+			deps[#deps + 1] = src 
+			src:insert_output_files(files, suffixes)
+		else
+			files[#files + 1] = src
+		end
+	end
+
+	local result = {}
+	for _, src in ipairs(files) do
+		transform(result, src)
+	end
+
+	if #result == 0 then
 		error("no suitable input files (" .. util.tostring(suffixes) .. ") found in list: " .. util.tostring(list))
 	end
 
-	return inputs, deps
+	return result, deps
 end
 
 local function link_common(env, args, label, action, suffix, suffixes)
@@ -122,7 +128,10 @@ local function link_common(env, args, label, action, suffix, suffixes)
 	if #exts == 0 then
 		error(label .. ": no extensions specified", 1)
 	end
+	--print(label .. " sources: " .. util.tostring(args.Sources))
+	--print(label .. " exts: " .. util.tostring(exts))
 	local inputs, deps = analyze_sources(args.Sources, exts, obj_hook)
+	--print(label .. " inputs: " .. util.tostring(inputs))
 	local libnode = env:make_node {
 		Label = label .. " $(@)",
 		Pass = args.Pass,
@@ -134,7 +143,7 @@ local function link_common(env, args, label, action, suffix, suffixes)
 	return libnode
 end
 
-local common_suffixes = { "LIBSUFFIX", "OBJECTSUFFIX", ".c", ".cpp", ".cc" }
+local common_suffixes = { "LIBSUFFIX", "OBJECTSUFFIX", ".c", ".cpp", ".cc", ".cxx" }
 
 _outer_env.make.Library = function (env, args)
 	return link_common(env, args, "Library", "$(LIBCOM)", "$(LIBSUFFIX)", common_suffixes)
