@@ -36,7 +36,7 @@ function get_extension(fn)
 end
 
 function drop_suffix(fn)
-	return fn:match("^([^.]*)%.[^.]+") or fn
+	return fn:match("^(.*)%.[^./\\]+$") or fn
 end
 
 function get_filename_base(fn)
