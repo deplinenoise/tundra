@@ -6,6 +6,7 @@ load_toolset("generic-cpp", env)
 local native = require("tundra.native")
 
 env:set_many {
+	["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".a", ".o" },
 	["OBJECTSUFFIX"] = ".o",
 	["PROGSUFFIX"] = "",
 	["LIBSUFFIX"] = ".a",
