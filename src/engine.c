@@ -536,6 +536,7 @@ static int make_engine(lua_State *L)
 		self->settings.debug_flags = get_int_override(L, 1, "DebugFlags", 0);
 		self->settings.verbosity = get_int_override(L, 1, "Verbosity", 0);
 		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", 1);
+		self->settings.dry_run = get_int_override(L, 1, "DryRun", 0);
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
@@ -637,6 +638,8 @@ get_pass_index(lua_State *L, td_engine *engine, int index)
 	lua_getfield(L, index, "Name");
 
 	name = lua_tolstring(L, -1, &name_len);
+	if (!name)
+		luaL_error(L, "no name set for pass");
 
 	if (lua_isnil(L, -2))
 		luaL_error(L, "no build order set for pass %s", name);
@@ -1163,7 +1166,8 @@ build_nodes(lua_State* L)
 			printf("  efficiency: %.2f%%\n", (self->stats.build_time * 100.0) / (t2-t1));
 	}
 
-	save_ancestors(self, roots, narg-1);
+	if (!self->settings.dry_run)
+		save_ancestors(self, roots, narg-1);
 
 	return 0;
 }
@@ -1269,12 +1273,21 @@ td_get_signature(td_engine *engine, td_file *f)
 	if (f->signature_dirty)
 	{
 		t1 = td_timestamp();
-		assert(f->signer);
 
-		if (f->signer->is_lua)
-			td_croak("lua signers not implemented yet");
+		if (!engine->settings.dry_run)
+		{
+			assert(f->signer);
+
+			if (f->signer->is_lua)
+				td_croak("lua signers not implemented yet");
+			else
+				(*f->signer->function.function)(engine, f, &f->signature);
+
+		}
 		else
-			(*f->signer->function.function)(engine, f, &f->signature);
+		{
+			memset(&f->signature, 0, sizeof(f->signature));
+		}
 
 		f->signature_dirty = 0;
 		t2 = td_timestamp();

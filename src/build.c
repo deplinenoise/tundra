@@ -35,7 +35,10 @@ scan_implicit_deps(td_job_queue *queue, td_node *node)
 		return 0;
 
 	t1 = td_timestamp();
-	result = (*scanner->scan_fn)(queue->engine, &queue->mutex, node, scanner);
+	if (!queue->engine->settings.dry_run)
+		result = (*scanner->scan_fn)(queue->engine, &queue->mutex, node, scanner);
+	else
+		result = 0;
 	t2 = td_timestamp();
 
 	queue->engine->stats.scan_time += t2 - t1;
@@ -49,6 +52,9 @@ ensure_dir_exists(td_engine *engine, td_file *dir)
 	int result;
 	const td_stat *stat;
 	td_file *parent_dir;
+
+	if (engine->settings.dry_run)
+		return 0;
 
 	parent_dir = td_parent_dir(engine, dir);
 	if (parent_dir)
@@ -110,7 +116,10 @@ run_job(td_job_queue *queue, td_node *node)
 	t1 = td_timestamp();
 	if (td_verbosity_check(engine, 2))
 		printf("%s\n", command);
-	result = system(command);
+	if (!engine->settings.dry_run)
+		result = system(command);
+	else
+		result = 0;
 	t2 = td_timestamp();
 	pthread_mutex_lock(&queue->mutex);
 
