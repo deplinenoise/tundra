@@ -220,6 +220,18 @@ function envclass:interpolate(str, vars)
 	assert(type(str) == "string")
 	assert(not vars or type(vars) == "table")
 
+	local function gsub_all_unless(t, pattern, replacement, check)
+		local result = {}
+		for idx, value in ipairs(t) do
+			if not check(value) then
+				result[idx] = value:gsub(pattern, replacement)
+			else
+				result[idx] = value
+			end
+		end
+		return result
+	end
+
 	local function gsub_all(t, pattern, replacement)
 		local result = {}
 		for idx, value in ipairs(t) do
@@ -278,6 +290,14 @@ function envclass:interpolate(str, vars)
 					v = gsub_all(v, '$', o:sub(2))
 				elseif 'j' == first_char then
 					join_string = o:sub(2)
+				elseif 'A' == first_char then
+					local astr = o:sub(2)
+					local ptn = astr .. '$'
+					v = gsub_all_unless(v, '$', astr, function (str) return string.match(str, ptn) end)
+				elseif 'P' == first_char then
+					local astr = o:sub(2)
+					local ptn = '^' .. astr
+					v = gsub_all_unless(v, '^', astr, function (str) return string.match(str, ptn) end)
 				else
 					error("bad interpolation option " .. tostring(o) .. " in " .. str)
 				end
