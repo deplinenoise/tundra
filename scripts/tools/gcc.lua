@@ -29,6 +29,6 @@ env:set_many {
 	["PROGOPTS"] = "",
 	["PROGCOM"] = "$(LD) $(PROGOPTS) $(PROGLIBS) -o $(@) $(<)",
 	["LIBOPTS"] = "",
-	["LIBCOM"] = "$(LIB) $(LIBOPTS) $(@) $(<)",
+	["LIBCOM"] = "$(LIB) -r $(LIBOPTS) $(@) $(<)",
 }
 
