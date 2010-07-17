@@ -75,7 +75,9 @@ do
 	end
 
 	if Options.Help then
-		io.write("Tundra Build Processor, v0.0.5\n\nCommand-line options:\n")
+		io.write("Tundra Build Processor v0.2.0\n")
+		io.write("Copyright (c)2010 Andreas Fredriksson. All rights reserved.\n\n")
+		io.write("Command-line options:\n")
 		for _, bp in ipairs(option_blueprints) do
 			local l = string.format("  %- 3s %- 25s %s\n",
 			bp.Short and "-"..bp.Short or "",
@@ -147,6 +149,7 @@ native_engine = native.make_engine {
 	DebugFlags = Options.DebugFlags,
 	Verbosity = Options.Verbosity,
 	ThreadCount = tonumber(Options.ThreadCount),
+	DryRun = Options.DryRun and 1 or 0,
 }
 
 SEP = native.host_platform == "windows" and "\\" or "/"
