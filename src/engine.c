@@ -1019,11 +1019,35 @@ add_pending_job(td_engine *engine, td_node *blocking_node, td_node *blocked_node
 	blocked_node->job.block_count++;
 }
 
+enum {
+	TD_MAX_DEPTH = 1024
+};
+
 static void
-assign_jobs(td_engine *engine, td_node *root_node)
+assign_jobs(td_engine *engine, td_node *root_node, td_node *stack[TD_MAX_DEPTH], int level)
 {
 	int i, dep_count;
 	td_node **deplist = root_node->deps;
+
+	for (i = 0; i < level; ++i)
+	{
+		if (stack[i] == root_node)
+		{
+			fprintf(stderr, "cyclic dependency detected:\n");
+			for (; i < level; ++i)
+			{
+				fprintf(stderr, "  \"%s\" depends on\n", stack[i]->annotation);
+			}
+			fprintf(stderr, "  \"%s\"\n", root_node->annotation);
+
+			td_croak("giving up");
+		}
+	}
+
+	if (level >= TD_MAX_DEPTH)
+		td_croak("dependency graph is too deep; bump TD_MAX_DEPTH");
+
+	stack[level] = root_node;
 
 	dep_count = root_node->dep_count;
 
@@ -1036,7 +1060,7 @@ assign_jobs(td_engine *engine, td_node *root_node)
 	for (i = 0; i < dep_count; ++i)
 	{
 		td_node *dep = deplist[i];
-		assign_jobs(engine, dep);
+		assign_jobs(engine, dep, stack, level+1);
 	}
 }
 
@@ -1053,7 +1077,7 @@ static void add_pass_deps(td_engine *engine, td_pass *prec, td_pass *succ)
 	int count;
 	td_node **dep_array;
 	td_job_chain *chain;
-   
+
 	dep_array = td_page_alloc(&engine->alloc, sizeof(td_node*) * prec->node_count);
 	count = 0;
 	chain = prec->nodes;
@@ -1114,10 +1138,11 @@ build_nodes(lua_State* L)
 	t1 = td_timestamp();
 	for (i = 2; i <= narg; ++i)
 	{
+		td_node *stack[TD_MAX_DEPTH];
 		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
 		td_node *node = nref->node;
 		roots[i-2] = node;
-		assign_jobs(self, node);
+		assign_jobs(self, node, stack, 0);
 		td_build(self, node);
 	}
 	t2 = td_timestamp();
