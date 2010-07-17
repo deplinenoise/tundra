@@ -212,3 +212,40 @@ function append_table(result, items)
 	end
 	return result
 end
+
+function flatten(array)
+	local function iter(item, accum)
+		if type(item) == 'table' then
+			for _, sub_item in ipairs(item) do
+				iter(sub_item, accum)
+			end
+		else
+			accum[#accum + 1] = item
+		end
+	end
+	local accum = {}
+	iter(array, accum)
+	return accum
+end
+
+function memoize(closure)
+	local result = nil
+	return function(...)
+		if not result then
+			result = assert(closure(...))
+		end
+		return result
+	end
+end
+
+function uniq(array)
+	local seen = {}
+	local result = {}
+	for _, val in ipairs(array) do
+		if not seen[val] then
+			seen[val] = true
+			result[#result + 1] = val
+		end
+	end
+	return result
+end
