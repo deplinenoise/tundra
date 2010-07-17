@@ -121,6 +121,9 @@ function envclass:set_many(table)
 end
 
 function envclass:append(key, value)
+	if type(value) ~= "string" then
+		error("environment append: " .. util.tostring(value) .. " is not a string", 2)
+	end
 	self:invalidate_memos(key)
 	local t = self:get_list(key, 1)
 	local result
