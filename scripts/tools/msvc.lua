@@ -35,17 +35,3 @@ env:set_many {
 	["LIBCOM"] = "$(LIB) /nologo $(LIBOPTS) /out:$(@:b) $(<:b)",
 }
 
--- C# support
-env:set_many {
-	["CSC"] = "csc",
-	["CSPROGSUFFIX"] = ".exe",
-	["CSLIBSUFFIX"] = ".dll",
-	["CSLIBS"] = "",
-	["CSRESOURCES"] = "",
-	["CSRESGEN"] = "resgen $(<) $(@)",
-	["CSC_WARNING_LEVEL"] = "4",
-	["_CSC_COMMON"] = "-warn:$(CSC_WARNING_LEVEL) /nologo $(CSLIBPATH:b:p/lib\\:) $(CSRESOURCES:b:p/resource\\:) $(CSLIBS:p/reference\\::A.dll)",
-	["CSCOPTS"] = "-optimize",
-	["CSCLIBCOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:library -out:$(@:b) $(<:b)",
-	["CSCEXECOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:exe -out:$(@:b) $(<:b)",
-}

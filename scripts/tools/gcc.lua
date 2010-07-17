@@ -6,6 +6,7 @@ load_toolset("generic-cpp", env)
 local native = require("tundra.native")
 
 env:set_many {
+	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx" },
 	["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".a", ".o" },
 	["OBJECTSUFFIX"] = ".o",
 	["PROGSUFFIX"] = "",
@@ -18,18 +19,9 @@ env:set_many {
 	["CCOPTS"] = "-Wall",
 	["CCCOM"] = "$(CC) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) -o $(@) $(<)",
 	["CXXCOM"] = "$(CCCOM)",
-	["CSC"] = "gmcs",
-	["CSPROGSUFFIX"] = ".exe",
-	["CSLIBSUFFIX"] = ".dll",
-	["CSLIBS"] = "",
-	["CSRESOURCES"] = "",
-	["CSRESGEN"] = "resgen2 $(<) $(@)",
-	["CSCLIBCOM"] = "$(CSC) -nologo $(CSLIBPATH:p-lib\\:) $(CSRESOURCES:p-resource\\:) $(CSLIBS:p-reference\\:) -target:library -warn:4 -optimize -out:$(@) $(<)",
-	["CSCEXECOM"] = "$(CSC) -nologo $(CSLIBPATH:p-lib\\:) $(CSRESOURCES:p-resource\\:) $(CSLIBS:p-reference\\:) -target:exe -warn:4 -optimize -out:$(@) $(<)",
 	["PROGLIBS"] = "",
 	["PROGOPTS"] = "",
 	["PROGCOM"] = "$(LD) $(PROGOPTS) $(PROGLIBS) -o $(@) $(<)",
 	["LIBOPTS"] = "",
 	["LIBCOM"] = "$(LIB) -r $(LIBOPTS) $(@) $(<)",
 }
-

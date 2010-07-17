@@ -1,5 +1,7 @@
 module(..., package.seeall)
 
+local nodegen = require "tundra.nodegen"
+
 local decl_meta = {}
 decl_meta.__index = decl_meta
 
@@ -54,11 +56,8 @@ function decl_meta:add_platform(platform)
 end
 
 function decl_meta:add_project_type(name, fn)
-	if fn then
-		self.ProjectTypes[name] = setfenv(fn, self.FunctionEnv)
-	else
-		self.ProjectTypes[name] = true
-	end
+	assert(name and fn)
+	self.ProjectTypes[name] = setfenv(fn, self.FunctionEnv)
 end
 
 function decl_meta:add_source_generator(name, fn)
@@ -67,6 +66,10 @@ end
 
 function decl_meta:parse(file)
 	local chunk = assert(loadfile(file))
+
+	for name, _ in pairs(nodegen._generator.evaluators) do
+		self.ProjectTypes[name] = true
+	end
 
 	setfenv(chunk, self.FunctionEnv)
 	chunk()
