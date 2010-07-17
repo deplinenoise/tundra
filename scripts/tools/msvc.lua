@@ -29,8 +29,6 @@ env:set_many {
 	["CCOPTS"] = "/W3",
 	["CCCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) /Fo$(@:b) $(<:b)",
 	["CXXCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) /Fo$(@:b) $(<:b)",
-	["CSC"] = "csc.exe",
-	["CSCEXECOM"] = "$(CSC) /nologo /target:exe /warn:4 /optimize /out:$(@:b) $(<:b)",
 	["LIBS"] = "",
 	["PROGOPTS"] = "",
 	["PROGCOM"] = "$(LD) /machine:x86 /nologo $(PROGOPTS) $(LIBS) /out:$(@:b) $(<:b)",
@@ -38,3 +36,17 @@ env:set_many {
 	["LIBCOM"] = "$(LIB) /nologo $(LIBOPTS) /out:$(@:b) $(<:b)",
 }
 
+-- C# support
+env:set_many {
+	["CSC"] = "csc",
+	["CSPROGSUFFIX"] = ".exe",
+	["CSLIBSUFFIX"] = ".dll",
+	["CSLIBS"] = "",
+	["CSRESOURCES"] = "",
+	["CSRESGEN"] = "resgen $(<) $(@)",
+	["CSC_WARNING_LEVEL"] = "4",
+	["_CSC_COMMON"] = "-warn:$(CSC_WARNING_LEVEL) /nologo $(CSLIBPATH:b:p/lib\\:) $(CSRESOURCES:b:p/resource\\:) $(CSLIBS:p/reference\\::A.dll)",
+	["CSCOPTS"] = "-optimize",
+	["CSCLIBCOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:library -out:$(@:b) $(<:b)",
+	["CSCEXECOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:exe -out:$(@:b) $(<:b)",
+}
