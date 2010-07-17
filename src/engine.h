@@ -82,17 +82,16 @@ typedef struct td_job_chain
 
 enum
 {
-	TD_JOBF_QUEUED		= 1 << 0,
-	TD_JOBF_ROOT		= 1 << 1,
-	TD_JOBF_ANCESTOR_UPDATED = 1 << 16
+	TD_JOBF_QUEUED            = 1 <<  0,
+	TD_JOBF_ROOT              = 1 <<  1,
+	TD_JOBF_ANCESTOR_UPDATED  = 1 << 16
 };
 
 
-typedef struct td_job 
+typedef struct td_job
 {
 	int flags;
 	td_jobstate state;
-	struct td_node *node;
 
 	/* implicit dependencies, discovered by the node's scanner */
 	int idep_count;
