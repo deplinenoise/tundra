@@ -445,6 +445,11 @@ td_build(td_engine *engine, td_node *node)
 	pthread_t threads[TD_MAX_THREADS];
 	pthread_mutexattr_t attr;
 
+	if (engine->stats.build_called)
+		td_croak("build() called more than once on same engine");
+
+	engine->stats.build_called = 1;
+
 	td_job_queue queue;
 	memset(&queue, 0, sizeof(queue));
 	queue.engine = engine;

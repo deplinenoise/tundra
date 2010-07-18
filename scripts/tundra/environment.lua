@@ -365,3 +365,15 @@ function is_environment(datum)
 	return getmetatable(datum) == envclass
 end
 
+function memoize_per_config(closure)
+	local cache = {}
+	return function(env)
+		local build_id = env:get("BUILD_ID")
+		local result = cache[build_id]
+		if not result then
+			result = assert(closure(env))
+			cache[build_id] = result
+		end
+		return result
+	end
+end

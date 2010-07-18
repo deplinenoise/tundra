@@ -9,10 +9,6 @@ local default_pass = { Name = "Default", BuildOrder = 100000 }
 
 current_engine = nil
 
-function set_engine(engine)
-	current_engine = engine
-end
-
 function create_node(env_, data_)
 	assert(environment.is_environment(env_))
 
@@ -35,6 +31,7 @@ function create_node(env_, data_)
 
 	local params = {
 		pass = data_.Pass or default_pass,
+		salt = env_:get("BUILD_ID", ""),
 		scanner = data_.Scanner,
 		deps = data_.Dependencies,
 		inputs = util.merge_arrays_2(regular_inputs, implicit_inputs),

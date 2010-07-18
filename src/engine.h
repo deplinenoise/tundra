@@ -121,6 +121,7 @@ typedef struct td_node
 {
 	const char *annotation;
 	const char *action;
+	const char *salt;
 
 	int input_count;
 	td_file **inputs;
@@ -200,9 +201,6 @@ typedef struct td_engine
 	/* memory allocation */
 	td_alloc alloc;
 
-	/* Some string e.g. "win32-release". Used to salt node guids. */
-	const char *build_id;
-
 	/* file db */
 	int file_hash_size;
 	td_file **file_hash;
@@ -240,10 +238,12 @@ typedef struct td_engine
 		double stat_time;
 		double up2date_check_time;
 		double file_signing_time;
+		int build_called;
 	} stats;
 
 	int ancestor_count;
 	struct td_ancestor_data *ancestors;
+	struct td_node **ancestor_used;
 
 	struct lua_State *L;
 } td_engine;

@@ -15,8 +15,6 @@ function generate(args)
 	local raw_nodes = assert(args.Declarations)
 	local default_names = assert(args.DefaultNames)
 
-	depgraph.set_engine(assert(args.Engine))
-
 	local state = setmetatable({
 		units = {},
 		unit_nodes = {},
@@ -37,11 +35,9 @@ function generate(args)
 	local nodes_to_build = util.map(default_names, function (name) return state:get_node_of(name) end)
 
 	local result = env:make_node {
-		Label = "all",
+		Label = "all-" .. env:get("BUILD_ID"),
 		Dependencies = nodes_to_build,
 	}
-
-	depgraph.set_engine(nil)
 
 	return result
 end

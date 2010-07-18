@@ -132,9 +132,9 @@ compute_node_guid(td_engine *engine, td_node *node)
 {
 	MD5_CTX context;
 	MD5Init(&context);
-	md5_string(&context, engine->build_id);
 	md5_string(&context, node->action);
 	md5_string(&context, node->annotation);
+	md5_string(&context, node->salt);
 	MD5Final(node->guid.data, &context);
 
 	if (td_debug_check(engine, TD_DEBUG_NODES))
@@ -347,6 +347,7 @@ load_ancestors(td_engine *engine)
 
 	engine->ancestor_count = count = (int) (file_size / sizeof(td_ancestor_data));
 	engine->ancestors = malloc(file_size);
+	engine->ancestor_used = (td_node **)calloc(sizeof(td_node *), count);
 	read_count = fread(engine->ancestors, sizeof(td_ancestor_data), count, f);
 
 	if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
@@ -532,7 +533,6 @@ static int make_engine(lua_State *L)
 	{
 		self->file_hash_size = get_int_override(L, 1, "FileHashSize", self->file_hash_size);
 		self->relhash_size = get_int_override(L, 1, "RelationHashSize", self->relhash_size);
-		self->build_id = copy_string_field(L, self, 1, "BuildId");
 		self->settings.debug_flags = get_int_override(L, 1, "DebugFlags", 0);
 		self->settings.verbosity = get_int_override(L, 1, "Verbosity", 0);
 		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", 1);
@@ -566,6 +566,9 @@ static int engine_gc(lua_State *L)
 	free(self->relhash);
 	self->relhash = NULL;
 
+	free(self->ancestor_used);
+	self->ancestor_used = NULL;
+
 	free(self->ancestors);
 	self->ancestors = NULL;
 
@@ -591,6 +594,11 @@ setup_ancestor_data(td_engine *engine, td_node *node)
 
 		if (node->ancestor_data)
 		{
+			int index = (int) (node->ancestor_data - engine->ancestors);
+			td_node *other;
+			if (NULL != (other = engine->ancestor_used[index]))
+				td_croak("node error: nodes \"%s\" and \"%s\" share the same ancestor", node->annotation, other->annotation);
+			engine->ancestor_used[index] = node;
 			++engine->stats.ancestor_nodes;
 		}
 		else
@@ -897,7 +905,15 @@ make_node(lua_State *L)
 
 	node->annotation = copy_string_field(L, self, 2, "annotation");
 	node->action = copy_string_field(L, self, 2, "action");
+	node->salt = copy_string_field(L, self, 2, "salt");
 	node->pass_index = setup_pass(L, self, 2, node);
+
+#if 0
+	if (0 == strcmp(node->annotation, "CSharpLib tundra-output/macosx-debug/Rev6.Misc.dll"))
+	{
+		__asm__("int $3\n" : : );
+	}
+#endif
 
 	lua_getfield(L, 2, "inputs");
 	node->inputs = td_build_file_array(L, self, lua_gettop(L), &node->input_count);
