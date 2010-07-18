@@ -3,18 +3,27 @@ module(..., package.seeall)
 local util = require "tundra.util"
 local path = require "tundra.path"
 local native = require "tundra.native"
+local depgraph = require "tundra.depgraph"
 
 _generator = {
 	evaluators = {},
 }
 _generator.__index = _generator
 
-function generate(env, raw_nodes, default_names, passes)
+function generate(args)
+	local env = assert(args.Env)
+	local raw_nodes = assert(args.Declarations)
+	local default_names = assert(args.DefaultNames)
+
+	depgraph.set_engine(assert(args.Engine))
+
 	local state = setmetatable({
 		units = {},
 		unit_nodes = {},
 		base_env = env,
-		passes = passes,
+		platform = assert(args.Platform),
+		config = assert(args.Config),
+		passes = assert(args.Passes),
 	}, _generator)
 
 	-- Build name=>decl mapping
@@ -27,10 +36,14 @@ function generate(env, raw_nodes, default_names, passes)
 
 	local nodes_to_build = util.map(default_names, function (name) return state:get_node_of(name) end)
 
-	return env:make_node {
+	local result = env:make_node {
 		Label = "all",
 		Dependencies = nodes_to_build,
 	}
+
+	depgraph.set_engine(nil)
+
+	return result
 end
 
 function _generator:get_node_of(name)
@@ -61,7 +74,8 @@ function _generator:resolve_deps(env, deps)
 	return result
 end
 
-function _generator:resolve_sources(env, items, accum)
+function _generator:resolve_sources(env, items, accum, base_dir)
+	base_dir = base_dir or ""
 	local header_exts = {}
 	for _, ext in ipairs(env:get_list("HEADERS_EXTS")) do
 		header_exts[ext] = true
@@ -80,13 +94,13 @@ function _generator:resolve_sources(env, items, accum)
 			if getmetatable(item) then
 				accum[#accum + 1] = item
 			else
-				self:resolve_sources(env, item, accum)
+				self:resolve_sources(env, item, accum, base_dir)
 			end
 		else
 			assert(type_name == "string")
 			local ext = path.get_extension(item)
 			if not header_exts[ext] then
-				accum[#accum + 1] = item
+				accum[#accum + 1] = base_dir .. item
 			end
 		end
 	end

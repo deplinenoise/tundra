@@ -12,10 +12,17 @@ function printf(msg, ...)
 	print(str)
 end
 
--- Use "strict" when developing to flag accesses to nil global variables
-require("strict")
+function errorf(msg, ...)
+	local str = string.format(msg, ...)
+	error(str)
+end
 
-local util = require("tundra.util")
+-- Use "strict" when developing to flag accesses to nil global variables
+require "strict"
+
+local util = require "tundra.util"
+local environment = require "tundra.environment"
+local native = require "tundra.native"
 
 -- Parse the command line options.
 do
@@ -70,10 +77,6 @@ do
 		Options.Verbosity = 0
 	end
 
-	if #Targets == 0 then
-		table.insert(Targets, "All")
-	end
-
 	if Options.Help then
 		io.write("Tundra Build Processor v0.2.0\n")
 		io.write("Copyright (c)2010 Andreas Fredriksson. All rights reserved.\n\n")
@@ -89,14 +92,12 @@ do
 	end
 end
 
-local environment = require("tundra.environment")
 
 if Options.VeryVerbose then
 	print("Options:")
 	for k, v in pairs(Options) do
-		print(k, v)
+		print(k .. ": " .. util.tostring(v))
 	end
-	print("Targets:", table.concat(Targets, ", "))
 end
 
 DefaultEnvironment = environment.create()
@@ -113,7 +114,7 @@ function run_build_script(fn)
 	setfenv(chunk, script_globals)
 
 	local function stack_dumper(err_obj)
-		local debug = require("debug")
+		local debug = require "debug"
 		return debug.traceback(err_obj, 2)
 	end
 
@@ -131,7 +132,6 @@ function run_build_script(fn)
 	end
 end
 
-local native = require("tundra.native")
 
 do
 	local host_script = TundraRootDir .. "/scripts/host/" .. native.host_platform .. ".lua"
@@ -141,16 +141,6 @@ do
 	local chunk = assert(loadfile(host_script))
 	chunk(DefaultEnvironment)
 end
-
-native_engine = native.make_engine {
-	FileHashSize = 51921,
-	RelationHashSize = 79127,
-	BuildId = "test-build",
-	DebugFlags = Options.DebugFlags,
-	Verbosity = Options.Verbosity,
-	ThreadCount = tonumber(Options.ThreadCount),
-	DryRun = Options.DryRun and 1 or 0,
-}
 
 SEP = native.host_platform == "windows" and "\\" or "/"
 
@@ -175,13 +165,6 @@ local function print_tree(n, level)
 	for _, dep in util.nil_ipairs(n:get_dependencies()) do
 		print_tree(dep, level + 1)
 	end
-end
-
-function build(node)
-	--if Options.Verbose then
-	--	PrintTree(node)
-	--end
-	native_engine:build(node)
 end
 
 function load_toolset(id, env)

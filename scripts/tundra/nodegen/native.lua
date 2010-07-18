@@ -29,7 +29,7 @@ function _generator:eval_native_unit(env, label, suffix, command, decl)
 
 	local exts = env:get_list("NATIVE_SUFFIXES")
 	local deps = self:resolve_deps(env, decl.Depends)
-	local sources = self:resolve_sources(env, { decl.Sources, deps }, {})
+	local sources = self:resolve_sources(env, { decl.Sources, deps }, {}, decl.SourceDir)
 	local inputs, ideps = self:analyze_sources(sources, exts, implicit_make)
 	deps = util.merge_arrays_2(deps, ideps)
 	deps = util.merge_arrays_2(deps, decl.Dependencies)

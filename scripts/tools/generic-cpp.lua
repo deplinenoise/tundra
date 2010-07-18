@@ -7,7 +7,7 @@ local native = require("tundra.native")
 local function get_cpp_scanner(env, fn)
 	local function new_scanner()
 		local paths = util.map(env:get_list("CPPPATH"), function (v) return env:interpolate(v) end)
-		return native_engine:make_cpp_scanner(paths)
+		return depgraph.current_engine:make_cpp_scanner(paths)
 	end
 	return env:memoize("CPPPATH", "_cpp_scanner", new_scanner)
 end
@@ -46,3 +46,10 @@ do
 	_outer_env:register_implicit_make_fn("cxx", cxx_compile)
 end
 
+_outer_env:set_many {
+	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx" },
+	["CPPDEFS"] = "",
+	["CCOPTS_DEBUG"] = "",
+	["CCOPTS_PRODUCTION"] = "",
+	["CCOPTS_RELEASE"] = "",
+}

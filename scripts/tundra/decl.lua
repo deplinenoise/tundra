@@ -51,8 +51,12 @@ function make_decl_env()
 	return setmetatable(obj, decl_meta)
 end
 
-function decl_meta:add_platform(platform)
-	self.Platforms[platform] = true
+function decl_meta:add_platforms(list)
+	for i = 1, #list do
+		local name = list[i]
+		assert(name and type(name) == "string")
+		self.Platforms[name] = true
+	end
 end
 
 function decl_meta:add_project_type(name, fn)

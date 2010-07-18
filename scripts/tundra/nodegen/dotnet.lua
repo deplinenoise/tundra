@@ -46,8 +46,8 @@ end
 
 function _generator:eval_csharp_unit(env, label, suffix, command, decl)
 	local deps = self:resolve_deps(env, decl.Depends)
-	local sources = self:resolve_sources(env, { decl.Sources, deps }, {})
-	local resources = self:resolve_sources(env, decl.Resources, {})
+	local sources = self:resolve_sources(env, { decl.Sources, deps }, {}, decl.SourceDir)
+	local resources = self:resolve_sources(env, decl.Resources, {}, decl.SourceDir)
 	local inputs, inputDeps = self:analyze_sources(sources, csSourceExts)
 	local resourceInputs, resourceDeps = self:analyze_sources(resources, csResXExts)
 	local pass = self:resolve_pass(decl.Pass)

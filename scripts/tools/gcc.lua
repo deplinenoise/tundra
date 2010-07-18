@@ -6,7 +6,6 @@ load_toolset("generic-cpp", env)
 local native = require("tundra.native")
 
 env:set_many {
-	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx" },
 	["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".a", ".o" },
 	["OBJECTSUFFIX"] = ".o",
 	["PROGSUFFIX"] = "",
@@ -15,9 +14,8 @@ env:set_many {
 	["C++"] = "g++",
 	["LIB"] = "ar",
 	["LD"] = "gcc",
-	["CPPDEFS"] = "",
 	["CCOPTS"] = "-Wall",
-	["CCCOM"] = "$(CC) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) -o $(@) $(<)",
+	["CCCOM"] = "$(CC) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_CONFIG:u)) -o $(@) $(<)",
 	["CXXCOM"] = "$(CCCOM)",
 	["PROGLIBS"] = "",
 	["PROGOPTS"] = "",

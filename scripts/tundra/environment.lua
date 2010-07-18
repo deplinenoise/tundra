@@ -12,8 +12,8 @@ are always kept as tables, even if there is only a single value.
 FOO = { a b c }
 
 e:interpolate("$(FOO)") -> "a b c"
-e:interpolate("$(FOO:j=, )") -> "a, b, c"
-e:interpolate("$(FOO:p=-I)") -> "-Ia -Ib -Ic"
+e:interpolate("$(FOO:j, )") -> "a, b, c"
+e:interpolate("$(FOO:p-I)") -> "-Ia -Ib -Ic"
 
 Missing keys trigger errors unless a default value is specified.
 
@@ -298,6 +298,10 @@ function envclass:interpolate(str, vars)
 					local astr = o:sub(2)
 					local ptn = '^' .. astr
 					v = gsub_all_unless(v, '^', astr, function (str) return string.match(str, ptn) end)
+				elseif 'u' == first_char then
+					v = util.map(v, string.upper)
+				elseif 'l' == first_char then
+					v = util.map(v, string.lower)
 				else
 					error("bad interpolation option " .. tostring(o) .. " in " .. str)
 				end
@@ -311,7 +315,7 @@ function envclass:interpolate(str, vars)
 	while repeat_count <= 10 do
 		repeat_count = repeat_count + 1
 		local replace_count
-		str, replace_count = str:gsub("%$%(([^)]+)%)", replace)
+		str, replace_count = str:gsub("%$%(([^$()]+)%)", replace)
 		if 0 == replace_count then
 			return str
 		end

@@ -3,9 +3,8 @@ local env = ...
 -- load the generic C toolset first
 load_toolset("generic-cpp", env)
 
-local native = require("tundra.native")
-
-local vs9_key = "SOFTWARE\\Microsoft\\VisualStudio\\9.0"
+--local native = require("tundra.native")
+--local vs9_key = "SOFTWARE\\Microsoft\\VisualStudio\\9.0"
 
 assert(native.host_platform == "windows", "the msvc toolset only works on windows hosts")
 
@@ -26,8 +25,8 @@ env:set_many {
 	["LD"] = "link",
 	["CPPDEFS"] = "_WIN32",
 	["CCOPTS"] = "/W4",
-	["CCCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) /Fo$(@:b) $(<:b)",
-	["CXXCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) /Fo$(@:b) $(<:b)",
+	["CCCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) $(CCOPTS_$(CURRENT_CONFIG:u)) /Fo$(@:b) $(<:b)",
+	["CXXCOM"] = "$(CC) /c $(CPPDEFS:p/D) $(CPPPATH:b:p/I) /nologo $(CCOPTS) $(CCOPTS_$(CURRENT_CONFIG:u)) /Fo$(@:b) $(<:b)",
 	["LIBS"] = "",
 	["PROGOPTS"] = "",
 	["PROGCOM"] = "$(LD) /nologo $(PROGOPTS) $(LIBS) /out:$(@:b) $(<:b)",
