@@ -3,7 +3,7 @@ local env = ...
 -- load the generic C toolset first
 load_toolset("generic-cpp", env)
 
---local native = require("tundra.native")
+local native = require("tundra.native")
 --local vs9_key = "SOFTWARE\\Microsoft\\VisualStudio\\9.0"
 
 assert(native.host_platform == "windows", "the msvc toolset only works on windows hosts")
