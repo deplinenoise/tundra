@@ -19,8 +19,8 @@ function generate(args)
 		units = {},
 		unit_nodes = {},
 		base_env = env,
-		platform = assert(args.Platform),
 		config = assert(args.Config),
+		variant = assert(args.Variant),
 		passes = assert(args.Passes),
 	}, _generator)
 

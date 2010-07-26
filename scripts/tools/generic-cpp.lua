@@ -7,7 +7,7 @@ local native = require("tundra.native")
 local function get_cpp_scanner(env, fn)
 	local function new_scanner()
 		local paths = util.map(env:get_list("CPPPATH"), function (v) return env:interpolate(v) end)
-		return depgraph.current_engine:make_cpp_scanner(paths)
+		return GlobalEngine:make_cpp_scanner(paths)
 	end
 	return env:memoize("CPPPATH", "_cpp_scanner", new_scanner)
 end

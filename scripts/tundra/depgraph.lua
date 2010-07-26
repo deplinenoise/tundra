@@ -7,8 +7,6 @@ local environment = require("tundra.environment")
 
 local default_pass = { Name = "Default", BuildOrder = 100000 }
 
-current_engine = nil
-
 function create_node(env_, data_)
 	assert(environment.is_environment(env_))
 
@@ -53,6 +51,6 @@ function create_node(env_, data_)
 	params.annotation = env_:interpolate(data_.Label or "?", expand_env)
 
 	--print(util.tostring(params))
-	return current_engine:make_node(params)
+	return GlobalEngine:make_node(params)
 end
 
