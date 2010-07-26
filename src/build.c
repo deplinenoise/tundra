@@ -142,7 +142,7 @@ run_job(td_job_queue *queue, td_node *node)
 }
 
 static int is_queued(td_node *node) { return node->job.flags & TD_JOBF_QUEUED; }
-static int is_root(td_node *node) { return node->job.flags >= TD_JOBF_ROOT; }
+static int is_root(td_node *node) { return node->job.flags & TD_JOBF_ROOT; }
 static int is_completed(td_node *node) { return node->job.state >= TD_JOB_COMPLETED; }
 static int is_failed(td_node *node) { return node->job.state == TD_JOB_FAILED; }
 
