@@ -113,11 +113,11 @@ default_env:set_many {
 GlobalEngine = native.make_engine {
 	FileHashSize = 51921,
 	RelationHashSize = 79127,
-	BuildId = "rev6",
 	DebugFlags = Options.DebugFlags,
 	Verbosity = Options.Verbosity,
 	ThreadCount = tonumber(Options.ThreadCount),
 	DryRun = Options.DryRun and 1 or 0,
+	UseDigestSigning = 0,
 }
 
 

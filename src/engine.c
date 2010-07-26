@@ -515,6 +515,7 @@ copy_string_field(lua_State *L, td_engine *engine, int index, const char *field_
 
 static int make_engine(lua_State *L)
 {
+	int use_digest_signing = 1;
 	td_engine *self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
 	memset(self, 0, sizeof(td_engine));
 	self->magic_value = 0xcafebabe;
@@ -537,12 +538,17 @@ static int make_engine(lua_State *L)
 		self->settings.verbosity = get_int_override(L, 1, "Verbosity", 0);
 		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", 1);
 		self->settings.dry_run = get_int_override(L, 1, "DryRun", 0);
+		use_digest_signing = get_int_override(L, 1, "UseDigestSigning", 1);
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
 	self->relhash = (td_relcell **) calloc(sizeof(td_relcell*), self->relhash_size);
-	self->default_signer = &sign_digest;
 	self->node_count = 0;
+
+	if (use_digest_signing)
+		self->default_signer = &sign_digest;
+	else
+		self->default_signer = &sign_timestamp;
 
 	configure_from_env(self);
 
