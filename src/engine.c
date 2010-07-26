@@ -1070,17 +1070,22 @@ assign_jobs(td_engine *engine, td_node *root_node, td_node *stack[TD_MAX_DEPTH],
 
 	dep_count = root_node->dep_count;
 
-	for (i = 0; i < dep_count; ++i)
+	if (0 == (TD_JOBF_SETUP_COMPLETE & root_node->job.flags))
 	{
-		td_node *dep = deplist[i];
-		add_pending_job(engine, dep, root_node);
+		for (i = 0; i < dep_count; ++i)
+		{
+			td_node *dep = deplist[i];
+			add_pending_job(engine, dep, root_node);
+		}
+
+		for (i = 0; i < dep_count; ++i)
+		{
+			td_node *dep = deplist[i];
+			assign_jobs(engine, dep, stack, level+1);
+		}
 	}
 
-	for (i = 0; i < dep_count; ++i)
-	{
-		td_node *dep = deplist[i];
-		assign_jobs(engine, dep, stack, level+1);
-	}
+	root_node->job.flags |= TD_JOBF_SETUP_COMPLETE;
 }
 
 static int
