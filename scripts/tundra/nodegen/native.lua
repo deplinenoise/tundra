@@ -3,7 +3,7 @@ local util = require("tundra.util")
 local nodegen = require("tundra.nodegen")
 
 local function install_libs(unit_env, decl)
-	for _, item in util.nil_ipairs(nodegen.flatten_list(unit_env, decl)) do
+	for _, item in util.nil_ipairs(nodegen.flatten_list(unit_env, decl.Libs)) do
 		unit_env:append("LIBS", item)
 	end
 end

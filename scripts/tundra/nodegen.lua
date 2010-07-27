@@ -226,6 +226,7 @@ function flatten_list(env, list)
 
 	local result = {}
 	iter(list, result)
+	--print(util.tostring(result) .." => " .. util.tostring(result))
 	return result
 	end
 
