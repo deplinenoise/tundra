@@ -7,6 +7,9 @@ do
 	package.path = string.format("%s/scripts/?.lua;%s/lua/etc/?.lua", TundraRootDir, TundraRootDir)
 end
 
+-- Use "strict" when developing to flag accesses to nil global variables
+require "strict"
+
 function printf(msg, ...)
 	local str = string.format(msg, ...)
 	print(str)
@@ -17,12 +20,11 @@ function errorf(msg, ...)
 	error(str)
 end
 
--- Use "strict" when developing to flag accesses to nil global variables
-require "strict"
-
 local util = require "tundra.util"
 local environment = require "tundra.environment"
 local native = require "tundra.native"
+local nodegen = require "tundra.nodegen"
+local decl = require "tundra.decl"
 
 -- Parse the command line options.
 do
@@ -100,12 +102,26 @@ if Options.VeryVerbose then
 	end
 end
 
-DefaultEnvironment = environment.create()
-DefaultEnvironment:set_many {
-	["OBJECTDIR"] = "tundra-output",
+SEP = native.host_platform == "windows" and "\\" or "/"
+
+local default_env = environment.create()
+default_env:set_many {
+	["OBJECTROOT"] = "tundra-output",
+	["SEP"] = SEP,
 }
 
-function run_build_script(fn)
+GlobalEngine = native.make_engine {
+	FileHashSize = 51921,
+	RelationHashSize = 79127,
+	DebugFlags = Options.DebugFlags,
+	Verbosity = Options.Verbosity,
+	ThreadCount = tonumber(Options.ThreadCount),
+	DryRun = Options.DryRun and 1 or 0,
+	UseDigestSigning = 0,
+}
+
+
+local function run_build_script(fn)
 	local script_globals, script_globals_mt = {}, {}
 	script_globals_mt.__index = _G
 	setmetatable(script_globals, script_globals_mt)
@@ -139,10 +155,8 @@ do
 		print("loading host settings from " .. host_script) 
 	end
 	local chunk = assert(loadfile(host_script))
-	chunk(DefaultEnvironment)
+	chunk(default_env)
 end
-
-SEP = native.host_platform == "windows" and "\\" or "/"
 
 function glob(directory, pattern)
 	local result = {}
@@ -174,6 +188,184 @@ function load_toolset(id, env)
 	end
 	local chunk = assert(loadfile(path))
 	chunk(env)
+end
+
+local function member(list, item)
+	assert(type(list) == "table")
+	for _, x in ipairs(list) do
+		if x == item then
+			return true
+		end
+	end
+	return false
+end
+
+local function analyze_targets(targets, configs, variants)
+	local build_tuples = {}
+	local remaining_targets = {}
+
+	local build_configs = {}
+	local build_variants = {}
+
+	for _, name in ipairs(targets) do
+		name = name
+		if configs[name] then
+			build_configs[#build_configs + 1] = configs[name]
+		elseif variants[name] then
+			build_variants[#build_variants + 1] = name
+		else
+			local config, variant = string.match(name, "^(%w+-%w+)(%w+)$")
+			if config and variant then
+				if not configs[config] then
+					local config_names = map(configs, function (x) return x.Name end)
+					errorf("config %s is not supported; specify one of %s", config, table.concat(config_names, ", "))
+				end
+				if not variants[variant] then
+					errorf("variant %s is not supported; specify one of %s", variant, table.concat(variants, ", "))
+				end
+				build_tuples[#build_tuples + 1] = { configs[config], variant }
+			else
+				remaining_targets[#remaining_targets + 1] = name
+			end
+		end
+	end
+
+	for _, config in ipairs(build_configs) do
+		for _, variant in ipairs(build_variants) do
+			build_tuples[#build_tuples + 1] = { Config = config, Variant = variant }
+		end
+	end
+
+	if #build_tuples == 0 then
+		io.stderr:write("no build tuples available -- chose one of\n")
+		for _, config in pairs(configs) do
+			for variant, _ in pairs(variants) do
+				io.stderr:write(string.format("  %s-%s\n", config.Name, variant))
+			end
+		end
+		error("giving up")
+	end
+
+	return remaining_targets, build_tuples
+end
+
+local default_variants = { "debug", "production", "release" }
+
+local function setup_env(env, tuple)
+	local config = tuple.Config
+	local variant_name = tuple.Variant
+	local build_id = config.Name .. '-' .. variant_name
+	local naked_platform, naked_toolset = string.match(config.Name, "^(%w+)-(%w+)$")
+
+	if Options.Verbose then
+		printf("configuring for %s", build_id)
+	end
+
+	env:set("CURRENT_PLATFORM", naked_platform) -- e.g. linux or macosx
+	env:set("CURRENT_TOOLSET", naked_toolset) -- e.g. gcc or msvc
+	env:set("CURRENT_VARIANT", tuple.Variant) -- e.g. debug or release
+	env:set("BUILD_ID", build_id) -- e.g. linux-gcc-debug
+	env:set("OBJECTDIR", "$(OBJECTROOT)" .. SEP .. "$(BUILD_ID)")
+
+	for _, toolset_name in util.nil_ipairs(config.Tools) do
+		load_toolset(toolset_name, env)
+	end
+
+	local tab = config
+	while tab do
+		for key, val in util.nil_pairs(tab.Env) do
+			if Options.VeryVerbose then
+				printf("env append %s = %s", key, util.tostring(val))
+			end
+			if type(val) == "table" then
+				for _, subvalue in ipairs(val) do
+					env:append(key, subvalue)
+				end
+			else
+				env:append(key, val)
+			end
+		end
+		tab = tab.Inherit
+		if tab and Options.VeryVerbose then
+			print("--inherted data--")
+		end
+	end
+end
+
+function Build(args)
+	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
+
+	if type(args.Configs) ~= "table" or #args.Configs == 0 then
+		error("Need at least one config; got " .. util.tostring(configs) )
+	end
+
+	local configs, variants = {}, {}
+
+	for _, cfg in ipairs(args.Configs) do
+		configs[assert(cfg.Name)] = cfg
+	end
+
+	for _, variant in ipairs(args.Variants or default_variants) do
+		variants[variant] = true
+	end
+
+	local named_targets, build_tuples = analyze_targets(Targets, configs, variants)
+
+	-- Assume these are always needed for now. Could possible make an option
+	-- for which generator sets to load.
+	nodegen.add_generator_set("native")
+	nodegen.add_generator_set("dotnet")
+
+	local d = decl.make_decl_env()
+	do
+		local platforms = {}
+		for _, tuple in ipairs(build_tuples) do
+			local platform_name, tools = string.match(tuple.Config.Name, "^(%w+)-(%w+)$")
+			if not platform_name then
+				errorf("config %s doesn't follow <platform>-<toolset> convention", tuple.Config.Name)
+			end
+			if not member(platforms, platform_name) then
+				platforms[#platforms + 1] = platform_name
+			end
+		end
+		if Options.Verbose then
+			printf("adding platforms: %s", table.concat(platforms, ", "))
+		end
+		d:add_platforms(platforms)
+	end
+
+	for _, fn in util.nil_ipairs(args.AdditionalParseFiles) do
+		if Options.Verbose then
+			printf("parsing user-defined declaration parsers from %s", fn)
+		end
+		local chunk = assert(loadfile("codegen.lua"))
+		chunk(d, passes)
+	end
+
+	local raw_nodes, default_names = d:parse(args.Units or "units.lua")
+	assert(#default_names > 0, "no default unit name to build was set")
+
+	local everything = {}
+
+	for _, tuple in pairs(build_tuples) do
+		local env = default_env:clone()
+		setup_env(env, tuple, configs)
+		everything[#everything + 1] = nodegen.generate {
+			Engine = GlobalEngine,
+			Env = env,
+			Config = tuple.Config.Name,
+			Variant = tuple.Variant,
+			Declarations = raw_nodes,
+			DefaultNames = default_names,
+			Passes = passes,
+		}
+	end
+
+	local toplevel = default_env:make_node {
+		Label = "toplevel",
+		Dependencies = everything,
+	}
+	GlobalEngine:build(toplevel)
 end
 
 run_build_script("tundra.lua")

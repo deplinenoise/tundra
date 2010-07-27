@@ -15,7 +15,7 @@ env:set_many {
 	["LIB"] = "ar",
 	["LD"] = "gcc",
 	["CCOPTS"] = "-Wall",
-	["CCCOM"] = "$(CC) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_CONFIG:u)) -o $(@) $(<)",
+	["CCCOM"] = "$(CC) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
 	["CXXCOM"] = "$(CCCOM)",
 	["PROGLIBS"] = "",
 	["PROGOPTS"] = "",

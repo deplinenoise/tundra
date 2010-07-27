@@ -1,4 +1,5 @@
+local env = ...
 
-DefaultEnvironment:set_many {
+env:set_many {
 	["DOTNETRUN"] = "mono ",
 }
