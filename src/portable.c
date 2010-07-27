@@ -191,8 +191,9 @@ fs_stat_file(const char *path, td_stat *out)
 		return 1;
 	out->flags = TD_STAT_EXISTS | ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? TD_STAT_DIR : 0);
 	out->size = ((unsigned __int64)(data.nFileSizeHigh) << 32) | data.nFileSizeLow;
-	ft = ((unsigned __int64)(data.ftLastAccessTime.dwHighDateTime) << 32) | data.ftLastAccessTime.dwLowDateTime;
+	ft = ((unsigned __int64)(data.ftLastWriteTime.dwHighDateTime) << 32) | data.ftLastWriteTime.dwLowDateTime;
 	out->timestamp = (unsigned long) ((ft - EPOCH_DIFF) / RATE_DIFF);
+	FindClose(h);
 	return 0;
 #else
 #error meh
