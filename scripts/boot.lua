@@ -125,7 +125,11 @@ local function run_build_script(fn)
 	script_globals_mt.__index = _G
 	setmetatable(script_globals, script_globals_mt)
 
-	local chunk = assert(loadfile(fn))
+	local chunk, error_msg = loadfile(fn)
+	if not chunk then
+		io.stderr:write(error_msg .. '\n')
+		native.exit()
+	end
 	setfenv(chunk, script_globals)
 
 	local function stack_dumper(err_obj)
