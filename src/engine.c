@@ -1150,11 +1150,12 @@ connect_pass_barriers(td_engine *engine)
 static int
 build_nodes(lua_State* L)
 {
-	int i, narg;
+	int i, narg, status = 0;
 	int pre_file_count;
 	td_engine * const self = td_check_engine(L, 1);
 	td_node *roots[64];
 	double t1, t2;
+	extern int global_tundra_exit_code;
 
 	narg = lua_gettop(L);
 
@@ -1168,19 +1169,23 @@ build_nodes(lua_State* L)
 	t1 = td_timestamp();
 	for (i = 2; i <= narg; ++i)
 	{
+		int jobs_run = 0;
 		td_node *stack[TD_MAX_DEPTH];
 		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
 		td_node *node = nref->node;
 		roots[i-2] = node;
 		assign_jobs(self, node, stack, 0);
-		td_build(self, node);
+		status = td_build(self, node, &jobs_run);
+		printf("*** build %s, %d jobs run\n", status ? "failed" : "succeeded", jobs_run);
 	}
 	t2 = td_timestamp();
 
 	if (td_debug_check(self, TD_DEBUG_STATS))
 	{
+		extern int global_tundra_stats;
+
 		printf("post-build stats:\n");
-		printf("  file nodes created: %d (was %d initially)\n", self->stats.file_count, pre_file_count);
+		printf("  files tracked: %d (%d directly from DAG)\n", self->stats.file_count, pre_file_count);
 		printf("  nodes with ancestry: %d of %d possible\n", self->stats.ancestor_nodes, self->stats.ancestor_checks);
 		printf("  total time spent in build loop: %.3fs\n", t2-t1);
 		printf("    - implicit dependency scanning: %.3fs\n", self->stats.scan_time);
@@ -1191,10 +1196,15 @@ build_nodes(lua_State* L)
 		printf("    - up2date checks time: %.3fs\n", self->stats.up2date_check_time);
 		if (t2 > t1)
 			printf("  efficiency: %.2f%%\n", (self->stats.build_time * 100.0) / (t2-t1));
+
+		/* have main print total time spent, including script */
+		global_tundra_stats = 1;
 	}
 
 	if (!self->settings.dry_run)
 		save_ancestors(self, roots, narg-1);
+
+	global_tundra_exit_code = status;
 
 	return 0;
 }

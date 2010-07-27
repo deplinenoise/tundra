@@ -22,6 +22,7 @@ typedef struct td_job_queue
 	td_node **array;
 
 	int quit;
+	int jobs_run;
 } td_job_queue;
 
 static int
@@ -109,6 +110,8 @@ run_job(td_job_queue *queue, td_node *node)
 	}
 	t2 = td_timestamp();
 	engine->stats.mkdir_time += t2 - t1;
+
+	++queue->jobs_run;
 
 	pthread_mutex_unlock(&queue->mutex);
 	if (td_verbosity_check(engine, 1))
@@ -438,7 +441,7 @@ build_worker(void *arg)
 #define TD_MAX_THREADS (32)
 
 int
-td_build(td_engine *engine, td_node *node)
+td_build(td_engine *engine, td_node *node, int *jobs_run)
 {
 	int i;
 	int thread_count;
@@ -500,5 +503,7 @@ td_build(td_engine *engine, td_node *node)
 	pthread_cond_destroy(&queue.work_avail);
 	pthread_mutex_destroy(&queue.mutex);
 
-	return 0;
+	*jobs_run = queue.jobs_run;
+
+	return is_failed(node);
 }

@@ -31,6 +31,7 @@ do
 	local message = nil
 	local option_blueprints = {
 		{ Name="Help", Short="h", Long="help", Doc="This message" },
+		{ Name="Quiet", Short="q", Long="quiet", Doc="Don't print actions as they execute" },
 		{ Name="Verbose", Short="v", Long="verbose", Doc="Be verbose" },
 		{ Name="VeryVerbose", Short="w", Long="very-verbose", Doc="Be very verbose" },
 		{ Name="DryRun", Short="n", Long="dry-run", Doc="Don't execute any actions" },
@@ -67,12 +68,14 @@ do
 	end
 
 	if Options.VeryVerbose then
-		Options.Verbosity = 2
+		Options.Verbosity = 3
 		Options.Verbose = true
 	elseif Options.Verbose then
-		Options.Verbosity = 1
-	else
+		Options.Verbosity = 2
+	elseif Options.Quiet then
 		Options.Verbosity = 0
+	else
+		Options.Verbosity = 1 -- default
 	end
 
 	if Options.Help then
@@ -201,7 +204,7 @@ local function member(list, item)
 	return false
 end
 
-local function analyze_targets(targets, configs, variants)
+local function analyze_targets(targets, configs, variants, default_variant)
 	local build_tuples = {}
 	local remaining_targets = {}
 
@@ -231,6 +234,27 @@ local function analyze_targets(targets, configs, variants)
 		end
 	end
 
+	-- If no configurations have been specified, default to the ones that are
+	-- marked DefaultOnHost for the current host platform.
+	if #build_configs == 0 then
+		local host_os = native.host_platform
+		for name, config in pairs(configs) do
+			if config.DefaultOnHost == host_os then
+				if Options.VeryVerbose then
+					if Options.VeryVerbose then
+						printf("defaulted to %s based on host platform %s..", name, host_os)
+					end
+				end
+				build_configs[#build_configs + 1] = config
+			end
+		end
+	end
+
+	-- If no variants have been specified, use the default variant.
+	if #build_variants == 0 then
+		build_variants = { default_variant }
+	end
+
 	for _, config in ipairs(build_configs) do
 		for _, variant in ipairs(build_variants) do
 			build_tuples[#build_tuples + 1] = { Config = config, Variant = variant }
@@ -238,13 +262,13 @@ local function analyze_targets(targets, configs, variants)
 	end
 
 	if #build_tuples == 0 then
-		io.stderr:write("no build tuples available -- chose one of\n")
+		io.stderr:write("no build tuples available and no host-default configs defined -- chose one of\n")
 		for _, config in pairs(configs) do
 			for variant, _ in pairs(variants) do
 				io.stderr:write(string.format("  %s-%s\n", config.Name, variant))
 			end
 		end
-		error("giving up")
+		native.exit()
 	end
 
 	return remaining_targets, build_tuples
@@ -310,7 +334,8 @@ function Build(args)
 		variants[variant] = true
 	end
 
-	local named_targets, build_tuples = analyze_targets(Targets, configs, variants)
+	local default_variant = args.DefaultVariant or variants[1]
+	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, default_variant)
 
 	-- Assume these are always needed for now. Could possible make an option
 	-- for which generator sets to load.

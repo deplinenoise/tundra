@@ -129,11 +129,20 @@ static int reg_query(lua_State *L)
 }
 #endif
 
-static int tundra_open(lua_State* L)
+static int tundra_exit(lua_State *L)
+{
+	exit(1);
+}
+
+static int tundra_open(lua_State *L)
 {
 	static const luaL_Reg engine_entries[] = {
+		/* used to quit after printing fatal error messages from Lua */
+		{ "exit", tundra_exit },
+		/* directory path traversal, similar to Python's os.walk */
 		{ "walk_path", tundra_walk_path },
 #ifdef _WIN32
+		/* windows-specific registry query function*/
 		{ "reg_query", reg_query },
 #endif
 		{ NULL, NULL }
@@ -222,6 +231,9 @@ static int on_lua_panic(lua_State *L)
 	exit(1);
 }
 
+int global_tundra_stats = 0;
+int global_tundra_exit_code = 0;
+
 int main(int argc, char** argv)
 {
 	td_bin_allocator bin_alloc;
@@ -277,16 +289,15 @@ int main(int argc, char** argv)
 	{
 		double t1, t2;
 		t1 = td_timestamp();
-		res = lua_pcall(L, /*narg:*/1, /*nres:*/1, /*errorfunc:*/ -3);
+		res = lua_pcall(L, /*narg:*/1, /*nres:*/0, /*errorfunc:*/ -3);
 		t2 = td_timestamp();
-		printf("total time spent: %5.4fs\n", t2-t1);
+		if (global_tundra_stats)
+			printf("total time spent in tundra: %5.4fs\n", t2-t1);
 	}
-
-	rc = 0;
 
 	if (res == 0)
 	{
-		rc = (int) lua_tointeger(L, -1);
+		rc = global_tundra_exit_code;
 	}
 	else
 	{
