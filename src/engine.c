@@ -34,7 +34,7 @@ void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 	zero_size = sizeof(out->data) - sizeof(stat->timestamp);
 
 	memcpy(&out->data[0], &stat->timestamp, sizeof(stat->timestamp));
-	memset(&out->data[zero_size], 0, zero_size);
+	memset(&out->data[sizeof(stat->timestamp)], 0, zero_size);
 
 	++engine->stats.timestamp_sign_count;
 }
