@@ -113,7 +113,7 @@ GlobalEngine = native.make_engine {
 	Verbosity = Options.Verbosity,
 	ThreadCount = tonumber(Options.ThreadCount),
 	DryRun = Options.DryRun and 1 or 0,
-	UseDigestSigning = 1,
+	UseDigestSigning = 0,
 }
 
 
@@ -177,12 +177,17 @@ local function print_tree(n, level)
 	end
 end
 
+local loaded_toolsets = {}
 function load_toolset(id, env)
-	local path = TundraRootDir .. "/scripts/tools/" .. id ..".lua"
-	if Options.Verbose then
-		print("loading toolset " .. id .. " from " .. path) 
+	local chunk = loaded_toolsets[id] 
+	if not chunk then
+		local path = TundraRootDir .. "/scripts/tools/" .. id ..".lua"
+		if Options.Verbose then
+			print("loading toolset " .. id .. " from " .. path) 
+		end
+		chunk = assert(loadfile(path))
+		loaded_toolsets[id] = chunk
 	end
-	local chunk = assert(loadfile(path))
 	chunk(env)
 end
 
