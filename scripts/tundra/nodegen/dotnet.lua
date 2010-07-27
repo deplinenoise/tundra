@@ -46,8 +46,8 @@ end
 
 function _generator:eval_csharp_unit(env, label, suffix, command, decl)
 	local deps = self:resolve_deps(env, decl.Depends)
-	local sources = self:resolve_sources(env, { decl.Sources, deps }, {}, decl.SourceDir)
-	local resources = self:resolve_sources(env, decl.Resources, {}, decl.SourceDir)
+	local sources = self:resolve_sources(env, { nodegen.flatten_list(env, decl.Sources), deps }, {}, decl.SourceDir)
+	local resources = self:resolve_sources(env, nodegen.flatten_list(env, decl.Resources), {}, decl.SourceDir)
 	local inputs, inputDeps = self:analyze_sources(sources, csSourceExts)
 	local resourceInputs, resourceDeps = self:analyze_sources(resources, csResXExts)
 	local pass = self:resolve_pass(decl.Pass)
@@ -57,9 +57,9 @@ function _generator:eval_csharp_unit(env, label, suffix, command, decl)
 	deps = util.merge_arrays_2(deps, rdeps)
 
 	setup_refs_from_dependencies(env, deps)
-	setup_direct_refs(env, decl.References)
+	setup_direct_refs(env, nodegen.flatten_list(env, decl.References))
 
-	for _, path in util.nil_ipairs(decl.RefPaths) do
+	for _, path in util.nil_ipairs(nodegen.flatten_list(env, decl.RefPaths)) do
 		env:append("CSLIBPATH", path)
 	end
 

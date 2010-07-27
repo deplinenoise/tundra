@@ -63,6 +63,8 @@ function _generator:resolve_deps(env, deps)
 		return nil
 	end
 
+	deps = flatten_list(env, deps)
+
 	local result = {}
 	for i, dep in ipairs(deps) do
 		result[i] = self:get_node_of(dep)
@@ -186,4 +188,44 @@ function add_generator_set(id)
 	local chunk = assert(loadfile(fn))
 	chunk(_generator)
 end
+
+local function config_filter_match(pattern, build_id)
+	if pattern then
+		local p = '^' .. pattern:gsub('-', '%%-'):gsub('%*', '%%w-') .. '$'
+		local res = string.match(build_id, p)
+		--printf("matching %s with %s (from %s) => %s", p, build_id, pattern, util.tostring(res))
+		return res
+	else
+		return true
+	end
+end
+
+-- Given a list of strings or nested lists, flatten the structure to a single
+-- list of strings while applying configuration filters. Configuration filters
+-- match against the current build identifier like this:
+--
+-- { "a", "b", { "nixfile1", "nixfile2"; Config = "unix-*-*" }, "bar", { "debugfile"; Config = "*-*-debug" }, }
+function flatten_list(env, list)
+	if not list then return nil end
+	local build_id = env:get("BUILD_ID")
+
+	-- Helper function to apply filtering recursively and append results to an
+	-- accumulator table.
+	local function iter(data, accum)
+		local t = type(data)
+		if t == "table" and not getmetatable(data) then
+			if config_filter_match(data.Config, build_id) then
+				for _, item in ipairs(data) do
+					iter(item, accum)
+				end
+			end
+		else
+			accum[#accum + 1] = data
+		end
+	end
+
+	local result = {}
+	iter(list, result)
+	return result
+	end
 
