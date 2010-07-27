@@ -5,6 +5,7 @@
 #include "util.h"
 #include "bin_alloc.h"
 #include "portable.h"
+#include "md5.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -134,6 +135,45 @@ static int tundra_exit(lua_State *L)
 	exit(1);
 }
 
+static int tundra_digest_guid(lua_State *L)
+{
+	int i, cursor, narg;
+	MD5_CTX ctx;
+	unsigned char digest[16];
+	char result[36];
+
+	narg = lua_gettop(L);
+
+	MD5Init(&ctx);
+	for (i = 1; i <= narg; ++i)
+	{
+		size_t len;
+		unsigned char* data = (unsigned char*) lua_tolstring(L, i, &len);
+		MD5Update(&ctx, data, (unsigned int) len);
+	}
+
+	MD5Final(digest, &ctx);
+
+
+	for (i = 0, cursor = 0; i<16; ++i)
+	{
+		static const char hex_tab[] = "0123456789ABCDEF";
+
+		switch (i)
+		{
+		case 4: case 6: case 8: case 10:
+			result[cursor++] = '-';
+			break;
+		}
+
+		result[cursor++] = hex_tab[ digest[i] & 0x0f ];
+		result[cursor++] = hex_tab[ (digest[i] & 0xf0) >> 4 ];
+	}
+	assert(cursor == 36);
+	lua_pushlstring(L, result, sizeof(result));
+	return 1;
+}
+
 static int tundra_open(lua_State *L)
 {
 	static const luaL_Reg engine_entries[] = {
@@ -141,6 +181,8 @@ static int tundra_open(lua_State *L)
 		{ "exit", tundra_exit },
 		/* directory path traversal, similar to Python's os.walk */
 		{ "walk_path", tundra_walk_path },
+		/* digest passed in strings and return a string formatted in GUID style */
+		{ "digest_guid", tundra_digest_guid },
 #ifdef _WIN32
 		/* windows-specific registry query function*/
 		{ "reg_query", reg_query },

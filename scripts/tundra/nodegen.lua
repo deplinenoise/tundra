@@ -10,27 +10,38 @@ _generator = {
 }
 _generator.__index = _generator
 
+local function make_new_state(s)
+	s = s or {}
+	s.units = {}
+	s.unit_nodes = {}
+	return setmetatable(s, _generator)
+end
+
+local function create_unit_map(state, raw_nodes)
+	-- Build name=>decl mapping
+	for _, unit in ipairs(raw_nodes) do
+		assert(unit.Decl)
+		local name = assert(unit.Decl.Name)
+		if state.units[name] then
+			errorf("duplicate unit name: %s", name)
+		end
+		state.units[name] = unit
+	end
+end
+
 function generate(args)
 	local env = assert(args.Env)
 	local raw_nodes = assert(args.Declarations)
 	local default_names = assert(args.DefaultNames)
 
-	local state = setmetatable({
-		units = {},
-		unit_nodes = {},
+	local state = make_new_state {
 		base_env = env,
 		config = assert(args.Config),
 		variant = assert(args.Variant),
 		passes = assert(args.Passes),
-	}, _generator)
+	}
 
-	-- Build name=>decl mapping
-	for _, unit in ipairs(raw_nodes) do
-		assert(unit.Decl)
-		local name = assert(unit.Decl.Name)
-		assert(not state.units[name])
-		state.units[name] = unit
-	end
+	create_unit_map(state, raw_nodes)
 
 	local nodes_to_build = util.map(default_names, function (name) return state:get_node_of(name) end)
 
@@ -43,6 +54,7 @@ function generate(args)
 end
 
 function _generator:get_node_of(name)
+	assert(name)
 	local n = self.unit_nodes[name]
 	if not n then
 		self.unit_nodes[name] = "!"
@@ -58,12 +70,12 @@ function _generator:resolve_pass(name)
 	return self.passes[name]
 end
 
-function _generator:resolve_deps(env, deps)
+function _generator:resolve_deps(build_id, deps)
 	if not deps then
 		return nil
 	end
 
-	deps = flatten_list(env, deps)
+	deps = flatten_list(build_id, deps)
 
 	local result = {}
 	for i, dep in ipairs(deps) do
@@ -183,8 +195,8 @@ function add_evaluator(name, fn)
 	_generator.evaluators[name] = fn
 end
 
-function add_generator_set(id)
-	local fn = TundraRootDir .. "/scripts/tundra/nodegen/" .. id .. ".lua"
+function add_generator_set(type_name, id)
+	local fn = TundraRootDir .. "/scripts/tundra/" .. type_name .. "/" .. id .. ".lua"
 	local chunk = assert(loadfile(fn))
 	chunk(_generator)
 end
@@ -205,9 +217,8 @@ end
 -- match against the current build identifier like this:
 --
 -- { "a", "b", { "nixfile1", "nixfile2"; Config = "unix-*-*" }, "bar", { "debugfile"; Config = "*-*-debug" }, }
-function flatten_list(env, list)
+function flatten_list(build_id, list)
 	if not list then return nil end
-	local build_id = env:get("BUILD_ID")
 
 	-- Helper function to apply filtering recursively and append results to an
 	-- accumulator table.
@@ -228,5 +239,12 @@ function flatten_list(env, list)
 	iter(list, result)
 	--print(util.tostring(result) .." => " .. util.tostring(result))
 	return result
-	end
+end
+
+function generate_ide_files(config_tuples, default_names, raw_nodes, env)
+	local state = make_new_state { base_env = env }
+	assert(state.base_env)
+	create_unit_map(state, raw_nodes)
+	state:generate_files(config_tuples, raw_nodes, env)
+end
 

@@ -42,6 +42,8 @@ do
 		{ Name="DebugStats", Long="debug-stats", Doc="Show statistics on the build session" },
 		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
 		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
+		{ Name="IdeGeneration", Short="g", Long="ide-gen", "Generate IDE integration files for the specified IDE", HasValue=true },
+		{ Name="AllConfigs", Short="a", Long="all-configs", Doc="Build all configurations at once (useful in IDE mode)" },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
@@ -215,43 +217,49 @@ local function analyze_targets(targets, configs, variants, default_variant)
 	local build_configs = {}
 	local build_variants = {}
 
-	for _, name in ipairs(targets) do
-		name = name
-		if configs[name] then
-			build_configs[#build_configs + 1] = configs[name]
-		elseif variants[name] then
-			build_variants[#build_variants + 1] = name
-		else
-			local config, variant = string.match(name, "^(%w+-%w+)-(%w+)$")
-			if config and variant then
-				if not configs[config] then
-					local config_names = map(configs, function (x) return x.Name end)
-					errorf("config %s is not supported; specify one of %s", config, table.concat(config_names, ", "))
-				end
-				if not variants[variant] then
-					errorf("variant %s is not supported; specify one of %s", variant, table.concat(variants, ", "))
-				end
-				build_tuples[#build_tuples + 1] = { Config = configs[config], Variant = variant }
+	if not Options.AllConfigs then
+		for _, name in ipairs(targets) do
+			name = name
+			if configs[name] then
+				build_configs[#build_configs + 1] = configs[name]
+			elseif variants[name] then
+				build_variants[#build_variants + 1] = name
 			else
-				remaining_targets[#remaining_targets + 1] = name
-			end
-		end
-	end
-
-	-- If no configurations have been specified, default to the ones that are
-	-- marked DefaultOnHost for the current host platform.
-	if #build_configs == 0 then
-		local host_os = native.host_platform
-		for name, config in pairs(configs) do
-			if config.DefaultOnHost == host_os then
-				if Options.VeryVerbose then
-					if Options.VeryVerbose then
-						printf("defaulted to %s based on host platform %s..", name, host_os)
+				local config, variant = string.match(name, "^(%w+-%w+)-(%w+)$")
+				if config and variant then
+					if not configs[config] then
+						local config_names = map(configs, function (x) return x.Name end)
+						errorf("config %s is not supported; specify one of %s", config, table.concat(config_names, ", "))
 					end
+					if not variants[variant] then
+						errorf("variant %s is not supported; specify one of %s", variant, table.concat(variants, ", "))
+					end
+					build_tuples[#build_tuples + 1] = { Config = configs[config], Variant = variant }
+				else
+					remaining_targets[#remaining_targets + 1] = name
 				end
-				build_configs[#build_configs + 1] = config
 			end
 		end
+
+		-- If no configurations have been specified, default to the ones that are
+		-- marked DefaultOnHost for the current host platform.
+		if #build_configs == 0 then
+			local host_os = native.host_platform
+			for name, config in pairs(configs) do
+				if config.DefaultOnHost == host_os then
+					if Options.VeryVerbose then
+						if Options.VeryVerbose then
+							printf("defaulted to %s based on host platform %s..", name, host_os)
+						end
+					end
+					build_configs[#build_configs + 1] = config
+				end
+			end
+		end
+	else
+		-- User has requested all configurations at once. Possibly due to IDE mode.
+		for _, cfg in pairs(configs) do build_configs[#build_configs + 1] = cfg end
+		for var, _ in pairs(variants) do build_variants[#build_variants + 1] = var end
 	end
 
 	-- If no variants have been specified, use the default variant.
@@ -266,7 +274,7 @@ local function analyze_targets(targets, configs, variants, default_variant)
 	end
 
 	if #build_tuples == 0 then
-		io.stderr:write("no build tuples available and no host-default configs defined -- chose one of\n")
+		io.stderr:write("no build tuples available and no host-default configs defined -- choose one of\n")
 		for _, config in pairs(configs) do
 			for variant, _ in pairs(variants) do
 				io.stderr:write(string.format("  %s-%s\n", config.Name, variant))
@@ -341,10 +349,17 @@ function Build(args)
 	local default_variant = args.DefaultVariant or variants[1]
 	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, default_variant)
 
-	-- Assume these are always needed for now. Could possible make an option
-	-- for which generator sets to load.
-	nodegen.add_generator_set("native")
-	nodegen.add_generator_set("dotnet")
+	if not Options.IdeGeneration then
+		-- This is a regular build. Assume these generator sets are always
+		-- needed for now. Could possible make an option for which generator
+		-- sets to load.
+		nodegen.add_generator_set("nodegen", "native")
+		nodegen.add_generator_set("nodegen", "dotnet")
+	else
+		-- We are generating IDE integration files. Load the specified
+		-- integration module rather than DAG builders.
+		nodegen.add_generator_set("ide", Options.IdeGeneration)
+	end
 
 	local d = decl.make_decl_env()
 	do
@@ -375,27 +390,39 @@ function Build(args)
 	local raw_nodes, default_names = d:parse(args.Units or "units.lua")
 	assert(#default_names > 0, "no default unit name to build was set")
 
-	local everything = {}
+	if not Options.IdeGeneration then
+		local everything = {}
 
-	for _, tuple in pairs(build_tuples) do
-		local env = default_env:clone()
-		setup_env(env, tuple, configs)
-		everything[#everything + 1] = nodegen.generate {
-			Engine = GlobalEngine,
-			Env = env,
-			Config = tuple.Config.Name,
-			Variant = tuple.Variant,
-			Declarations = raw_nodes,
-			DefaultNames = default_names,
-			Passes = passes,
+		-- Let the nodegen code generate DAG nodes for all active
+		-- configurations/variants.
+		for _, tuple in pairs(build_tuples) do
+			local env = default_env:clone()
+			setup_env(env, tuple, configs)
+			everything[#everything + 1] = nodegen.generate {
+				Engine = GlobalEngine,
+				Env = env,
+				Config = tuple.Config.Name,
+				Variant = tuple.Variant,
+				Declarations = raw_nodes,
+				DefaultNames = default_names,
+				Passes = passes,
+			}
+		end
+
+		-- Unless we're just creating IDE integration files, create a top-level
+		-- node and pass the full DAG to the build engine.
+		local toplevel = default_env:make_node {
+			Label = "toplevel",
+			Dependencies = everything,
 		}
-	end
+		GlobalEngine:build(toplevel)
 
-	local toplevel = default_env:make_node {
-		Label = "toplevel",
-		Dependencies = everything,
-	}
-	GlobalEngine:build(toplevel)
+	else
+		-- We're just generating IDE files. Pass the build tuples directly to
+		-- the generator and let it write files.
+		local env = default_env:clone()
+		nodegen.generate_ide_files(build_tuples, default_names, raw_nodes, env)
+	end
 end
 
 run_build_script("tundra.lua")

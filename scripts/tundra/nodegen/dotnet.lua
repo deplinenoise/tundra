@@ -45,9 +45,10 @@ local function setup_resources(generator, env, assembly_name, resx_files, pass)
 end
 
 function _generator:eval_csharp_unit(env, label, suffix, command, decl)
-	local deps = self:resolve_deps(env, decl.Depends)
-	local sources = self:resolve_sources(env, { nodegen.flatten_list(env, decl.Sources), deps }, {}, decl.SourceDir)
-	local resources = self:resolve_sources(env, nodegen.flatten_list(env, decl.Resources), {}, decl.SourceDir)
+	local build_id = env:get('BUILD_ID')
+	local deps = self:resolve_deps(build_id, decl.Depends)
+	local sources = self:resolve_sources(env, { nodegen.flatten_list(build_id, decl.Sources), deps }, {}, decl.SourceDir)
+	local resources = self:resolve_sources(env, nodegen.flatten_list(build_id, decl.Resources), {}, decl.SourceDir)
 	local inputs, inputDeps = self:analyze_sources(sources, csSourceExts)
 	local resourceInputs, resourceDeps = self:analyze_sources(resources, csResXExts)
 	local pass = self:resolve_pass(decl.Pass)
@@ -57,9 +58,9 @@ function _generator:eval_csharp_unit(env, label, suffix, command, decl)
 	deps = util.merge_arrays_2(deps, rdeps)
 
 	setup_refs_from_dependencies(env, deps)
-	setup_direct_refs(env, nodegen.flatten_list(env, decl.References))
+	setup_direct_refs(env, nodegen.flatten_list(build_id, decl.References))
 
-	for _, path in util.nil_ipairs(nodegen.flatten_list(env, decl.RefPaths)) do
+	for _, path in util.nil_ipairs(nodegen.flatten_list(build_id, decl.RefPaths)) do
 		env:append("CSLIBPATH", path)
 	end
 
