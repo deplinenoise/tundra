@@ -34,10 +34,6 @@ do
 		{ Name="Verbose", Short="v", Long="verbose", Doc="Be verbose" },
 		{ Name="VeryVerbose", Short="w", Long="very-verbose", Doc="Be very verbose" },
 		{ Name="DryRun", Short="n", Long="dry-run", Doc="Don't execute any actions" },
-		{ Name="WriteGraph", Long="dep-graph", Doc="Generate dependency graph" },
-		{ Name="GraphEnv", Long="dep-graph-env", Doc="Include environments in dependency graph" },
-		{ Name="GraphFilename", Long="dep-graph-filename", Doc="Dependency graph filename", HasValue=true },
-		{ Name="SelfTest", Long="self-test", Doc="Perform self-tests" },
 		{ Name="ThreadCount", Short="j", Long="threads", Doc="Specify number of build threads", HasValue=true },
 		{ Name="DebugQueue", Long="debug-queue", Doc="Show build queue debug information" },
 		{ Name="DebugNodes", Long="debug-nodes", Doc="Show DAG node debug information" },
@@ -117,7 +113,7 @@ GlobalEngine = native.make_engine {
 	Verbosity = Options.Verbosity,
 	ThreadCount = tonumber(Options.ThreadCount),
 	DryRun = Options.DryRun and 1 or 0,
-	UseDigestSigning = 0,
+	UseDigestSigning = 1,
 }
 
 
@@ -214,7 +210,7 @@ local function analyze_targets(targets, configs, variants)
 		elseif variants[name] then
 			build_variants[#build_variants + 1] = name
 		else
-			local config, variant = string.match(name, "^(%w+-%w+)(%w+)$")
+			local config, variant = string.match(name, "^(%w+-%w+)-(%w+)$")
 			if config and variant then
 				if not configs[config] then
 					local config_names = map(configs, function (x) return x.Name end)
@@ -223,7 +219,7 @@ local function analyze_targets(targets, configs, variants)
 				if not variants[variant] then
 					errorf("variant %s is not supported; specify one of %s", variant, table.concat(variants, ", "))
 				end
-				build_tuples[#build_tuples + 1] = { configs[config], variant }
+				build_tuples[#build_tuples + 1] = { Config = configs[config], Variant = variant }
 			else
 				remaining_targets[#remaining_targets + 1] = name
 			end
