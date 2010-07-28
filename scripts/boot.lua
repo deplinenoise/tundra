@@ -32,18 +32,19 @@ do
 	local option_blueprints = {
 		{ Name="Help", Short="h", Long="help", Doc="This message" },
 		{ Name="Quiet", Short="q", Long="quiet", Doc="Don't print actions as they execute" },
+		{ Name="Continue", Short="k", Long="continue", Doc="Build as much as possible" },
 		{ Name="Verbose", Short="v", Long="verbose", Doc="Be verbose" },
 		{ Name="VeryVerbose", Short="w", Long="very-verbose", Doc="Be very verbose" },
 		{ Name="DryRun", Short="n", Long="dry-run", Doc="Don't execute any actions" },
 		{ Name="ThreadCount", Short="j", Long="threads", Doc="Specify number of build threads", HasValue=true },
+		{ Name="IdeGeneration", Short="g", Long="ide-gen", "Generate IDE integration files for the specified IDE", HasValue=true },
+		{ Name="AllConfigs", Short="a", Long="all-configs", Doc="Build all configurations at once (useful in IDE mode)" },
 		{ Name="DebugQueue", Long="debug-queue", Doc="Show build queue debug information" },
 		{ Name="DebugNodes", Long="debug-nodes", Doc="Show DAG node debug information" },
 		{ Name="DebugAncestors", Long="debug-ancestors", Doc="Show ancestor debug information" },
 		{ Name="DebugStats", Long="debug-stats", Doc="Show statistics on the build session" },
 		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
 		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
-		{ Name="IdeGeneration", Short="g", Long="ide-gen", "Generate IDE integration files for the specified IDE", HasValue=true },
-		{ Name="AllConfigs", Short="a", Long="all-configs", Doc="Build all configurations at once (useful in IDE mode)" },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
@@ -119,6 +120,7 @@ GlobalEngine = native.make_engine {
 	ThreadCount = tonumber(Options.ThreadCount),
 	DryRun = Options.DryRun and 1 or 0,
 	UseDigestSigning = 0,
+	ContinueOnError = Options.Continue and 1 or 0,
 }
 
 

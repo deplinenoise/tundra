@@ -538,6 +538,7 @@ static int make_engine(lua_State *L)
 		self->settings.verbosity = get_int_override(L, 1, "Verbosity", 0);
 		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", 1);
 		self->settings.dry_run = get_int_override(L, 1, "DryRun", 0);
+		self->settings.continue_on_error = get_int_override(L, 1, "ContinueOnError", 0);
 		use_digest_signing = get_int_override(L, 1, "UseDigestSigning", 1);
 	}
 

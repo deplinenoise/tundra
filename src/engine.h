@@ -223,6 +223,7 @@ typedef struct td_engine
 		int debug_flags;
 		int thread_count;
 		int dry_run;
+		int continue_on_error;
 	} settings;
 
 	struct {

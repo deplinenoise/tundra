@@ -126,6 +126,9 @@ run_job(td_job_queue *queue, td_node *node)
 	t2 = td_timestamp();
 	pthread_mutex_lock(&queue->mutex);
 
+	if (0 != result && !engine->settings.continue_on_error)
+		queue->quit = 1;
+
 	engine->stats.build_time += t2 - t1;
 
 	if (0 != result)
