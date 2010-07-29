@@ -95,7 +95,7 @@ run_job(td_job_queue *queue, td_node *node)
 {
 	double t1, t2;
 	td_engine *engine = queue->engine;
-	int i, count, result, was_signalled;
+	int i, count, result, was_signalled = 0;
 	const char *command = node->action;
 
 	if (!command || '\0' == command[0])
