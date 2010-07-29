@@ -6,6 +6,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
 #endif
 
 #ifdef _WIN32
@@ -258,3 +261,119 @@ double td_timestamp(void)
 #error Meh
 #endif
 }
+
+static td_sighandler_info * volatile siginfo;
+
+#if defined(__APPLE__) || defined(linux)
+static void* signal_handler_thread_fn(void *arg)
+{
+	int sig, rc;
+	sigset_t sigs;
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGINT);
+	sigaddset(&sigs, SIGTERM);
+	sigaddset(&sigs, SIGQUIT);
+	if (0 == (rc = sigwait(&sigs, &sig)))
+	{
+		td_sighandler_info* info = siginfo;
+		if (info)
+		{
+			pthread_mutex_lock(info->mutex);
+			info->flag = -1;
+			switch (sig)
+			{
+				case SIGINT: info->reason = "SIGINT"; break;
+				case SIGTERM: info->reason = "SIGTERM"; break;
+				case SIGQUIT: info->reason = "SIGQUIT"; break;
+			}
+			pthread_mutex_unlock(info->mutex);
+			pthread_cond_broadcast(info->cond);
+		}
+	}
+	else
+		td_croak("sigwait failed: %d", rc);
+	return NULL;
+}
+#endif
+
+void td_install_sighandler(td_sighandler_info *info)
+{
+	siginfo = info;
+
+#if defined(__APPLE__) || defined(linux)
+	{
+		pthread_t sigthread;
+		if (0 != pthread_create(&sigthread, NULL, signal_handler_thread_fn, NULL))
+			td_croak("couldn't start signal handler thread");
+		pthread_detach(sigthread);
+	}
+#elif defined(_WIN32)
+#else
+#error Meh
+#endif
+}
+
+void td_remove_sighandler(void)
+{
+	siginfo = NULL;
+}
+
+void td_block_signals(int block)
+{
+#if defined(__APPLE__) || defined(linux)
+	sigset_t sigs;
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGINT);
+	sigaddset(&sigs, SIGTERM);
+	sigaddset(&sigs, SIGQUIT);
+	if  (0 != pthread_sigmask(block ? SIG_BLOCK : SIG_UNBLOCK, &sigs, 0))
+		td_croak("pthread_sigmask failed");
+#endif
+}
+
+int td_exec(const char* cmd_line, int *was_signalled_out)
+{
+#if defined(__APPLE__) || defined(linux)
+	pid_t child;
+	if (0 == (child = fork()))
+	{
+		sigset_t sigs;
+		sigfillset(&sigs);
+		if (0 != sigprocmask(SIG_UNBLOCK, &sigs, 0))
+			perror("sigprocmask failed");
+
+		const char *args[] = { "/bin/sh", "-c", cmd_line, NULL };
+
+		if (-1 == execv("/bin/sh", (char **) args))
+			exit(1);
+		/* we never get here */
+		abort();
+	}
+	else if (-1 == child)
+	{
+		perror("fork failed");
+		return 1;
+	}
+	else
+	{
+		pid_t p;
+		int return_code;
+		p = waitpid(child, &return_code, 0);
+		if (p != child)
+		{
+			perror("waitpid failed");
+			return 1;
+		}
+	
+		*was_signalled_out = WIFSIGNALED(return_code);
+		return return_code;
+	}
+
+#elif defined(_WIN32)
+	*was_signalled_out = 0;
+	return system(cmd_line);
+#else
+#error meh
+#endif
+}
+

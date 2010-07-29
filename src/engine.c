@@ -1151,7 +1151,8 @@ connect_pass_barriers(td_engine *engine)
 static int
 build_nodes(lua_State* L)
 {
-	int i, narg, status = 0;
+	int i, narg;
+	td_build_result build_result = TD_BUILD_SUCCESS;
 	int pre_file_count;
 	td_engine * const self = td_check_engine(L, 1);
 	td_node *roots[64];
@@ -1176,8 +1177,8 @@ build_nodes(lua_State* L)
 		td_node *node = nref->node;
 		roots[i-2] = node;
 		assign_jobs(self, node, stack, 0);
-		status = td_build(self, node, &jobs_run);
-		printf("*** build %s, %d jobs run\n", status ? "failed" : "succeeded", jobs_run);
+		build_result = td_build(self, node, &jobs_run);
+		printf("*** build %s, %d jobs run\n", td_build_result_names[build_result], jobs_run);
 	}
 	t2 = td_timestamp();
 
@@ -1205,8 +1206,10 @@ build_nodes(lua_State* L)
 	if (!self->settings.dry_run)
 		save_ancestors(self, roots, narg-1);
 
-	global_tundra_exit_code = status;
-
+	if (TD_BUILD_SUCCESS == build_result)
+		global_tundra_exit_code = 0;
+	else
+		global_tundra_exit_code = 1;
 	return 0;
 }
 

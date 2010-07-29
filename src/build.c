@@ -1,4 +1,5 @@
 
+#include "build.h"
 #include "engine.h"
 #include "util.h"
 #include "scanner.h"
@@ -15,13 +16,13 @@ typedef struct td_job_queue
 	pthread_mutex_t mutex;
 	pthread_cond_t work_avail;
 	td_engine *engine;
+	td_sighandler_info siginfo;
 
 	int head;
 	int tail;
 	int array_size;
 	td_node **array;
 
-	int quit;
 	int jobs_run;
 } td_job_queue;
 
@@ -94,7 +95,7 @@ run_job(td_job_queue *queue, td_node *node)
 {
 	double t1, t2;
 	td_engine *engine = queue->engine;
-	int i, count, result;
+	int i, count, result, was_signalled;
 	const char *command = node->action;
 
 	if (!command || '\0' == command[0])
@@ -120,14 +121,20 @@ run_job(td_job_queue *queue, td_node *node)
 	if (td_verbosity_check(engine, 2))
 		printf("%s\n", command);
 	if (!engine->settings.dry_run)
-		result = system(command);
+		result = td_exec(command, &was_signalled);
 	else
 		result = 0;
 	t2 = td_timestamp();
 	pthread_mutex_lock(&queue->mutex);
 
-	if (0 != result && !engine->settings.continue_on_error)
-		queue->quit = 1;
+	if (0 != result)
+	{
+		/* If the command failed or was signalled (e.g. Ctrl+C), abort the build */
+		if (was_signalled)
+			queue->siginfo.flag = -1;
+		else if (!engine->settings.continue_on_error)
+			queue->siginfo.flag = 1;
+	}
 
 	engine->stats.build_time += t2 - t1;
 
@@ -410,7 +417,7 @@ build_worker(void *arg)
 
 	pthread_mutex_lock(&queue->mutex);
 
-	while (!queue->quit)
+	while (!queue->siginfo.flag)
 	{
 		td_node *node;
 		int slot;
@@ -432,7 +439,7 @@ build_worker(void *arg)
 		advance_job(queue, node);
 
 		if (is_completed(node) && is_root(node))
-			queue->quit = 1;
+			queue->siginfo.flag = 1;
 	}
 
 	pthread_mutex_unlock(&queue->mutex);
@@ -467,12 +474,18 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 	queue.array_size = engine->node_count;
 	queue.array = (td_node **) calloc(engine->node_count, sizeof(td_node*));
 
+	queue.siginfo.mutex = &queue.mutex;
+	queue.siginfo.cond = &queue.work_avail;
+
 	thread_count = engine->settings.thread_count;
 	if (thread_count > TD_MAX_THREADS)
 		thread_count = TD_MAX_THREADS;
 
 	if (td_debug_check(engine, TD_DEBUG_QUEUE))
 		printf("using %d build threads\n", thread_count);
+
+	td_block_signals(1);
+	td_install_sighandler(&queue.siginfo);
 
 	for (i = 0; i < thread_count-1; ++i)
 	{
@@ -494,6 +507,9 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 
 	build_worker(&queue);
 
+	if (td_verbosity_check(engine, 2) && -1 == queue.siginfo.flag)
+		printf("*** aborted on signal %s\n", queue.siginfo.reason);
+
 	for (i = thread_count - 2; i >= 0; --i)
 	{
 		void *res;
@@ -508,5 +524,23 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 
 	*jobs_run = queue.jobs_run;
 
-	return is_failed(node);
+	/* there is a tiny race condition here if a user presses Ctrl-C just
+	 * before the write to the static pointer occurs, but that's in nanosecond
+	 * land */
+	td_remove_sighandler();
+
+	if (queue.siginfo.flag < 0)
+		return TD_BUILD_ABORTED;
+	else if (is_failed(node))
+		return TD_BUILD_FAILED;
+	else
+		return TD_BUILD_SUCCESS;
 }
+
+const char * const td_build_result_names[] =
+{
+	"success",
+	"failed",
+	"aborted on signal"
+};
+

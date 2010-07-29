@@ -51,4 +51,16 @@ int pthread_join(pthread_t thread, void **result_out);
 
 #endif
 
+typedef struct {
+	pthread_mutex_t *mutex;
+	pthread_cond_t *cond;
+	int flag;
+	const char *reason;
+} td_sighandler_info;
+
+void td_block_signals(int block);
+void td_install_sighandler(td_sighandler_info *info);
+void td_remove_sighandler(void);
+int td_exec(const char* cmd_line, int *was_signalled_out);
+
 #endif
