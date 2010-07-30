@@ -203,10 +203,13 @@ scan_file(
 	int i, count;
 	td_file **files;
 
+	int found_count = 0;
+	td_file* found_files[TD_MAX_INCLUDES_IN_FILE];
+	cpp_include includes[TD_MAX_INCLUDES_IN_FILE];
+
+
 	/* see if there is a cached include set for this file */
-	pthread_mutex_lock(mutex);
 	files = td_engine_get_relations(engine, file, salt, &count);
-	pthread_mutex_unlock(mutex);
 
 	if (files)
 	{
@@ -217,36 +220,29 @@ scan_file(
 		return;
 	}
 
+	if (td_debug_check(engine, TD_DEBUG_SCAN))
+		printf("%s: scanning\n", file->path);
+
+	pthread_mutex_unlock(mutex);
+
+	count = scan_includes(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]));
+
+	/* TODO: Improve lock scope here; find_file() will create new file nodes and stat
+	   them. Can get a lot of speedup in syscalls by interleaving them */
+	pthread_mutex_lock(mutex);
+	for (i = 0; i < count; ++i)
 	{
-		int found_count = 0;
-		td_file* found_files[TD_MAX_INCLUDES_IN_FILE];
-		cpp_include includes[TD_MAX_INCLUDES_IN_FILE];
-
-		if (td_debug_check(engine, TD_DEBUG_SCAN))
-			printf("%s: scanning\n", file->path);
-
-		count = scan_includes(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]));
-
-		/* TODO: Improve lock scope here; find_file() will create new file nodes and stat
-		them. Can get a lot of speedup in syscalls by interleaving them */
-		pthread_mutex_lock(mutex);
-		for (i = 0; i < count; ++i)
-		{
-			if (NULL != (found_files[found_count] = find_file(file, engine, &includes[i], config)))
-				++found_count;
-		}
-		pthread_mutex_unlock(mutex);
-
-		for (i = 0; i < found_count; ++i)
-			push_include(set, found_files[i]);
-
-		if (td_debug_check(engine, TD_DEBUG_SCAN))
-			printf("%s: inserting %d entries in relation cache\n", file->path, found_count);
-
-		pthread_mutex_lock(mutex);
-		td_engine_set_relations(engine, file, salt, found_count, found_files);
-		pthread_mutex_unlock(mutex);
+		if (NULL != (found_files[found_count] = find_file(file, engine, &includes[i], config)))
+			++found_count;
 	}
+
+	for (i = 0; i < found_count; ++i)
+		push_include(set, found_files[i]);
+
+	if (td_debug_check(engine, TD_DEBUG_SCAN))
+		printf("%s: inserting %d entries in relation cache\n", file->path, found_count);
+
+	td_engine_set_relations(engine, file, salt, found_count, found_files);
 }
 
 static int
@@ -274,11 +270,9 @@ scan_cpp(td_engine *engine, void *mutex, td_node *node, td_scanner *state)
 		scan_file(engine, &scratch, (pthread_mutex_t *)mutex, input, config, salt, set);
 	}
 
-	pthread_mutex_lock((pthread_mutex_t *)mutex);
 	node->job.idep_count = set->count - node->input_count;
 	node->job.ideps = (td_file **) td_page_alloc(&engine->alloc, sizeof(td_file*) * node->job.idep_count);
 	memcpy(&node->job.ideps[0], &set->files[node->input_count], sizeof(td_file*) * node->job.idep_count);
-	pthread_mutex_unlock((pthread_mutex_t *)mutex);
 
 	td_alloc_cleanup(&scratch);
 

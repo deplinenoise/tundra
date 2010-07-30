@@ -456,7 +456,6 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 	int i;
 	int thread_count;
 	pthread_t threads[TD_MAX_THREADS];
-	pthread_mutexattr_t attr;
 	td_job_queue queue;
 
 	if (engine->stats.build_called)
@@ -467,9 +466,7 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 	memset(&queue, 0, sizeof(queue));
 	queue.engine = engine;
 
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&queue.mutex, &attr);
+	pthread_mutex_init(&queue.mutex, NULL);
 	pthread_cond_init(&queue.work_avail, NULL);
 	queue.array_size = engine->node_count;
 	queue.array = (td_node **) calloc(engine->node_count, sizeof(td_node*));

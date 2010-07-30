@@ -5,6 +5,7 @@
 #if defined(__APPLE__) || defined(linux)
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
