@@ -136,7 +136,6 @@ static int tundra_walk_path_iter(lua_State* L)
 {
 	const char* current_dir = "";
 	const char* path = ""; 
-	static const char pathsep_string[] = { TD_PATHSEP };
 
 	if (!lua_isnil(L, WALK_UPV_CWD))
 		current_dir = lua_tostring(L, WALK_UPV_CWD);
@@ -181,7 +180,7 @@ static int tundra_walk_path_iter(lua_State* L)
 
 	/* set the directory (with a trailing slash) as the new current directory upvalue */
 	lua_pushvalue(L, -1);
-	lua_pushlstring(L, pathsep_string, 1);
+	lua_pushlstring(L, "/", 1);
 	lua_concat(L, 2);
 	lua_replace(L, WALK_UPV_CWD);
 
