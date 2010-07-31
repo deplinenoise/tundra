@@ -131,7 +131,7 @@ end
 
 function merge_arrays(...)
 	local result = {}
-	local count = #...
+	local count = select('#', ...)
 	for i = 1, count do
 		local tab = select(i, ...)
 		if tab then
