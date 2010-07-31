@@ -371,8 +371,80 @@ int td_exec(const char* cmd_line, int *was_signalled_out)
 	}
 
 #elif defined(_WIN32)
+	static const char prefix[] = "@RESPONSE|";
+	static const size_t prefix_len = sizeof(prefix) - 1;
+	char new_cmd[8192];
+	const char* response;
 	*was_signalled_out = 0;
-	return system(cmd_line);
+
+	/* scan for a @RESPONSE|<option>|.... section at the end of the command line */
+	if (NULL != (response = strstr(cmd_line, prefix)))
+	{
+		const size_t cmd_len = strlen(cmd_line);
+		const char *option, *option_end;
+
+		option = response + prefix_len;
+
+		if (NULL == (option_end = strchr(option, '|')))
+		{
+			fprintf(stderr, "badly formatted @RESPONSE section; no comma after option: %s\n", cmd_line);
+			return 1;
+		}
+
+		/* Limit on XP and later is 8191 chars; but play it safe */
+		if (cmd_len > 8000)
+		{
+			char tmp_dir[MAX_PATH];
+			char response_file[MAX_PATH];
+			int cmd_result;
+			FILE* tmp;
+			DWORD rc;
+
+			rc = GetTempPath(sizeof(tmp_dir), tmp_dir);
+			if (rc >= sizeof(tmp_dir) || 0 == rc)
+			{
+				fprintf(stderr, "couldn't get temporary directory for response file; win32 error=%u", GetLastError());
+				return 1;
+			}
+
+			rc = GetTempFileName(tmp_dir, "tundra_resp", 0, response_file);
+			if (0 == rc)
+			{
+				fprintf(stderr, "couldn't create temporary file for response file in dir %s; win32 error=%u", tmp_dir, GetLastError());
+				return 1;
+			}
+
+			if (NULL == (tmp = fopen(response_file, "w")))
+			{
+				fprintf(stderr, "couldn't create response file %s", response_file);
+				return 1;
+			}
+
+			fputs(option_end + 1, tmp);
+			fclose(tmp);
+
+			strncpy_s(new_cmd, sizeof(new_cmd), cmd_line, response - cmd_line);
+			strcat_s(new_cmd, sizeof(new_cmd), " ");
+			strncat_s(new_cmd, sizeof(new_cmd), option, option_end - option);
+			strcat_s(new_cmd, sizeof(new_cmd), response_file);
+
+			cmd_result = system(new_cmd);
+
+			remove(response_file);
+			return cmd_result;
+		}
+		else
+		{
+			strncpy_s(new_cmd, sizeof(new_cmd), cmd_line, response - cmd_line);
+			strcat_s(new_cmd, sizeof(new_cmd), option_end + 1);
+			return system(new_cmd);
+		}
+	}
+	else
+	{
+		/* no section in command line at all, just run it */
+		return system(cmd_line);
+	}
 #else
 #error meh
 #endif
