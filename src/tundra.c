@@ -174,6 +174,27 @@ static int tundra_digest_guid(lua_State *L)
 	return 1;
 }
 
+static int tundra_getenv(lua_State *L)
+{
+	const char* key = luaL_checkstring(L, 1);
+	const char* result = getenv(key);
+
+	if (result)
+	{
+		lua_pushstring(L, result);
+		return 1;
+	}
+	else if (lua_gettop(L) >= 2)
+	{
+		lua_pushvalue(L, 2);
+		return 1;
+	}
+	else
+	{
+		return luaL_error(L, "key %s not present in environment (and no default given)", key);
+	}
+}
+
 static int tundra_open(lua_State *L)
 {
 	static const luaL_Reg engine_entries[] = {
@@ -183,6 +204,8 @@ static int tundra_open(lua_State *L)
 		{ "walk_path", tundra_walk_path },
 		/* digest passed in strings and return a string formatted in GUID style */
 		{ "digest_guid", tundra_digest_guid },
+		/* query for environment string */
+		{ "getenv", tundra_getenv },
 #ifdef _WIN32
 		/* windows-specific registry query function*/
 		{ "reg_query", reg_query },
