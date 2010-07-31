@@ -220,7 +220,7 @@ local function config_filter_match(pattern, build_id)
 		local platform, tool, variant, subvariant = match_build_id(sub_pattern, comp)
 		local p = string.format('^%s%%-%s%%-%s%%-%s$', platform, tool, variant, subvariant)
 		local res = string.match(build_id, p)
-		printf("matching %s with %s (from %s) => %s", p, build_id, pattern, util.tostring(res))
+		--printf("matching %s with %s (from %s) => %s", p, build_id, pattern, util.tostring(res))
 		return res
 	else
 		return true
