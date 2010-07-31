@@ -14,6 +14,7 @@ end
 
 do
 	local _anyc_compile = function(env, pass, fn, label, action)
+		local pch_input = env:get('_PCH_FILE', '')
 		local function obj_fn()
 			if fn:match('^%$%(OBJECTDIR%)') then
 				return path.drop_suffix(fn) .. '$(OBJECTSUFFIX)'
@@ -22,12 +23,18 @@ do
 			end
 		end
 		local object_fn = obj_fn(fn)
+		local implicit_inputs = nil
+		if pch_input ~= '' then
+			implicit_inputs = { pch_input }
+		end
+
 		return env:make_node {
 			Label = 'Cc $(@)',
 			Pass = pass,
-			Action = "$(CCCOM)",
+			Action = action,
 			InputFiles = { fn },
 			OutputFiles = { object_fn },
+			ImplicitInputs = implicit_inputs,
 			Scanner = get_cpp_scanner(env, fn),
 		}
 	end
@@ -47,8 +54,10 @@ do
 end
 
 _outer_env:set_many {
-	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx" },
-	["CPPDEFS"] = "",
+	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
+	["CPPDEFS_DEBUG"] = "",
+	["CPPDEFS_PRODUCTION"] = "",
+	["CPPDEFS_RELEASE"] = "",
 	["CCOPTS_DEBUG"] = "",
 	["CCOPTS_PRODUCTION"] = "",
 	["CCOPTS_RELEASE"] = "",

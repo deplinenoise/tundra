@@ -96,6 +96,16 @@ do
 	end
 end
 
+function match_build_id(id, default)
+	assert(id)
+	local i = id:gmatch("[^-]+")
+	local platform_name, toolset, variant, subvariant = i() or default, i() or default, i() or default, i() or default
+	if not platform_name or not toolset then
+		errorf("%s doesn't follow <platform>-<toolset>-[<variant>-[<subvariant>]] convention", id)
+	end
+	return platform_name, toolset, variant, subvariant
+end
+
 
 if Options.VeryVerbose then
 	print("Options:")
@@ -106,7 +116,7 @@ end
 
 SEP = native.host_platform == "windows" and "\\" or "/"
 
-local default_env = environment.create()
+default_env = environment.create()
 default_env:set_many {
 	["OBJECTROOT"] = "tundra-output",
 	["SEP"] = SEP,
@@ -212,12 +222,13 @@ local function member(list, item)
 	return false
 end
 
-local function analyze_targets(targets, configs, variants, default_variant)
+local function analyze_targets(targets, configs, variants, subvariants, default_variant, default_subvariant)
 	local build_tuples = {}
 	local remaining_targets = {}
 
 	local build_configs = {}
 	local build_variants = {}
+	local build_subvariants = {}
 
 	if not Options.AllConfigs then
 		for _, name in ipairs(targets) do
@@ -226,17 +237,30 @@ local function analyze_targets(targets, configs, variants, default_variant)
 				build_configs[#build_configs + 1] = configs[name]
 			elseif variants[name] then
 				build_variants[#build_variants + 1] = name
+			elseif subvariants[name] then
+				build_subvariants[#build_subvariants + 1] = name
 			else
-				local config, variant = string.match(name, "^(%w+-%w+)-(%w+)$")
+				local config, toolset, variant, subvariant = match_build_id(name)
+				config = config .. "-".. toolset
 				if config and variant then
 					if not configs[config] then
-						local config_names = map(configs, function (x) return x.Name end)
+						local config_names = {}
+						for name, _ in pairs(configs) do config_names[#config_names + 1] = name end
 						errorf("config %s is not supported; specify one of %s", config, table.concat(config_names, ", "))
 					end
 					if not variants[variant] then
 						errorf("variant %s is not supported; specify one of %s", variant, table.concat(variants, ", "))
 					end
-					build_tuples[#build_tuples + 1] = { Config = configs[config], Variant = variant }
+
+					if subvariant then
+						if not subvariants[subvariant] then
+							errorf("subvariant %s is not supported; specify one of %s", subvariant, table.concat(subvariants, ", "))
+						end
+					else
+						subvariant = default_subvariant
+					end
+
+					build_tuples[#build_tuples + 1] = { Config = configs[config], Variant = variant, SubVariant = subvariant }
 				else
 					remaining_targets[#remaining_targets + 1] = name
 				end
@@ -245,7 +269,7 @@ local function analyze_targets(targets, configs, variants, default_variant)
 
 		-- If no configurations have been specified, default to the ones that are
 		-- marked DefaultOnHost for the current host platform.
-		if #build_configs == 0 then
+		if #build_configs == 0 and #build_tuples == 0 then
 			local host_os = native.host_platform
 			for name, config in pairs(configs) do
 				if config.DefaultOnHost == host_os then
@@ -262,16 +286,22 @@ local function analyze_targets(targets, configs, variants, default_variant)
 		-- User has requested all configurations at once. Possibly due to IDE mode.
 		for _, cfg in pairs(configs) do build_configs[#build_configs + 1] = cfg end
 		for var, _ in pairs(variants) do build_variants[#build_variants + 1] = var end
+		for var, _ in pairs(subvariants) do build_subvariants[#build_subvariants + 1] = var end
 	end
 
 	-- If no variants have been specified, use the default variant.
 	if #build_variants == 0 then
 		build_variants = { default_variant }
 	end
+	if #build_subvariants == 0 then
+		build_subvariants = { default_subvariant }
+	end
 
 	for _, config in ipairs(build_configs) do
 		for _, variant in ipairs(build_variants) do
-			build_tuples[#build_tuples + 1] = { Config = config, Variant = variant }
+			for _, subvariant in ipairs(build_subvariants) do
+				build_tuples[#build_tuples + 1] = { Config = config, Variant = variant, SubVariant = subvariant }
+			end
 		end
 	end
 
@@ -289,12 +319,26 @@ local function analyze_targets(targets, configs, variants, default_variant)
 end
 
 local default_variants = { "debug", "production", "release" }
+local default_subvariants = { "default" }
+
+local function iter_inherits(config, name)
+	local tab = config
+	return function()
+		while tab do
+			local my_tab = tab
+			if not my_tab then break end
+			tab = my_tab.Inherit
+			local v = my_tab[name]
+			if v then return v end
+		end
+	end
+end
 
 local function setup_env(env, tuple)
 	local config = tuple.Config
 	local variant_name = tuple.Variant
-	local build_id = config.Name .. '-' .. variant_name
-	local naked_platform, naked_toolset = string.match(config.Name, "^(%w+)-(%w+)$")
+	local build_id = config.Name .. "-" .. variant_name .. "-" .. tuple.SubVariant
+	local naked_platform, naked_toolset = match_build_id(build_id)
 
 	if Options.Verbose then
 		printf("configuring for %s", build_id)
@@ -306,13 +350,14 @@ local function setup_env(env, tuple)
 	env:set("BUILD_ID", build_id) -- e.g. linux-gcc-debug
 	env:set("OBJECTDIR", "$(OBJECTROOT)" .. SEP .. "$(BUILD_ID)")
 
-	for _, toolset_name in util.nil_ipairs(config.Tools) do
-		load_toolset(toolset_name, env)
+	for tools in iter_inherits(config, "Tools") do
+		for _, toolset_name in ipairs(tools) do
+			load_toolset(toolset_name, env)
+		end
 	end
 
-	local tab = config
-	while tab do
-		for key, val in util.nil_pairs(tab.Env) do
+	for env_tab in iter_inherits(config, "Env") do
+		for key, val in util.pairs(env_tab) do
 			if Options.VeryVerbose then
 				printf("env append %s = %s", key, util.tostring(val))
 			end
@@ -324,10 +369,6 @@ local function setup_env(env, tuple)
 				env:append(key, val)
 			end
 		end
-		tab = tab.Inherit
-		if tab and Options.VeryVerbose then
-			print("--inherted data--")
-		end
 	end
 end
 
@@ -338,18 +379,21 @@ function Build(args)
 		error("Need at least one config; got " .. util.tostring(configs) )
 	end
 
-	local configs, variants = {}, {}
+	local configs, variants, subvariants = {}, {}, {}
 
 	for _, cfg in ipairs(args.Configs) do
 		configs[assert(cfg.Name)] = cfg
 	end
 
-	for _, variant in ipairs(args.Variants or default_variants) do
-		variants[variant] = true
-	end
+	local variant_array = args.Variants or default_variants
+	for _, variant in ipairs(variant_array) do variants[variant] = true end
 
-	local default_variant = args.DefaultVariant or variants[1]
-	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, default_variant)
+	local subvariant_array = args.SubVariants or default_subvariants
+	for _, subvariant in ipairs(subvariant_array) do subvariants[subvariant] = true end
+
+	local default_variant = args.DefaultVariant or variant_array[1]
+	local default_subvariant = args.DefaultSubVariant or subvariant_array[1]
+	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, subvariants, default_variant, default_subvariant)
 
 	if not Options.IdeGeneration then
 		-- This is a regular build. Assume these generator sets are always
@@ -367,10 +411,7 @@ function Build(args)
 	do
 		local platforms = {}
 		for _, tuple in ipairs(build_tuples) do
-			local platform_name, tools = string.match(tuple.Config.Name, "^(%w+)-(%w+)$")
-			if not platform_name then
-				errorf("config %s doesn't follow <platform>-<toolset> convention", tuple.Config.Name)
-			end
+			local platform_name, tools = match_build_id(tuple.Config.Name)
 			if not member(platforms, platform_name) then
 				platforms[#platforms + 1] = platform_name
 			end

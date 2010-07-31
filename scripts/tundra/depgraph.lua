@@ -27,12 +27,14 @@ function create_node(env_, data_)
 	-- useful to e.g. add an input dependency on a tool
 	local implicit_inputs = normalize_paths(data_.ImplicitInputs)
 
+	local inputs = util.merge_arrays_2(regular_inputs, implicit_inputs)
+
 	local params = {
 		pass = data_.Pass or default_pass,
 		salt = env_:get("BUILD_ID", ""),
 		scanner = data_.Scanner,
 		deps = data_.Dependencies,
-		inputs = util.merge_arrays_2(regular_inputs, implicit_inputs),
+		inputs = inputs,
 		outputs = normalize_paths(data_.OutputFiles),
 	}
 

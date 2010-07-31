@@ -58,7 +58,11 @@ function _generator:get_node_of(name)
 	local n = self.unit_nodes[name]
 	if not n then
 		self.unit_nodes[name] = "!"
-		n = self:eval_unit(assert(self.units[name]))
+		local u = self.units[name]
+		if not u then
+			errorf("couldn't find unit %s", name)
+		end
+		n = self:eval_unit(u)
 		self.unit_nodes[name] = n
 	else
 		assert(n ~= "!")
@@ -162,12 +166,17 @@ function _generator:analyze_sources(list, suffixes, transformer)
 		end
 	end
 
-	local result = {}
-	for _, src in ipairs(files) do
-		transform(result, src)
+	while true do
+		local result = {}
+		local old_dep_count = #deps
+		for _, src in ipairs(files) do
+			transform(result, src)
+		end
+		files = result
+		if #deps == old_dep_count then
+			return result, deps
+		end
 	end
-
-	return result, deps
 end
 
 function _generator:get_target(decl, suffix)
@@ -203,9 +212,15 @@ end
 
 local function config_filter_match(pattern, build_id)
 	if pattern then
-		local p = '^' .. pattern:gsub('-', '%%-'):gsub('%*', '%%w-') .. '$'
+		if type(pattern) ~= "string" then
+			errorf("pattern must be a string: %s", util.tostring(pattern))
+		end
+		local comp = '%w+'
+		local sub_pattern = pattern:gsub('*', '%%w+')
+		local platform, tool, variant, subvariant = match_build_id(sub_pattern, comp)
+		local p = string.format('^%s%%-%s%%-%s%%-%s$', platform, tool, variant, subvariant)
 		local res = string.match(build_id, p)
-		--printf("matching %s with %s (from %s) => %s", p, build_id, pattern, util.tostring(res))
+		printf("matching %s with %s (from %s) => %s", p, build_id, pattern, util.tostring(res))
 		return res
 	else
 		return true
