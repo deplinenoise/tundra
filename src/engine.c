@@ -290,6 +290,7 @@ td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int
 		chain = chain->bucket_next;
 	}
 
+	++engine->stats.relation_count;
 	chain = (td_relcell*) td_page_alloc(&engine->alloc, sizeof(td_relcell));
 	populate_relcell(engine, chain, file, salt, count, files);
 	chain->bucket_next = engine->relhash[bucket];
@@ -1178,9 +1179,12 @@ build_nodes(lua_State* L)
 	if (td_debug_check(self, TD_DEBUG_STATS))
 	{
 		extern int global_tundra_stats;
+		double file_load = 100.0 * self->stats.file_count / self->file_hash_size;
+		double relation_load = 100.0 * self->stats.relation_count / self->relhash_size;
 
 		printf("post-build stats:\n");
-		printf("  files tracked: %d (%d directly from DAG)\n", self->stats.file_count, pre_file_count);
+		printf("  files tracked: %d (%d directly from DAG), file table load %.2f%%\n", self->stats.file_count, pre_file_count, file_load);
+		printf("  relations tracked: %d, table load %.2f%%\n", self->stats.relation_count, relation_load);
 		printf("  nodes with ancestry: %d of %d possible\n", self->stats.ancestor_nodes, self->stats.ancestor_checks);
 		printf("  total time spent in build loop: %.3fs\n", t2-t1);
 		printf("    - implicit dependency scanning: %.3fs\n", self->stats.scan_time);

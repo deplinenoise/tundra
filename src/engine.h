@@ -227,6 +227,7 @@ typedef struct td_engine
 	} settings;
 
 	struct {
+		int relation_count;
 		int file_count;
 		int stat_calls;
 		int stat_checks;
