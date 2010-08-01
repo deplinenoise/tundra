@@ -34,6 +34,23 @@ dependency scanning. Tundra is one of very few (if any) build systems that do
 this whenever possible. This design choice give a nice speedup to incremental
 builds.
 
+==== Reliably support code generation ====
+
+Most build systems work perfectly until you start generating source files
+dynamically in the build process. If these files are then included into other
+files many build systems start misbehaving, especially if multiple jobs are run
+concurrently. This is very hard to diagnose.
+
+Tundra does away with this by adding the possibility of segmenting the build
+into multiple, sequenced passes. Build jobs are only allowed to implicitly
+depend on (that is, +#include+) files generated in previous passes. This keeps
+file generation entirely predictable and it becomes easy to support a
+multi-layered system where the code generation tool itself is built in a first
+pass, it is run to generate output in a second pass and then the full build
+commences. Tundra will still go wide within each pass, but each pass is fully
+synchronous with regards to the others so using the +-j+ option is fully
+supported.
+
 ==== Separate configuration and building ====
 
 Tundra uses Lua as its scripting language, which gives it a high-performance,
