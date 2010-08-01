@@ -200,7 +200,7 @@ int main(int argc, char** argv)
 		res = lua_pcall(L, /*narg:*/1, /*nres:*/0, /*errorfunc:*/ -3);
 		t2 = td_timestamp();
 		if (global_tundra_stats)
-			printf("total time spent in tundra: %5.4fs\n", t2-t1);
+			printf("total time spent in tundra: %.4fs\n", t2-t1);
 	}
 
 	if (res == 0)
