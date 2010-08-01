@@ -376,7 +376,7 @@ function Build(args)
 	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
 
 	if type(args.Configs) ~= "table" or #args.Configs == 0 then
-		error("Need at least one config; got " .. util.tostring(configs) )
+		error("Need at least one config; got " .. util.tostring(args.Configs) )
 	end
 
 	local configs, variants, subvariants = {}, {}, {}
