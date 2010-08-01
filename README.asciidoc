@@ -1,0 +1,8 @@
+
+Tundra
+======
+
+Tundra is a high-performance code build system designed to give the best
+possible incremental build times even for very large software projects.
+
+See +doc/manual.txt+ for more information.
