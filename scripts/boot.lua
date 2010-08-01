@@ -122,7 +122,7 @@ end
 
 SEP = native.host_platform == "windows" and "\\" or "/"
 
-default_env = environment.create()
+local default_env = environment.create()
 default_env:set_many {
 	["OBJECTROOT"] = "tundra-output",
 	["SEP"] = SEP,
