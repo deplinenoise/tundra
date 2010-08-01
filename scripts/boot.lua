@@ -45,6 +45,7 @@ do
 		{ Name="DebugStats", Long="debug-stats", Doc="Show statistics on the build session" },
 		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
 		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
+		{ Name="SelfTest", Long="self-test", Doc="Run a test of Tundra's internals" },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
@@ -93,6 +94,11 @@ do
 			io.write(l)
 		end
 		return 0
+	end
+
+	if Options.SelfTest then
+		dofile(TundraRootDir .. "/scripts/selftest.lua")
+		native.exit(0)
 	end
 end
 

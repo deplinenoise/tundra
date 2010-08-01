@@ -3,7 +3,7 @@ local error_count = 0
 
 function unit_test(label, fn)
 	local t_mt = {
-		CheckEqual = function (obj, a, b) 
+		check_equal = function (obj, a, b) 
 			if a ~= b then
 				io.stdout:write("\n    ", tostring(a) .. " != " .. tostring(b))
 				error_count = error_count + 1
