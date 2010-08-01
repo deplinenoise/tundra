@@ -915,13 +915,6 @@ make_node(lua_State *L)
 	node->salt = copy_string_field(L, self, 2, "salt");
 	node->pass_index = setup_pass(L, self, 2, node);
 
-#if 0
-	if (0 == strcmp(node->annotation, "CSharpLib tundra-output/macosx-debug/Rev6.Misc.dll"))
-	{
-		__asm__("int $3\n" : : );
-	}
-#endif
-
 	lua_getfield(L, 2, "inputs");
 	node->inputs = td_build_file_array(L, self, lua_gettop(L), &node->input_count);
 	lua_pop(L, 1);
