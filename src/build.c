@@ -24,6 +24,7 @@ typedef struct td_job_queue
 	td_node **array;
 
 	int jobs_run;
+	int fail_count;
 } td_job_queue;
 
 static int
@@ -129,6 +130,11 @@ run_job(td_job_queue *queue, td_node *node)
 
 	if (0 != result)
 	{
+		/* Maintain a fail count so we can track why we stopped building if
+		 * we're stopping after the first error. Otherwise it might appear as
+		 * we succeeded. */
+		++queue->fail_count;
+
 		/* If the command failed or was signalled (e.g. Ctrl+C), abort the build */
 		if (was_signalled)
 			queue->siginfo.flag = -1;
@@ -528,7 +534,7 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 
 	if (queue.siginfo.flag < 0)
 		return TD_BUILD_ABORTED;
-	else if (is_failed(node))
+	else if (queue.fail_count)
 		return TD_BUILD_FAILED;
 	else
 		return TD_BUILD_SUCCESS;
