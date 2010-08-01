@@ -82,7 +82,7 @@ do
 	end
 
 	if Options.Help then
-		io.write("Tundra Build Processor v0.2.0\n")
+		io.write("Tundra Build Processor v0.5.0\n")
 		io.write("Copyright (c)2010 Andreas Fredriksson. All rights reserved.\n\n")
 		io.write("Command-line options:\n")
 		for _, bp in ipairs(option_blueprints) do
