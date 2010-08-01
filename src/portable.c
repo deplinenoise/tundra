@@ -1,6 +1,10 @@
 #include "portable.h"
 #include "engine.h"
 #include "util.h"
+#include "lua.h"
+#include "lauxlib.h"
+
+#include <string.h>
 
 #if defined(__APPLE__) || defined(linux)
 #include <sys/stat.h>
@@ -10,6 +14,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <mach-o/dyld.h>
 #endif
 
 #ifdef _WIN32
@@ -19,7 +24,21 @@
 #include <process.h>
 #include <stdio.h>
 #include <assert.h>
+#define snprintf _snprintf
+#endif
 
+const char * const td_platform_string =
+#if defined(__APPLE__)
+	"macosx";
+#elif defined(linux)
+	"linux";
+#elif defined(_WIN32)
+	"windows";
+#else
+#error implement me
+#endif
+
+#if defined(_WIN32)
 int pthread_mutex_init(pthread_mutex_t *mutex, void *args)
 {
 	mutex->handle = (PCRITICAL_SECTION)malloc(sizeof(CRITICAL_SECTION));
@@ -447,6 +466,148 @@ int td_exec(const char* cmd_line, int *was_signalled_out)
 	}
 #else
 #error meh
+#endif
+}
+
+#if defined(_WIN32)
+static void push_win32_error(lua_State *L, DWORD err, const char *context)
+{
+	int chars;
+	char buf[1024];
+	lua_pushstring(L, context);
+	lua_pushstring(L, ": ");
+	if (0 != (chars = (int) FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, LANG_NEUTRAL, buf, sizeof(buf), NULL)))
+		lua_pushlstring(L, buf, chars);
+	else
+		lua_pushfstring(L, "win32 error %d", (int) err);
+	lua_concat(L, 3);
+}
+
+int td_win32_register_query(lua_State *L)
+{
+	HKEY regkey, root_key;
+	LONG result = 0;
+	const char *key_name, *subkey_name, *value_name = NULL;
+	int i;
+	static const REGSAM sams[] = { KEY_READ, KEY_READ|KEY_WOW64_32KEY, KEY_READ|KEY_WOW64_64KEY };
+
+	key_name = luaL_checkstring(L, 1);
+
+	if (0 == strcmp(key_name, "HKLM") || 0 == strcmp(key_name, "HKEY_LOCAL_MACHINE"))
+		root_key = HKEY_LOCAL_MACHINE;
+	else if (0 == strcmp(key_name, "HKCU") || 0 == strcmp(key_name, "HKEY_CURRENT_USER"))
+		root_key = HKEY_CURRENT_USER;
+	else
+		return luaL_error(L, "%s: unsupported root key; use HKLM, HKCU or HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER", key_name);
+
+	subkey_name = luaL_checkstring(L, 2);
+
+	if (lua_gettop(L) >= 3 && lua_isstring(L, 3))
+		value_name = lua_tostring(L, 3);
+
+	for (i = 0; i < sizeof(sams)/sizeof(sams[0]); ++i)
+	{
+		result = RegOpenKeyExA(root_key, subkey_name, 0, sams[i], &regkey);
+
+		if (ERROR_SUCCESS == result)
+		{
+			DWORD stored_type;
+			BYTE data[8192];
+			DWORD data_size = sizeof(data);
+			result = RegQueryValueExA(regkey, value_name, NULL, &stored_type, &data[0], &data_size);
+			RegCloseKey(regkey);
+
+			if (ERROR_FILE_NOT_FOUND != result)
+			{
+				if (ERROR_SUCCESS != result)
+				{
+					lua_pushnil(L);
+					push_win32_error(L, (DWORD) result, "RegQueryValueExA");
+					return 2;
+				}
+
+				switch (stored_type)
+				{
+				case REG_DWORD:
+					if (4 != data_size)
+						luaL_error(L, "expected 4 bytes for integer key but got %d", data_size);
+					lua_pushinteger(L, *(int*)data);
+					return 1;
+
+				case REG_SZ:
+					/* don't use lstring because that would include potential null terminator */
+					lua_pushstring(L, (const char*) data);
+					return 1;
+
+				default:
+					return luaL_error(L, "unsupported registry value type (%d)", (int) stored_type);
+				}
+			}
+		}
+		else if (ERROR_FILE_NOT_FOUND == result)
+		{
+			continue;
+		}
+		else
+		{
+			lua_pushnil(L);
+			push_win32_error(L, (DWORD) result, "RegOpenKeyExA");
+			return 2;
+		}
+
+	}
+
+
+	lua_pushnil(L);
+	push_win32_error(L, ERROR_FILE_NOT_FOUND, "RegOpenKeyExA");
+	return 2;
+}
+#endif
+
+static char homedir[260];
+
+static const char *
+set_homedir(const char* dir)
+{
+	strncpy(homedir, dir, sizeof homedir);
+	homedir[sizeof homedir - 1] = '\0';
+	return homedir;
+}
+
+const char *
+td_init_homedir()
+{
+	char* tmp;
+	if (NULL != (tmp = getenv("TUNDRA_HOME")))
+		return set_homedir(tmp);
+
+#if defined(_WIN32)
+	if (0 == GetModuleFileNameA(NULL, homedir, (DWORD)sizeof(homedir)))
+		return NULL;
+
+	if (NULL != (tmp = strrchr(homedir, '\\')))
+		*tmp = 0;
+	return homedir;
+
+#elif defined(__APPLE__)
+	char path[1024], resolved_path[1024];
+	uint32_t size = sizeof(path);
+	if (_NSGetExecutablePath(path, &size) != 0)
+		return NULL;
+	if ((tmp = realpath(path, resolved_path))) 
+		return set_homedir(tmp);
+	else
+		return NULL;
+
+#elif defined(linux)
+	if (-1 == readlink("/proc/self/exe", homedir, sizeof(homedir)))
+		return NULL;
+
+	if ((tmp = strrchr(homedir, '/')))
+		*tmp = 0;
+	return homedir;
+#else
+#error "unsupported platform"
 #endif
 }
 
