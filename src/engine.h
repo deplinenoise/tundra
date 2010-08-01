@@ -257,8 +257,11 @@ typedef struct td_engine
 #define td_check_noderef(L, index) ((struct td_noderef *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
 #define td_check_engine(L, index) ((struct td_engine *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))
 
-void *td_page_alloc(td_alloc *engine, size_t size);
-td_file *td_engine_get_file(td_engine *engine, const char *path);
+void *
+td_page_alloc(td_alloc *alloc, size_t size);
+
+td_file *
+td_engine_get_file(td_engine *engine, const char *path);
 
 td_file **
 td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int *count_out);
@@ -266,10 +269,16 @@ td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int
 void
 td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files);
 
-const td_stat* td_stat_file(td_engine *engine, td_file *f);
-void td_touch_file(td_file *f);
-td_digest *td_get_signature(td_engine *engine, td_file *f);
+const td_stat*
+td_stat_file(td_engine *engine, td_file *f);
 
-td_file *td_parent_dir(td_engine *engine, td_file *f);
+void
+td_touch_file(td_file *f);
+
+td_digest *
+td_get_signature(td_engine *engine, td_file *f);
+
+td_file *
+td_parent_dir(td_engine *engine, td_file *f);
 
 #endif
