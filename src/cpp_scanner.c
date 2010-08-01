@@ -147,9 +147,11 @@ scan_includes(td_alloc *scratch, td_file *file, cpp_include *out, int max_count)
 {
 	FILE *f;
 	int file_count = 0;
+	int at_start_of_file = 1;
 	char line_buffer[1024];
 	char *buffer_start = line_buffer;
 	int buffer_size = sizeof(line_buffer);
+	static const unsigned char utf8_mark[] = { 0xef, 0xbb, 0xbf };
 
 	if (NULL == (f = fopen(file->path, "r")))
 		return 0;
@@ -161,6 +163,15 @@ scan_includes(td_alloc *scratch, td_file *file, cpp_include *out, int max_count)
 		count = (int) fread(buffer_start, 1, (int) buffer_size, f);
 		if (0 == count)
 			break;
+
+		/* skip past any UTF-8 bytemark, or isspace() and related functions trigger asserts in MSVC debug builds! */
+		if (at_start_of_file && count >= sizeof(utf8_mark) && 0 == memcmp(buffer_start, utf8_mark, sizeof(utf8_mark)))
+		{
+			memmove(buffer_start, buffer_start + sizeof(utf8_mark), count - sizeof(utf8_mark));
+			count -= sizeof(utf8_mark);
+		}
+
+		at_start_of_file = 0;
 
 		buffer_start += count;
 
