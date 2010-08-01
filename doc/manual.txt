@@ -1,0 +1,106 @@
+
+Tundra, a build system
+======================
+Andreas Fredriksson <dep@defmacro.se>
+
+== Introduction ==
+
+Tundra is a high-performance code build system designed to give the best
+possible incremental build times even for very large software projects.
+
+Its design was motivated by the games industry where projects are huge and
+iterative rebuilding common. In games, teams of 20-30 developers working on the
+same multi-MLOC codebase is not uncommon. Each second wasted by a build system
+to produce a incremental build wastes productivity. But Tundra works well for
+smaller projects too.
+
+=== Design Philosphy ===
+
+==== Simple and Fast ====
+
+Tundra is written in ANSI C (C89), with very few files (the whole codebase
+including scripts is about 7000 lines of code). Aside from Lua, there
+are no external dependencies. Most data structures are simple arrays, either
+stack based or allocated from a linear allocator. All allocations are discarded
+at once in pages when the program exits. This makes the code simple and the
+program fast as very little time is spent worrying about dynamic memory.
+
+==== Utilize multi-core hardware ====
+
+All serious developers are using multi-core machines, so it is important that
+the build system can run multiple jobs at once. But it is equally important to
+utilize these cores to do other things like file signing and implicit
+dependency scanning. Tundra is one of very few (if any) build systems that do
+this whenever possible. This design choice give a nice speedup to incremental
+builds.
+
+==== Separate configuration and building ====
+
+Tundra uses Lua as its scripting language, which gives it a high-performance,
+powerful data collection frontend for free. However, to get the maximum speed
+from builds, all build actions are carried out in multi-threaded C code with
+carefully crafted memory allocation patterns. This ensures that pure build
+speed is unaffected by bad scripting and it is easier to diagnose a slow build.
+
+==== Don't guess ====
+
+Tundra doesn't support auto-configuring toolsets or guessing what compiler you
+want to use. For a game project, there may be millions of builds between adding
+a new platform or configuration to a build system. Tools are also very brittle
+and need a specific configuration to produce working builds. The time it will
+take to support a new toolset while offset the time it tases to tell the build
+system about it by many magnitudes.
+
+Tundra therefore must be told explicitly in configuration what tools to use and
+how to run them, it never tries to auto-configure itself for your platform. If
+you need this capability, Tundra is not for you.
+
+== Hello, world ==
+
+A Tundra project needs atleast two files, one is +tundra.lua+ which specifies
+what build configurations are available for this project. Here is a sample
+minimal +tundra.lua+ file that creates a configuration +macosx-gcc+ which pulls
+in the default +gcc+ and +mono+ toolsets:
+
+-------------------------------------------------------------------------------
+Build {
+    Units = "units.lua",
+    Configs = {
+        {
+            Name = "macosx-gcc",
+            DefaultOnHost = "macosx",
+            Tools = { "gcc", "mono" },
+        },
+    },
+}
+-------------------------------------------------------------------------------
+
+As you can see, it refers to another file, +units.lua+. The +Units+ file is a
+declarative input file describing the targets that are available:
+
+-------------------------------------------------------------------------------
+Program {
+	Name = "HelloWorld",
+	Sources = { "hello.c" },
+}
+Default "HelloWorld"
+-------------------------------------------------------------------------------
+
+If we now run Tundra on this input, it will build our +HelloWorld+ executable:
+
+-------------------------------------------------------------------------------
+$ tundra
+Cc tundra-output/macosx-gcc-debug-default/hello.o
+Program tundra-output/macosx-gcc-debug-default/HelloWorld
+*** build success, 2 jobs run
+-------------------------------------------------------------------------------
+
+The next mandatory step is of course to display the famous greeting:
+
+-------------------------------------------------------------------------------
+$ tundra-output/macosx-gcc-debug-default/HelloWorld
+hello, world
+-------------------------------------------------------------------------------
+
+// vim: set syntax=asciidoc
+
