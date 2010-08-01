@@ -55,6 +55,10 @@ end
 
 _outer_env:set_many {
 	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
+	["CPPPATH"] = "",
+	["CPPDEFS"] = "",
+	["LIBS"] = "",
+	["LIBPATH"] = "",
 	["CPPDEFS_DEBUG"] = "",
 	["CPPDEFS_PRODUCTION"] = "",
 	["CPPDEFS_RELEASE"] = "",
