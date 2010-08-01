@@ -3,33 +3,23 @@ local util = require("tundra.util")
 local nodegen = require("tundra.nodegen")
 local path = require("tundra.path")
 
-local function install_libs(unit_env, decl)
-	for _, item in util.nil_ipairs(nodegen.flatten_list(unit_env:get('BUILD_ID'), decl.Libs)) do
-		unit_env:append("LIBS", item)
-	end
-end
-
-local function install_defines(unit_env, decl)
-	for _, item in util.nil_ipairs(nodegen.flatten_list(unit_env:get('BUILD_ID'), decl.Defines)) do
-		unit_env:append("CPPDEFS", item)
-	end
-end
-
-local function install_includes(unit_env, decl)
-	for _, item in util.nil_ipairs(nodegen.flatten_list(unit_env:get('BUILD_ID'), decl.Includes)) do
-		unit_env:append("CPPPATH", item)
-	end
-end
-
 function _generator:eval_native_unit(env, label, suffix, command, decl)
 	local build_id = env:get("BUILD_ID")
 	local pch = decl.PrecompiledHeader
 	local pch_output
 	local gen_pch_node
 
-	install_libs(env, decl)
-	install_defines(env, decl)
-	install_includes(env, decl)
+	local function install_env_list(target_var, data)
+		for _, item in util.nil_ipairs(nodegen.flatten_list(build_id, data)) do
+			env:append(target_var, item)
+		end
+	end
+
+	install_env_list("LIBS", decl.Libs)
+	install_env_list("CPPDEFS", decl.Defines)
+	install_env_list("CPPPATH", decl.Includes)
+	install_env_list("FRAMEWORKS", decl.Frameworks)
+	install_env_list("LIBPATH", decl.LibPaths)
 
 	if pch then
 		pch_output = "$(OBJECTDIR)/" .. decl.Name .. ".pch"

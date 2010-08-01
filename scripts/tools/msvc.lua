@@ -17,9 +17,7 @@ assert(native.host_platform == "windows", "the msvc toolset only works on window
 env:set_many {
 	["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj" },
 	["OBJECTSUFFIX"] = ".obj",
-	["PROGSUFFIX"] = ".exe",
 	["LIBSUFFIX"] = ".lib",
-	["SHLIBSUFFIX"] = ".dll",
 	["CC"] = "cl",
 	["C++"] = "cl",
 	["LIB"] = "lib",
