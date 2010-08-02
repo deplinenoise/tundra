@@ -38,6 +38,6 @@ env:set_many {
 	["LIBOPTS"] = "",
 	["LIBCOM"] = "$(LIB) /nologo @RESPONSE|@|$(LIBOPTS) /out:$(@:b) $(<:b)",
 	["SHLIBOPTS"] = "",
-	["SHLIBCOM"] = "$(LD) /DLL /nologo @RESPONSE|@|$(SHLIBOPTS) $(LIBPATH:b:p/LIBPATH\\:) /out:$(@:b) $(<:b)",
+	["SHLIBCOM"] = "$(LD) /DLL /nologo @RESPONSE|@|$(SHLIBOPTS) $(LIBPATH:b:p/LIBPATH\\:) $(LIBS) /out:$(@:b) $(<:b)",
 }
 
