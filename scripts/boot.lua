@@ -21,10 +21,6 @@ function errorf(msg, ...)
 end
 
 local util = require "tundra.util"
-local environment = require "tundra.environment"
-local native = require "tundra.native"
-local nodegen = require "tundra.nodegen"
-local decl = require "tundra.decl"
 
 -- Parse the command line options.
 do
@@ -45,11 +41,17 @@ do
 		{ Name="DebugStats", Long="debug-stats", Doc="Show statistics on the build session" },
 		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
 		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
+		{ Name="Debugger", Long="lua-debugger", Doc="Run with Lua debugger enabled (use 'exit' to continue)" },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
 		io.write(message)
 		return 1
+	end
+
+	if Options.Debugger then
+		require "debugger"
+		pause()
 	end
 
 	Options.DebugFlags = 0
@@ -95,6 +97,11 @@ do
 		return 0
 	end
 end
+
+local environment = require "tundra.environment"
+local native = require "tundra.native"
+local nodegen = require "tundra.nodegen"
+local decl = require "tundra.decl"
 
 function match_build_id(id, default)
 	assert(id)
