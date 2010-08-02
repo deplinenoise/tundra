@@ -12,6 +12,10 @@
 #include <string.h>
 #include <assert.h>
 
+#ifdef _WIN32
+#define snprintf _snprintf
+#endif
+
 extern int tundra_walk_path(lua_State*);
 extern void td_engine_open(lua_State*);
 extern void td_scanner_open(lua_State*);

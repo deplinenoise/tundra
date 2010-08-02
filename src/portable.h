@@ -68,7 +68,7 @@ void td_remove_sighandler(void);
 int td_exec(const char* cmd_line, int *was_signalled_out);
 
 #if defined(_WIN32)
-int td_win32_register_query(lua_State *L);
+int td_win32_register_query(struct lua_State *L);
 #endif
 
 #endif
