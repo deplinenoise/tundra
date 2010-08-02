@@ -43,11 +43,16 @@ do
 		return _anyc_compile(env, pass, fn, "Cc $(@)", "$(CCCOM)")
 	end
 
+	local objc_compile = function(env, pass, fn)
+		return _anyc_compile(env, pass, fn, "ObjC $(@)", "$(OBJCCOM)")
+	end
+
 	local cxx_compile = function(env, pass, fn)
 		return _anyc_compile(env, pass, fn, "C++ $(@)", "$(CXXCOM)")
 	end
 
 	_outer_env:register_implicit_make_fn("c", cc_compile)
+	_outer_env:register_implicit_make_fn("m", objc_compile)
 	_outer_env:register_implicit_make_fn("cpp", cxx_compile)
 	_outer_env:register_implicit_make_fn("cc", cxx_compile)
 	_outer_env:register_implicit_make_fn("cxx", cxx_compile)
