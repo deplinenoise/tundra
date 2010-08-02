@@ -29,7 +29,7 @@ do
 		end
 
 		return env:make_node {
-			Label = 'Cc $(@)',
+			Label = label .. ' $(@)',
 			Pass = pass,
 			Action = action,
 			InputFiles = { fn },
@@ -40,15 +40,15 @@ do
 	end
 
 	local cc_compile = function(env, pass, fn)
-		return _anyc_compile(env, pass, fn, "Cc $(@)", "$(CCCOM)")
+		return _anyc_compile(env, pass, fn, "Cc", "$(CCCOM)")
 	end
 
 	local objc_compile = function(env, pass, fn)
-		return _anyc_compile(env, pass, fn, "ObjC $(@)", "$(OBJCCOM)")
+		return _anyc_compile(env, pass, fn, "ObjC", "$(OBJCCOM)")
 	end
 
 	local cxx_compile = function(env, pass, fn)
-		return _anyc_compile(env, pass, fn, "C++ $(@)", "$(CXXCOM)")
+		return _anyc_compile(env, pass, fn, "C++", "$(CXXCOM)")
 	end
 
 	_outer_env:register_implicit_make_fn("c", cc_compile)
