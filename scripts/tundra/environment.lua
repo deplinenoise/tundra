@@ -31,13 +31,6 @@ function envclass:create(parent, assignments, obj)
 	obj.memos = {}
 	obj.memo_keys = {}
 
-	-- set up the table of make functions
-	obj._make = {} 
-	obj.make = setmetatable({}, {
-		__index = function(table, key) return obj:_lookup_make(key) end,
-		__newindex = function(table, key, value) obj:register_make_fn(key, value) end
-	})
-
 	-- assign initial bindings
 	if assignments then
 		obj:set_many(assignments)
@@ -50,35 +43,14 @@ function envclass:clone(assignments)
 	return envclass:create(self, assignments)
 end
 
-function envclass:_lookup_make(name, real_env)
-	real_env = real_env or self
-	local entry = self._make[name]
-	if entry then
-		assert(entry.Name == name)
-		local fn = function(args)
-			return entry.Function(real_env, args)
-		end
-		return fn
-	elseif self.parent then
-		return self.parent:_lookup_make(name, real_env)
-	else
-		error("'" .. name .. "': no such make function", 2)
-	end
-end
-
-function envclass:register_make_fn(name, fn, docstring)
-	assert(type(name) == "string")
-	assert(type(fn) == "function")
-	self._make[name] = {
-		Name = name,
-		Function = fn,
-		Doc = docstring or ""
-	}
-end
-
 function envclass:register_implicit_make_fn(ext, fn, docstring)
-	assert(type(ext) == "string")
-	assert(type(fn) == "function")
+	if type(ext) ~= "string" then
+		errorf("extension must be a string")
+	end
+	if type(fn) ~= "function" then
+		errorf("fn must be a function")
+	end
+
 	if not ext:match("^%.") then
 		ext = "." .. ext -- we want the dot in the extension
 	end
@@ -86,6 +58,7 @@ function envclass:register_implicit_make_fn(ext, fn, docstring)
 	if not self._implicit_exts then
 		self._implicit_exts = {}
 	end
+
 	self._implicit_exts[ext] = {
 		Function = fn,
 		Doc = docstring or "",

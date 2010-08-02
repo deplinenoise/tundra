@@ -42,6 +42,7 @@ do
 		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
 		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
 		{ Name="Debugger", Long="lua-debugger", Doc="Run with Lua debugger enabled (use 'exit' to continue)" },
+		{ Name="SelfTest", Long="self-test", Doc="Run a test of Tundra's internals" },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
@@ -96,6 +97,11 @@ do
 		end
 		return 0
 	end
+
+	if Options.SelfTest then
+		dofile(TundraRootDir .. "/scripts/selftest.lua")
+		native.exit(0)
+	end
 end
 
 local environment = require "tundra.environment"
@@ -123,7 +129,7 @@ end
 
 SEP = native.host_platform == "windows" and "\\" or "/"
 
-default_env = environment.create()
+local default_env = environment.create()
 default_env:set_many {
 	["OBJECTROOT"] = "tundra-output",
 	["SEP"] = SEP,

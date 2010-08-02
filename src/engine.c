@@ -22,9 +22,6 @@
 
 #define TD_ANCESTOR_FILE ".tundra-ancestors"
 
-#define TD_STATIC_ASSERT(expr) \
-	static const char _static_assert ## __LINE__ [ (expr) ? 1 : -1] = {0}
-
 void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 {
 	int zero_size;

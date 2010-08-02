@@ -2,11 +2,15 @@
 #define TUNDRA_PORTABLE_H
 
 struct td_stat;
+struct lua_State;
 
 int td_mkdir(const char *path);
 int fs_stat_file(const char *filename, struct td_stat *out);
 int td_move_file(const char *source, const char *dest);
 
+const char* td_init_homedir(void);
+
+extern const char * const td_platform_string;
 void td_init_timer(void);
 double td_timestamp(void);
 
@@ -62,5 +66,9 @@ void td_block_signals(int block);
 void td_install_sighandler(td_sighandler_info *info);
 void td_remove_sighandler(void);
 int td_exec(const char* cmd_line, int *was_signalled_out);
+
+#if defined(_WIN32)
+int td_win32_register_query(lua_State *L);
+#endif
 
 #endif
