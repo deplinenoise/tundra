@@ -85,7 +85,8 @@ enum
 	TD_JOBF_QUEUED            = 1 <<  0,
 	TD_JOBF_ROOT              = 1 <<  1,
 	TD_JOBF_ANCESTOR_UPDATED  = 1 << 16,
-	TD_JOBF_SETUP_COMPLETE    = 1 << 17
+	TD_JOBF_SETUP_COMPLETE    = 1 << 17,
+	TD_JOBF_CLEANED           = 1 << 18
 };
 
 

@@ -27,6 +27,7 @@ do
 	local message = nil
 	local option_blueprints = {
 		{ Name="Help", Short="h", Long="help", Doc="This message" },
+		{ Name="Clean", Short="c", Long="clean", Doc="Remove output files (clean)" },
 		{ Name="Quiet", Short="q", Long="quiet", Doc="Don't print actions as they execute" },
 		{ Name="Continue", Short="k", Long="continue", Doc="Build as much as possible" },
 		{ Name="Verbose", Short="v", Long="verbose", Doc="Be verbose" },
@@ -471,7 +472,11 @@ function Build(args)
 			Label = "toplevel",
 			Dependencies = everything,
 		}
-		GlobalEngine:build(toplevel)
+		if Options.Clean then
+			GlobalEngine:build(toplevel, "clean")
+		else
+			GlobalEngine:build(toplevel)
+		end
 
 	else
 		-- We're just generating IDE files. Pass the build tuples directly to

@@ -433,7 +433,7 @@ ancestor_timed_out(const td_ancestor_data *data, time_t now)
 }
 
 static void
-save_ancestors(td_engine *engine, td_node **nodes, int node_count)
+save_ancestors(td_engine *engine, td_node *root)
 {
 	FILE* f;
 	int i, count, max_count;
@@ -454,10 +454,7 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 	visited = (unsigned char *) calloc(engine->ancestor_count, 1);
 
 	output_cursor = 0;
-	for (i = 0; i < node_count; ++i)
-	{
-		update_ancestors(engine, nodes[i], now, &output_cursor, output, visited);
-	}
+	update_ancestors(engine, root, now, &output_cursor, output, visited);
 
 	if (dbg)
 		printf("refreshed %d ancestors\n", output_cursor);
@@ -1133,6 +1130,46 @@ connect_pass_barriers(td_engine *engine)
 	}
 }
 
+static void
+clean_output_files(td_engine *engine, td_node *root)
+{
+	int i, count;
+
+	root->job.flags |= TD_JOBF_CLEANED;
+
+	for (i = 0, count = root->output_count; i < count; ++i)
+	{
+		const td_stat *stat;
+		td_file *file = root->outputs[i];
+		stat = td_stat_file(engine, file);
+		if (TD_STAT_EXISTS & stat->flags)
+		{
+			if (td_verbosity_check(engine, 1))
+				printf("Clean %s\n", file->path);
+
+			if (0 != remove(file->path))
+				fprintf(stderr, "error: couldn't remove %s\n", file->path);
+
+			td_touch_file(file);
+		}
+	}
+
+	for (i = 0, count = root->dep_count; i < count; ++i)
+	{
+		td_node *dep = root->deps[i];
+		if (0 == (dep->job.flags & TD_JOBF_CLEANED))
+		{
+			clean_output_files(engine, dep);
+		}
+	}
+}
+
+static void
+clean_files(td_engine *engine, td_node *root)
+{
+	clean_output_files(engine, root);
+}
+
 /*
  * Execute actions needed to update a dependency graph.
  *
@@ -1142,34 +1179,43 @@ connect_pass_barriers(td_engine *engine)
 static int
 build_nodes(lua_State* L)
 {
-	int i, narg;
-	td_build_result build_result = TD_BUILD_SUCCESS;
+	td_build_result build_result;
 	int pre_file_count;
-	td_engine * const self = td_check_engine(L, 1);
-	td_node *roots[64];
+	td_engine * self;
+	td_node *root;
 	double t1, t2;
 	extern int global_tundra_exit_code;
+	int is_clean = 0;
 
-	narg = lua_gettop(L);
+	self = td_check_engine(L, 1);
+	root = td_check_noderef(L, 2)->node;
 
-	if ((narg - 1) > (sizeof(roots)/sizeof(roots[0])))
-		luaL_error(L, "too many nodes to build at once");
+	if (lua_gettop(L) >= 3)
+	{
+		const char *how = luaL_checkstring(L, 3);
+		if (0 == strcmp("clean", how))
+		{
+			is_clean = 1;
+		}
+	}
 
 	connect_pass_barriers(self);
 
 	pre_file_count = self->stats.file_count;
 
 	t1 = td_timestamp();
-	for (i = 2; i <= narg; ++i)
+	if (0 == is_clean)
 	{
 		int jobs_run = 0;
 		td_node *stack[TD_MAX_DEPTH];
-		td_noderef *nref = (td_noderef *) luaL_checkudata(L, i, TUNDRA_NODEREF_MTNAME);
-		td_node *node = nref->node;
-		roots[i-2] = node;
-		assign_jobs(self, node, stack, 0);
-		build_result = td_build(self, node, &jobs_run);
+		assign_jobs(self, root, stack, 0);
+		build_result = td_build(self, root, &jobs_run);
 		printf("*** build %s, %d jobs run\n", td_build_result_names[build_result], jobs_run);
+	}
+	else
+	{
+		clean_files(self, root);
+		build_result = TD_BUILD_SUCCESS;
 	}
 	t2 = td_timestamp();
 
@@ -1198,7 +1244,7 @@ build_nodes(lua_State* L)
 	}
 
 	if (!self->settings.dry_run)
-		save_ancestors(self, roots, narg-1);
+		save_ancestors(self, root);
 
 	if (TD_BUILD_SUCCESS == build_result)
 		global_tundra_exit_code = 0;
