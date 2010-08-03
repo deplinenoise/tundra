@@ -129,7 +129,7 @@ static thread_data* alloc_thread(void)
 	exit(1);
 }
 
-static unsigned thread_start(void *args_)
+static unsigned __stdcall thread_start(void *args_)
 {
 	thread_data* args = (thread_data*) args_;
 	args->result = (*args->func)(args->input_arg);

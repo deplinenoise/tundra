@@ -401,7 +401,7 @@ update_ancestors(
 		const td_ancestor_data *data;
 		if (NULL != (data = node->ancestor_data))
 		{
-			size_t index = (size_t) (data - engine->ancestors);
+			int index = (int) (data - engine->ancestors);
 			assert(index < engine->ancestor_count);
 			assert(0 == visited[index]);
 			visited[index] = 1;
