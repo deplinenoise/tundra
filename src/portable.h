@@ -7,6 +7,7 @@ struct td_stat;
 struct lua_State;
 
 int td_mkdir(const char *path);
+int td_rmdir(const char *path);
 int fs_stat_file(const char *filename, struct td_stat *out);
 int td_move_file(const char *source, const char *dest);
 

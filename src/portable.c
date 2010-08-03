@@ -192,6 +192,21 @@ td_mkdir(const char *path)
 #else
 #error meh
 #endif
+}
+
+int
+td_rmdir(const char *path)
+{
+#if defined(__APPLE__) || defined(linux)
+	return rmdir(path);
+#elif defined(_WIN32)
+	if (RemoveDirectoryA(path))
+		return 0;
+	else
+		return 1;
+#else
+#error meh
+#endif
 
 }
 

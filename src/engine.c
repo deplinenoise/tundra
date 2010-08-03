@@ -1130,8 +1130,10 @@ connect_pass_barriers(td_engine *engine)
 	}
 }
 
+enum { TD_MAX_CLEAN_DIRS = 4096 };
+
 static void
-clean_output_files(td_engine *engine, td_node *root)
+clean_output_files(td_engine *engine, td_node *root, td_file **dirs, int *dir_count)
 {
 	int i, count;
 
@@ -1139,9 +1141,31 @@ clean_output_files(td_engine *engine, td_node *root)
 
 	for (i = 0, count = root->output_count; i < count; ++i)
 	{
+		int k;
 		const td_stat *stat;
-		td_file *file = root->outputs[i];
+		td_file *file, *dir;
+
+		file = root->outputs[i];
+		dir = td_parent_dir(engine, file);
+
+		/* scan for this directory */
+		for (k = *dir_count - 1; k >= 0; --k)
+		{
+			if (dirs[k] == dir)
+				break;
+		}
+
+		if (k < 0)
+		{
+			int index = *dir_count;
+			if (index >= TD_MAX_CLEAN_DIRS)
+				td_croak("too many dirs to clean! limit is %d", TD_MAX_CLEAN_DIRS);
+			*dir_count = index + 1;
+			dirs[index] = dir;
+		}
+
 		stat = td_stat_file(engine, file);
+
 		if (TD_STAT_EXISTS & stat->flags)
 		{
 			if (td_verbosity_check(engine, 1))
@@ -1159,15 +1183,64 @@ clean_output_files(td_engine *engine, td_node *root)
 		td_node *dep = root->deps[i];
 		if (0 == (dep->job.flags & TD_JOBF_CLEANED))
 		{
-			clean_output_files(engine, dep);
+			clean_output_files(engine, dep, dirs, dir_count);
 		}
 	}
+}
+
+static int
+path_separator_count(const char *fn, int len)
+{
+	int i, result = 0;
+	for (i = 0; i < len; ++i)
+	{
+		char ch = fn[i];
+		if ('/' == ch || '\\' == ch)
+			++result;
+	}
+	return result;
+}
+
+static int
+directory_depth_compare(const void *l, const void *r)
+{
+	int lc, rc;
+	const td_file *lf = *(const td_file **)l;
+	const td_file *rf = *(const td_file **)r;
+
+	/* Just count the number of path separators in the path, as it is normalized. */
+	lc = path_separator_count(lf->path, lf->path_len);
+	rc = path_separator_count(rf->path, rf->path_len);
+
+	return rc - lc;
 }
 
 static void
 clean_files(td_engine *engine, td_node *root)
 {
-	clean_output_files(engine, root);
+	int i;
+	int dir_clean_count = 0;
+	td_file *dirs_to_clean[TD_MAX_CLEAN_DIRS];
+
+	/* First remove as many files as possible. As we pass through directories
+	 * with generated files, keep track of those. We assume that directories
+	 * where output files are placed are OK to remove when cleaning provided
+	 * they are empty.*/
+	clean_output_files(engine, root, dirs_to_clean, &dir_clean_count);
+
+	/* Now sort the list of dirs in depth order so that leaves will be removed
+	 * first. */
+	qsort(&dirs_to_clean, dir_clean_count, sizeof(td_file *), directory_depth_compare);
+
+	/* Now we can try to remove directories if they are empty. */
+	for (i = 0; i < dir_clean_count; ++i)
+	{
+		if (0 == td_rmdir(dirs_to_clean[i]->path))
+		{
+			if (td_verbosity_check(engine, 1))
+				printf("RmDir %s\n", dirs_to_clean[i]->path);
+		}
+	}
 }
 
 /*
