@@ -920,6 +920,10 @@ make_node(lua_State *L)
 	lua_pop(L, 1);
 	tag_output_files(L, node);
 
+	lua_getfield(L, 2, "aux_outputs");
+	node->aux_outputs = td_build_file_array(L, self, lua_gettop(L), &node->aux_output_count);
+	lua_pop(L, 1);
+
 	lua_getfield(L, 2, "scanner");
 	if (!lua_isnil(L, -1))
 		node->scanner = td_check_scanner(L, -1);
@@ -1133,6 +1137,43 @@ connect_pass_barriers(td_engine *engine)
 enum { TD_MAX_CLEAN_DIRS = 4096 };
 
 static void
+clean_file(td_engine *engine, td_node *node, td_file **dirs, int *dir_count, td_file *file)
+{
+	int k;
+	const td_stat *stat;
+	td_file *dir = td_parent_dir(engine, file);
+
+	/* scan for this directory */
+	for (k = *dir_count - 1; k >= 0; --k)
+	{
+		if (dirs[k] == dir)
+			break;
+	}
+
+	if (k < 0)
+	{
+		int index = *dir_count;
+		if (index >= TD_MAX_CLEAN_DIRS)
+			td_croak("too many dirs to clean! limit is %d", TD_MAX_CLEAN_DIRS);
+		*dir_count = index + 1;
+		dirs[index] = dir;
+	}
+
+	stat = td_stat_file(engine, file);
+
+	if (TD_STAT_EXISTS & stat->flags)
+	{
+		if (td_verbosity_check(engine, 1))
+			printf("Clean %s\n", file->path);
+
+		if (0 != remove(file->path))
+			fprintf(stderr, "error: couldn't remove %s\n", file->path);
+
+		td_touch_file(file);
+	}
+}
+
+static void
 clean_output_files(td_engine *engine, td_node *root, td_file **dirs, int *dir_count)
 {
 	int i, count;
@@ -1140,43 +1181,10 @@ clean_output_files(td_engine *engine, td_node *root, td_file **dirs, int *dir_co
 	root->job.flags |= TD_JOBF_CLEANED;
 
 	for (i = 0, count = root->output_count; i < count; ++i)
-	{
-		int k;
-		const td_stat *stat;
-		td_file *file, *dir;
+		clean_file(engine, root, dirs, dir_count, root->outputs[i]);
 
-		file = root->outputs[i];
-		dir = td_parent_dir(engine, file);
-
-		/* scan for this directory */
-		for (k = *dir_count - 1; k >= 0; --k)
-		{
-			if (dirs[k] == dir)
-				break;
-		}
-
-		if (k < 0)
-		{
-			int index = *dir_count;
-			if (index >= TD_MAX_CLEAN_DIRS)
-				td_croak("too many dirs to clean! limit is %d", TD_MAX_CLEAN_DIRS);
-			*dir_count = index + 1;
-			dirs[index] = dir;
-		}
-
-		stat = td_stat_file(engine, file);
-
-		if (TD_STAT_EXISTS & stat->flags)
-		{
-			if (td_verbosity_check(engine, 1))
-				printf("Clean %s\n", file->path);
-
-			if (0 != remove(file->path))
-				fprintf(stderr, "error: couldn't remove %s\n", file->path);
-
-			td_touch_file(file);
-		}
-	}
+	for (i = 0, count = root->aux_output_count; i < count; ++i)
+		clean_file(engine, root, dirs, dir_count, root->aux_outputs[i]);
 
 	for (i = 0, count = root->dep_count; i < count; ++i)
 	{

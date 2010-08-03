@@ -22,6 +22,10 @@ unit_test('scalar interpolation', function (t)
 	t:check_equal(e2:interpolate("$(Foo) $(Baz)"), "Bar Strut")
 	t:check_equal(e3:interpolate("$(Foo) $(Baz)"), "Foo c++")
 	t:check_equal(e1:interpolate("a $(>)", { ['>'] = "foo" }), "a foo")
+
+	e1:set("FILE", "foo/bar.txt")
+	t:check_equal(e1:interpolate("$(FILE:B)"), "foo/bar")
+	t:check_equal(e1:interpolate("$(FILE:B:a.res)"), "foo/bar.res")
 end)
 
 unit_test('list interpolation', function (t)

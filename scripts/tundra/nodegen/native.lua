@@ -70,6 +70,7 @@ function _generator:eval_native_unit(env, label, suffix, command, decl)
 	local source_files = nodegen.flatten_list(build_id, decl.Sources)
 	local sources = self:resolve_sources(env, { source_files, deps }, {}, decl.SourceDir)
 	local inputs, ideps = self:analyze_sources(sources, exts, implicit_make)
+	local targets = { self:get_target(decl, suffix) }
 
 	if gen_pch_node then
 		deps = util.merge_arrays_2(deps, { gen_pch_node })
@@ -82,7 +83,8 @@ function _generator:eval_native_unit(env, label, suffix, command, decl)
 		Pass = self:resolve_pass(decl.Pass),
 		Action = command,
 		InputFiles = inputs,
-		OutputFiles = { self:get_target(decl, suffix) },
+		OutputFiles = targets,
+		AuxOutputFiles = env:get_list("AUX_FILES_" .. label:upper(), {}),
 		Dependencies = deps,
 	}
 	return libnode

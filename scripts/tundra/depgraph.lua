@@ -28,6 +28,12 @@ function create_node(env_, data_)
 	local implicit_inputs = normalize_paths(data_.ImplicitInputs)
 
 	local inputs = util.merge_arrays_2(regular_inputs, implicit_inputs)
+	local outputs = normalize_paths(data_.OutputFiles)
+	
+	local expand_env = {
+		['<'] = normalize_paths(regular_inputs),
+		['@'] = outputs
+	}
 
 	local params = {
 		pass = data_.Pass or default_pass,
@@ -35,12 +41,11 @@ function create_node(env_, data_)
 		scanner = data_.Scanner,
 		deps = data_.Dependencies,
 		inputs = inputs,
-		outputs = normalize_paths(data_.OutputFiles),
-	}
-
-	local expand_env = {
-		['<'] = normalize_paths(regular_inputs),
-		['@'] = params.outputs
+		outputs = outputs,
+		aux_outputs = util.mapnil(data_.AuxOutputFiles, function (x)
+			local result = env_:interpolate(x, expand_env)
+			return path.normalize(result)
+		end),
 	}
 
 	if data_.Action then

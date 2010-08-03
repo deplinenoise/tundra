@@ -37,5 +37,7 @@ env:set_many {
 	["LIBCOM"] = "$(LIB) /nologo @RESPONSE|@|$(LIBOPTS) /out:$(@:b) $(<:b)",
 	["SHLIBOPTS"] = "",
 	["SHLIBCOM"] = "$(LD) /DLL /nologo @RESPONSE|@|$(SHLIBOPTS) $(LIBPATH:b:p/LIBPATH\\:) $(LIBS) /out:$(@:b) $(<:b)",
+	["AUX_FILES_PROGRAM"] = { "$(@:B:a.exe.manifest)", "$(@:B:a.pdb)" },
+	["AUX_FILES_SHAREDLIB"] = { "$(@:B:a.dll.manifest)", "$(@:B:a.pdb)", "$(@:B:a.exp)", "$(@:B:a.lib)", },
 }
 

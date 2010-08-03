@@ -275,6 +275,8 @@ function envclass:interpolate(str, vars)
 					v = util.map(v, string.upper)
 				elseif 'l' == first_char then
 					v = util.map(v, string.lower)
+				elseif 'B' == first_char then
+					v = util.map(v, path.drop_suffix)
 				else
 					error("bad interpolation option " .. tostring(o) .. " in " .. str)
 				end

@@ -21,6 +21,7 @@ function errorf(msg, ...)
 end
 
 local util = require "tundra.util"
+local native = require "tundra.native"
 
 -- Parse the command line options.
 do
@@ -106,7 +107,6 @@ do
 end
 
 local environment = require "tundra.environment"
-local native = require "tundra.native"
 local nodegen = require "tundra.nodegen"
 local decl = require "tundra.decl"
 

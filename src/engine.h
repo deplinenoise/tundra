@@ -121,16 +121,30 @@ typedef struct td_ancestor_data
 
 typedef struct td_node
 {
+	/* An annotation that should print when building this node.
+	 * Something like "Cc file.o" is typical */
 	const char *annotation;
+
+	/* The shell command to run to update this node. */
 	const char *action;
+
+	/* A salt string used to make this node's identity * unique among the
+	 * ancestors. This is usually the build id. */
 	const char *salt;
 
+	/* Array of input files. */
 	int input_count;
 	td_file **inputs;
 
+	/* Array of output files. These are signed. */
 	int output_count;
 	td_file **outputs;
 
+	/* Array of auxiliary output files. These are not tracked, but will be cleaned. */
+	int aux_output_count;
+	td_file **aux_outputs;
+
+	/* An index into the engine's pass array. */
 	int pass_index;
 
 	struct td_scanner *scanner;
