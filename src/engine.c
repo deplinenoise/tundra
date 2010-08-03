@@ -340,8 +340,8 @@ load_ancestors(td_engine *engine)
 	rewind(f);
 
 	if (file_size % sizeof(td_ancestor_data) != 0)
-		td_croak("illegal ancestor file: %ld not a multiple of %d bytes",
-				file_size, sizeof(td_ancestor_data));
+		td_croak("illegal ancestor file: %d not a multiple of %d bytes",
+				(int) file_size, sizeof(td_ancestor_data));
 
 	engine->ancestor_count = count = (int) (file_size / sizeof(td_ancestor_data));
 	engine->ancestors = malloc(file_size);
@@ -371,7 +371,7 @@ load_ancestors(td_engine *engine)
 			char guid[33], sig[33];
 			digest_to_string(&engine->ancestors[i].guid, guid);
 			digest_to_string(&engine->ancestors[i].input_signature, sig);
-			printf("%s %s %ld %d\n", guid, sig, engine->ancestors[i].access_time, engine->ancestors[i].job_result);
+			printf("%s %s %ld %d\n", guid, sig, (long) engine->ancestors[i].access_time, engine->ancestors[i].job_result);
 		}
 	}
 
@@ -482,7 +482,7 @@ save_ancestors(td_engine *engine, td_node **nodes, int node_count)
 			char guid[33], sig[33];
 			digest_to_string(&output[i].guid, guid);
 			digest_to_string(&output[i].input_signature, sig);
-			printf("%s %s %ld %d\n", guid, sig, output[i].access_time, output[i].job_result);
+			printf("%s %s %ld %d\n", guid, sig, (long) output[i].access_time, output[i].job_result);
 		}
 	}
 
