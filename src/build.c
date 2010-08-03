@@ -456,7 +456,7 @@ build_worker(void *arg)
 
 #define TD_MAX_THREADS (32)
 
-int
+td_build_result
 td_build(td_engine *engine, td_node *node, int *jobs_run)
 {
 	int i;

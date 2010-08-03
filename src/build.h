@@ -12,7 +12,7 @@ typedef enum {
 
 extern const char * const td_build_result_names[];
 
-int
+td_build_result
 td_build(struct td_engine *engine, struct td_node *node, int *jobs_run);
 
 #endif
