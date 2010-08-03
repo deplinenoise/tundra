@@ -1,6 +1,8 @@
 #ifndef TUNDRA_PORTABLE_H
 #define TUNDRA_PORTABLE_H
 
+#define TD_UNUSED(var) (void) var
+
 struct td_stat;
 struct lua_State;
 

@@ -23,6 +23,7 @@ extern void td_cpp_scanner_open(lua_State*);
 
 static int tundra_exit(lua_State *L)
 {
+	TD_UNUSED(L);
 	exit(1);
 }
 
@@ -138,6 +139,7 @@ static int get_traceback(lua_State *L)
 
 static int on_lua_panic(lua_State *L)
 {
+	TD_UNUSED(L);
 	printf("lua panic! -- shutting down\n");
 	exit(1);
 }

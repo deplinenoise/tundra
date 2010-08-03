@@ -41,6 +41,8 @@ const char * const td_platform_string =
 #if defined(_WIN32)
 int pthread_mutex_init(pthread_mutex_t *mutex, void *args)
 {
+	TD_UNUSED(args);
+
 	mutex->handle = (PCRITICAL_SECTION)malloc(sizeof(CRITICAL_SECTION));
 	if (!mutex->handle)
 		return ENOMEM;
@@ -70,6 +72,7 @@ int pthread_mutex_unlock(pthread_mutex_t *lock)
 
 int pthread_cond_init(pthread_cond_t *cond, void *args)
 {
+	TD_UNUSED(args);
 	assert(args == NULL);
 
 	if (NULL == (cond->handle = malloc(sizeof(CONDITION_VARIABLE))))
@@ -139,6 +142,7 @@ static unsigned __stdcall thread_start(void *args_)
 int pthread_create(pthread_t *result, void* options, pthread_thread_routine start, void *routine_arg)
 {
 	thread_data* data = alloc_thread();
+	TD_UNUSED(options);
 	data->func = start;
 	data->input_arg = routine_arg;
 	data->thread = _beginthreadex(NULL, 0, thread_start, data, 0, NULL);
@@ -349,6 +353,7 @@ void td_block_signals(int block)
 	if  (0 != pthread_sigmask(block ? SIG_BLOCK : SIG_UNBLOCK, &sigs, 0))
 		td_croak("pthread_sigmask failed");
 #endif
+	TD_UNUSED(block);
 }
 
 int td_exec(const char* cmd_line, int *was_signalled_out)
@@ -422,14 +427,14 @@ int td_exec(const char* cmd_line, int *was_signalled_out)
 			rc = GetTempPath(sizeof(tmp_dir), tmp_dir);
 			if (rc >= sizeof(tmp_dir) || 0 == rc)
 			{
-				fprintf(stderr, "couldn't get temporary directory for response file; win32 error=%u", GetLastError());
+				fprintf(stderr, "couldn't get temporary directory for response file; win32 error=%d", (int) GetLastError());
 				return 1;
 			}
 
 			rc = GetTempFileName(tmp_dir, "tundra_resp", 0, response_file);
 			if (0 == rc)
 			{
-				fprintf(stderr, "couldn't create temporary file for response file in dir %s; win32 error=%u", tmp_dir, GetLastError());
+				fprintf(stderr, "couldn't create temporary file for response file in dir %s; win32 error=%d", tmp_dir, (int) GetLastError());
 				return 1;
 			}
 
