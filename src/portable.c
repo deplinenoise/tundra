@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <mach-o/dyld.h>
+#include <libgen.h>
 #endif
 
 #ifdef _WIN32
@@ -614,10 +615,11 @@ td_init_homedir()
 	uint32_t size = sizeof(path);
 	if (_NSGetExecutablePath(path, &size) != 0)
 		return NULL;
-	if ((tmp = realpath(path, resolved_path))) 
+	if ((tmp = dirname(realpath(path, resolved_path))))
 		return set_homedir(tmp);
 	else
 		return NULL;
+	
 
 #elif defined(linux)
 	if (-1 == readlink("/proc/self/exe", homedir, sizeof(homedir)))
