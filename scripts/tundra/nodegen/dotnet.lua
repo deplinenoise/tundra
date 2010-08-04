@@ -15,7 +15,6 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
-local _generator = ...
 local util = require("tundra.util")
 local nodegen = require("tundra.nodegen")
 
@@ -61,14 +60,14 @@ local function setup_resources(generator, env, assembly_name, resx_files, pass)
 	return result_files, deps
 end
 
-function _generator:eval_csharp_unit(env, label, suffix, command, decl)
+local function eval_csharp_unit(generator, env, label, suffix, command, decl)
 	local build_id = env:get('BUILD_ID')
-	local deps = self:resolve_deps(build_id, decl.Depends)
-	local sources = self:resolve_sources(env, { nodegen.flatten_list(build_id, decl.Sources), deps }, {}, decl.SourceDir)
-	local resources = self:resolve_sources(env, nodegen.flatten_list(build_id, decl.Resources), {}, decl.SourceDir)
-	local inputs, inputDeps = self:analyze_sources(sources, csSourceExts)
-	local resourceInputs, resourceDeps = self:analyze_sources(resources, csResXExts)
-	local pass = self:resolve_pass(decl.Pass)
+	local deps = generator:resolve_deps(build_id, decl.Depends)
+	local sources = generator:resolve_sources(env, { nodegen.flatten_list(build_id, decl.Sources), deps }, {}, decl.SourceDir)
+	local resources = generator:resolve_sources(env, nodegen.flatten_list(build_id, decl.Resources), {}, decl.SourceDir)
+	local inputs, inputDeps = generator:analyze_sources(sources, csSourceExts)
+	local resourceInputs, resourceDeps = generator:analyze_sources(resources, csResXExts)
+	local pass = generator:resolve_pass(decl.Pass)
 	deps = util.merge_arrays_2(deps, inputDeps)
 	deps = util.merge_arrays_2(deps, resourceDeps)
 	local rfiles, rdeps = setup_resources(env, decl.Name, resourceInputs)
@@ -87,15 +86,15 @@ function _generator:eval_csharp_unit(env, label, suffix, command, decl)
 		Action = command,
 		InputFiles = inputs,
 		ImplicitInputs = rfiles,
-		OutputFiles = { self:get_target(decl, suffix) },
+		OutputFiles = { generator:get_target(decl, suffix) },
 		Dependencies = util.uniq(deps),
 	}
 end
 
-nodegen.add_evaluator("CSharpExe", function (self, env, decl)
-	return self:eval_csharp_unit(env, "CSharpExe", "$(CSPROGSUFFIX)", "$(CSCEXECOM)", decl)
+nodegen.add_evaluator("CSharpExe", function (generator, env, decl)
+	return eval_csharp_unit(generator, env, "CSharpExe", "$(CSPROGSUFFIX)", "$(CSCEXECOM)", decl)
 end)
 
-nodegen.add_evaluator("CSharpLib", function (self, env, decl)
-	return self:eval_csharp_unit(env, "CSharpLib", "$(CSLIBSUFFIX)", "$(CSCLIBCOM)", decl)
+nodegen.add_evaluator("CSharpLib", function (generator, env, decl)
+	return eval_csharp_unit(generator, env, "CSharpLib", "$(CSLIBSUFFIX)", "$(CSCLIBCOM)", decl)
 end)
