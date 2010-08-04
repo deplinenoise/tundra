@@ -245,7 +245,7 @@ end
 
 local loaded_toolsets = {}
 function load_toolset(id, env)
-	local chunk = loaded_toolsets[id] 
+	local chunk = loaded_toolsets[id]
 	if not chunk then
 		local path = TundraRootDir .. "/scripts/tools/" .. id ..".lua"
 		if Options.Verbose then
