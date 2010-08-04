@@ -266,3 +266,11 @@ function uniq(array)
 	end
 	return result
 end
+
+function make_lookup_table(array)
+	local result = {}
+	for _, item in nil_ipairs(array) do
+		result[item] = true
+	end
+	return result
+end

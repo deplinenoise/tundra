@@ -215,12 +215,17 @@ do
 	chunk(default_env)
 end
 
-function glob(directory, pattern)
+function glob(directory, recursive, filter_fn)
 	local result = {}
 	for dir, dirs, files in native.walk_path(directory) do
-		util.filter_in_place(files, function (val) return string.match(val, pattern) end)
 		for _, fn in ipairs(files) do
-			result[#result + 1] = dir .. SEP .. fn
+			local path = dir .. '/' .. fn
+			if filter_fn(path) then
+				result[#result + 1] = path
+			end
+		end
+		if not recursive then
+			util.clear_table(dirs)
 		end
 	end
 	return result
