@@ -15,12 +15,11 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
-local _generator = ...
 local util = require("tundra.util")
 local nodegen = require("tundra.nodegen")
 local path = require("tundra.path")
 
-function _generator:eval_native_unit(env, label, suffix, command, decl)
+local function eval_native_unit(generator, env, label, suffix, command, decl)
 	local build_id = env:get("BUILD_ID")
 	local pch = decl.PrecompiledHeader
 	local pch_output
@@ -45,7 +44,7 @@ function _generator:eval_native_unit(env, label, suffix, command, decl)
 		env:set('_PCH_HEADER', pch.Header)
 		gen_pch_node = env:make_node {
 			Label = "Precompiled header $(@)",
-			Pass = self:resolve_pass(decl.Pass),
+			Pass = generator:resolve_pass(decl.Pass),
 			Action = "$(PCHCOMPILE)",
 			InputFiles = { pch.Source, pch.Header },
 			OutputFiles = { pch_output },
@@ -76,18 +75,18 @@ function _generator:eval_native_unit(env, label, suffix, command, decl)
 
 		local make = my_env:get_implicit_make_fn(source_file)
 		if make then
-			return make(my_env, self:resolve_pass(decl.Pass), source_file)
+			return make(my_env, generator:resolve_pass(decl.Pass), source_file)
 		else
 			return nil
 		end
 	end
 
 	local exts = env:get_list("NATIVE_SUFFIXES")
-	local deps = self:resolve_deps(build_id, decl.Depends)
+	local deps = generator:resolve_deps(build_id, decl.Depends)
 	local source_files = nodegen.flatten_list(build_id, decl.Sources)
-	local sources = self:resolve_sources(env, { source_files, deps }, {}, decl.SourceDir)
-	local inputs, ideps = self:analyze_sources(sources, exts, implicit_make)
-	local targets = { self:get_target(decl, suffix) }
+	local sources = generator:resolve_sources(env, { source_files, deps }, {}, decl.SourceDir)
+	local inputs, ideps = generator:analyze_sources(sources, exts, implicit_make)
+	local targets = { generator:get_target(decl, suffix) }
 
 	if gen_pch_node then
 		deps = util.merge_arrays_2(deps, { gen_pch_node })
@@ -97,7 +96,7 @@ function _generator:eval_native_unit(env, label, suffix, command, decl)
 	deps = util.uniq(deps)
 	local libnode = env:make_node {
 		Label = label .. " $(@)",
-		Pass = self:resolve_pass(decl.Pass),
+		Pass = generator:resolve_pass(decl.Pass),
 		Action = command,
 		InputFiles = inputs,
 		OutputFiles = targets,
@@ -107,14 +106,14 @@ function _generator:eval_native_unit(env, label, suffix, command, decl)
 	return libnode
 end
 
-nodegen.add_evaluator("Program", function (self, env, decl)
-	return self:eval_native_unit(env, "Program", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
+nodegen.add_evaluator("Program", function (generator, env, decl)
+	return eval_native_unit(generator, env, "Program", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
 end)
 
-nodegen.add_evaluator("StaticLibrary", function (self, env, decl)
-	return self:eval_native_unit(env, "StaticLib", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
+nodegen.add_evaluator("StaticLibrary", function (generator, env, decl)
+	return eval_native_unit(generator, env, "StaticLib", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
 end)
 
-nodegen.add_evaluator("SharedLibrary", function (self, env, decl)
-	return self:eval_native_unit(env, "SharedLib", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
+nodegen.add_evaluator("SharedLibrary", function (generator, env, decl)
+	return eval_native_unit(generator, env, "SharedLib", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
 end)
