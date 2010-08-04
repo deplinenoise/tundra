@@ -217,42 +217,19 @@ do
 	chunk(default_env)
 end
 
-function glob(directory, recursive, filter_fn)
-	local result = {}
-	for dir, dirs, files in native.walk_path(directory) do
-		for _, fn in ipairs(files) do
-			local path = dir .. '/' .. fn
-			if filter_fn(path) then
-				result[#result + 1] = path
-			end
-		end
-		if not recursive then
-			util.clear_table(dirs)
-		end
-	end
-	return result
-end
-
-local function print_tree(n, level)
-	if not level then level = 0 end
-	local indent = string.rep("    ", level)
-	printf("%s=> %s [pass: %s]", indent, n:get_annotation(), n.pass.Name)
-	printf("%scmd: %s", indent, n:get_action())
-	for _, fn in util.nil_ipairs(n:get_input_files()) do printf("%s   [ input: %s ]", indent, fn) end
-	for _, fn in util.nil_ipairs(n:get_output_files()) do printf("%s   [ output: %s ]", indent, fn) end
-	for _, dep in util.nil_ipairs(n:get_dependencies()) do
-		print_tree(dep, level + 1)
-	end
-end
-
+local syntax_dirs = { TundraRootDir .. "/scripts/syntax/" }
 local toolset_dirs = { TundraRootDir .. "/scripts/tools/" }
 local loaded_toolsets = {}
+local loaded_syntaxes = {}
 
-local function get_toolset_chunk(id)
-	local chunk = loaded_toolsets[id]
+local function get_memoized_chunk(kind, id, table, dirs)
+	local chunk = table[id]
 	if chunk then return chunk end
 
-	for _, dir in ipairs(toolset_dirs) do
+	for _, dir in ipairs(dirs) do
+		if dir:len() > 0 then
+			dir = dir .. '/'
+		end
 		local path = dir .. id ..".lua"
 		local f, err = io.open(path, 'r')
 		if f then
@@ -262,27 +239,42 @@ local function get_toolset_chunk(id)
 			local data = f:read("*a")
 			f:close()
 			chunk = assert(loadstring(data, path))
-			loaded_toolsets[id] = chunk
+			table[id] = chunk
 			return chunk
 		end
 	end
 
-	errorf("couldn't find toolset %s in any of these paths: %s", id, util.tostring(toolset_dirs))
+	errorf("couldn't find %s %s in any of these paths: %s", kind, id, util.tostring(dirs))
 end
 
 function load_toolset(id, env)
-	local chunk = get_toolset_chunk(id)
+	local chunk = get_memoized_chunk("toolset", id, loaded_toolsets, toolset_dirs)
 	chunk(env)
 end
 
-function add_toolset_dir(dir)
+function load_syntax(id, decl, passes)
+	local chunk = get_memoized_chunk("syntax", id, loaded_syntaxes, syntax_dirs)
+	chunk(decl, passes)
+end
+
+local function add_toolset_dir(dir)
 	if Options.VeryVerbose then
 		printf("adding toolset dir \"%s\"", dir)
 	end
-	-- Make sure dir is sane and ends with a slash
-	dir = path.normalize(dir) .. '/'
+	-- Make sure dir is sane
+	dir = path.normalize(dir)
 	-- Add user toolset dir first so they can override builtin scripts.
 	table.insert(toolset_dirs, 1, dir)
+end
+
+local function add_syntax_dir(dir)
+	if Options.VeryVerbose then
+		printf("adding syntax dir \"%s\"", dir)
+	end
+	-- Make sure dir is sane and ends with a slash
+	dir = path.normalize(dir)
+	-- Add user toolset dir first so they can override builtin scripts.
+	table.insert(syntax_dirs, 1, dir)
 end
 
 local function member(list, item)
@@ -462,6 +454,10 @@ function Build(args)
 		add_toolset_dir(dir)
 	end
 
+	for _, dir in util.nil_ipairs(args.SyntaxDirs) do
+		add_syntax_dir(dir)
+	end
+
 	local variant_array = args.Variants or default_variants
 	for _, variant in ipairs(variant_array) do variants[variant] = true end
 
@@ -499,12 +495,11 @@ function Build(args)
 		d:add_platforms(platforms)
 	end
 
-	for _, fn in util.nil_ipairs(args.AdditionalParseFiles) do
+	for _, id in util.nil_ipairs(args.SyntaxExtensions) do
 		if Options.Verbose then
 			printf("parsing user-defined declaration parsers from %s", fn)
 		end
-		local chunk = assert(loadfile("codegen.lua"))
-		chunk(d, passes)
+		load_syntax(id, d, passes)
 	end
 
 	local raw_nodes, default_names = d:parse(args.Units or "units.lua")
