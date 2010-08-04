@@ -96,11 +96,16 @@ function parse_cmdline(args, blueprint)
 
 	while index <= max do
 		local s = args[index]
-		local key = nil
+		local key, val
+
 		if s:sub(1, 2) == '--' then
 			key = s:sub(3)
 		elseif s:sub(1, 1) == '-' then
-			key = s:sub(2)
+			key = s:sub(2,2)
+			if s:len() > 2 then
+				val = s:sub(3)
+				printf("val for %s is %s", key, val)
+			end
 		else
 			table.insert(targets, s)
 		end
@@ -111,10 +116,12 @@ function parse_cmdline(args, blueprint)
 				return nil, nil, "Unknown option " .. s
 			end
 			if opt.HasValue then
-				local val = args[index+1]
+				if not val then
+					index = index + 1
+					val = args[index+1]
+				end
 				if val then
 					options[opt.Name] = val
-					index = index + 1
 				else
 					return nil, nil, "Missing value for option "..s
 				end
