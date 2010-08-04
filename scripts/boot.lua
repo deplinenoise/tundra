@@ -244,18 +244,41 @@ local function print_tree(n, level)
 	end
 end
 
+local toolset_dirs = { TundraRootDir .. "/scripts/tools/" }
 local loaded_toolsets = {}
-function load_toolset(id, env)
+
+local function get_toolset_chunk(id)
 	local chunk = loaded_toolsets[id]
-	if not chunk then
-		local path = TundraRootDir .. "/scripts/tools/" .. id ..".lua"
-		if Options.Verbose then
-			print("loading toolset " .. id .. " from " .. path) 
+	if chunk then return chunk end
+
+	for _, dir in ipairs(toolset_dirs) do
+		local path = dir .. id ..".lua"
+		local f, err = io.open(path, 'r')
+		if f then
+			if Options.Verbose then
+				print("loading toolset " .. id .. " from " .. path)
+			end
+			local data = f:read("*a")
+			f:close()
+			chunk = assert(loadstring(data, path))
+			loaded_toolsets[id] = chunk
+			return chunk
 		end
-		chunk = assert(loadfile(path))
-		loaded_toolsets[id] = chunk
 	end
+
+	errorf("couldn't find toolset %s in any of these paths: %s", id, util.tostring(toolset_dirs))
+end
+
+function load_toolset(id, env)
+	local chunk = get_toolset_chunk(id)
 	chunk(env)
+end
+
+function add_toolset_dir(dir)
+	-- Make sure dir is sane and ends with a slash
+	dir = path.normalize(dir) .. '/'
+	-- Add user toolset dir first so they can override builtin scripts.
+	table.insert(toolset_dirs, 1, dir)
 end
 
 local function member(list, item)
