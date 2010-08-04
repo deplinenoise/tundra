@@ -65,7 +65,8 @@ do
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
-		io.write(message)
+		io.write(message, "\n")
+		io.write("Try `tundra -h' to display an option summary\n")
 		return 1
 	end
 
