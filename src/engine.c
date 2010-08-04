@@ -1,3 +1,22 @@
+/*
+   Copyright 2010 Andreas Fredriksson
+
+   This file is part of Tundra.
+
+   Tundra is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   Tundra is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "engine.h"
 #include "portable.h"
 #include "md5.h"
@@ -46,16 +65,16 @@ void td_sign_digest(td_engine *engine, td_file *file, td_digest *out)
 		MD5_CTX md5;
 		int read_count;
 
-		MD5Init(&md5);
+		MD5_Init(&md5);
 
 		do {
 			read_count = (int) fread(buffer, 1, sizeof(buffer), f);
-			MD5Update(&md5, buffer, read_count);
+			MD5_Update(&md5, buffer, read_count);
 		} while (read_count > 0);
 
 		fclose(f);
 
-		MD5Final(out->data, &md5);
+		MD5_Final(out->data, &md5);
 	}
 	else
 	{
@@ -103,9 +122,9 @@ md5_string(MD5_CTX *context, const char *string)
 	static unsigned char zero_byte = 0;
 
 	if (string)
-		MD5Update(context, (unsigned char*) string, (int) strlen(string)+1);
+		MD5_Update(context, (unsigned char*) string, (int) strlen(string)+1);
 	else
-		MD5Update(context, &zero_byte, 1);
+		MD5_Update(context, &zero_byte, 1);
 }
 
 static void
@@ -128,11 +147,11 @@ static void
 compute_node_guid(td_engine *engine, td_node *node)
 {
 	MD5_CTX context;
-	MD5Init(&context);
+	MD5_Init(&context);
 	md5_string(&context, node->action);
 	md5_string(&context, node->annotation);
 	md5_string(&context, node->salt);
-	MD5Final(node->guid.data, &context);
+	MD5_Final(node->guid.data, &context);
 
 	if (td_debug_check(engine, TD_DEBUG_NODES))
 	{

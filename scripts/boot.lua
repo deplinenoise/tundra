@@ -1,3 +1,19 @@
+-- Copyright 2010 Andreas Fredriksson
+--
+-- This file is part of Tundra.
+--
+-- Tundra is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- Tundra is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
 -- Set up the package path based on the script path first thing so we can require() stuff.
 local cmdline_args = ...
@@ -28,6 +44,7 @@ do
 	local message = nil
 	local option_blueprints = {
 		{ Name="Help", Short="h", Long="help", Doc="This message" },
+		{ Name="Version", Short="V", Long="version", Doc="Display version info" },
 		{ Name="Clean", Short="c", Long="clean", Doc="Remove output files (clean)" },
 		{ Name="Quiet", Short="q", Long="quiet", Doc="Don't print actions as they execute" },
 		{ Name="Continue", Short="k", Long="continue", Doc="Build as much as possible" },
@@ -86,10 +103,16 @@ do
 		Options.Verbosity = 1 -- default
 	end
 
+	if Options.Version or Options.Help then
+		io.write("Tundra Build Processor v0.5.1\n")
+		io.write("Copyright (C) 2010 Andreas Fredriksson\n\n")
+		io.write("This program comes with ABSOLUTELY NO WARRANTY.\n")
+		io.write("This is free software, and you are welcome to redistribute it\n")
+		io.write("under certain conditions; see the GNU GPL license for details.\n")
+	end
+
 	if Options.Help then
-		io.write("Tundra Build Processor v0.5.0\n")
-		io.write("Copyright (c)2010 Andreas Fredriksson. All rights reserved.\n\n")
-		io.write("Command-line options:\n")
+		io.write("\nCommand-line options:\n")
 		for _, bp in ipairs(option_blueprints) do
 			local l = string.format("  %- 3s %- 25s %s\n",
 			bp.Short and "-"..bp.Short or "",
@@ -97,6 +120,9 @@ do
 			bp.Doc or "")
 			io.write(l)
 		end
+	end
+
+	if Options.Version or Options.Help then
 		return 0
 	end
 

@@ -76,7 +76,7 @@ src/engine.c
 src/engine.h
 src/luafs.c
 src/md5.h
-src/md5c.c
+src/md5.c
 src/scanner.c
 src/scanner.h
 src/tundra.c

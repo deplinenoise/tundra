@@ -1,3 +1,21 @@
+/*
+   Copyright 2010 Andreas Fredriksson
+
+   This file is part of Tundra.
+
+   Tundra is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   Tundra is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "build.h"
 #include "engine.h"
@@ -221,26 +239,26 @@ update_input_signature(td_engine *engine, td_node *node)
 	int i, count;
 	MD5_CTX context;
 
-	MD5Init(&context);
+	MD5_Init(&context);
 
 	for (i = 0, count = node->input_count; i < count; ++i)
 	{
 		td_file *input_file = node->inputs[i];
 		td_digest *digest = td_get_signature(engine, input_file);
-		MD5Update(&context, digest->data, sizeof(digest->data));
+		MD5_Update(&context, digest->data, sizeof(digest->data));
 	}
 
 	/* add a separator between the inputs and implicit deps */
-	MD5Update(&context, &zero_byte, 1);
+	MD5_Update(&context, &zero_byte, 1);
 
 	for (i = 0, count = node->job.idep_count; i < count; ++i)
 	{
 		td_file *dep = node->job.ideps[i];
 		td_digest *digest = td_get_signature(engine, dep);
-		MD5Update(&context, digest->data, sizeof(digest->data));
+		MD5_Update(&context, digest->data, sizeof(digest->data));
 	}
 
-	MD5Final(node->job.input_signature.data, &context);
+	MD5_Final(node->job.input_signature.data, &context);
 }
 
 static int

@@ -15,8 +15,3 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
-local native = require("tundra.native")
-
-dofile(TundraRootDir .. "/scripts/host/" .. native.host_platform .. ".lua")
-
-dofile(TundraRootDir .. "/scripts/tools/generic-cpp.lua")
