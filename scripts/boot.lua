@@ -136,6 +136,7 @@ end
 local environment = require "tundra.environment"
 local nodegen = require "tundra.nodegen"
 local decl = require "tundra.decl"
+local path = require "tundra.path"
 
 function match_build_id(id, default)
 	assert(id)
@@ -275,6 +276,9 @@ function load_toolset(id, env)
 end
 
 function add_toolset_dir(dir)
+	if Options.VeryVerbose then
+		printf("adding toolset dir \"%s\"", dir)
+	end
 	-- Make sure dir is sane and ends with a slash
 	dir = path.normalize(dir) .. '/'
 	-- Add user toolset dir first so they can override builtin scripts.
@@ -452,6 +456,10 @@ function Build(args)
 
 	for _, cfg in ipairs(args.Configs) do
 		configs[assert(cfg.Name)] = cfg
+	end
+
+	for _, dir in util.nil_ipairs(args.ToolsetDirs) do
+		add_toolset_dir(dir)
 	end
 
 	local variant_array = args.Variants or default_variants
