@@ -1,12 +1,12 @@
 
-== Tundra, a build system ==
+= Tundra, a build system =
 
 Tundra is a high-performance code build system designed to give the best
 possible incremental build times even for very large software projects.
 
 See +doc/manual.asciidoc+ for more detailed usage information.
 
-=== License and Copyright ===
+== License and Copyright ==
 
 Tundra is Copyright 2010 Andreas Fredriksson.
 
@@ -20,7 +20,7 @@ Tundra includes a public domain MD5 algorithm.
 
 Tundra includes a public domain Lua Debugger, see below.
 
-==== Lua ====
+=== Lua ===
 
 Copyright © 1994–2008 Lua.org, PUC-Rio.
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -41,12 +41,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-==== MD5 ====
+=== MD5 ===
 
 Written by Solar Designer <solar at openwall.com> in 2001, and placed in the
 public domain.  There's absolutely no warranty.
 
-==== Lua Debugger ====
+=== Lua Debugger ===
 
 Tundra includes an optional Lua CLI debugger which is public domain software
 written by Dave Nichols.
