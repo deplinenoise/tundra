@@ -19,23 +19,26 @@ local util = require("tundra.util")
 local nodegen = require("tundra.nodegen")
 local path = require("tundra.path")
 
+local decl_to_env_mappings = {
+	Libs = "LIBS",
+	Defines = "CPPDEFS",
+	Includes = "CPPPATH",
+	Frameworks = "FRAMEWORKS",
+	LibPaths = "LIBPATH",
+}
+
 local function eval_native_unit(generator, env, label, suffix, command, decl)
 	local build_id = env:get("BUILD_ID")
 	local pch = decl.PrecompiledHeader
 	local pch_output
 	local gen_pch_node
 
-	local function install_env_list(target_var, data)
+	for decl_key, env_key in pairs(decl_to_env_mappings) do
+		local data = decl[decl_key]
 		for _, item in util.nil_ipairs(nodegen.flatten_list(build_id, data)) do
-			env:append(target_var, item)
+			env:append(env_key, item)
 		end
 	end
-
-	install_env_list("LIBS", decl.Libs)
-	install_env_list("CPPDEFS", decl.Defines)
-	install_env_list("CPPPATH", decl.Includes)
-	install_env_list("FRAMEWORKS", decl.Frameworks)
-	install_env_list("LIBPATH", decl.LibPaths)
 
 	if pch then
 		pch_output = "$(OBJECTDIR)/" .. decl.Name .. ".pch"
