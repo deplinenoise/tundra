@@ -38,37 +38,6 @@ local function glob(directory, recursive, filter_fn)
 	return result
 end
 
-
-local function fancy_glob(filters)
-	local filters = {
-		["win32"] = { Config = "win32-*-*" },
-		["debug"] = { Config = "fisk-*-*" },
-	}
-	local results = {}
-
-	-- add (empty) filtered lists to results
-	for _, x in pairs(filters) do
-		results[#results + 1] = x
-	end
-
-	for _, f in ipairs(files) do
-		local filtered = false
-		for pattern, list in pairs(filters) do
-			if f:match(pattern) then
-				filtered = true
-				list[#list + 1] = f
-			end
-		end
-
-		-- not matched by any filter
-		if not filtered then
-			results[#results + 1] = f
-		end
-	end
-
-	return results
-end
-
 -- Glob syntax - Search for source files matching extension list
 --
 -- Synopsis:
