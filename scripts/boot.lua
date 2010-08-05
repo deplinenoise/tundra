@@ -497,7 +497,7 @@ function Build(args)
 
 	for _, id in util.nil_ipairs(args.SyntaxExtensions) do
 		if Options.Verbose then
-			printf("parsing user-defined declaration parsers from %s", fn)
+			printf("parsing user-defined declaration parsers from %s", id)
 		end
 		load_syntax(id, d, passes)
 	end
