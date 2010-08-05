@@ -275,7 +275,10 @@ void MD5_Final(unsigned char *result, MD5_CTX *ctx)
 
 	memset(ctx, 0, sizeof(*ctx));
 }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
+
+
+#ifdef _MSC_VER
+
+#pragma warning(pop)
+
 #endif
