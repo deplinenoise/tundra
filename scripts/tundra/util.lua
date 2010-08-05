@@ -104,7 +104,6 @@ function parse_cmdline(args, blueprint)
 			key = s:sub(2,2)
 			if s:len() > 2 then
 				val = s:sub(3)
-				printf("val for %s is %s", key, val)
 			end
 		else
 			table.insert(targets, s)
@@ -118,7 +117,7 @@ function parse_cmdline(args, blueprint)
 			if opt.HasValue then
 				if not val then
 					index = index + 1
-					val = args[index+1]
+					val = args[index]
 				end
 				if val then
 					options[opt.Name] = val
