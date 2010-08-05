@@ -63,6 +63,7 @@ function create_node(env_, data_)
 			local result = env_:interpolate(x, expand_env)
 			return path.normalize(result)
 		end),
+		env = env_.external_vars,
 	}
 
 	if data_.Action then

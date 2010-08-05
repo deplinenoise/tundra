@@ -47,6 +47,7 @@ function envclass:create(parent, assignments, obj)
 	obj.parent = parent
 	obj.memos = {}
 	obj.memo_keys = {}
+	obj.external_vars = parent and util.clone_table(parent.external_vars) or nil
 
 	-- assign initial bindings
 	if assignments then
@@ -352,6 +353,14 @@ function envclass:memoize(key, name, fn)
 	return memo
 end
 
+function envclass:set_external_env_var(key, value)
+	local t = self.external_vars
+	if not t then
+		t = {}
+		self.external_vars = t
+	end
+	t[key] = value
+end
 
 function is_environment(datum)
 	return getmetatable(datum) == envclass

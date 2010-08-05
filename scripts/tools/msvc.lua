@@ -20,17 +20,6 @@ local env = ...
 -- load the generic C toolset first
 load_toolset("generic-cpp", env)
 
-local native = require("tundra.native")
---local vs9_key = "SOFTWARE\\Microsoft\\VisualStudio\\9.0"
-
-assert(native.host_platform == "windows", "the msvc toolset only works on windows hosts")
-
---local path = assert(native.reg_query("HKLM", vs9_key, "InstallDir"))
---path = string.gsub(path, "\\Common7\\IDE\\$", "")
---local cl_exe = '"' .. path .. "\\vc\\bin\\cl.exe" ..'"'
---local lib_exe = '"' .. path .. "\\vc\\bin\\lib.exe" ..'"'
---local link_exe = '"' .. path .. "\\vc\\bin\\link.exe" ..'"'
-
 env:set_many {
 	["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj" },
 	["OBJECTSUFFIX"] = ".obj",
