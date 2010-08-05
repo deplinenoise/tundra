@@ -394,7 +394,132 @@ void td_block_signals(int block)
 	TD_UNUSED(block);
 }
 
-int td_exec(const char* cmd_line, int *was_signalled_out)
+#if defined(_WIN32)
+static int
+append_string(char* block, size_t block_size, size_t *cursor, const char *src)
+{
+	size_t len = strlen(src);
+	if (*cursor + len + 1 > block_size)
+		return 1;
+
+	memcpy(block + *cursor, src, len + 1);
+	(*cursor) += len + 1;
+	return 0;
+}
+
+static int
+make_env_block(char* env_block, size_t block_size, const char **env, int env_count)
+{
+	size_t cursor = 0;
+	char *block = GetEnvironmentStringsA();
+	char *p = block;
+	unsigned char used_env[1024];
+
+	if (env_count > sizeof(used_env))
+		return 1;
+
+	memset(used_env, 0, sizeof(used_env));
+
+	while (*p)
+	{
+		int i;
+		int replaced = 0;
+		size_t len;
+
+		for (i = 0; i < env_count; ++i)
+		{
+			const char *equals;
+			
+			if (used_env[i])
+				continue;
+
+			equals = strchr(env[i], '=');
+
+			if (!equals)
+				continue;
+
+			if (0 == _strnicmp(p, env[i], equals - env[i] + 1))
+			{
+				if (0 != append_string(env_block, block_size, &cursor, env[i]))
+					return 1;
+				used_env[i] = 1;
+				replaced = 1;
+				break;
+			}
+		}
+
+		len = strlen(p);
+
+		/* skip items without name that win32 seems to include for itself */
+		if (!replaced && p[0] != '=')
+		{
+			if (0 != append_string(env_block, block_size, &cursor, p))
+				return 1;
+		}
+
+		p = p + len + 1;
+	}
+
+	{
+		int i;
+		for (i = 0; i < env_count; ++i)
+		{
+			if (used_env[i])
+				continue;
+			if (0 != append_string(env_block, block_size, &cursor, env[i]))
+				return 1;
+		}
+	}
+
+	env_block[cursor] = '\0';
+	env_block[cursor+1] = '\0';
+
+	FreeEnvironmentStringsA(block);
+	return 0;
+}
+
+int win32_spawn(const char *cmd_line, const char **env, int env_count)
+{
+#if 1
+	char buffer[8192];
+	char env_block[128*1024];
+	STARTUPINFO sinfo;
+	PROCESS_INFORMATION pinfo;
+
+	if (0 != make_env_block(env_block, sizeof(env_block) - 2, env, env_count))
+	{
+		fprintf(stderr, "env block error; too big?\n");
+		return 1;
+	}
+
+	memset(&sinfo, 0, sizeof(sinfo));
+	memset(&pinfo, 0, sizeof(pinfo));
+
+	sinfo.cb = sizeof(sinfo);
+	snprintf(buffer, sizeof(buffer), "cmd.exe /c %s", cmd_line);
+
+	if (CreateProcess(NULL, buffer, NULL, NULL, TRUE, 0, env_block, NULL, &sinfo, &pinfo))
+	{
+		DWORD result;
+		CloseHandle(pinfo.hThread);
+		while (WAIT_OBJECT_0 != WaitForSingleObject(pinfo.hProcess, INFINITE))
+			/* nop */;
+		GetExitCodeProcess(pinfo.hProcess, &result);
+		CloseHandle(pinfo.hProcess);
+		return (int) result;
+	}
+	else
+	{
+		fprintf(stderr, "Couldn't launch process; Win32 error = %d\n", (int) GetLastError());
+		return 1;
+	}
+#else
+	return (int) _spawnlpe(_P_WAIT, "cmd", "/c", cmd_line, NULL, env);
+#endif
+}
+#endif
+
+int td_exec(const char* cmd_line, int env_count, const char **env, int *was_signalled_out)
 {
 #if defined(__APPLE__) || defined(linux)
 	pid_t child;
@@ -490,7 +615,7 @@ int td_exec(const char* cmd_line, int *was_signalled_out)
 			strncat_s(new_cmd, sizeof(new_cmd), option, option_end - option);
 			strcat_s(new_cmd, sizeof(new_cmd), response_file);
 
-			cmd_result = system(new_cmd);
+			cmd_result = win32_spawn(new_cmd, env, env_count);
 
 			remove(response_file);
 			return cmd_result;
@@ -499,13 +624,13 @@ int td_exec(const char* cmd_line, int *was_signalled_out)
 		{
 			strncpy_s(new_cmd, sizeof(new_cmd), cmd_line, response - cmd_line);
 			strcat_s(new_cmd, sizeof(new_cmd), option_end + 1);
-			return system(new_cmd);
+			return win32_spawn(new_cmd, env, env_count);
 		}
 	}
 	else
 	{
 		/* no section in command line at all, just run it */
-		return system(cmd_line);
+		return win32_spawn(cmd_line, env, env_count);
 	}
 #else
 #error meh

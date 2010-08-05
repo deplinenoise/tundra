@@ -163,6 +163,10 @@ typedef struct td_node
 	int aux_output_count;
 	td_file **aux_outputs;
 
+	/* Array of environment bindings */
+	int env_count;
+	const char **env;
+
 	/* An index into the engine's pass array. */
 	int pass_index;
 

@@ -917,6 +917,16 @@ leave:
 	lua_pop(L, 1);
 }
 
+static const char*
+make_env_key(td_engine *engine, lua_State *L, int key, int value)
+{
+	int count;
+	char mapping[2048];
+	count = snprintf(mapping, sizeof(mapping), "%s=%s", lua_tostring(L, key), lua_tostring(L, value));
+
+	return td_page_strdup(&engine->alloc, mapping, count);
+}
+
 static int
 make_node(lua_State *L)
 {
@@ -948,6 +958,35 @@ make_node(lua_State *L)
 		node->scanner = td_check_scanner(L, -1);
 	else
 		node->scanner = NULL;
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "env");
+	if (!lua_isnil(L, -1))
+	{
+		int index = 0, count = 0;
+
+		lua_pushnil(L);
+		while (lua_next(L, -2))
+		{
+			++count;
+			lua_pop(L, 1);
+		}
+
+		node->env_count = count;
+		node->env = (const char **) td_page_alloc(&self->alloc, sizeof(const char *) * (count + 1));
+		lua_pushnil(L);
+		while (lua_next(L, -2))
+		{
+			node->env[index++] = make_env_key(self, L, -2, -1);
+			lua_pop(L, 1);
+		}
+		node->env[index++] = NULL;
+	}
+	else
+	{
+		node->env_count = 0;
+		node->env = NULL;
+	}
 	lua_pop(L, 1);
 
 	node->deps = setup_deps(L, self, node, &node->dep_count);

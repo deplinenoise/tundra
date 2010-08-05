@@ -140,7 +140,7 @@ run_job(td_job_queue *queue, td_node *node)
 	if (td_verbosity_check(engine, 2))
 		printf("%s\n", command);
 	if (!engine->settings.dry_run)
-		result = td_exec(command, &was_signalled);
+		result = td_exec(command, node->env_count, node->env, &was_signalled);
 	else
 		result = 0;
 	t2 = td_timestamp();
