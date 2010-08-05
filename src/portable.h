@@ -33,7 +33,7 @@ int td_move_file(const char *source, const char *dest);
 const char* td_init_homedir(void);
 
 extern const char * const td_platform_string;
-void td_init_timer(void);
+void td_init_portable(void);
 double td_timestamp(void);
 
 #ifdef _WIN32

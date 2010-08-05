@@ -174,7 +174,7 @@ int main(int argc, char** argv)
 	int res, rc, i;
 	lua_State* L;
 
-	td_init_timer();
+	td_init_portable();
 
 	if (NULL == (homedir = td_init_homedir()))
 		return 1;

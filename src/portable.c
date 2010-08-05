@@ -296,7 +296,7 @@ static double dtime_now(void)
 }
 #endif
 
-void td_init_timer(void)
+static void init_timer(void)
 {
 #if defined(__APPLE__) || defined(linux)
 	start_time = dtime_now();
@@ -307,6 +307,20 @@ void td_init_timer(void)
 	if (!QueryPerformanceCounter(&initial_time))
 		td_croak("QueryPerformanceCounter failed: %d", (int) GetLastError());
 	perf_to_secs = 1.0 / (double) perf_freq.QuadPart;
+#endif
+}
+
+#if defined(_WIN32)
+static char *s_env_block;
+#endif
+
+void td_init_portable(void)
+{
+	init_timer();
+
+#if defined(_WIN32)
+	/* Grab the environment block once and just let it leak. */
+	s_env_block = GetEnvironmentStringsA();
 #endif
 }
 
@@ -411,8 +425,7 @@ static int
 make_env_block(char* env_block, size_t block_size, const char **env, int env_count)
 {
 	size_t cursor = 0;
-	char *block = GetEnvironmentStringsA();
-	char *p = block;
+	char *p = s_env_block;
 	unsigned char used_env[1024];
 
 	if (env_count > sizeof(used_env))
@@ -473,14 +486,22 @@ make_env_block(char* env_block, size_t block_size, const char **env, int env_cou
 
 	env_block[cursor] = '\0';
 	env_block[cursor+1] = '\0';
-
-	FreeEnvironmentStringsA(block);
 	return 0;
 }
 
+/*
+   win32_spawn -- spawn and wait for a a sub-process on Windows. 
+ 
+   We would like to say:
+
+	  return (int) _spawnlpe(_P_WAIT, "cmd", "/c", cmd_line, NULL, env);
+
+   but it turns out spawnlpe() isn't thread-safe (MSVC2008) when setting environment data!
+   So we're doing it the hard way.
+ */
+
 int win32_spawn(const char *cmd_line, const char **env, int env_count)
 {
-#if 1
 	char buffer[8192];
 	char env_block[128*1024];
 	STARTUPINFO sinfo;
@@ -513,9 +534,6 @@ int win32_spawn(const char *cmd_line, const char **env, int env_count)
 		fprintf(stderr, "Couldn't launch process; Win32 error = %d\n", (int) GetLastError());
 		return 1;
 	}
-#else
-	return (int) _spawnlpe(_P_WAIT, "cmd", "/c", cmd_line, NULL, env);
-#endif
 }
 #endif
 
