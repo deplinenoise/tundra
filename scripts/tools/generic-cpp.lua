@@ -15,6 +15,8 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
+-- generic-cpp.lua - Generic C, C++, Objective-C support
+
 local _outer_env = ...
 local depgraph = require("tundra.depgraph")
 local util = require("tundra.util")
@@ -29,6 +31,9 @@ local function get_cpp_scanner(env, fn)
 	return env:memoize("CPPPATH", "_cpp_scanner", new_scanner)
 end
 
+-- Register implicit make functions for C, C++ ad Objective-C files.
+-- These functions are called to transform source files in unit lists into
+-- object files.
 do
 	local _anyc_compile = function(env, pass, fn, label, action)
 		local pch_input = env:get('_PCH_FILE', '')
