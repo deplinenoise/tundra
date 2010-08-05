@@ -138,11 +138,15 @@ function parse_cmdline(args, blueprint)
 end
 
 function clone_table(t)
-	local r = {}
-	for k, v in pairs(t) do
-		r[k] = v
+	if t then
+		local r = {}
+		for k, v in pairs(t) do
+			r[k] = v
+		end
+		return r
+	else
+		return nil
 	end
-	return r
 end
 
 function clone_array(t)
