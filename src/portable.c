@@ -33,8 +33,11 @@
 #include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <mach-o/dyld.h>
 #include <libgen.h>
+#endif
+
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
 #endif
 
 #ifdef _WIN32
