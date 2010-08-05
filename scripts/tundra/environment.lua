@@ -20,6 +20,7 @@ module(..., package.seeall)
 local util = require('tundra.util')
 local path = require('tundra.path')
 local depgraph = require('tundra.depgraph')
+local native = require('tundra.native')
 
 --[==[
 
@@ -351,6 +352,21 @@ function envclass:memoize(key, name, fn)
 		self.memos[name] = memo
 	end
 	return memo
+end
+
+function envclass:get_external_env_var(key)
+	local chain = self
+	while chain do
+		local t = self.external_vars
+		if t then
+			local v = t[key]
+			if v then return v end
+		end
+
+		chain = chain.parent
+	end
+
+	return native.getenv(key)
 end
 
 function envclass:set_external_env_var(key, value)

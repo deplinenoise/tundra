@@ -221,6 +221,7 @@ local syntax_dirs = { TundraRootDir .. "/scripts/syntax/" }
 local toolset_dirs = { TundraRootDir .. "/scripts/tools/" }
 local loaded_toolsets = {}
 local loaded_syntaxes = {}
+local toolset_once_map = {}
 
 local function get_memoized_chunk(kind, id, table, dirs)
 	local chunk = table[id]
@@ -247,14 +248,23 @@ local function get_memoized_chunk(kind, id, table, dirs)
 	errorf("couldn't find %s %s in any of these paths: %s", kind, id, util.tostring(dirs))
 end
 
-function load_toolset(id, env)
+function load_toolset(id, env, options)
 	local chunk = get_memoized_chunk("toolset", id, loaded_toolsets, toolset_dirs)
-	chunk(env)
+	chunk(env, options)
 end
 
 function load_syntax(id, decl, passes)
 	local chunk = get_memoized_chunk("syntax", id, loaded_syntaxes, syntax_dirs)
 	chunk(decl, passes)
+end
+
+function toolset_once(id, fn)
+	local v = toolset_once_map[id]
+	if not v then
+		v = fn()
+		toolset_once_map[id] = v
+	end
+	return v
 end
 
 local function add_toolset_dir(dir)
@@ -416,8 +426,17 @@ local function setup_env(env, tuple)
 	env:set("OBJECTDIR", "$(OBJECTROOT)" .. SEP .. "$(BUILD_ID)")
 
 	for tools in iter_inherits(config, "Tools") do
-		for _, toolset_name in ipairs(tools) do
-			load_toolset(toolset_name, env)
+		for _, data in ipairs(tools) do
+			local id, options
+			if type(data) == "string" then
+				id = data
+			elseif type(data) == "table" then
+				id = assert(data[1])
+				options = data
+			else
+				error("bad parameters")
+			end
+			load_toolset(id, env, options)
 		end
 	end
 

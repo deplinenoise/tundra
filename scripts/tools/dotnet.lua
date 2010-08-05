@@ -15,13 +15,27 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
-local env = ...
+local env, options = ...
 
 load_toolset("generic-dotnet", env)
 
+local setup = toolset_once("dotnet-msvc", function ()
+	local frameworkDir = "c:\\Windows\\Microsoft.NET\\Framework"
+	local defaultFrameworkVersion = "v3.5"
+	return function(env, options)
+		local version = options and assert(options.Version) or defaultFrameworkVersion
+		env:set_external_env_var('FrameworkDir', frameworkDir)
+		env:set_external_env_var('FrameworkVersion', version)
+		local binPath = frameworkDir .. "\\" .. version
+		env:set_external_env_var('PATH', env:get_external_env_var('PATH') .. ';' .. binPath)
+	end
+end)
+
+setup(env, options)
+
 -- C# support
 env:set_many {
-	["CSC"] = "csc",
+	["CSC"] = "csc.exe",
 	["CSPROGSUFFIX"] = ".exe",
 	["CSLIBSUFFIX"] = ".dll",
 	["CSRESGEN"] = "resgen $(<) $(@)",
