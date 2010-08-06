@@ -120,6 +120,16 @@ $ tundra-output/macosx-gcc-debug-default/HelloWorld
 hello, world
 -------------------------------------------------------------------------------
 
+== How Tundra works ==
+
+A Tundra build can divided into a few distinct phases:
+
+- Run the project's +tundra.lua+ script to set options
+- Load toolsets, syntax files and other information as required by the configuration script
+- Run the referred +Units+ file in syntax mode to define the project's build units
+- Parse the resulting declarations and generate DAG nodes
+- Pass the DAG to the native build engine
+
 == The +tundra.lua+ file ==
 
 The file +tundra.lua+ is read by Tundra when you invoke it. This is a regular
