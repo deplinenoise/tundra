@@ -474,7 +474,11 @@ function Build(args)
 	local configs, variants, subvariants = {}, {}, {}
 
 	for _, cfg in ipairs(args.Configs) do
-		configs[assert(cfg.Name)] = cfg
+		local name = assert(cfg.Name)
+		if not name:match("^%w+-%w+$") then
+			errorf("configuration name %s doesn't follow <platform>-<toolset> pattern", name)
+		end
+		configs[name] = cfg
 	end
 
 	for _, dir in util.nil_ipairs(args.ToolsetDirs) do
