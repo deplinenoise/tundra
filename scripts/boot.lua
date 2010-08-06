@@ -52,7 +52,7 @@ do
 		{ Name="VeryVerbose", Short="w", Long="very-verbose", Doc="Be very verbose" },
 		{ Name="DryRun", Short="n", Long="dry-run", Doc="Don't execute any actions" },
 		{ Name="ThreadCount", Short="j", Long="threads", Doc="Specify number of build threads", HasValue=true },
-		{ Name="IdeGeneration", Short="g", Long="ide-gen", "Generate IDE integration files for the specified IDE", HasValue=true },
+		{ Name="IdeGeneration", Short="g", Long="ide-gen", Doc="Generate IDE integration files for the specified IDE", HasValue=true },
 		{ Name="AllConfigs", Short="a", Long="all-configs", Doc="Build all configurations at once (useful in IDE mode)" },
 		{ Name="Cwd", Short="C", Long="set-cwd", Doc="Set the current directory before building", HasValue=true },
 		{ Name="DebugQueue", Long="debug-queue", Doc="Show build queue debug information" },
@@ -116,11 +116,19 @@ do
 	if Options.Help then
 		io.write("\nCommand-line options:\n")
 		for _, bp in ipairs(option_blueprints) do
-			local l = string.format("  %- 3s %- 25s %s\n",
-			bp.Short and "-"..bp.Short or "",
-			bp.Long and "--"..bp.Long or "",
-			bp.Doc or "")
-			io.write(l)
+			local h = string.format("  %- 3s %s",
+				bp.Short and "-" .. bp.Short or "",
+				bp.Long and "--" .. bp.Long or "")
+
+			if bp.HasValue then
+				h = h .. " <value>"
+			end
+
+			if h:len() < 30 then
+				h = h .. string.rep(" ", 30 - h:len())
+			end
+
+			io.write(h, bp.Doc or "", "\n")
 		end
 	end
 
