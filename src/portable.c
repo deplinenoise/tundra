@@ -550,6 +550,29 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 
 		const char *args[] = { "/bin/sh", "-c", cmd_line, NULL };
 
+		int i;
+		char name_block[1024];
+		for (i = 0; i < env_count; ++i)
+		{
+			const char *var = env[i];
+			const char *equals = strchr(var, '=');
+
+			if (!equals)
+				continue;
+
+			if (equals - var >= sizeof(name_block))
+			{
+				fprintf(stderr, "Name for environment setting '%s' too long\n", var);
+				continue;
+			}
+
+			memcpy(name_block, var, equals - var);
+			name_block[equals - var] = '\0';
+
+			setenv(name_block, equals + 1, 1);
+		}
+
+
 		if (-1 == execv("/bin/sh", (char **) args))
 			exit(1);
 		/* we never get here */
