@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <libgen.h>
+#include <errno.h>
 #endif
 
 #if defined(__APPLE__)
@@ -798,3 +799,17 @@ td_init_homedir()
 #endif
 }
 
+
+int
+td_set_cwd(struct lua_State *L)
+{
+	const char *dir = luaL_checkstring(L, 1);
+#if defined(_WIN32)
+	if (!SetCurrentDirectoryA(dir))
+		return luaL_error(L, "couldn't change into %s: win32 error=%d", dir, (int) GetLastError());
+#else
+	if (0 != chdir(dir))
+		return luaL_error("couldn't change into %s: %s", dir, strerror(errno));
+#endif
+	return 0;
+}
