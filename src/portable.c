@@ -832,7 +832,7 @@ td_set_cwd(struct lua_State *L)
 		return luaL_error(L, "couldn't change into %s: win32 error=%d", dir, (int) GetLastError());
 #else
 	if (0 != chdir(dir))
-		return luaL_error("couldn't change into %s: %s", dir, strerror(errno));
+		return luaL_error(L, "couldn't change into %s: %s", dir, strerror(errno));
 #endif
 	return 0;
 }
