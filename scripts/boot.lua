@@ -54,6 +54,7 @@ do
 		{ Name="ThreadCount", Short="j", Long="threads", Doc="Specify number of build threads", HasValue=true },
 		{ Name="IdeGeneration", Short="g", Long="ide-gen", "Generate IDE integration files for the specified IDE", HasValue=true },
 		{ Name="AllConfigs", Short="a", Long="all-configs", Doc="Build all configurations at once (useful in IDE mode)" },
+		{ Name="Cwd", Short="C", Long="set-cwd", Doc="Set the current directory before building", HasValue=true },
 		{ Name="DebugQueue", Long="debug-queue", Doc="Show build queue debug information" },
 		{ Name="DebugNodes", Long="debug-nodes", Doc="Show DAG node debug information" },
 		{ Name="DebugAncestors", Long="debug-ancestors", Doc="Show ancestor debug information" },
@@ -154,6 +155,13 @@ if Options.VeryVerbose then
 	for k, v in pairs(Options) do
 		print(k .. ": " .. util.tostring(v))
 	end
+end
+
+if Options.Cwd then
+	if Options.VeryVerbose then
+		print("changing to dir \"" .. Options.Cwd .. "\"")
+	end
+	native.set_cwd(Options.Cwd)
 end
 
 SEP = native.host_platform == "windows" and "\\" or "/"
