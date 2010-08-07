@@ -311,7 +311,7 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 			if configs[name] then
 				build_configs[#build_configs + 1] = configs[name]
 			elseif variants[name] then
-				build_variants[#build_variants + 1] = name
+				build_variants[#build_variants + 1] = variants[name]
 			elseif subvariants[name] then
 				build_subvariants[#build_subvariants + 1] = name
 			else
@@ -360,7 +360,7 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 	else
 		-- User has requested all configurations at once. Possibly due to IDE mode.
 		for _, cfg in pairs(configs) do build_configs[#build_configs + 1] = cfg end
-		for var, _ in pairs(variants) do build_variants[#build_variants + 1] = var end
+		for _, var in pairs(variants) do build_variants[#build_variants + 1] = var end
 		for var, _ in pairs(subvariants) do build_subvariants[#build_subvariants + 1] = var end
 	end
 
@@ -393,7 +393,8 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 	return remaining_targets, build_tuples
 end
 
-local default_variants = { "debug", "production", "release" }
+local function mk_defvariant(name) return { Name = name; Options = {} } end
+local default_variants = { mk_defvariant "debug", mk_defvariant "production", mk_defvariant "release" }
 local default_subvariants = { "default" }
 
 local function iter_inherits(config, name)
@@ -411,7 +412,7 @@ end
 
 local function setup_env(env, tuple)
 	local config = tuple.Config
-	local variant_name = tuple.Variant
+	local variant_name = tuple.Variant.Name
 	local build_id = config.Name .. "-" .. variant_name .. "-" .. tuple.SubVariant
 	local naked_platform, naked_toolset = match_build_id(build_id)
 
@@ -421,7 +422,7 @@ local function setup_env(env, tuple)
 
 	env:set("CURRENT_PLATFORM", naked_platform) -- e.g. linux or macosx
 	env:set("CURRENT_TOOLSET", naked_toolset) -- e.g. gcc or msvc
-	env:set("CURRENT_VARIANT", tuple.Variant) -- e.g. debug or release
+	env:set("CURRENT_VARIANT", tuple.Variant.Name) -- e.g. debug or release
 	env:set("BUILD_ID", build_id) -- e.g. linux-gcc-debug
 	env:set("OBJECTDIR", "$(OBJECTROOT)" .. SEP .. "$(BUILD_ID)")
 
@@ -446,7 +447,8 @@ local function setup_env(env, tuple)
 				printf("env append %s = %s", key, util.tostring(val))
 			end
 			if type(val) == "table" then
-				for _, subvalue in ipairs(val) do
+				local list = nodegen.flatten_list(build_id, val)
+				for _, subvalue in ipairs(list) do
 					env:append(key, subvalue)
 				end
 			else
@@ -477,13 +479,34 @@ function Build(args)
 		add_syntax_dir(dir)
 	end
 
+	if args.Variants then
+		for i, x in ipairs(args.Variants) do
+			if type(x) == "string" then
+				args.Variants[i] = mk_defvariant(x)
+			else
+				assert(x.Name)
+				if not x.Options then
+					x.Options = {}
+				end
+			end
+		end
+	end
+
 	local variant_array = args.Variants or default_variants
-	for _, variant in ipairs(variant_array) do variants[variant] = true end
+	for _, variant in ipairs(variant_array) do variants[variant.Name] = variant end
 
 	local subvariant_array = args.SubVariants or default_subvariants
 	for _, subvariant in ipairs(subvariant_array) do subvariants[subvariant] = true end
 
-	local default_variant = args.DefaultVariant or variant_array[1]
+	local default_variant = variant_array[1]
+	if args.DefaultVariant then
+		for _, x in ipairs(variant_array) do
+			if x.Name == args.DefaultVariant then
+				default_variant = x
+			end
+		end
+	end
+
 	local default_subvariant = args.DefaultSubVariant or subvariant_array[1]
 	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, subvariants, default_variant, default_subvariant)
 

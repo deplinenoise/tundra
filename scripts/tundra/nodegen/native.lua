@@ -54,6 +54,16 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 		}
 	end
 
+	local aux_outputs = env:get_list("AUX_FILES_" .. label:upper(), {})
+
+	if generator.variant.Options.GeneratePdb then
+		local pdb_output = "$(OBJECTDIR)/" .. decl.Name .. ".pdb"
+		env:set('_PDB_FILE', pdb_output)
+		env:set('_USE_PDB_CC', '$(_USE_PDB_CC_OPT)')
+		env:set('_USE_PDB_LINK', '$(_USE_PDB_LINK_OPT)')
+		aux_outputs[#aux_outputs + 1] = pdb_output
+	end
+
 	local function implicit_make(source_file)
 		local t = type(source_file)
 		if t == "table" then
@@ -103,7 +113,7 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 		Action = command,
 		InputFiles = inputs,
 		OutputFiles = targets,
-		AuxOutputFiles = env:get_list("AUX_FILES_" .. label:upper(), {}),
+		AuxOutputFiles = aux_outputs,
 		Dependencies = deps,
 	}
 	return libnode
