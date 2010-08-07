@@ -459,11 +459,11 @@ local function setup_env(env, tuple)
 
 	for env_tab in iter_inherits(config, "Env") do
 		for key, val in util.pairs(env_tab) do
-			if Options.VeryVerbose then
-				printf("env append %s = %s", key, util.tostring(val))
-			end
 			if type(val) == "table" then
 				local list = nodegen.flatten_list(build_id, val)
+				if Options.VeryVerbose then
+					printf("Env Append %s => %s", util.tostring(val), util.tostring(list))
+				end
 				for _, subvalue in ipairs(list) do
 					env:append(key, subvalue)
 				end
