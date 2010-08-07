@@ -1,3 +1,4 @@
+// vim: ts=4 expandtab
 
 Tundra, a build system
 ======================
@@ -97,8 +98,8 @@ declarative input file describing the targets that are available:
 
 -------------------------------------------------------------------------------
 Program {
-	Name = "HelloWorld",
-	Sources = { "hello.c" },
+    Name = "HelloWorld",
+    Sources = { "hello.c" },
 }
 Default "HelloWorld"
 -------------------------------------------------------------------------------
@@ -117,6 +118,118 @@ The next mandatory step is of course to display the famous greeting:
 -------------------------------------------------------------------------------
 $ tundra-output/macosx-gcc-debug-default/HelloWorld
 hello, world
+-------------------------------------------------------------------------------
+
+== How Tundra works ==
+
+A Tundra build can divided into a few distinct phases:
+
+- Run the project's +tundra.lua+ script to set options
+- Load toolsets, syntax files and other information as required by the configuration script
+- Run the referred +Units+ file in syntax mode to define the project's build units
+- Parse the resulting declarations and generate DAG nodes
+- Pass the DAG to the native build engine
+
+== The +tundra.lua+ file ==
+
+The file +tundra.lua+ is read by Tundra when you invoke it. This is a regular
+Lua source file. Its purpose is to call the global +Build+ function with a
+declarative input describing the build session to Tundra. The following
+sections are a reference of what you can place in the +Build+ block.
+Declarations within the block can appear in any order.
+
+=== Units (required) ===
+
+The build block must contain a reference to a secondary file containing unit
+declarations. This file is separate because it uses a custom, extensible syntax
+set which is suitable to define build system input. The +Units+ option must be
+a string designating the filename to read. A common name is +"units.lua"+, but
+any valid filename is OK.
+
+=== Configs (required) ===
+
+The +Configs+ key should be set to an array of configurations this build
+supports. Each configuration is in turn a table with the following syntax:
+
+-------------------------------------------------------------------------------
+    {
+        Name = "myplatform-mytoolset",
+        Tools = { ... },
+        DefaultOnHost = "..." ,
+        Inherit = ...,
+        Env = { ... },
+    }
+-------------------------------------------------------------------------------
+
+==== Per-config +Name+ property (required) ====
+
+The name of this configuration. Configuration names must be formatted in a
+dashed `platform-toolset` format. These two tokens form the first two in the
+quad `platform-toolset-variant-subvariant` system Tundra uses to id builds.
+
+==== Per-config +Tools+ property (required) ====
+
+A list of tools this configuration uses. A tool specification is either a
+string, indicating that the defaults for that tool are to be used, or a table
+`{ "toolname"; Foo=1, Bar=".." }` passing arbitrary options to the tool to
+configure it. Tools are loaded from the tool directory list.
+
+Projects can add their own tool scripts via a +ToolsetDirs+ array property in
+the +Build+ block.
+
+==== Per-config +DefaultOnHost+ property (optional) ====
+
+If present, this config will be built by default when the host platform matches
+the string. This is convenient to have the host's native configuration build
+in the default variant when you just type `tundra` in the shell.
+
+==== Per-config +Inherit+ property (optional) ====
+
+If present, must be set to a table. This table will be scanned for values if
+they are not present in the Config table itself. This is useful to group common
+settings between configs in external tables:
+
+-----------------------------------------------------------------------------
+local foo_common = { Env = { CPPDEFS = { "Bar", "Baz" } } }
+
+Build {
+  Configs = {
+    { Name = "foo-bar", Inherit = foo_common, ... },
+    { Name = "foo-baz", Inherit = foo_common, ... },
+    ...
+  },
+}
+-----------------------------------------------------------------------------
+
+==== Per-config +Env+ property (optional) ====
+
+If present, must be set to a table. This table contains key-value bindings to
+apply to the environment for this configuration. This typically includes things
+such as include paths (`CPPPATH`), C preprocessor defines (`CPPDEFS`) and C
+compiler options (`CCOPTS`).
+
+-----------------------------------------------------------------------------
+Build {
+  Configs = {
+    { Name = "foo-bar", Env = { CPPDEFS = { "FOO", "BAR=BAZ", ... } }, },
+    ...
+  },
+}
+-----------------------------------------------------------------------------
+
+=== Passes (optional) ===
+
+The build block can contain an array of passes which can be used to place
+barriers between groups of build jobs. This is required if files are generated
+that can be discovered only as implicit dependencies.
+
+Here's an example of how +Passes+ can be used within the +Build+ block:
+-------------------------------------------------------------------------------
+    Passes = {
+        Foo = { Name="User friendly name", BuildOrder = 1 },
+        Bar = { Name="Some other name", BuildOrder = 2 },
+        -- ...
+    },
 -------------------------------------------------------------------------------
 
 == The Environment ==
@@ -150,17 +263,17 @@ from a environment variable +CPPPATH+, you can say +$(CPPPATH:p-I)+.
 .Interpolation Syntax
 [width="90%",cols="1,9",options="header"]
 |=============================================================================
-|Syntax					|Effect
-|+$(VAR:f)+				|Convert to forward slashes (+/+)
-|+$(VAR:b)+				|Convert to backward slashes (+\+)
-|+$(VAR:u)+				|Convert to upper case
-|+$(VAR:l)+				|Convert to lower case
-|+$(VAR:p<prefix>)+		|Prefix all values with the string +<prefix>+
-|+$(VAR:s<suffix>)+		|Suffix all values with the string +<suffix>+
-|+$(VAR:[<index>])+		|Select the item at the (one-based) +index+
-|+$(VAR:j<sep>)+		|Join all values with +<sep>+ as a separator rather than space
-|+$(VAR:A<suffix>)+		|Suffix all values with +<suffix>+ unless it is already there
-|+$(VAR:P<prefix>)+		|Prefix all values with +<prefix>+ unless it is already there
+|Syntax                 |Effect
+|+$(VAR:f)+             |Convert to forward slashes (+/+)
+|+$(VAR:b)+             |Convert to backward slashes (+\+)
+|+$(VAR:u)+             |Convert to upper case
+|+$(VAR:l)+             |Convert to lower case
+|+$(VAR:p<prefix>)+     |Prefix all values with the string +<prefix>+
+|+$(VAR:s<suffix>)+     |Suffix all values with the string +<suffix>+
+|+$(VAR:[<index>])+     |Select the item at the (one-based) +index+
+|+$(VAR:j<sep>)+        |Join all values with +<sep>+ as a separator rather than space
+|+$(VAR:A<suffix>)+     |Suffix all values with +<suffix>+ unless it is already there
+|+$(VAR:P<prefix>)+     |Prefix all values with +<prefix>+ unless it is already there
 |=============================================================================
 
 These interpolation options can be combined arbitrarily by tacking on several
@@ -173,27 +286,27 @@ Assume there is an environment with the following bindings:
 
 [width="90%",cols="1,9"]
 |=============================================================================
-|+FOO+				|+"String"+
-|+BAR+				|+{ "A", "B", "C" }+
+|+FOO+              |+"String"+
+|+BAR+              |+{ "A", "B", "C" }+
 |=============================================================================
 
 Then interpolating the following strings will give the associated result:
 
 [width="90%",cols="1,9",options="header"]
 |=============================================================================
-|Expression				|Resulting String
-|`$(FOO)`				|`String`
-|`$(FOO:u)`				|`STRING`
-|`$(FOO:l)`				|`string`
-|`$(FOO:p__)`			|`__String`
-|`$(FOO:p__:s__)`		|`__String__`
-|`$(BAR)`				|`A B C`
-|`$(BAR:u)`				|`A B C`
-|`$(BAR:l)`				|`a b c`
-|`$(BAR:p__)`			|`__A __B __C`
-|`$(BAR:p__:s__:j!)`	|`__A__!__B__!__C__`
-|`$(BAR:p\::s!)`		|`:A! :B! :C!`
-|`$(BAR:AC)`			|`AC BC C`
+|Expression             |Resulting String
+|`$(FOO)`               |`String`
+|`$(FOO:u)`             |`STRING`
+|`$(FOO:l)`             |`string`
+|`$(FOO:p__)`           |`__String`
+|`$(FOO:p__:s__)`       |`__String__`
+|`$(BAR)`               |`A B C`
+|`$(BAR:u)`             |`A B C`
+|`$(BAR:l)`             |`a b c`
+|`$(BAR:p__)`           |`__A __B __C`
+|`$(BAR:p__:s__:j!)`    |`__A__!__B__!__C__`
+|`$(BAR:p\::s!)`        |`:A! :B! :C!`
+|`$(BAR:AC)`            |`AC BC C`
 |=============================================================================
 
 === Nested Interpolation ===

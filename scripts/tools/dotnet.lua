@@ -27,7 +27,7 @@ local setup = toolset_once("dotnet-msvc", function ()
 		env:set_external_env_var('FrameworkDir', frameworkDir)
 		env:set_external_env_var('FrameworkVersion', version)
 		local binPath = frameworkDir .. "\\" .. version
-		env:set_external_env_var('PATH', env:get_external_env_var('PATH') .. ';' .. binPath)
+		env:set_external_env_var('PATH', binPath .. ";" .. env:get_external_env_var('PATH'))
 	end
 end)
 

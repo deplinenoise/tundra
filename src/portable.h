@@ -92,5 +92,6 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 #if defined(_WIN32)
 int td_win32_register_query(struct lua_State *L);
 #endif
+int td_set_cwd(struct lua_State *L);
 
 #endif

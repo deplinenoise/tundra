@@ -105,12 +105,13 @@ function _generator:resolve_deps(build_id, deps)
 	return result
 end
 
-function _generator:resolve_sources(env, items, accum, base_dir)
+function _generator:resolve_sources(env, items, accum, base_dir, include_headers)
 	base_dir = base_dir or ""
-	local header_exts = {}
-	for _, ext in ipairs(env:get_list("HEADERS_EXTS")) do
-		header_exts[ext] = true
+	local header_exts
+	if not include_headers then
+		header_exts = util.make_lookup_table(env:get_list("HEADERS_EXTS"))
 	end
+
 	for _, item in util.nil_ipairs(items) do
 		local type_name = type(item)
 
@@ -125,12 +126,12 @@ function _generator:resolve_sources(env, items, accum, base_dir)
 			if getmetatable(item) then
 				accum[#accum + 1] = item
 			else
-				self:resolve_sources(env, item, accum, base_dir)
+				self:resolve_sources(env, item, accum, base_dir, include_headers)
 			end
 		else
 			assert(type_name == "string")
 			local ext = path.get_extension(item)
-			if not header_exts[ext] then
+			if not header_exts or not header_exts[ext] then
 				accum[#accum + 1] = base_dir .. item
 			end
 		end

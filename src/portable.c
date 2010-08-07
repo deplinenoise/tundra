@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <libgen.h>
+#include <errno.h>
 #endif
 
 #if defined(__APPLE__)
@@ -550,6 +551,29 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 
 		const char *args[] = { "/bin/sh", "-c", cmd_line, NULL };
 
+		int i;
+		char name_block[1024];
+		for (i = 0; i < env_count; ++i)
+		{
+			const char *var = env[i];
+			const char *equals = strchr(var, '=');
+
+			if (!equals)
+				continue;
+
+			if (equals - var >= sizeof(name_block))
+			{
+				fprintf(stderr, "Name for environment setting '%s' too long\n", var);
+				continue;
+			}
+
+			memcpy(name_block, var, equals - var);
+			name_block[equals - var] = '\0';
+
+			setenv(name_block, equals + 1, 1);
+		}
+
+
 		if (-1 == execv("/bin/sh", (char **) args))
 			exit(1);
 		/* we never get here */
@@ -798,3 +822,17 @@ td_init_homedir()
 #endif
 }
 
+
+int
+td_set_cwd(struct lua_State *L)
+{
+	const char *dir = luaL_checkstring(L, 1);
+#if defined(_WIN32)
+	if (!SetCurrentDirectoryA(dir))
+		return luaL_error(L, "couldn't change into %s: win32 error=%d", dir, (int) GetLastError());
+#else
+	if (0 != chdir(dir))
+		return luaL_error(L, "couldn't change into %s: %s", dir, strerror(errno));
+#endif
+	return 0;
+}

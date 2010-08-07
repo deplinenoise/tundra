@@ -219,6 +219,16 @@ function clear_table(tab)
 	return tab
 end
 
+function filter(tab, predicate)
+	local result = {}
+	for _, x in ipairs(tab) do
+		if predicate(x) then
+			result[#result + 1] = x
+		end
+	end
+	return result
+end
+
 function filter_in_place(tab, predicate)
 	local i, limit = 1, #tab
 	while i <= limit do

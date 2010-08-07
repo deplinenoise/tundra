@@ -30,6 +30,7 @@ local decl_to_env_mappings = {
 local function eval_native_unit(generator, env, label, suffix, command, decl)
 	local build_id = env:get("BUILD_ID")
 	local pch = decl.PrecompiledHeader
+	local my_pass = generator:resolve_pass(decl.Pass)
 	local pch_output
 	local gen_pch_node
 
@@ -47,7 +48,7 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 		env:set('_PCH_HEADER', pch.Header)
 		gen_pch_node = env:make_node {
 			Label = "Precompiled header $(@)",
-			Pass = generator:resolve_pass(decl.Pass),
+			Pass = my_pass,
 			Action = "$(PCHCOMPILE)",
 			InputFiles = { pch.Source, pch.Header },
 			OutputFiles = { pch_output },
@@ -88,7 +89,7 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 
 		local make = my_env:get_implicit_make_fn(source_file)
 		if make then
-			return make(my_env, generator:resolve_pass(decl.Pass), source_file)
+			return make(my_env, my_pass, source_file)
 		else
 			return nil
 		end
@@ -104,12 +105,12 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 	if gen_pch_node then
 		deps = util.merge_arrays_2(deps, { gen_pch_node })
 	end
+
 	deps = util.merge_arrays_2(deps, ideps)
-	deps = util.merge_arrays_2(deps, decl.Dependencies)
 	deps = util.uniq(deps)
 	local libnode = env:make_node {
 		Label = label .. " $(@)",
-		Pass = generator:resolve_pass(decl.Pass),
+		Pass = my_pass,
 		Action = command,
 		InputFiles = inputs,
 		OutputFiles = targets,

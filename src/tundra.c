@@ -117,6 +117,8 @@ static int tundra_open(lua_State *L)
 		{ "digest_guid", tundra_digest_guid },
 		/* query for environment string */
 		{ "getenv", tundra_getenv },
+		/* query for environment string */
+		{ "set_cwd", td_set_cwd },
 #ifdef _WIN32
 		/* windows-specific registry query function*/
 		{ "reg_query", td_win32_register_query },
