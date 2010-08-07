@@ -228,20 +228,35 @@ function add_generator_set(type_name, id)
 	chunk(_generator)
 end
 
-local function config_filter_match(pattern, build_id)
-	if pattern then
-		if type(pattern) ~= "string" then
-			errorf("pattern must be a string: %s", util.tostring(pattern))
-		end
+local pattern_cache = {}
+local function get_cached_pattern(p)
+	local v = pattern_cache[p]
+	if not v then
 		local comp = '%w+'
-		local sub_pattern = pattern:gsub('*', '%%w+')
+		local sub_pattern = p:gsub('*', '%%w+')
 		local platform, tool, variant, subvariant = match_build_id(sub_pattern, comp)
-		local p = string.format('^%s%%-%s%%-%s%%-%s$', platform, tool, variant, subvariant)
-		local res = string.match(build_id, p)
-		--printf("matching %s with %s (from %s) => %s", p, build_id, pattern, util.tostring(res))
-		return res
-	else
+		v = string.format('^%s%%-%s%%-%s%%-%s$', platform, tool, variant, subvariant)
+		pattern_cache[p] = v
+	end
+	return v
+end
+
+local function config_matches(pattern, build_id)
+	local ptype = type(pattern)
+	if ptype == "nil" then
 		return true
+	elseif ptype == "string" then
+		local fpattern = get_cached_pattern(pattern)
+		return build_id:match(fpattern)
+	elseif ptype == "table" then
+		for _, pattern_item in ipairs(pattern) do
+			if config_matches(pattern_item, build_id) then
+				return true
+			end
+		end
+		return false
+	else
+		error("bad 'Config' pattern type: " .. ptype)
 	end
 end
 
@@ -258,7 +273,7 @@ function flatten_list(build_id, list)
 	local function iter(data, accum)
 		local t = type(data)
 		if t == "table" and not getmetatable(data) then
-			if config_filter_match(data.Config, build_id) then
+			if config_matches(data.Config, build_id) then
 				for _, item in ipairs(data) do
 					iter(item, accum)
 				end
