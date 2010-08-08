@@ -613,6 +613,8 @@ static int engine_gc(lua_State *L)
 
 	self->magic_value = 0xdeadbeef;
 
+	td_relcache_cleanup(self);
+
 	free(self->file_hash);
 	self->file_hash = NULL;
 
@@ -1399,6 +1401,7 @@ build_nodes(lua_State* L)
 		printf("post-build stats:\n");
 		printf("  files tracked: %d (%d directly from DAG), file table load %.2f%%\n", self->stats.file_count, pre_file_count, file_load);
 		printf("  relations tracked: %d, table load %.2f%%\n", self->stats.relation_count, relation_load);
+		printf("  relation cache load: %.3fs save: %.3fs\n", self->stats.relcache_load, self->stats.relcache_save);
 		printf("  nodes with ancestry: %d of %d possible\n", self->stats.ancestor_nodes, self->stats.ancestor_checks);
 		printf("  total time spent in build loop: %.3fs\n", t2-t1);
 		printf("    - implicit dependency scanning: %.3fs\n", self->stats.scan_time);

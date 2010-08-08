@@ -267,6 +267,8 @@ typedef struct td_engine
 		double stat_time;
 		double up2date_check_time;
 		double file_signing_time;
+		double relcache_load;
+		double relcache_save;
 		int build_called;
 	} stats;
 

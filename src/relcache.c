@@ -318,7 +318,10 @@ write_relcache_nodes(td_engine *engine, FILE* f)
 void
 td_save_relcache(td_engine *engine)
 {
+	double t1;
 	td_frozen_rel_header header;
+
+	t1 = td_timestamp();
 
 	FILE* f = fopen(TD_RELCACHE_FILE, "wb");
 	if (!f)
@@ -338,6 +341,7 @@ td_save_relcache(td_engine *engine)
 	fwrite(&header, 1, sizeof(header), f);
 
 	fclose(f);
+	engine->stats.relcache_save = td_timestamp() - t1;
 }
 
 static void
@@ -393,11 +397,14 @@ install_relations(td_engine *engine, td_frozen_reldata *data)
 void
 td_load_relcache(td_engine *engine)
 {
-	td_frozen_reldata *data;
+	double t1;
+	td_frozen_reldata *data = NULL;
 	FILE *f;
 
+	t1 = td_timestamp();
+
 	if (NULL == (f = fopen(TD_RELCACHE_FILE, "rb")))
-		return;
+		goto leave;
 
 	data = calloc(1, sizeof(td_frozen_reldata));
 
@@ -446,10 +453,13 @@ td_load_relcache(td_engine *engine)
 	engine->relcache_data = data;
 
 leave:
-	if (!engine->relcache_data)
+	if (data && !engine->relcache_data)
 		free_data(data);
 
-	fclose(f);
+	if (f)
+		fclose(f);
+
+	engine->stats.relcache_load = td_timestamp() - t1;
 }
 
 void
