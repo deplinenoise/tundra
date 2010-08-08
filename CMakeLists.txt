@@ -84,6 +84,8 @@ src/util.c
 src/util.h
 src/portable.c
 src/portable.h
+src/relcache.c
+src/relcache.h
 	)
 
 source_group(Tundra FILES ${TUNDRA_SOURCES})

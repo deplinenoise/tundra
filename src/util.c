@@ -112,13 +112,13 @@ td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
 	*count_out = count;
 	if (!count)
 		return NULL;
-   
+
 	result = (td_file **) td_page_alloc(&engine->alloc, sizeof(td_file*) * count);
 
 	for (i = 0; i < count; ++i)
 	{
 		lua_rawgeti(L, index, i+1);
-		result[i] = td_engine_get_file(engine, lua_tostring(L, -1));
+		result[i] = td_engine_get_file(engine, lua_tostring(L, -1), TD_COPY_STRING);
 		lua_pop(L, 1);
 	}
 
@@ -200,6 +200,4 @@ td_build_path(char *buffer, int buffer_size, const td_file *base, const char *su
 	offset += subpath_len;
 	buffer[offset] = '\0';
 }
-
-
 

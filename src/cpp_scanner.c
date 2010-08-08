@@ -21,6 +21,7 @@
 #include "util.h"
 #include "scanner.h"
 #include "portable.h"
+#include "relcache.h"
 
 #include <ctype.h>
 #include <lua.h>
@@ -93,7 +94,7 @@ find_file(td_file *base_file, td_engine *engine, const cpp_include *inc, const t
 	{
 		td_file *file;
 		td_build_path(&path[0], sizeof(path), base_file, inc->string, inc->string_len, TD_BUILD_REPLACE_NAME);
-		file = td_engine_get_file(engine ,path);
+		file = td_engine_get_file(engine, path, TD_COPY_STRING);
 		if (TD_STAT_EXISTS & td_stat_file(engine, file)->flags)
 			return file;
 	}
@@ -103,7 +104,7 @@ find_file(td_file *base_file, td_engine *engine, const cpp_include *inc, const t
 		const td_file *dir = config->paths[i];
 		td_file *file;
 		td_build_path(&path[0], sizeof(path), dir, inc->string, inc->string_len, TD_BUILD_CONCAT);
-		file = td_engine_get_file(engine ,path);
+		file = td_engine_get_file(engine, path, TD_COPY_STRING);
 		if (TD_STAT_EXISTS & td_stat_file(engine, file)->flags)
 			return file;
 	}
@@ -236,7 +237,6 @@ scan_file(
 	int found_count = 0;
 	td_file* found_files[TD_MAX_INCLUDES_IN_FILE];
 	cpp_include includes[TD_MAX_INCLUDES_IN_FILE];
-
 
 	/* see if there is a cached include set for this file */
 	files = td_engine_get_relations(engine, file, salt, &count);

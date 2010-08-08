@@ -20,6 +20,19 @@
    along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef _MSC_VER
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned __int64 uint64_t;
+typedef signed char int8_t;
+typedef signed short int16_t;
+typedef signed int int32_t;
+typedef signed __int64 int64_t;
+#else
+#include <stdint.h>
+#endif
+
 #define TD_UNUSED(var) (void) var
 
 struct td_stat;
@@ -38,8 +51,10 @@ double td_timestamp(void);
 
 #ifdef _WIN32
 #define TD_PATHSEP '\\'
+#define TD_PATHSEP_STR "\\"
 #else
 #define TD_PATHSEP '/'
+#define TD_PATHSEP_STR "/"
 #endif
 
 #ifndef _WIN32

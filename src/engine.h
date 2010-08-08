@@ -22,6 +22,7 @@
 
 #include <stddef.h>
 #include <time.h>
+#include "portable.h"
 
 #define TUNDRA_ENGINE_MTNAME "tundra_engine"
 #define TUNDRA_NODEREF_MTNAME "tundra_noderef"
@@ -58,8 +59,8 @@ enum {
 
 typedef struct td_stat {
 	int flags;
-	unsigned long long size;
-	unsigned long timestamp;
+	uint64_t size;
+	time_t timestamp;
 } td_stat;
 
 typedef struct td_file
@@ -79,6 +80,8 @@ typedef struct td_file
 
 	int stat_dirty;
 	struct td_stat stat;
+
+	uint32_t frozen_relstring_index;
 } td_file;
 
 typedef enum td_jobstate
@@ -205,24 +208,6 @@ typedef struct td_alloc
 	char **pages;
 } td_alloc;
 
-/* Caches a relation between a file and set of other files (such as set of
- * included files) */
-typedef struct td_relcell
-{
-	/* source file */
-	td_file *file;
-
-	/* a salt value to make this relation unique */
-	unsigned int salt;
-
-	/* the related files */
-	int count;
-	td_file **files;
-
-	/* for hash table linked list maintenance */
-	struct td_relcell *bucket_next;
-} td_relcell;
-
 enum
 {
 	TD_DEBUG_QUEUE = 1 << 0,
@@ -232,6 +217,9 @@ enum
 	TD_DEBUG_REASON = 1 << 4,
 	TD_DEBUG_SCAN = 1 << 5
 };
+
+struct td_relcell;
+struct td_frozen_reldata;
 
 typedef struct td_engine
 {
@@ -246,7 +234,7 @@ typedef struct td_engine
 
 	/* file relation cache */
 	int relhash_size;
-	td_relcell **relhash;
+	struct td_relcell **relhash;
 
 	/* build passes */
 	int pass_count;
@@ -287,6 +275,10 @@ typedef struct td_engine
 	struct td_node **ancestor_used;
 
 	struct lua_State *L;
+
+	time_t start_time;
+
+	struct td_frozen_reldata *relcache_data;
 } td_engine;
 
 #define td_verbosity_check(engine, level) ((engine)->settings.verbosity >= (level))
@@ -298,14 +290,13 @@ typedef struct td_engine
 void *
 td_page_alloc(td_alloc *alloc, size_t size);
 
+typedef enum {
+	TD_BORROW_STRING = 0,
+	TD_COPY_STRING = 1,
+} td_get_file_mode;
+
 td_file *
-td_engine_get_file(td_engine *engine, const char *path);
-
-td_file **
-td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int *count_out);
-
-void
-td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files);
+td_engine_get_file(td_engine *engine, const char *path, td_get_file_mode mode);
 
 const td_stat*
 td_stat_file(td_engine *engine, td_file *f);

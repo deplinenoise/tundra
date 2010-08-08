@@ -20,6 +20,7 @@
 #include "engine.h"
 #include "portable.h"
 #include "md5.h"
+#include "relcache.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -186,41 +187,136 @@ find_basename(const char *path, int path_len)
 	return path;
 }
 
-static void sanitize_path(char *buffer)
+typedef struct
 {
+	char *ptr;
+	int len;
+	int dotdot;
+	int drop;
+} strseg;
+
+static int
+tokenize_path(char* scratch, strseg segments[], int maxseg)
+{
+	int segcount = 0;
+	char *last = scratch;
+
 	for (;;)
 	{
-		char ch = *buffer;
-		if (!ch)
-			break;
-		if (ch == '/' || ch == '\\')
-			*buffer = TD_PATHSEP;
-		++buffer;
+		char ch = *scratch;
+		if ('\\' == ch || '/' == ch || '\0' == ch)
+		{
+			int len = (int) (scratch - last);
+			int is_dotdot = 2 == len && 0 == memcmp("..", last, 2);
+			int is_dot = 1 == len && '.' == last[0];
+
+			if (segcount == maxseg)
+				td_croak("too many segments in path; limit is %d", maxseg);
+
+			segments[segcount].ptr = last;
+			segments[segcount].len = len;
+			segments[segcount].dotdot = is_dotdot;
+			segments[segcount].drop = is_dot;
+
+			last = scratch + 1;
+			++segcount;
+
+			if ('\0' == ch)
+				break;
+		}
+
+		++scratch;
+	}
+
+	return segcount;
+}
+
+static void
+sanitize_path(char *buffer, size_t buffer_size, size_t input_length)
+{
+	char scratch[512];
+	int i;
+	int segcount;
+	int dotdot_drops = 0;
+	strseg segments[64];
+
+	strcpy(scratch, buffer);
+	segcount = tokenize_path(scratch, segments, sizeof(segments) / sizeof(segments[0]));
+
+	for (i = segcount - 1; i >= 0; --i)
+	{
+		if (segments[i].drop)
+			continue;
+
+		if (segments[i].dotdot)
+		{
+			segments[i].drop = 1;
+			++dotdot_drops;
+		}
+		else if (dotdot_drops > 0)
+		{
+			--dotdot_drops;
+			segments[i].drop = 1;
+		}
+	}
+
+	if (dotdot_drops)
+		td_croak("attempt to .. below root dir");
+
+	/* Format the resulting path. It can never get longer by this operation, so
+	 * there's no need to check the buffer size. */
+	{
+		char *cursor = buffer;
+		for (i = 0; i < segcount; ++i)
+		{
+			int len = segments[i].len;
+			const char *seg = segments[i].ptr;
+
+			if (segments[i].drop)
+				continue;
+
+			if (0 < i)
+				*cursor++ = TD_PATHSEP;
+			memcpy(cursor, seg, len);
+			cursor += len;
+		}
+		*cursor = 0;
 	}
 }
 
-td_file *td_engine_get_file(td_engine *engine, const char *input_path)
+td_file *td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode mode)
 {
 	unsigned int hash;
 	int slot;
 	td_file *chain;
 	td_file *f;
 	int path_len;
-
 	char path[512];
-	strncpy(path, input_path, sizeof(path));
-	path[sizeof(path)-1] = '\0';
+	const char *out_path;
+	size_t input_path_len = strlen(input_path);
 
-	sanitize_path(path);
+	if (input_path_len >= sizeof(path))
+		td_croak("path too long: %s", input_path);
 
-	hash = (unsigned int) djb2_hash(path);
+	if (TD_COPY_STRING == mode)
+	{
+		strcpy(path, input_path);
+		sanitize_path(path, sizeof(path), input_path_len);
+		hash = (unsigned int) djb2_hash(path);
+		out_path = path;
+	}
+	else
+	{
+		hash = (unsigned int) djb2_hash(input_path);
+		out_path = input_path;
+	}
 
 	slot = (int) (hash % engine->file_hash_size);
 	chain = engine->file_hash[slot];
 	
 	while (chain)
 	{
-		if (chain->hash == hash && 0 == strcmp(path, chain->path))
+		if (chain->hash == hash && 0 == strcmp(out_path, chain->path))
 			return chain;
 		chain = chain->bucket_next;
 	}
@@ -229,88 +325,20 @@ td_file *td_engine_get_file(td_engine *engine, const char *input_path)
 	f = td_page_alloc(&engine->alloc, sizeof(td_file));
 	memset(f, 0, sizeof(td_file));
 
-	f->path_len = path_len = (int) strlen(path);
-	f->path = td_page_strdup(&engine->alloc, path, path_len);
+	f->path_len = path_len = (int) strlen(out_path);
+	if (TD_COPY_STRING == mode)
+		f->path = td_page_strdup(&engine->alloc, out_path, path_len);
+	else
+		f->path = out_path;
 	f->hash = hash;
 	f->name = find_basename(f->path, path_len);
 	f->bucket_next = engine->file_hash[slot];
 	f->signer = engine->default_signer;
 	f->stat_dirty = 1;
 	f->signature_dirty = 1;
+	f->frozen_relstring_index = ~(0u);
 	engine->file_hash[slot] = f;
 	return f;
-}
-
-td_file **
-td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int *count_out)
-{
-	td_relcell *chain;
-	int bucket;
-	unsigned int hash;
-
-	hash = file->hash ^ salt;
-	bucket = hash % engine->relhash_size;
-	assert(bucket >= 0 && bucket < engine->relhash_size);
-	chain = engine->relhash[bucket];
-
-	while (chain)
-	{
-		if (salt == chain->salt && file == chain->file)
-		{
-			*count_out = chain->count;
-			return chain->files;
-		}
-		chain = chain->bucket_next;
-	}
-
-	*count_out = 0;
-	return NULL;
-}
-
-static void
-populate_relcell(
-		td_engine *engine,
-		td_relcell* cell,
-		td_file *file,
-		unsigned int salt,
-		int count,
-		td_file **files)
-{
-	size_t memsize = sizeof(td_file*) * count;
-	cell->file = file;
-	cell->salt = salt;
-	cell->count = count;
-	cell->files = (td_file **) td_page_alloc(&engine->alloc, memsize);
-	memcpy(&cell->files[0], files, memsize);
-}
-
-void
-td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files)
-{
-	unsigned int hash;
-	td_relcell *chain;
-	int bucket;
-
-	hash = file->hash ^ salt;
-	bucket = hash % engine->relhash_size;
-	chain = engine->relhash[bucket];
-
-	while (chain)
-	{
-		if (salt == chain->salt && file == chain->file)
-		{
-			populate_relcell(engine, chain, file, salt, count, files);
-			return;
-		}
-
-		chain = chain->bucket_next;
-	}
-
-	++engine->stats.relation_count;
-	chain = (td_relcell*) td_page_alloc(&engine->alloc, sizeof(td_relcell));
-	populate_relcell(engine, chain, file, salt, count, files);
-	chain->bucket_next = engine->relhash[bucket];
-	engine->relhash[bucket] = chain;
 }
 
 static int get_int_override(lua_State *L, int index, const char *field_name, int default_value)
@@ -442,7 +470,8 @@ update_ancestors(
 
 enum {
 	TD_ANCESTOR_TTL_DAYS = 7,
-	TD_ANCESTOR_TTL_SECS = (60 * 60 * 24) * TD_ANCESTOR_TTL_DAYS,
+	TD_SECONDS_PER_DAY = (60 * 60 * 24),
+	TD_ANCESTOR_TTL_SECS = TD_SECONDS_PER_DAY * TD_ANCESTOR_TTL_DAYS,
 };
 
 static int
@@ -542,6 +571,7 @@ static int make_engine(lua_State *L)
 	self->file_hash_size = 92413;
 	self->relhash_size = 92413;
 	self->L = L;
+	self->start_time = time(NULL);
 
 	/* apply optional overrides */
 	if (1 <= lua_gettop(L) && lua_istable(L, 1))
@@ -557,7 +587,7 @@ static int make_engine(lua_State *L)
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
-	self->relhash = (td_relcell **) calloc(sizeof(td_relcell*), self->relhash_size);
+	self->relhash = (struct td_relcell **) calloc(sizeof(struct td_relcell*), self->relhash_size);
 	self->node_count = 0;
 
 	if (use_digest_signing)
@@ -568,6 +598,8 @@ static int make_engine(lua_State *L)
 	configure_from_env(self);
 
 	load_ancestors(self);
+
+	td_load_relcache(self);
 
 	return 1;
 }
@@ -905,7 +937,7 @@ setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
 			luaL_error(L, "signers must be either builtins (strings) or functions");
 		}
 
-		file = td_engine_get_file(engine, filename);
+		file = td_engine_get_file(engine, filename, TD_COPY_STRING);
 
 		if (file->producer != node)
 			luaL_error(L, "%s isn't produced by this node; can't sign it", filename);
@@ -1383,7 +1415,10 @@ build_nodes(lua_State* L)
 	}
 
 	if (!self->settings.dry_run)
+	{
 		save_ancestors(self, root);
+		td_save_relcache(self);
+	}
 
 	if (TD_BUILD_SUCCESS == build_result)
 		global_tundra_exit_code = 0;
@@ -1532,7 +1567,7 @@ td_file *td_parent_dir(td_engine *engine, td_file *f)
 		if (TD_PATHSEP == ch)
 		{
 			path_buf[i] = '\0';
-			return td_engine_get_file(engine, path_buf);
+			return td_engine_get_file(engine, path_buf, TD_COPY_STRING);
 		}
 	}
 
