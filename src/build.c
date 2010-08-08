@@ -110,7 +110,7 @@ ensure_dir_exists(td_engine *engine, td_file *dir)
 }
 
 static int
-run_job(td_job_queue *queue, td_node *node)
+run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 {
 	double t1, t2;
 	td_engine *engine = queue->engine;
@@ -135,12 +135,12 @@ run_job(td_job_queue *queue, td_node *node)
 
 	pthread_mutex_unlock(&queue->mutex);
 	if (td_verbosity_check(engine, 1))
-		printf("%s\n", node->annotation);
+		printf("%s%s\n", line_prefix, node->annotation);
 	t1 = td_timestamp();
 	if (td_verbosity_check(engine, 2))
-		printf("%s\n", command);
+		printf("%s%s\n", line_prefix, command);
 	if (!engine->settings.dry_run)
-		result = td_exec(command, node->env_count, node->env, &was_signalled);
+		result = td_exec(command, node->env_count, node->env, &was_signalled, line_prefix);
 	else
 		result = 0;
 	t2 = td_timestamp();
@@ -324,7 +324,7 @@ leave:
 }
 
 static void
-advance_job(td_job_queue *queue, td_node *node)
+advance_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 {
 	td_jobstate state;
 	while ((state = node->job.state) < TD_JOB_COMPLETED)
@@ -386,7 +386,7 @@ advance_job(td_job_queue *queue, td_node *node)
 			break;
 
 		case TD_JOB_RUNNING:
-			if (0 != run_job(queue, node))
+			if (0 != run_job(queue, node, line_prefix))
 				transition_job(queue, node, TD_JOB_FAILED);
 			else
 				transition_job(queue, node, TD_JOB_COMPLETED);
@@ -434,10 +434,19 @@ advance_job(td_job_queue *queue, td_node *node)
 	}
 }
 
-static void *
-build_worker(void *arg)
+typedef struct
 {
-	td_job_queue * const queue = (td_job_queue *) arg;
+	td_job_queue *queue;
+	char line_prefix[16];
+} thread_start_arg;
+
+static void *
+build_worker(void *arg_)
+{
+	thread_start_arg *arg = (thread_start_arg *) arg_;
+
+	td_job_queue * const queue = arg->queue;
+	const char * const line_prefix = arg->line_prefix;
 
 	pthread_mutex_lock(&queue->mutex);
 
@@ -460,7 +469,7 @@ build_worker(void *arg)
 
 		node->job.flags &= ~TD_JOBF_QUEUED;
 
-		advance_job(queue, node);
+		advance_job(queue, node, line_prefix);
 
 		if (is_completed(node) && is_root(node))
 			queue->siginfo.flag = 1;
@@ -474,11 +483,18 @@ build_worker(void *arg)
 
 #define TD_MAX_THREADS (32)
 
+static void
+set_line_prefix(thread_start_arg* arg, int id)
+{
+	sprintf(arg->line_prefix, "%d> ", id);
+}
+
 td_build_result
 td_build(td_engine *engine, td_node *node, int *jobs_run)
 {
 	int i;
 	int thread_count;
+	thread_start_arg thread_arg[TD_MAX_THREADS];
 	pthread_t threads[TD_MAX_THREADS];
 	td_job_queue queue;
 
@@ -513,7 +529,11 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 		int rc;
 		if (td_debug_check(engine, TD_DEBUG_QUEUE))
 			printf("starting thread %d\n", i);
-		rc = pthread_create(&threads[i], NULL, build_worker, &queue);
+
+		set_line_prefix(&thread_arg[i], i + 2);
+		thread_arg[i].queue = &queue;
+
+		rc = pthread_create(&threads[i], NULL, build_worker, &thread_arg[i]);
 		if (0 != rc)
 			td_croak("couldn't start thread %d: %s", i, strerror(rc));
 	}
@@ -526,7 +546,17 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 	pthread_mutex_unlock(&queue.mutex);
 	pthread_cond_broadcast(&queue.work_avail);
 
-	build_worker(&queue);
+	{
+		thread_start_arg main_arg;
+		if (1 == thread_count)
+			main_arg.line_prefix[0] = '\0';
+		else
+			set_line_prefix(&main_arg, 1);
+
+		main_arg.queue = &queue;
+
+		build_worker(&main_arg);
+	}
 
 	if (td_verbosity_check(engine, 2) && -1 == queue.siginfo.flag)
 		printf("*** aborted on signal %s\n", queue.siginfo.reason);

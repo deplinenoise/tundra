@@ -102,7 +102,7 @@ typedef struct {
 void td_block_signals(int block);
 void td_install_sighandler(td_sighandler_info *info);
 void td_remove_sighandler(void);
-int td_exec(const char* cmd_line, int env_count, const char **env, int *was_signalled_out);
+int td_exec(const char* cmd_line, int env_count, const char **env, int *was_signalled_out, const char *prefix);
 
 #if defined(_WIN32)
 int td_win32_register_query(struct lua_State *L);

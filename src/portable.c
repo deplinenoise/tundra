@@ -501,44 +501,122 @@ make_env_block(char* env_block, size_t block_size, const char **env, int env_cou
    So we're doing it the hard way.
  */
 
-int win32_spawn(const char *cmd_line, const char **env, int env_count)
+static char *
+emit_lines(const char *prefix, char* buffer, size_t size)
 {
+	size_t i, start = 0;
+	for (i = 0; i < size; ++i)
+	{
+		if ('\n' == buffer[i])
+		{
+			buffer[i] = '\0';
+			printf("%s%s\n", prefix, &buffer[start]);
+			start = i+1;
+		}
+	}
+
+	if (start > 0)
+		memmove(buffer, buffer + start, size - start);
+	return buffer + size - start;
+}
+
+static void
+pump_stdio(const char *prefix, HANDLE input, HANDLE proc)
+{
+	char buffer[1024];
+	char *bufp = buffer;
+	int remain = sizeof(buffer);
+	DWORD bytes_read;
+	while (ReadFile(input, bufp, remain, &bytes_read, NULL))
+	{
+		if (0 == bytes_read)
+			break;
+
+		bufp = emit_lines(prefix, buffer, (size_t) bytes_read);
+		remain = (int) (buffer + sizeof(buffer) - bufp);
+	}
+}
+
+int win32_spawn(const char *prefix, const char *cmd_line, const char **env, int env_count)
+{
+	int result_code = 1;
 	char buffer[8192];
 	char env_block[128*1024];
+	HANDLE std_in_rd = NULL, std_in_wr = NULL, std_out_rd = NULL, std_out_wr = NULL;
 	STARTUPINFO sinfo;
 	PROCESS_INFORMATION pinfo;
 
 	if (0 != make_env_block(env_block, sizeof(env_block) - 2, env, env_count))
 	{
-		fprintf(stderr, "env block error; too big?\n");
+		fprintf(stderr, "%senv block error; too big?\n", prefix);
 		return 1;
 	}
 
-	memset(&sinfo, 0, sizeof(sinfo));
+	snprintf(buffer, sizeof(buffer), "cmd.exe /c %s", cmd_line);
+
+	{
+		/* Set the bInheritHandle flag so pipe handles are inherited. */
+		SECURITY_ATTRIBUTES pipe_attr; 
+		pipe_attr.nLength = sizeof(SECURITY_ATTRIBUTES); 
+		pipe_attr.bInheritHandle = TRUE; 
+		pipe_attr.lpSecurityDescriptor = NULL; 
+		if (!CreatePipe(&std_in_rd, &std_in_wr, &pipe_attr, 0) ||
+			!CreatePipe(&std_out_rd, &std_out_wr, &pipe_attr, 0))
+		{
+			fprintf(stderr, "%scouldn't create pipe; win32 error = %d\n", prefix, (int) GetLastError());
+			result_code = 1;
+			goto leave;
+		}
+	}
+
+	if (!SetHandleInformation(std_out_rd, HANDLE_FLAG_INHERIT, 0))
+		goto leave;
+	if (!SetHandleInformation(std_in_wr, HANDLE_FLAG_INHERIT, 0))
+		goto leave;
+
 	memset(&pinfo, 0, sizeof(pinfo));
 
+	memset(&sinfo, 0, sizeof(sinfo));
 	sinfo.cb = sizeof(sinfo);
-	snprintf(buffer, sizeof(buffer), "cmd.exe /c %s", cmd_line);
+	sinfo.hStdInput = std_in_rd;
+	sinfo.hStdOutput = std_out_wr;
+	sinfo.hStdError = std_out_wr;
+	sinfo.dwFlags = STARTF_USESTDHANDLES;
 
 	if (CreateProcess(NULL, buffer, NULL, NULL, TRUE, 0, env_block, NULL, &sinfo, &pinfo))
 	{
 		DWORD result;
 		CloseHandle(pinfo.hThread);
+
+		CloseHandle(std_in_wr);
+		std_in_wr = NULL;
+		CloseHandle(std_out_wr);
+		std_out_wr = NULL;
+
+		pump_stdio(prefix, std_out_rd, pinfo.hProcess);
+
 		while (WAIT_OBJECT_0 != WaitForSingleObject(pinfo.hProcess, INFINITE))
 			/* nop */;
 		GetExitCodeProcess(pinfo.hProcess, &result);
 		CloseHandle(pinfo.hProcess);
-		return (int) result;
+		result_code = (int) result;
 	}
 	else
 	{
-		fprintf(stderr, "Couldn't launch process; Win32 error = %d\n", (int) GetLastError());
-		return 1;
+		fprintf(stderr, "%sCouldn't launch process; Win32 error = %d\n", prefix, (int) GetLastError());
 	}
+
+leave:
+	if (std_in_rd) CloseHandle(std_in_rd);
+	if (std_in_wr) CloseHandle(std_in_wr);
+	if (std_out_rd) CloseHandle(std_out_rd);
+	if (std_out_wr) CloseHandle(std_out_wr);
+
+	return result_code;
 }
 #endif
 
-int td_exec(const char* cmd_line, int env_count, const char **env, int *was_signalled_out)
+int td_exec(const char* cmd_line, int env_count, const char **env, int *was_signalled_out, const char *prefix)
 {
 #if defined(__APPLE__) || defined(linux)
 	pid_t child;
@@ -600,19 +678,19 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 	}
 
 #elif defined(_WIN32)
-	static const char prefix[] = "@RESPONSE|";
-	static const size_t prefix_len = sizeof(prefix) - 1;
+	static const char response_prefix[] = "@RESPONSE|";
+	static const size_t response_prefix_len = sizeof(response_prefix) - 1;
 	char new_cmd[8192];
 	const char* response;
 	*was_signalled_out = 0;
 
 	/* scan for a @RESPONSE|<option>|.... section at the end of the command line */
-	if (NULL != (response = strstr(cmd_line, prefix)))
+	if (NULL != (response = strstr(cmd_line, response_prefix)))
 	{
 		const size_t cmd_len = strlen(cmd_line);
 		const char *option, *option_end;
 
-		option = response + prefix_len;
+		option = response + response_prefix_len;
 
 		if (NULL == (option_end = strchr(option, '|')))
 		{
@@ -657,7 +735,7 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 			strncat_s(new_cmd, sizeof(new_cmd), option, option_end - option);
 			strcat_s(new_cmd, sizeof(new_cmd), response_file);
 
-			cmd_result = win32_spawn(new_cmd, env, env_count);
+			cmd_result = win32_spawn(prefix, new_cmd, env, env_count);
 
 			remove(response_file);
 			return cmd_result;
@@ -666,13 +744,13 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 		{
 			strncpy_s(new_cmd, sizeof(new_cmd), cmd_line, response - cmd_line);
 			strcat_s(new_cmd, sizeof(new_cmd), option_end + 1);
-			return win32_spawn(new_cmd, env, env_count);
+			return win32_spawn(prefix, new_cmd, env, env_count);
 		}
 	}
 	else
 	{
 		/* no section in command line at all, just run it */
-		return win32_spawn(cmd_line, env, env_count);
+		return win32_spawn(prefix, cmd_line, env, env_count);
 	}
 #else
 #error meh
