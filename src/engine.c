@@ -1007,14 +1007,13 @@ make_node(lua_State *L)
 		}
 
 		node->env_count = count;
-		node->env = (const char **) td_page_alloc(&self->alloc, sizeof(const char *) * (count + 1));
+		node->env = (const char **) td_page_alloc(&self->alloc, sizeof(const char *) * (count));
 		lua_pushnil(L);
 		while (lua_next(L, -2))
 		{
 			node->env[index++] = make_env_key(self, L, -2, -1);
 			lua_pop(L, 1);
 		}
-		node->env[index++] = NULL;
 	}
 	else
 	{
