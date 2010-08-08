@@ -172,25 +172,14 @@ if Options.Cwd then
 	native.set_cwd(Options.Cwd)
 end
 
-SEP = native.host_platform == "windows" and "\\" or "/"
+local SEP = native.host_platform == "windows" and "\\" or "/"
+GlobalEngine = nil
 
 local default_env = environment.create()
 default_env:set_many {
 	["OBJECTROOT"] = "tundra-output",
 	["SEP"] = SEP,
 }
-
-GlobalEngine = native.make_engine {
-	FileHashSize = 51921,
-	RelationHashSize = 79127,
-	DebugFlags = Options.DebugFlags,
-	Verbosity = Options.Verbosity,
-	ThreadCount = tonumber(Options.ThreadCount),
-	DryRun = Options.DryRun and 1 or 0,
-	UseDigestSigning = 0,
-	ContinueOnError = Options.Continue and 1 or 0,
-}
-
 
 local function run_build_script(fn)
 	local script_globals, script_globals_mt = {}, {}
@@ -533,9 +522,26 @@ function Build(args)
 	if not Options.IdeGeneration then
 		-- This is a regular build. Assume these generator sets are always
 		-- needed for now. Could possible make an option for which generator
-		-- sets to load.
+		-- sets to load in the future.
 		nodegen.add_generator_set("nodegen", "native")
 		nodegen.add_generator_set("nodegen", "dotnet")
+
+		local engine_opts = args.EngineOptions or {}
+
+		-- Create the build engine now.
+		GlobalEngine = native.make_engine {
+			-- per-session settings
+			Verbosity = Options.Verbosity,
+			ThreadCount = tonumber(Options.ThreadCount),
+			ContinueOnError = Options.Continue and 1 or 0,
+			DryRun = Options.DryRun and 1 or 0,
+			DebugFlags = Options.DebugFlags,
+
+			-- per-config settings
+			FileHashSize = engine_opts.FileHashSize,
+			RelationHashSize = engine_opts.RelationHashSize,
+			UseDigestSigning = engine_opts.UseDigestSigning,
+		}
 	else
 		-- We are generating IDE integration files. Load the specified
 		-- integration module rather than DAG builders.
