@@ -682,7 +682,7 @@ make_pass_barrier(td_engine *engine, const td_pass *pass)
 	snprintf(name, sizeof(name), "<<pass barrier '%s'>>", pass->name);
 	name[sizeof(name)-1] = '\0';
 
-	result = (td_node *) td_page_alloc(&engine->alloc, sizeof(td_node));
+	result = td_page_alloc(&engine->alloc, sizeof(td_node));
 	memset(result, 0, sizeof(*result));
 	result->annotation = td_page_strdup(&engine->alloc, name, strlen(name));
 	setup_ancestor_data(engine, result);
@@ -751,7 +751,7 @@ setup_pass(lua_State *L, td_engine *engine, int index, td_node *node)
 	pass = &engine->passes[pass_index];
 
 	/* link this node into the node list of the pass */
-	chain = (td_job_chain *) td_page_alloc(&engine->alloc, sizeof(td_job_chain));
+	chain = td_page_alloc(&engine->alloc, sizeof(td_job_chain));
 	chain->node = node;
 	chain->next = pass->nodes;
 	pass->nodes = chain;
@@ -930,7 +930,7 @@ setup_file_signers(lua_State *L, td_engine *engine, td_node *node)
 		else if(lua_isfunction(L, -1))
 		{
 			/* save the lua closure in the registry so we can call it later */
-			signer = (td_signer*) td_page_alloc(&engine->alloc, sizeof(td_signer));
+			signer = td_page_alloc(&engine->alloc, sizeof(td_signer));
 			signer->is_lua = 1;
 			signer->function.lua_reference = luaL_ref(L, -1); /* pops the value */
 		}
@@ -965,7 +965,7 @@ static int
 make_node(lua_State *L)
 {
 	td_engine * const self = td_check_engine(L, 1);
-	td_node *node = (td_node *) td_page_alloc(&self->alloc, sizeof(td_node));
+	td_node *node = td_page_alloc(&self->alloc, sizeof(td_node));
 	td_noderef *noderef;
 
 	node->annotation = copy_string_field(L, self, 2, "annotation");
@@ -1007,7 +1007,7 @@ make_node(lua_State *L)
 		}
 
 		node->env_count = count;
-		node->env = (const char **) td_page_alloc(&self->alloc, sizeof(const char *) * (count));
+		node->env = td_page_alloc(&self->alloc, sizeof(const char *) * (count));
 		lua_pushnil(L);
 		while (lua_next(L, -2))
 		{
@@ -1121,7 +1121,7 @@ add_pending_job(td_engine *engine, td_node *blocking_node, td_node *blocked_node
 		chain = chain->next;
 	}
 
-	chain = (td_job_chain *) td_page_alloc(&engine->alloc, sizeof(td_job_chain));
+	chain = td_page_alloc(&engine->alloc, sizeof(td_job_chain));
 	chain->node = blocked_node;
 	chain->next = blocking_node->job.pending_jobs;
 	blocking_node->job.pending_jobs = chain;
