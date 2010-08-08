@@ -1398,6 +1398,8 @@ build_nodes(lua_State* L)
 	{
 		extern int global_tundra_stats;
 		extern double script_call_t1;
+		extern int walk_path_count;
+		extern double walk_path_time;
 		double file_load = 100.0 * self->stats.file_count / self->file_hash_size;
 		double relation_load = 100.0 * self->stats.relation_count / self->relhash_size;
 
@@ -1407,6 +1409,7 @@ build_nodes(lua_State* L)
 		printf("  relation cache load: %.3fs save: %.3fs\n", self->stats.relcache_load, self->stats.relcache_save);
 		printf("  nodes with ancestry: %d of %d possible\n", self->stats.ancestor_nodes, self->stats.ancestor_checks);
 		printf("  time spent in Lua doing setup: %.3fs\n", script_end_time - script_call_t1);
+		printf("    - time spent iterating directories (glob): %.3fs over %d calls\n", walk_path_time, walk_path_count);
 		printf("  total time spent in build loop: %.3fs\n", t2-t1);
 		printf("    - implicit dependency scanning: %.3fs\n", self->stats.scan_time);
 		printf("    - output directory creation/mgmt: %.3fs\n", self->stats.mkdir_time);

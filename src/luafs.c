@@ -150,10 +150,17 @@ enum
 	WALK_UPV_QUEUE = lua_upvalueindex(3)
 };
 
+int walk_path_count = 0;
+double walk_path_time = 0.0;
+
 static int tundra_walk_path_iter(lua_State* L)
 {
 	const char* current_dir = "";
 	const char* path = ""; 
+
+	double t1;
+
+	t1 = td_timestamp();
 
 	if (!lua_isnil(L, WALK_UPV_CWD))
 		current_dir = lua_tostring(L, WALK_UPV_CWD);
@@ -224,6 +231,9 @@ static int tundra_walk_path_iter(lua_State* L)
 		lua_pushnil(L);
 		lua_rawseti(L, WALK_UPV_QUEUE, i);
 	}
+
+	++walk_path_count;
+	walk_path_time += td_timestamp() - t1;
 
 	return 3;
 }
