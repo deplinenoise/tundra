@@ -117,8 +117,8 @@ do
 		io.write("\nCommand-line options:\n")
 		for _, bp in ipairs(option_blueprints) do
 			local h = string.format("  %- 3s %s",
-				bp.Short and "-" .. bp.Short or "",
-				bp.Long and "--" .. bp.Long or "")
+			bp.Short and "-" .. bp.Short or "",
+			bp.Long and "--" .. bp.Long or "")
 
 			if bp.HasValue then
 				h = h .. " <value>"
@@ -351,7 +351,7 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 						subvariant = default_subvariant
 					end
 
-					build_tuples[#build_tuples + 1] = { Config = configs[config], Variant = variant, SubVariant = subvariant }
+					build_tuples[#build_tuples + 1] = { Config = configs[config], Variant = variants[variant], SubVariant = subvariant }
 				else
 					remaining_targets[#remaining_targets + 1] = name
 				end
