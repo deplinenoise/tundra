@@ -318,13 +318,13 @@ write_relcache_nodes(td_engine *engine, FILE* f)
 void
 td_save_relcache(td_engine *engine)
 {
+	FILE* f;
 	double t1;
 	td_frozen_rel_header header;
 
 	t1 = td_timestamp();
 
-	FILE* f = fopen(TD_RELCACHE_FILE, "wb");
-	if (!f)
+	if (NULL == (f = fopen(TD_RELCACHE_FILE, "wb")))
 		td_croak("couldn't open %s", TD_RELCACHE_FILE);
 
 	/* write placeholder header */
