@@ -165,6 +165,7 @@ static int on_lua_panic(lua_State *L)
 	exit(1);
 }
 
+double script_call_t1 = 0.0;
 int global_tundra_stats = 0;
 int global_tundra_exit_code = 0;
 
@@ -222,12 +223,12 @@ int main(int argc, char** argv)
 	}
 
 	{
-		double t1, t2;
-		t1 = td_timestamp();
+		double t2;
+		script_call_t1 = td_timestamp();
 		res = lua_pcall(L, /*narg:*/1, /*nres:*/0, /*errorfunc:*/ -3);
 		t2 = td_timestamp();
 		if (global_tundra_stats)
-			printf("total time spent in tundra: %.4fs\n", t2-t1);
+			printf("total time spent in tundra: %.4fs\n", t2 - script_call_t1);
 	}
 
 	if (res == 0)

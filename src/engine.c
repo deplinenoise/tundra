@@ -1356,9 +1356,12 @@ build_nodes(lua_State* L)
 	int pre_file_count;
 	td_engine * self;
 	td_node *root;
-	double t1, t2;
+	double t1, t2, script_end_time;
 	extern int global_tundra_exit_code;
 	int is_clean = 0;
+
+	/* record this timestamp as the time when Lua ended */
+	script_end_time = td_timestamp();
 
 	self = td_check_engine(L, 1);
 	root = td_check_noderef(L, 2)->node;
@@ -1395,6 +1398,7 @@ build_nodes(lua_State* L)
 	if (td_debug_check(self, TD_DEBUG_STATS))
 	{
 		extern int global_tundra_stats;
+		extern double script_call_t1;
 		double file_load = 100.0 * self->stats.file_count / self->file_hash_size;
 		double relation_load = 100.0 * self->stats.relation_count / self->relhash_size;
 
@@ -1403,6 +1407,7 @@ build_nodes(lua_State* L)
 		printf("  relations tracked: %d, table load %.2f%%\n", self->stats.relation_count, relation_load);
 		printf("  relation cache load: %.3fs save: %.3fs\n", self->stats.relcache_load, self->stats.relcache_save);
 		printf("  nodes with ancestry: %d of %d possible\n", self->stats.ancestor_nodes, self->stats.ancestor_checks);
+		printf("  time spent in Lua doing setup: %.3fs\n", script_end_time - script_call_t1);
 		printf("  total time spent in build loop: %.3fs\n", t2-t1);
 		printf("    - implicit dependency scanning: %.3fs\n", self->stats.scan_time);
 		printf("    - output directory creation/mgmt: %.3fs\n", self->stats.mkdir_time);
