@@ -159,10 +159,9 @@ populate_relcell(
 		td_file *file,
 		unsigned int salt,
 		int count,
-		td_file **files)
+		td_file **files,
+		const td_digest *sig)
 {
-	const td_digest *sig = td_get_signature(engine, file);
-
 	size_t memsize = sizeof(td_file*) * count;
 	cell->file = file;
 	cell->salt = salt;
@@ -176,7 +175,7 @@ populate_relcell(
 }
 
 void
-td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files)
+set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files, const td_digest* digest)
 {
 	unsigned int hash;
 	td_relcell *chain;
@@ -190,7 +189,7 @@ td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int
 	{
 		if (salt == chain->salt && file == chain->file)
 		{
-			populate_relcell(engine, chain, file, salt, count, files);
+			populate_relcell(engine, chain, file, salt, count, files, digest);
 			return;
 		}
 
@@ -199,10 +198,17 @@ td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int
 
 	++engine->stats.relation_count;
 	chain = (td_relcell*) td_page_alloc(&engine->alloc, sizeof(td_relcell));
-	populate_relcell(engine, chain, file, salt, count, files);
+	populate_relcell(engine, chain, file, salt, count, files, digest);
 	chain->bucket_next = engine->relhash[bucket];
 	engine->relhash[bucket] = chain;
 }
+
+void
+td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files)
+{
+	return set_relations(engine, file, salt, count, files, td_get_signature(engine, file));
+}
+
 static void
 persist_filename(FILE *rcf, td_file *file, uint32_t *cursor)
 {
@@ -293,7 +299,6 @@ write_relcache_nodes(td_engine *engine, FILE* f)
 
 		while (chain)
 		{
-			const td_digest *sig;
 			td_frozen_relation data;
 
 			if (chain->timestamp + TD_RELCACHE_TTL_SECS <= engine->start_time)
@@ -304,9 +309,7 @@ write_relcache_nodes(td_engine *engine, FILE* f)
 			data.access_time = chain->timestamp;
 			data.first_relation_offset = chain->child_list_start;
 			data.relation_count = chain->count;
-
-			sig = td_get_signature(engine, chain->file);
-			memcpy(&data.signature, sig, sizeof(td_digest));
+			memcpy(&data.signature, &chain->signature, sizeof(td_digest));
 
 			fwrite(&data, 1, sizeof(data), f);
 
@@ -385,7 +388,11 @@ install_relations(td_engine *engine, td_frozen_reldata *data)
 			files[fi] = td_engine_get_file(engine, fpath, TD_BORROW_STRING);
 		}
 
-		td_engine_set_relations(engine, f, rel->salt, (int) rel->relation_count, files);
+		/* Insert the relation info with the old signature of the file. This
+		 * way it's OK to include stale information because if the file is used
+		 * it will be signed before the cache is consulted and a digest change
+		 * will disregard this node. */
+		set_relations(engine, f, rel->salt, (int) rel->relation_count, files, &rel->signature);
 	}
 
 	if (td_verbosity_check(engine, 2))
