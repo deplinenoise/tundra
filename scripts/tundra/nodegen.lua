@@ -22,6 +22,8 @@ local path = require "tundra.path"
 local native = require "tundra.native"
 local depgraph = require "tundra.depgraph"
 
+local ide_backend = nil
+
 _generator = {
 	evaluators = {},
 }
@@ -293,6 +295,10 @@ function generate_ide_files(config_tuples, default_names, raw_nodes, env)
 	local state = make_new_state { base_env = env }
 	assert(state.base_env)
 	create_unit_map(state, raw_nodes)
-	state:generate_files(config_tuples, raw_nodes, env)
+	local backend_fn = assert(ide_backend)
+	backend_fn(state, config_tuples, raw_nodes, env)
 end
 
+function set_ide_backend(backend_fn)
+	ide_backend = backend_fn
+end

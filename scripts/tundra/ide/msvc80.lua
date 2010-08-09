@@ -18,7 +18,6 @@
 
 -- Microsoft Visual Studio 2008 Solution/Project file generation
 
-local _generator = ...
 local nodegen = require"tundra.nodegen"
 local util = require"tundra.util"
 local native = require"tundra.native"
@@ -26,7 +25,10 @@ local native = require"tundra.native"
 local LF = '\r\n'
 local UTF_HEADER = '\239\187\191' -- byte mark EF BB BF 
 
-local function generate_solution(generator, fn, projects)
+local msvc_generator = {}
+msvc_generator.__index = msvc_generator
+
+function msvc_generator:generate_solution(fn, projects)
 	local sln = io.open(fn, 'wb')
 	sln:write(UTF_HEADER, LF, "Microsoft Visual Studio Solution File, Format Version 10.00", LF, "# Visual Studio 2008", LF)
 
@@ -40,14 +42,14 @@ local function generate_solution(generator, fn, projects)
 
 	sln:write("Global", LF)
 	sln:write("\tGlobalSection(SolutionConfigurationPlatforms) = preSolution", LF)
-	for _, tuple in ipairs(generator.config_tuples) do
+	for _, tuple in ipairs(self.config_tuples) do
 		sln:write(string.format('\t\t%s = %s', tuple.MsvcName, tuple.MsvcName), LF)
 	end
 	sln:write("\tEndGlobalSection", LF)
 
 	sln:write("\tGlobalSection(ProjectConfigurationPlatforms) = postSolution", LF)
 	for _, proj in ipairs(projects) do
-		for _, tuple in ipairs(generator.config_tuples) do
+		for _, tuple in ipairs(self.config_tuples) do
 			local leader = string.format('\t\t{%s}.%s.', proj.Guid, tuple.MsvcName)
 			sln:write(leader, "ActiveCfg = ", tuple.MsvcName, LF)
 			sln:write(leader, "Build.0 = ", tuple.MsvcName, LF)
@@ -63,7 +65,7 @@ local function generate_solution(generator, fn, projects)
 	sln:close()
 end
 
-local function generate_project(generator, project)
+function msvc_generator:generate_project(project)
 	local fn = project.Filename
 	local p = io.open(fn, 'wb')
 	p:write('<?xml version="1.0" encoding="Windows-1252"?>', LF)
@@ -77,7 +79,7 @@ local function generate_project(generator, project)
 	p:write('\t>', LF)
 
 	p:write('\t<Platforms>', LF)
-	for platform, _ in pairs(generator.msvc_platforms) do
+	for platform, _ in pairs(self.msvc_platforms) do
 		p:write('\t\t<Platform', LF)
 		p:write('\t\t\tName="', platform, '"', LF)
 		p:write('\t\t/>', LF)
@@ -88,7 +90,7 @@ local function generate_project(generator, project)
 	p:write('\t</ToolFiles>', LF)
 
 	p:write('\t<Configurations>', LF)
-	for _, tuple in ipairs(generator.config_tuples) do
+	for _, tuple in ipairs(self.config_tuples) do
 		p:write('\t\t<Configuration', LF)
 		p:write('\t\t\tName="', tuple.MsvcName, '"', LF)
 		p:write('\t\t\tOutputDirectory="$(ConfigurationName)"', LF)
@@ -151,7 +153,7 @@ local function generate_project(generator, project)
 	p:close()
 end
 
-function _generator:generate_files(config_tuples, raw_nodes, env)
+function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 	assert(config_tuples and #config_tuples > 0)
 
 	self.msvc_platforms = {}
@@ -171,7 +173,7 @@ function _generator:generate_files(config_tuples, raw_nodes, env)
 	local projects = {}
 
 	for _, unit in ipairs(raw_nodes) do
-		projects[#projects + 1] = self:get_node_of(unit.Decl.Name)
+		projects[#projects + 1] = ngen:get_node_of(unit.Decl.Name)
 	end
 
 	local meta_name = "00-Tundra"
@@ -192,10 +194,10 @@ function _generator:generate_files(config_tuples, raw_nodes, env)
 	local base_dir = env:interpolate('$(OBJECTROOT)$(SEP)')
 
 	local sln_file = base_dir .. "tundra-generated.sln" -- FIXME: pass in solution name
-	generate_solution(self, sln_file, projects)
+	self:generate_solution(sln_file, projects)
 
 	for _, proj in ipairs(projects) do
-		generate_project(self, proj)
+		self:generate_project(proj)
 	end
 end
 
@@ -224,4 +226,10 @@ do
 			}
 		end)
 	end
+
+	nodegen.set_ide_backend(function(...)
+		local state = setmetatable({}, msvc_generator)
+		state:generate_files(...)
+	end)
+
 end
