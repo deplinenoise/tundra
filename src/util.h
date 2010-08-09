@@ -31,13 +31,25 @@ unsigned long djb2_hash(const char *str);
 
 void td_croak(const char *fmt, ...);
 
+typedef struct td_alloc
+{
+	/* memory allocation */
+	int page_index;
+	int page_left;
+	int page_size;
+	int total_page_count;
+	char **pages;
+} td_alloc;
+
 void td_alloc_init(struct td_alloc *alloc, int page_count_max, int page_size);
 void td_alloc_cleanup(struct td_alloc *alloc);
+void *td_page_alloc(td_alloc *alloc, size_t size);
 
 char *td_page_strdup(struct td_alloc *alloc, const char* str, size_t len);
 char *td_page_strdup_lua(struct lua_State *L, struct td_alloc *alloc, int index, const char *context);
 const char ** td_build_string_array(struct lua_State* L, struct td_alloc *alloc, int index, int *count_out);
 struct td_file **td_build_file_array(struct lua_State* L, struct td_engine *alloc, int index, int *count_out);
+const char *td_spaces(int count);
 const char *td_indent(int level);
 
 typedef enum {

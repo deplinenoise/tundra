@@ -89,34 +89,6 @@ void td_sign_digest(td_engine *engine, td_file *file, td_digest *out)
 static td_signer sign_timestamp = { 0, { td_sign_timestamp } };
 static td_signer sign_digest = { 0, { td_sign_digest } };
 
-void *td_page_alloc(td_alloc *alloc, size_t size)
-{
-	int left = alloc->page_left;
-	int page = alloc->page_index;
-	char *addr;
-
-	if (left < (int) size)
-	{
-		if (page == alloc->total_page_count)
-			td_croak("out of string page memory");
-
-		page = alloc->page_index = page + 1;
-		left = alloc->page_left = alloc->page_size;
-		alloc->pages[page] = malloc(alloc->page_size);
-		if (!alloc->pages[page])
-			td_croak("out of memory allocating string page");
-	}
-
-	addr = alloc->pages[page] + alloc->page_size - left;
-	alloc->page_left -= (int) size;
-
-#ifndef NDEBUG
-	memset(addr, 0xcc, size);
-#endif
-
-	return addr;
-}
-
 static void
 md5_string(MD5_CTX *context, const char *string)
 {

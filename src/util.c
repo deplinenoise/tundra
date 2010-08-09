@@ -126,18 +126,28 @@ td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
 }
 
 const char *
-td_indent(int level)
+td_spaces(int count)
 {
 	static const char spaces[] =
 		"                                                     "
 		"                                                     "
+		"                                                     "
+		"                                                     "
 		"                                                     ";
 
-	int adjust = sizeof(spaces) - 1 - level * 2;
+	if (count < 0)
+		count = 0;
+	int adjust = sizeof(spaces) - 1 - count;
 	if (adjust < 0)
 		adjust = 0;
-
 	return spaces + adjust;
+}
+
+
+const char *
+td_indent(int level)
+{
+	return td_spaces(level * 2);
 }
 
 void
@@ -200,4 +210,34 @@ td_build_path(char *buffer, int buffer_size, const td_file *base, const char *su
 	offset += subpath_len;
 	buffer[offset] = '\0';
 }
+
+void *
+td_page_alloc(td_alloc *alloc, size_t size)
+{
+	int left = alloc->page_left;
+	int page = alloc->page_index;
+	char *addr;
+
+	if (left < (int) size)
+	{
+		if (page == alloc->total_page_count)
+			td_croak("out of string page memory");
+
+		page = alloc->page_index = page + 1;
+		left = alloc->page_left = alloc->page_size;
+		alloc->pages[page] = malloc(alloc->page_size);
+		if (!alloc->pages[page])
+			td_croak("out of memory allocating string page");
+	}
+
+	addr = alloc->pages[page] + alloc->page_size - left;
+	alloc->page_left -= (int) size;
+
+#ifndef NDEBUG
+	memset(addr, 0xcc, size);
+#endif
+
+	return addr;
+}
+
 

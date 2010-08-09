@@ -35,11 +35,6 @@
 #define snprintf _snprintf
 #endif
 
-extern int tundra_walk_path(lua_State*);
-extern void td_engine_open(lua_State*);
-extern void td_scanner_open(lua_State*);
-extern void td_cpp_scanner_open(lua_State*);
-
 static int tundra_exit(lua_State *L)
 {
 	TD_UNUSED(L);
@@ -108,6 +103,13 @@ static int tundra_getenv(lua_State *L)
 
 static int tundra_open(lua_State *L)
 {
+	extern int td_luaprof_install(lua_State *L);
+	extern int td_luaprof_report(lua_State *L);
+	extern int tundra_walk_path(lua_State*);
+	extern void td_engine_open(lua_State*);
+	extern int td_scanner_open(lua_State*);
+	extern int td_cpp_scanner_open(lua_State*);
+
 	static const luaL_Reg engine_entries[] = {
 		/* used to quit after printing fatal error messages from Lua */
 		{ "exit", tundra_exit },
@@ -119,6 +121,8 @@ static int tundra_open(lua_State *L)
 		{ "getenv", tundra_getenv },
 		/* query for environment string */
 		{ "set_cwd", td_set_cwd },
+		{ "install_profiler", td_luaprof_install },
+		{ "report_profiler", td_luaprof_report },
 #ifdef _WIN32
 		/* windows-specific registry query function*/
 		{ "reg_query", td_win32_register_query },

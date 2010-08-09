@@ -86,6 +86,7 @@ src/portable.c
 src/portable.h
 src/relcache.c
 src/relcache.h
+src/luaprof.c
 	)
 
 source_group(Tundra FILES ${TUNDRA_SOURCES})

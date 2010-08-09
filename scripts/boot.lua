@@ -63,12 +63,17 @@ do
 		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
 		{ Name="Debugger", Long="lua-debugger", Doc="Run with Lua debugger enabled (use 'exit' to continue)" },
 		{ Name="SelfTest", Long="self-test", Doc="Run a test of Tundra's internals" },
+		{ Name="Profile", Long="lua-profile", Doc="Enable the Lua profiler" },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
 		io.write(message, "\n")
 		io.write("Try `tundra -h' to display an option summary\n")
 		return 1
+	end
+
+	if Options.Profile then
+		native.install_profiler()
 	end
 
 	if Options.Debugger then
@@ -613,3 +618,7 @@ function Build(args)
 end
 
 run_build_script("tundra.lua")
+
+if Options.Profile then
+	native.report_profiler()
+end

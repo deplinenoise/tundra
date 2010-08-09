@@ -23,6 +23,7 @@
 #include <stddef.h>
 #include <time.h>
 #include "portable.h"
+#include "util.h"
 
 #define TUNDRA_ENGINE_MTNAME "tundra_engine"
 #define TUNDRA_NODEREF_MTNAME "tundra_noderef"
@@ -198,16 +199,6 @@ typedef struct td_pass
 	td_job_chain *nodes;
 } td_pass;
 
-typedef struct td_alloc
-{
-	/* memory allocation */
-	int page_index;
-	int page_left;
-	int page_size;
-	int total_page_count;
-	char **pages;
-} td_alloc;
-
 enum
 {
 	TD_DEBUG_QUEUE = 1 << 0,
@@ -288,9 +279,6 @@ typedef struct td_engine
 
 #define td_check_noderef(L, index) ((struct td_noderef *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
 #define td_check_engine(L, index) ((struct td_engine *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))
-
-void *
-td_page_alloc(td_alloc *alloc, size_t size);
 
 typedef enum {
 	TD_BORROW_STRING = 0,
