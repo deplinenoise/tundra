@@ -105,7 +105,7 @@ local function generate_project(generator, project)
 
 		if project.IsMeta then
 			local root_dir = ".." -- FIXME
-			local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant, tuple.SubVariant)
+			local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
 			local base = "tundra -C " .. root_dir .. " "
 			build_cmd = base .. build_id
 			clean_cmd = base .. "-c " .. build_id
@@ -158,7 +158,7 @@ function _generator:generate_files(config_tuples, raw_nodes, env)
 	for _, tuple in ipairs(config_tuples) do
 		local variant, platform = tuple.Variant, tuple.Config.Name:match('^(%w-)%-')
 		tuple.MsvcPlatform = platform:sub(1, 1):upper() .. platform:sub(2)
-		tuple.MsvcName = variant .. "|" .. tuple.MsvcPlatform
+		tuple.MsvcName = variant.Name .. "|" .. tuple.MsvcPlatform
 		self.msvc_platforms[tuple.MsvcPlatform] = true
 	end
 
