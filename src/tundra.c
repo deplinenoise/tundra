@@ -101,15 +101,15 @@ static int tundra_getenv(lua_State *L)
 	}
 }
 
+extern int td_luaprof_install(lua_State *L);
+extern int td_luaprof_report(lua_State *L);
+extern int tundra_walk_path(lua_State*);
+extern void td_engine_open(lua_State*);
+extern int td_scanner_open(lua_State*);
+extern int td_cpp_scanner_open(lua_State*);
+
 static int tundra_open(lua_State *L)
 {
-	extern int td_luaprof_install(lua_State *L);
-	extern int td_luaprof_report(lua_State *L);
-	extern int tundra_walk_path(lua_State*);
-	extern void td_engine_open(lua_State*);
-	extern int td_scanner_open(lua_State*);
-	extern int td_cpp_scanner_open(lua_State*);
-
 	static const luaL_Reg engine_entries[] = {
 		/* used to quit after printing fatal error messages from Lua */
 		{ "exit", tundra_exit },

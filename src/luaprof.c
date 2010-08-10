@@ -7,6 +7,11 @@
 #include "util.h"
 #include "portable.h"
 
+#ifdef _WIN32
+#include <malloc.h>
+#define snprintf _snprintf
+#endif
+
 enum {
 	MAX_DEPTH = 1024,
 	TABLE_SIZE = 7919,

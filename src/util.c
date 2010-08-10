@@ -128,6 +128,7 @@ td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
 const char *
 td_spaces(int count)
 {
+	int adjust;
 	static const char spaces[] =
 		"                                                     "
 		"                                                     "
@@ -137,7 +138,7 @@ td_spaces(int count)
 
 	if (count < 0)
 		count = 0;
-	int adjust = sizeof(spaces) - 1 - count;
+	adjust = sizeof(spaces) - 1 - count;
 	if (adjust < 0)
 		adjust = 0;
 	return spaces + adjust;
