@@ -620,5 +620,5 @@ end
 run_build_script("tundra.lua")
 
 if Options.Profile then
-	native.report_profiler()
+	native.report_profiler("tundra.prof")
 end
