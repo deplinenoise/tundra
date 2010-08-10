@@ -206,7 +206,7 @@ set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td
 void
 td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files)
 {
-	return set_relations(engine, file, salt, count, files, td_get_signature(engine, file));
+	set_relations(engine, file, salt, count, files, td_get_signature(engine, file));
 }
 
 static void
@@ -250,7 +250,7 @@ write_relcache_strings(td_engine *engine, FILE* f, td_frozen_rel_header *header)
 	}
 
 	header->string_block_size = running_offset;
-	assert(ftell(f) == running_offset + sizeof(td_frozen_rel_header));
+	assert(ftell(f) == (long)(running_offset + sizeof(td_frozen_rel_header)));
 	header->node_count = node_count;
 	header->relation_count = child_list_offset;
 }
