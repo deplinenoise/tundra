@@ -593,10 +593,10 @@ int win32_spawn(const char *prefix, const char *cmd_line, const char **env, int 
 		CloseHandle(std_out_wr);
 		std_out_wr = NULL;
 
-		pump_stdio(prefix, std_out_rd, pinfo.hProcess);
-
 		while (WAIT_OBJECT_0 != WaitForSingleObject(pinfo.hProcess, INFINITE))
 			/* nop */;
+		pump_stdio(prefix, std_out_rd, pinfo.hProcess);
+
 		GetExitCodeProcess(pinfo.hProcess, &result);
 		CloseHandle(pinfo.hProcess);
 		result_code = (int) result;
