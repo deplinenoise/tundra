@@ -527,12 +527,12 @@ pump_stdio(const char *prefix, HANDLE input, HANDLE proc)
 	char *bufp = buffer;
 	int remain = sizeof(buffer);
 	DWORD bytes_read;
-	while (ReadFile(input, bufp, remain, &bytes_read, NULL))
+	for (;;)
 	{
-		if (0 == bytes_read)
+		if (!ReadFile(input, bufp, remain, &bytes_read, NULL) || !bytes_read)
 			break;
-
-		bufp = emit_lines(prefix, buffer, (size_t) bytes_read);
+	
+		bufp = emit_lines(prefix, buffer, (size_t) bytes_read + (bufp - buffer));
 		remain = (int) (buffer + sizeof(buffer) - bufp);
 	}
 }
@@ -545,7 +545,7 @@ int win32_spawn(const char *prefix, const char *cmd_line, const char **env, int 
 	HANDLE std_in_rd = NULL, std_in_wr = NULL, std_out_rd = NULL, std_out_wr = NULL;
 	STARTUPINFO sinfo;
 	PROCESS_INFORMATION pinfo;
-
+	
 	if (0 != make_env_block(env_block, sizeof(env_block) - 2, env, env_count))
 	{
 		fprintf(stderr, "%senv block error; too big?\n", prefix);
@@ -593,9 +593,10 @@ int win32_spawn(const char *prefix, const char *cmd_line, const char **env, int 
 		CloseHandle(std_out_wr);
 		std_out_wr = NULL;
 
+		pump_stdio(prefix, std_out_rd, pinfo.hProcess);
+		
 		while (WAIT_OBJECT_0 != WaitForSingleObject(pinfo.hProcess, INFINITE))
 			/* nop */;
-		pump_stdio(prefix, std_out_rd, pinfo.hProcess);
 
 		GetExitCodeProcess(pinfo.hProcess, &result);
 		CloseHandle(pinfo.hProcess);
