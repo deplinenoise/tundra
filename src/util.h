@@ -72,4 +72,9 @@ void td_build_path(
 void
 td_digest_to_string(const td_digest *digest, char buffer[33]);
 
+struct td_file;
+
+void
+td_sort_file_array(struct td_file **files, int count);
+
 #endif

@@ -122,6 +122,9 @@ td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
 		lua_pop(L, 1);
 	}
 
+	/* Sort the file array. This is important to get stable signatures. */
+	td_sort_file_array(result, count);
+
 	return result;
 }
 
@@ -255,5 +258,19 @@ td_digest_to_string(const td_digest *digest, char buffer[33])
 		buffer[i * 2 + 1] = hex_tab[lo];
 	}
 	buffer[32] = '\0';
+}
+
+static int
+compare_file_paths(const void *l, const void *r)
+{
+	const td_file *fl = *((const td_file **) l);
+	const td_file *fr = *((const td_file **) r);
+	return strcmp(fl->path, fr->path);
+}
+
+void
+td_sort_file_array(td_file **files, int count)
+{
+	qsort(files, (size_t) count, sizeof(td_file *), compare_file_paths);
 }
 
