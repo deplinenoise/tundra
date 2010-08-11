@@ -207,29 +207,6 @@ function _generator:get_target(decl, suffix)
 	return target
 end
 
-function _generator:eval_unit(unit)
-	local unit_env = self.base_env:clone()
-	local decl = unit.Decl
-	local unit_type = unit.Type
-	local eval_fn = self.evaluators[unit_type]
-
-	if not eval_fn then
-		error(string.format("%s: unsupported unit type", unit_type))
-	end
-
-	return eval_fn(self, unit_env, decl)
-end
-
-function add_evaluator(name, fn)
-	_generator.evaluators[name] = fn
-end
-
-function add_generator_set(type_name, id)
-	local fn = TundraRootDir .. "/scripts/tundra/" .. type_name .. "/" .. id .. ".lua"
-	local chunk = assert(loadfile(fn))
-	chunk(_generator)
-end
-
 local pattern_cache = {}
 local function get_cached_pattern(p)
 	local v = pattern_cache[p]
@@ -260,6 +237,33 @@ local function config_matches(pattern, build_id)
 	else
 		error("bad 'Config' pattern type: " .. ptype)
 	end
+end
+
+function _generator:eval_unit(unit)
+	local unit_env = self.base_env:clone()
+	local decl = unit.Decl
+	local unit_type = unit.Type
+	local eval_fn = self.evaluators[unit_type]
+
+	if not config_matches(decl.Config, unit_env:get("BUILD_ID")) then
+		return unit_env:make_node { Label = "Dummy node for " .. decl.Name }
+	end
+
+	if not eval_fn then
+		error(string.format("%s: unsupported unit type", unit_type))
+	end
+
+	return eval_fn(self, unit_env, decl)
+end
+
+function add_evaluator(name, fn)
+	_generator.evaluators[name] = fn
+end
+
+function add_generator_set(type_name, id)
+	local fn = TundraRootDir .. "/scripts/tundra/" .. type_name .. "/" .. id .. ".lua"
+	local chunk = assert(loadfile(fn))
+	chunk(_generator)
 end
 
 -- Given a list of strings or nested lists, flatten the structure to a single
