@@ -61,6 +61,7 @@ do
 		{ Name="DebugStats", Long="debug-stats", Doc="Show statistics on the build session" },
 		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
 		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
+		{ Name="DebugSigning", Long="debug-sign", Doc="Dump detailed signing log to `tundra-signdebug.txt'" },
 		{ Name="Debugger", Long="lua-debugger", Doc="Run with Lua debugger enabled (use 'exit' to continue)" },
 		{ Name="SelfTest", Long="self-test", Doc="Run a test of Tundra's internals" },
 		{ Name="Profile", Long="lua-profile", Doc="Enable the Lua profiler" },
@@ -546,6 +547,7 @@ function Build(args)
 			FileHashSize = engine_opts.FileHashSize,
 			RelationHashSize = engine_opts.RelationHashSize,
 			UseDigestSigning = engine_opts.UseDigestSigning,
+			DebugSigning = engine_opts.DebugSigning,
 		}
 	else
 		-- We are generating IDE integration files. Load the specified

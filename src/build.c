@@ -236,16 +236,27 @@ static void
 update_input_signature(td_engine *engine, td_node *node)
 {
 	static unsigned char zero_byte = 0;
+	FILE* sign_debug_file = (FILE*) engine->sign_debug_file;
 	int i, count;
 	MD5_CTX context;
 
 	MD5_Init(&context);
+
+	if (sign_debug_file)
+		fprintf(sign_debug_file, "begin signing \"%s\"\n", node->annotation);
 
 	for (i = 0, count = node->input_count; i < count; ++i)
 	{
 		td_file *input_file = node->inputs[i];
 		td_digest *digest = td_get_signature(engine, input_file);
 		MD5_Update(&context, digest->data, sizeof(digest->data));
+
+		if (sign_debug_file)
+		{
+			char buffer[33];
+			td_digest_to_string(digest, buffer);
+			fprintf(sign_debug_file, "input[%d] = %s (\"%s\")\n", i, buffer, input_file->path);
+		}
 	}
 
 	/* add a separator between the inputs and implicit deps */
@@ -256,9 +267,23 @@ update_input_signature(td_engine *engine, td_node *node)
 		td_file *dep = node->job.ideps[i];
 		td_digest *digest = td_get_signature(engine, dep);
 		MD5_Update(&context, digest->data, sizeof(digest->data));
+
+		if (sign_debug_file)
+		{
+			char buffer[33];
+			td_digest_to_string(digest, buffer);
+			fprintf(sign_debug_file, "implicit_input[%d] = %s (\"%s\")\n", i, buffer, dep->path);
+		}
 	}
 
 	MD5_Final(node->job.input_signature.data, &context);
+
+	if (sign_debug_file)
+	{
+		char buffer[33];
+		td_digest_to_string(&node->job.input_signature, buffer);
+		fprintf(sign_debug_file, "resulting input signature = %s\n\n", buffer);
+	}
 }
 
 static int

@@ -31,6 +31,10 @@ unsigned long djb2_hash(const char *str);
 
 void td_croak(const char *fmt, ...);
 
+typedef struct td_digest {
+	unsigned char data[16];
+} td_digest;
+
 typedef struct td_alloc
 {
 	/* memory allocation */
@@ -64,5 +68,8 @@ void td_build_path(
 		const char *subpath,
 		int subpath_len,
 		td_build_path_mode mode);
+
+void
+td_digest_to_string(const td_digest *digest, char buffer[33]);
 
 #endif

@@ -241,4 +241,19 @@ td_page_alloc(td_alloc *alloc, size_t size)
 	return addr;
 }
 
+void
+td_digest_to_string(const td_digest *digest, char buffer[33])
+{
+	int i;
+	static const char hex_tab[] = "0123456789abcdef";
+	for (i = 0; i < 16; ++i)
+	{
+		unsigned char byte = digest->data[i];
+		unsigned int lo = byte & 0xf;
+		unsigned int hi = (byte & 0xf0) >> 4;
+		buffer[i * 2] = hex_tab[hi];
+		buffer[i * 2 + 1] = hex_tab[lo];
+	}
+	buffer[32] = '\0';
+}
 

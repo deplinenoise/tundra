@@ -31,10 +31,6 @@
 struct td_engine;
 struct td_file;
 
-typedef struct td_digest {
-	unsigned char data[16];
-} td_digest;
-
 struct lua_State;
 
 enum
@@ -272,6 +268,8 @@ typedef struct td_engine
 	time_t start_time;
 
 	struct td_frozen_reldata *relcache_data;
+
+	void *sign_debug_file;
 } td_engine;
 
 #define td_verbosity_check(engine, level) ((engine)->settings.verbosity >= (level))

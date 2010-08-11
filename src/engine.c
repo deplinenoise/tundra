@@ -101,22 +101,6 @@ md5_string(MD5_CTX *context, const char *string)
 }
 
 static void
-digest_to_string(const td_digest *digest, char buffer[33])
-{
-	int i;
-	static const char hex_tab[] = "0123456789abcdef";
-	for (i = 0; i < 16; ++i)
-	{
-		unsigned char byte = digest->data[i];
-		unsigned int lo = byte & 0xf;
-		unsigned int hi = (byte & 0xf0) >> 4;
-		buffer[i * 2] = hex_tab[hi];
-		buffer[i * 2 + 1] = hex_tab[lo];
-	}
-	buffer[32] = '\0';
-}
-
-static void
 compute_node_guid(td_engine *engine, td_node *node)
 {
 	MD5_CTX context;
@@ -129,7 +113,7 @@ compute_node_guid(td_engine *engine, td_node *node)
 	if (td_debug_check(engine, TD_DEBUG_NODES))
 	{
 		char guidstr[33];
-		digest_to_string(&node->guid, guidstr);
+		td_digest_to_string(&node->guid, guidstr);
 		printf("%s with guid %s\n", node->annotation, guidstr);
 	}
 }
@@ -388,8 +372,8 @@ load_ancestors(td_engine *engine)
 		for (i = 0; i < count; ++i)
 		{
 			char guid[33], sig[33];
-			digest_to_string(&engine->ancestors[i].guid, guid);
-			digest_to_string(&engine->ancestors[i].input_signature, sig);
+			td_digest_to_string(&engine->ancestors[i].guid, guid);
+			td_digest_to_string(&engine->ancestors[i].input_signature, sig);
 			printf("%s %s %ld %d\n", guid, sig, (long) engine->ancestors[i].access_time, engine->ancestors[i].job_result);
 		}
 	}
@@ -497,8 +481,8 @@ save_ancestors(td_engine *engine, td_node *root)
 		for (i = 0; i < output_cursor; ++i)
 		{
 			char guid[33], sig[33];
-			digest_to_string(&output[i].guid, guid);
-			digest_to_string(&output[i].input_signature, sig);
+			td_digest_to_string(&output[i].guid, guid);
+			td_digest_to_string(&output[i].input_signature, sig);
 			printf("%s %s %ld %d\n", guid, sig, (long) output[i].access_time, output[i].job_result);
 		}
 	}
@@ -530,6 +514,7 @@ copy_string_field(lua_State *L, td_engine *engine, int index, const char *field_
 
 static int make_engine(lua_State *L)
 {
+	int debug_signing = 0;
 	int use_digest_signing = 1;
 	td_engine *self = (td_engine*) lua_newuserdata(L, sizeof(td_engine));
 	memset(self, 0, sizeof(td_engine));
@@ -556,6 +541,7 @@ static int make_engine(lua_State *L)
 		self->settings.dry_run = get_int_override(L, 1, "DryRun", 0);
 		self->settings.continue_on_error = get_int_override(L, 1, "ContinueOnError", 0);
 		use_digest_signing = get_int_override(L, 1, "UseDigestSigning", 1);
+		debug_signing = get_int_override(L, 1, "DebugSigning", 1);
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
@@ -566,6 +552,9 @@ static int make_engine(lua_State *L)
 		self->default_signer = &sign_digest;
 	else
 		self->default_signer = &sign_timestamp;
+
+	if (debug_signing)
+		self->sign_debug_file = fopen("tundra-sigdebug.txt", "w");
 
 	configure_from_env(self);
 
@@ -586,6 +575,12 @@ static int engine_gc(lua_State *L)
 	self->magic_value = 0xdeadbeef;
 
 	td_relcache_cleanup(self);
+
+	if (self->sign_debug_file)
+	{
+	   fclose((FILE *)self->sign_debug_file);
+	   self->sign_debug_file = NULL;
+	}
 
 	free(self->file_hash);
 	self->file_hash = NULL;
@@ -633,7 +628,7 @@ setup_ancestor_data(td_engine *engine, td_node *node)
 			if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
 			{
 				char guidstr[33];
-				digest_to_string(&node->guid, guidstr);
+				td_digest_to_string(&node->guid, guidstr);
 				printf("no ancestor for %s with guid %s\n", node->annotation, guidstr);
 			}
 		}
