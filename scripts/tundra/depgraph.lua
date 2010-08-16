@@ -75,7 +75,6 @@ function create_node(env_, data_)
 
 	params.annotation = env_:interpolate(data_.Label or "?", expand_env)
 
-	--print(util.tostring(params))
 	return GlobalEngine:make_node(params)
 end
 

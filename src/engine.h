@@ -38,6 +38,9 @@ enum
 	TD_PASS_MAX = 32
 };
 
+extern char td_scanner_hook_key;
+extern char td_node_hook_key;
+
 typedef void (*td_sign_fn)(struct td_engine *engine, struct td_file *f, td_digest *out);
 
 typedef struct td_signer
@@ -297,5 +300,8 @@ td_get_signature(td_engine *engine, td_file *f);
 
 td_file *
 td_parent_dir(td_engine *engine, td_file *f);
+
+void
+td_call_cache_hook(struct lua_State *L, void* key, int spec_idx, int result_idx);
 
 #endif

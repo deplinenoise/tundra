@@ -25,6 +25,41 @@ end
 
 -- Use "strict" when developing to flag accesses to nil global variables
 require "strict"
+local native = require "tundra.native"
+
+-- Track accessed Lua files, for cache tracking. There's a Tundra-specific
+-- callback that can be installed by calling set_loadfile_callback(). This
+-- could improved if the Lua interpreted was changed to checksum files as they
+-- were loaded and pass that hash here so we didn't have to open the files
+-- again. OTOH, they should be in disk cache now.
+local accessed_lua_files = {}
+local function get_file_digest(fn)
+	local f = assert(io.open(fn, 'rb'))
+	local data = f:read("*all")
+	f:close()
+	return native.digest_guid(data)
+end
+local function record_lua_access(fn)
+	if accessed_lua_files[fn] then return end
+	accessed_lua_files[fn] = get_file_digest(fn)
+end
+
+set_loadfile_callback(record_lua_access)
+
+-- Also patch 'dofile', 'loadfile' to track files loaded without the package
+-- facility.
+do
+	local old = { "dofile", "loadfile" }
+	for _, name in ipairs(old) do
+		local func = _G[name]
+		_G[name] = function(fn, ...)
+			record_lua_access(fn)
+			return func(fn, ...)
+		end
+	end
+end
+
+local util = require "tundra.util"
 
 function printf(msg, ...)
 	local str = string.format(msg, ...)
@@ -36,8 +71,11 @@ function errorf(msg, ...)
 	error(str)
 end
 
-local util = require "tundra.util"
-local native = require "tundra.native"
+function croak(msg, ...)
+	local str = string.format(msg, ...)
+	io.stderr:write(str, "\n")
+	native.exit(1)
+end
 
 -- Parse the command line options.
 do
@@ -127,7 +165,7 @@ do
 			bp.Long and "--" .. bp.Long or "")
 
 			if bp.HasValue then
-				h = h .. " <value>"
+				h = h .. "=<value>"
 			end
 
 			if h:len() < 30 then
@@ -194,8 +232,7 @@ local function run_build_script(fn)
 
 	local chunk, error_msg = loadfile(fn)
 	if not chunk then
-		io.stderr:write(error_msg .. '\n')
-		native.exit()
+		croak("%s", error_msg)
 	end
 	setfenv(chunk, script_globals)
 
@@ -211,8 +248,7 @@ local function run_build_script(fn)
 	local success, result = xpcall(args_stub, stack_dumper)
 
 	if not success then
-		io.stderr:write(result)
-		error("failure")
+		croak("%s", result)
 	else
 		return result
 	end
@@ -469,11 +505,157 @@ local function setup_env(env, tuple)
 	end
 end
 
-function Build(args)
-	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
+local function parse_units(build_tuples, args, passes)
+	local d = decl.make_decl_env()
+	do
+		local platforms = {}
+		for _, tuple in ipairs(build_tuples) do
+			local platform_name, tools = match_build_id(tuple.Config.Name)
+			if not member(platforms, platform_name) then
+				platforms[#platforms + 1] = platform_name
+			end
+		end
+		if Options.Verbose then
+			printf("adding platforms: %s", table.concat(platforms, ", "))
+		end
+		d:add_platforms(platforms)
+	end
 
+	for _, id in util.nil_ipairs(args.SyntaxExtensions) do
+		if Options.Verbose then
+			printf("parsing user-defined declaration parsers from %s", id)
+		end
+		load_syntax(id, d, passes)
+	end
+
+	local raw_nodes, default_names = d:parse(args.Units or "units.lua")
+	assert(#default_names > 0, "no default unit name to build was set")
+	return raw_nodes, default_names
+end
+
+
+local function create_build_engine(opts)
+	local engine_opts = opts or {}
+
+	return native.make_engine {
+		-- per-session settings
+		Verbosity = Options.Verbosity,
+		ThreadCount = tonumber(Options.ThreadCount),
+		ContinueOnError = Options.Continue and 1 or 0,
+		DryRun = Options.DryRun and 1 or 0,
+		DebugFlags = Options.DebugFlags,
+
+		-- per-config settings
+		FileHashSize = engine_opts.FileHashSize,
+		RelationHashSize = engine_opts.RelationHashSize,
+		UseDigestSigning = engine_opts.UseDigestSigning,
+		DebugSigning = engine_opts.DebugSigning,
+	}
+end
+
+local cache_file = ".tundra-dagcache"
+local cache_file_tmp = ".tundra-dagcache.tmp"
+
+local function get_cached_dag(build_tuples, args)
+	local f = io.open(cache_file, "r")
+	if not f then
+		return nil
+	end
+	local data = f:read("*all")
+	f:close()
+
+	local chunk = assert(loadstring(data, cache_file))
+	local env = setmetatable({}, { __index = _G })
+	setfenv(chunk, env)
+	chunk()
+
+	local tuples_matched = 0
+	for _, tuple in ipairs(build_tuples) do
+		for _, data in ipairs(env.Tuples) do
+			if data[1] == tuple.Config.Name and data[2] == tuple.Variant.Name and data[3] == tuple.SubVariant then
+				tuples_matched = tuples_matched + 1
+			end
+		end
+	end
+
+	if tuples_matched ~= #build_tuples or tuples_matched ~= #env.Tuples then
+		if Options.Verbose then
+			print("discarding cached DAG due to build tuple mismatch")
+		end
+		return nil
+	end
+
+	for file, old_digest in ipairs(env.Files) do
+		local new_digest = get_file_digest(file)
+		if new_digest ~= old_digest then
+			if Options.Verbose then
+				printf("discarding cached DAG as file %s has changed", file)
+			end
+			return nil
+		end
+	end
+
+	if Options.Verbose then
+		print("using cached DAG")
+	end
+	return env.CreateDag()
+end
+
+local function generate_dag(build_tuples, args, passes)
+	local cache_flag = args.EngineOptions and args.EngineOptions.UseDagCaching
+	if cache_flag then
+		local cached_dag = get_cached_dag(build_tuples, args)
+		if cached_dag then
+			return cached_dag
+		end
+	end
+
+	-- This is a regular build. Assume these generator sets are always
+	-- needed for now. Could possible make an option for which generator
+	-- sets to load in the future.
+	nodegen.add_generator_set("nodegen", "native")
+	nodegen.add_generator_set("nodegen", "dotnet")
+
+	local everything = {}
+
+	local raw_nodes, default_names = parse_units(build_tuples, args, passes)
+
+	if cache_flag then
+		require "tundra.cache"
+		tundra.cache.open_cache(cache_file_tmp)
+	end
+
+	-- Let the nodegen code generate DAG nodes for all active
+	-- configurations/variants.
+	for _, tuple in pairs(build_tuples) do
+		local env = default_env:clone()
+		setup_env(env, tuple)
+		everything[#everything + 1] = nodegen.generate {
+			Engine = GlobalEngine,
+			Env = env,
+			Config = tuple.Config.Name,
+			Variant = tuple.Variant,
+			Declarations = raw_nodes,
+			DefaultNames = default_names,
+			Passes = passes,
+		}
+	end
+
+	local all = default_env:make_node {
+		Label = "toplevel",
+		Dependencies = everything,
+	}
+
+	if cache_flag then
+		tundra.cache.commit_cache(build_tuples, accessed_lua_files, cache_file)
+	end
+
+	return all
+end
+
+function Build(args)
 	if type(args.Configs) ~= "table" or #args.Configs == 0 then
-		error("Need at least one config; got " .. util.tostring(args.Configs) )
+		croak("Need at least one config; got %s" .. util.tostring(args.Configs) )
 	end
 
 	local configs, variants, subvariants = {}, {}, {}
@@ -524,96 +706,28 @@ function Build(args)
 
 	local default_subvariant = args.DefaultSubVariant or subvariant_array[1]
 	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, subvariants, default_variant, default_subvariant)
+	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
 
 	if not Options.IdeGeneration then
-		-- This is a regular build. Assume these generator sets are always
-		-- needed for now. Could possible make an option for which generator
-		-- sets to load in the future.
-		nodegen.add_generator_set("nodegen", "native")
-		nodegen.add_generator_set("nodegen", "dotnet")
+		GlobalEngine = create_build_engine(args.EngineOptions)
 
-		local engine_opts = args.EngineOptions or {}
+		local dag = generate_dag(build_tuples, args, passes)
 
-		-- Create the build engine now.
-		GlobalEngine = native.make_engine {
-			-- per-session settings
-			Verbosity = Options.Verbosity,
-			ThreadCount = tonumber(Options.ThreadCount),
-			ContinueOnError = Options.Continue and 1 or 0,
-			DryRun = Options.DryRun and 1 or 0,
-			DebugFlags = Options.DebugFlags,
-
-			-- per-config settings
-			FileHashSize = engine_opts.FileHashSize,
-			RelationHashSize = engine_opts.RelationHashSize,
-			UseDigestSigning = engine_opts.UseDigestSigning,
-			DebugSigning = engine_opts.DebugSigning,
-		}
+		if Options.Clean then
+			GlobalEngine:build(dag, "clean")
+		else
+			GlobalEngine:build(dag)
+		end
 	else
 		-- We are generating IDE integration files. Load the specified
 		-- integration module rather than DAG builders.
 		nodegen.add_generator_set("ide", Options.IdeGeneration)
-	end
 
-	local d = decl.make_decl_env()
-	do
-		local platforms = {}
-		for _, tuple in ipairs(build_tuples) do
-			local platform_name, tools = match_build_id(tuple.Config.Name)
-			if not member(platforms, platform_name) then
-				platforms[#platforms + 1] = platform_name
-			end
-		end
-		if Options.Verbose then
-			printf("adding platforms: %s", table.concat(platforms, ", "))
-		end
-		d:add_platforms(platforms)
-	end
+		-- Parse the units file
+		local raw_nodes, default_names = parse_units(build_tuples, args, passes)
 
-	for _, id in util.nil_ipairs(args.SyntaxExtensions) do
-		if Options.Verbose then
-			printf("parsing user-defined declaration parsers from %s", id)
-		end
-		load_syntax(id, d, passes)
-	end
-
-	local raw_nodes, default_names = d:parse(args.Units or "units.lua")
-	assert(#default_names > 0, "no default unit name to build was set")
-
-	if not Options.IdeGeneration then
-		local everything = {}
-
-		-- Let the nodegen code generate DAG nodes for all active
-		-- configurations/variants.
-		for _, tuple in pairs(build_tuples) do
-			local env = default_env:clone()
-			setup_env(env, tuple, configs)
-			everything[#everything + 1] = nodegen.generate {
-				Engine = GlobalEngine,
-				Env = env,
-				Config = tuple.Config.Name,
-				Variant = tuple.Variant,
-				Declarations = raw_nodes,
-				DefaultNames = default_names,
-				Passes = passes,
-			}
-		end
-
-		-- Unless we're just creating IDE integration files, create a top-level
-		-- node and pass the full DAG to the build engine.
-		local toplevel = default_env:make_node {
-			Label = "toplevel",
-			Dependencies = everything,
-		}
-		if Options.Clean then
-			GlobalEngine:build(toplevel, "clean")
-		else
-			GlobalEngine:build(toplevel)
-		end
-
-	else
-		-- We're just generating IDE files. Pass the build tuples directly to
-		-- the generator and let it write files.
+		-- Pass the build tuples directly to the generator and let it write
+		-- files.
 		local env = default_env:clone()
 		nodegen.generate_ide_files(build_tuples, default_names, raw_nodes, env)
 	end

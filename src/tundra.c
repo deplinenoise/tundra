@@ -101,6 +101,39 @@ static int tundra_getenv(lua_State *L)
 	}
 }
 
+static int tundra_delete_file(lua_State *L)
+{
+	const char *fn = luaL_checkstring(L, 1);
+	if (0 == remove(fn))
+	{
+		lua_pushboolean(L, 1);
+		return 1;
+	}
+	else
+	{
+		lua_pushnil(L);
+		lua_pushstring(L, "couldn't delete file");
+		return 2;
+	}
+}
+
+static int tundra_rename_file(lua_State *L)
+{
+	const char *from = luaL_checkstring(L, 1);
+	const char *to = luaL_checkstring(L, 2);
+	if (0 == rename(from, to))
+	{
+		lua_pushboolean(L, 1);
+		return 1;
+	}
+	else
+	{
+		lua_pushnil(L);
+		lua_pushstring(L, "couldn't rename file");
+		return 2;
+	}
+}
+
 extern int td_luaprof_install(lua_State *L);
 extern int td_luaprof_report(lua_State *L);
 extern int tundra_walk_path(lua_State*);
@@ -123,6 +156,8 @@ static int tundra_open(lua_State *L)
 		{ "set_cwd", td_set_cwd },
 		{ "install_profiler", td_luaprof_install },
 		{ "report_profiler", td_luaprof_report },
+		{ "delete_file", tundra_delete_file },
+		{ "rename_file", tundra_rename_file },
 #ifdef _WIN32
 		/* windows-specific registry query function*/
 		{ "reg_query", td_win32_register_query },

@@ -42,6 +42,9 @@
 
 #define TD_ANCESTOR_FILE ".tundra-ancestors"
 
+char td_scanner_hook_key; 
+char td_node_hook_key; 
+
 void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 {
 	int zero_size;
@@ -928,6 +931,24 @@ make_env_key(td_engine *engine, lua_State *L, int key, int value)
 	return td_page_strdup(&engine->alloc, mapping, count);
 }
 
+void
+td_call_cache_hook(lua_State *L, void *key, int spec_idx, int result_idx)
+{
+	lua_pushlightuserdata(L, key);
+	lua_gettable(L, LUA_REGISTRYINDEX);
+	if (lua_isnil(L, -1))
+	{
+		lua_pop(L, 1);
+		return;
+	}
+	else
+	{
+		lua_pushvalue(L, spec_idx);
+		lua_pushvalue(L, result_idx);
+		lua_call(L, 2, 0);
+	}
+}
+
 static int
 make_node(lua_State *L)
 {
@@ -1003,6 +1024,8 @@ make_node(lua_State *L)
 	setup_ancestor_data(self, node);
 
 	++self->node_count;
+
+	td_call_cache_hook(L, &td_node_hook_key, 2, lua_gettop(L));
 
 	return 1;
 }
@@ -1427,9 +1450,33 @@ node_str(lua_State *L)
 	return 1;
 }
 
+static int
+set_callback(lua_State *L, void* key)
+{
+	luaL_checktype(L, 2, LUA_TFUNCTION);
+	lua_pushlightuserdata(L, key);
+	lua_pushvalue(L, 2);
+	lua_settable(L, LUA_REGISTRYINDEX);
+	return 0;
+}
+
+static int
+set_scanner_cache_hook(lua_State *L)
+{
+	return set_callback(L, &td_scanner_hook_key);
+}
+
+static int
+set_node_cache_hook(lua_State *L)
+{
+	return set_callback(L, &td_node_hook_key);
+}
+
 static const luaL_Reg engine_mt_entries[] = {
 	{ "make_node", make_node },
 	{ "build", build_nodes },
+	{ "set_scanner_cache_hook", set_scanner_cache_hook },
+	{ "set_node_cache_hook", set_node_cache_hook },
 	{ "__gc", engine_gc },
 	{ NULL, NULL }
 };

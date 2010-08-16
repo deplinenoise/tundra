@@ -20,7 +20,6 @@ module(..., package.seeall)
 local util = require "tundra.util"
 local path = require "tundra.path"
 local native = require "tundra.native"
-local depgraph = require "tundra.depgraph"
 
 local ide_backend = nil
 
@@ -244,8 +243,9 @@ function _generator:eval_unit(unit)
 	local decl = unit.Decl
 	local unit_type = unit.Type
 	local eval_fn = self.evaluators[unit_type]
+	local build_id = unit_env:get("BUILD_ID", "")
 
-	if not config_matches(decl.Config, unit_env:get("BUILD_ID")) then
+	if build_id:len() > 0 and not config_matches(decl.Config, unit_env:get("BUILD_ID")) then
 		return unit_env:make_node { Label = "Dummy node for " .. decl.Name }
 	end
 
@@ -262,7 +262,10 @@ end
 
 function add_generator_set(type_name, id)
 	local fn = TundraRootDir .. "/scripts/tundra/" .. type_name .. "/" .. id .. ".lua"
-	local chunk = assert(loadfile(fn))
+	local chunk, err = loadfile(fn)
+	if not chunk then
+		croak("couldn't load %s file %s (%s): %s", type_name, id, fn, err)
+	end
 	chunk(_generator)
 end
 
@@ -306,3 +309,4 @@ end
 function set_ide_backend(backend_fn)
 	ide_backend = backend_fn
 end
+

@@ -99,7 +99,10 @@ function parse_cmdline(args, blueprint)
 		local key, val
 
 		if s:sub(1, 2) == '--' then
-			key = s:sub(3)
+			key, val = s:match("^%-%-([-a-zA-Z0-9]+)=(.*)$")
+			if not key then
+				key = s:sub(3)
+			end
 		elseif s:sub(1, 1) == '-' then
 			key = s:sub(2,2)
 			if s:len() > 2 then
