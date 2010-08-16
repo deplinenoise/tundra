@@ -244,8 +244,9 @@ function _generator:eval_unit(unit)
 	local decl = unit.Decl
 	local unit_type = unit.Type
 	local eval_fn = self.evaluators[unit_type]
+	local build_id = unit_env:get("BUILD_ID", "")
 
-	if not config_matches(decl.Config, unit_env:get("BUILD_ID")) then
+	if build_id:len() > 0 and not config_matches(decl.Config, unit_env:get("BUILD_ID")) then
 		return unit_env:make_node { Label = "Dummy node for " .. decl.Name }
 	end
 
