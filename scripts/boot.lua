@@ -578,7 +578,7 @@ local function get_cached_dag(build_tuples, args)
 		end
 	end
 
-	if tuples_matched ~= #build_tuples then
+	if tuples_matched ~= #build_tuples or tuples_matched ~= #env.Tuples then
 		if Options.Verbose then
 			print("discarding cached DAG due to build tuple mismatch")
 		end
