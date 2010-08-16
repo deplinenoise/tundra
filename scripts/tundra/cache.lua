@@ -74,6 +74,8 @@ function commit_cache(tuples, lua_files, cache_file)
 	local env_blocks = {}
 	local scanner_index = 0
 	local scanner_to_idx = {}
+	local pass_index = 0
+	local pass_to_idx = {}
 
 	local function emit_node(idx)
 		if node_written[idx] then
@@ -87,6 +89,15 @@ function commit_cache(tuples, lua_files, cache_file)
 			for _, dep in ipairs(node.deps) do
 				emit_node(cache_node_to_data[dep])
 			end
+		end
+
+		local my_pass_index = pass_to_idx[node.pass]
+		if not my_pass_index then
+			pass_index = pass_index + 1
+			my_pass_index = pass_index
+			pass_to_idx[node.pass] = my_pass_index
+			cache_stream:write(string.format("Passes[%d] = { Name = %q, BuildOrder = %d }\n",
+				my_pass_index, node.pass.Name, node.pass.BuildOrder))
 		end
 
 		local my_scanner_idx
@@ -119,6 +130,7 @@ function commit_cache(tuples, lua_files, cache_file)
 		cache_stream:write(string.format("\taction = %q,\n", node.action))
 		cache_stream:write(string.format("\tannotation = %q,\n", node.annotation))
 		cache_stream:write(string.format("\tsalt = %q,\n", node.salt))
+		cache_stream:write(string.format("\tpass = Passes[%d],\n", my_pass_index))
 
 		dump_file_array("inputs", node.inputs)
 		dump_file_array("outputs", node.outputs)
@@ -147,6 +159,7 @@ function commit_cache(tuples, lua_files, cache_file)
 	cache_stream:write("Scanners = {}\n")
 	cache_stream:write("Nodes = {}\n")
 	cache_stream:write("Envs = {}\n\n")
+	cache_stream:write("Passes = {}\n\n")
 	for idx, node in ipairs(cache_data) do
 		emit_node(idx)
 	end
