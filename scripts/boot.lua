@@ -585,7 +585,7 @@ local function get_cached_dag(build_tuples, args)
 		return nil
 	end
 
-	for file, old_digest in ipairs(env.Files) do
+	for file, old_digest in pairs(env.Files) do
 		local new_digest = get_file_digest(file)
 		if new_digest ~= old_digest then
 			if Options.Verbose then
