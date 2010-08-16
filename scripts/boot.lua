@@ -133,7 +133,7 @@ do
 			bp.Long and "--" .. bp.Long or "")
 
 			if bp.HasValue then
-				h = h .. " <value>"
+				h = h .. "=<value>"
 			end
 
 			if h:len() < 30 then
