@@ -180,9 +180,9 @@ walk_dirs(lua_State* L, int path_index, int callback_index)
 		const char *path;
 
 		/* pick off last dir and remove from stack */
-		lua_rawgeti(L, dir_table, dir_count);
+		lua_rawgeti(L, dir_table, (int) dir_count);
 		lua_pushnil(L);
-		lua_rawseti(L, dir_table, dir_count);
+		lua_rawseti(L, dir_table, (int) dir_count);
 
 		path = lua_tostring(L, -1);
 		path_index = lua_gettop(L);
