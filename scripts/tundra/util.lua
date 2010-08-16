@@ -51,6 +51,12 @@ function tostring(value)
 	return str
 end
 
+function map_in_place(t, fn)
+	for x = 1, #t do
+		t[x] = fn(t[x])
+	end
+end
+
 function map(t, fn)
 	local result = {}
 	for idx = 1, #t do

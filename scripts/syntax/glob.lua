@@ -32,7 +32,7 @@ local function glob(directory, recursive, filter_fn)
 		end
 		return true
 	end
-	for _, path in native.walk_path(directory, dir_filter) do
+	for _, path in ipairs(native.walk_path(directory, dir_filter)) do
 		if filter_fn(path) then
 			result[#result + 1] = path
 		end

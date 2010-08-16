@@ -190,6 +190,7 @@ local environment = require "tundra.environment"
 local nodegen = require "tundra.nodegen"
 local decl = require "tundra.decl"
 local path = require "tundra.path"
+local cache = require "tundra.cache"
 
 function match_build_id(id, default)
 	assert(id)
@@ -595,6 +596,18 @@ local function get_cached_dag(build_tuples, args)
 		end
 	end
 
+	for dir, digest in pairs(env.DirWalks) do
+		-- get a non-recursive file list
+		local files = native.walk_path(dir, function() return false end)
+		util.map_in_place(files, function(fn) local _, file = path.split(fn); return file end)
+		if cache.checksum_file_list(files) ~= digest then
+			if Options.Verbose then
+				printf("discarding cached DAG as contents of dir %s has changed", dir)
+			end
+			return nil
+		end
+	end
+
 	if Options.Verbose then
 		print("using cached DAG")
 	end
@@ -618,12 +631,11 @@ local function generate_dag(build_tuples, args, passes)
 
 	local everything = {}
 
-	local raw_nodes, default_names = parse_units(build_tuples, args, passes)
-
 	if cache_flag then
-		require "tundra.cache"
-		tundra.cache.open_cache(cache_file_tmp)
+		cache.open_cache(cache_file_tmp)
 	end
+
+	local raw_nodes, default_names = parse_units(build_tuples, args, passes)
 
 	-- Let the nodegen code generate DAG nodes for all active
 	-- configurations/variants.
@@ -647,7 +659,7 @@ local function generate_dag(build_tuples, args, passes)
 	}
 
 	if cache_flag then
-		tundra.cache.commit_cache(build_tuples, accessed_lua_files, cache_file)
+		cache.commit_cache(build_tuples, accessed_lua_files, cache_file)
 	end
 
 	return all

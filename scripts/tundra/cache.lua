@@ -25,6 +25,11 @@ local cache_stream = nil
 local cache_scanners = {}
 local cache_data = {}
 local cache_node_to_data = {}
+local cache_dirwalks = {}
+
+function checksum_file_list(files)
+	return native.digest_guid(table.concat(files, "^"))
+end
 
 function open_cache(tmp)
 	cache_file_tmp = tmp
@@ -40,6 +45,10 @@ function open_cache(tmp)
 		cache_data[index] = spec
 		cache_node_to_data[object] = index
 	end)
+
+	GlobalEngine:set_dirwalk_cache_hook(function(dir, files)
+		cache_dirwalks[dir] = checksum_file_list(files)
+	end)
 end
 
 function commit_cache(tuples, lua_files, cache_file)
@@ -54,8 +63,14 @@ function commit_cache(tuples, lua_files, cache_file)
 	cache_stream:write("}\n")
 
 	cache_stream:write("Files = {\n")
-	for name, digest in pairs(lua_files) do 
+	for name, digest in pairs(lua_files) do
 		cache_stream:write(string.format("\t[%q] = %q,\n", name, digest))
+	end
+	cache_stream:write("}\n")
+
+	cache_stream:write("DirWalks = {\n")
+	for dir, checksum in pairs(cache_dirwalks) do
+		cache_stream:write(string.format("\t[%q] = %q,\n", dir, checksum))
 	end
 	cache_stream:write("}\n")
 

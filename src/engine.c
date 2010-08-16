@@ -42,8 +42,9 @@
 
 #define TD_ANCESTOR_FILE ".tundra-ancestors"
 
-char td_scanner_hook_key; 
-char td_node_hook_key; 
+char td_scanner_hook_key;
+char td_node_hook_key;
+char td_dirwalk_hook_key;
 
 void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 {
@@ -1461,22 +1462,20 @@ set_callback(lua_State *L, void* key)
 }
 
 static int
-set_scanner_cache_hook(lua_State *L)
-{
-	return set_callback(L, &td_scanner_hook_key);
-}
+set_scanner_cache_hook(lua_State *L) { return set_callback(L, &td_scanner_hook_key); }
 
 static int
-set_node_cache_hook(lua_State *L)
-{
-	return set_callback(L, &td_node_hook_key);
-}
+set_node_cache_hook(lua_State *L) { return set_callback(L, &td_node_hook_key); }
+
+static int
+set_dirwalk_cache_hook(lua_State *L) { return set_callback(L, &td_dirwalk_hook_key); }
 
 static const luaL_Reg engine_mt_entries[] = {
 	{ "make_node", make_node },
 	{ "build", build_nodes },
 	{ "set_scanner_cache_hook", set_scanner_cache_hook },
 	{ "set_node_cache_hook", set_node_cache_hook },
+	{ "set_dirwalk_cache_hook", set_dirwalk_cache_hook },
 	{ "__gc", engine_gc },
 	{ NULL, NULL }
 };

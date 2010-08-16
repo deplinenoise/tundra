@@ -192,6 +192,17 @@ walk_dirs(lua_State* L, int path_index, int callback_index)
 		new_file_table = lua_gettop(L);
 		new_dir_table = new_file_table - 1;
 
+		/* sort the file table (in-place) so we get consistent results */
+		lua_getglobal(L, "table");
+		lua_getfield(L, -1, "sort");
+		lua_pushvalue(L, new_file_table);
+		lua_call(L, 1, 0);
+
+		/* Call out with the results of this directory query to be saved with
+		 * the DAG cache. When the DAG cache is read back in, the queries will
+		 * re-run to make sure the cache is still valid. */
+		td_call_cache_hook(L, &td_dirwalk_hook_key, path_index, new_file_table);
+
 		/* see what directories to keep */
 		for (i = 1, e = lua_objlen(L, new_dir_table); i <= e; ++i)
 		{
@@ -257,13 +268,9 @@ int tundra_walk_path(lua_State* L)
 
 	walk_dirs(L, 1, dir_cb_index);
 
-	lua_getglobal(L, "ipairs");
-	lua_pushvalue(L, -2);
-	lua_call(L, 1, 3);
-
 	++walk_path_count;
 	walk_path_time += td_timestamp() - t1;
 
-	return 3;
+	return 1;
 }
 
