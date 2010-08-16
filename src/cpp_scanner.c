@@ -318,6 +318,8 @@ static int make_cpp_scanner(lua_State *L)
 	self->head.scan_fn = &scan_cpp;
 	self->paths = td_build_file_array(L, engine, 2, &self->path_count);
 
+	td_call_cache_hook(L, &td_scanner_hook_key, 2, lua_gettop(L));
+
 	return 1;
 }
 

@@ -20,7 +20,6 @@ module(..., package.seeall)
 local util = require "tundra.util"
 local path = require "tundra.path"
 local native = require "tundra.native"
-local depgraph = require "tundra.depgraph"
 
 local ide_backend = nil
 
@@ -310,3 +309,4 @@ end
 function set_ide_backend(backend_fn)
 	ide_backend = backend_fn
 end
+

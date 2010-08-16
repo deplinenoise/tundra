@@ -25,9 +25,41 @@ end
 
 -- Use "strict" when developing to flag accesses to nil global variables
 require "strict"
+local native = require "tundra.native"
+
+-- Track accessed Lua files, for cache tracking. There's a Tundra-specific
+-- callback that can be installed by calling set_loadfile_callback(). This
+-- could improved if the Lua interpreted was changed to checksum files as they
+-- were loaded and pass that hash here so we didn't have to open the files
+-- again. OTOH, they should be in disk cache now.
+local accessed_lua_files = {}
+local function get_file_digest(fn)
+	local f = assert(io.open(fn, 'rb'))
+	local data = f:read("*all")
+	f:close()
+	return native.digest_guid(data)
+end
+local function record_lua_access(fn)
+	if accessed_lua_files[fn] then return end
+	accessed_lua_files[fn] = get_file_digest(fn)
+end
+
+set_loadfile_callback(record_lua_access)
+
+-- Also patch 'dofile', 'loadfile' to track files loaded without the package
+-- facility.
+do
+	local old = { "dofile", "loadfile" }
+	for _, name in ipairs(old) do
+		local func = _G[name]
+		_G[name] = function(fn, ...)
+			record_lua_access(fn)
+			return func(fn, ...)
+		end
+	end
+end
 
 local util = require "tundra.util"
-local native = require "tundra.native"
 
 function printf(msg, ...)
 	local str = string.format(msg, ...)
@@ -528,6 +560,7 @@ local function use_caching(args)
 end
 
 local cache_file = ".tundra-dagcache"
+local cache_file_tmp = ".tundra-dagcache.tmp"
 
 local function get_cached_dag(build_tuples, args)
 	if not use_caching(args) then
@@ -558,6 +591,11 @@ local function generate_dag(build_tuples, args, passes)
 
 	local raw_nodes, default_names = parse_units(build_tuples, args, passes)
 
+	if use_caching(args) then
+		require "tundra.cache"
+		tundra.cache.open_cache(cache_file_tmp)
+	end
+
 	-- Let the nodegen code generate DAG nodes for all active
 	-- configurations/variants.
 	for _, tuple in pairs(build_tuples) do
@@ -574,10 +612,16 @@ local function generate_dag(build_tuples, args, passes)
 		}
 	end
 
-	return default_env:make_node {
+	local all = default_env:make_node {
 		Label = "toplevel",
 		Dependencies = everything,
 	}
+
+	if use_caching(args) then
+		tundra.cache.commit_cache(build_tuples, accessed_lua_files, cache_file)
+	end
+
+	return all
 end
 
 function Build(args)

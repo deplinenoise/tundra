@@ -321,6 +321,31 @@ static int ll_loadlib (lua_State *L) {
 }
 
 
+/*
+** Callback function for tracking opened files.
+ */
+static char lf_callback_key;
+
+static int ll_set_lf_callback(lua_State *L) {
+	luaL_checktype(L, 1, LUA_TFUNCTION);
+	lua_pushlightuserdata(L, &lf_callback_key);
+	lua_pushvalue(L, 1);
+	lua_settable(L, LUA_REGISTRYINDEX);
+	return 0;
+}
+
+static void call_lf_callback(lua_State *L, const char* fn) {
+	lua_pushlightuserdata(L, &lf_callback_key);
+	lua_gettable(L, LUA_REGISTRYINDEX);
+	if (lua_isfunction(L, -1))
+	{
+		lua_pushstring(L, fn);
+		lua_call(L, 1, 0);
+	}
+	else
+		lua_pop(L, 1);
+}
+
 
 /*
 ** {======================================================
@@ -384,6 +409,7 @@ static int loader_Lua (lua_State *L) {
   if (filename == NULL) return 1;  /* library not found in this path */
   if (luaL_loadfile(L, filename) != 0)
     loaderror(L, filename);
+  call_lf_callback(L, filename);
   return 1;  /* library loaded successfully */
 }
 
@@ -404,6 +430,7 @@ static int loader_C (lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   const char *filename = findfile(L, name, "cpath");
   if (filename == NULL) return 1;  /* library not found in this path */
+
   funcname = mkfuncname(L, name);
   if (ll_loadfunc(L, filename, funcname) != 0)
     loaderror(L, filename);
@@ -612,10 +639,11 @@ static const luaL_Reg pk_funcs[] = {
   {NULL, NULL}
 };
 
-
 static const luaL_Reg ll_funcs[] = {
   {"module", ll_module},
   {"require", ll_require},
+  /* added for Tundra to track file accesses made by require */
+  {"set_loadfile_callback", ll_set_lf_callback },
   {NULL, NULL}
 };
 
