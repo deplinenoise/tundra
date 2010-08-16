@@ -263,7 +263,10 @@ end
 
 function add_generator_set(type_name, id)
 	local fn = TundraRootDir .. "/scripts/tundra/" .. type_name .. "/" .. id .. ".lua"
-	local chunk = assert(loadfile(fn))
+	local chunk, err = loadfile(fn)
+	if not chunk then
+		croak("couldn't load %s file %s (%s): %s", type_name, id, fn, err)
+	end
 	chunk(_generator)
 end
 

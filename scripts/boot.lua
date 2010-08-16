@@ -26,6 +26,9 @@ end
 -- Use "strict" when developing to flag accesses to nil global variables
 require "strict"
 
+local util = require "tundra.util"
+local native = require "tundra.native"
+
 function printf(msg, ...)
 	local str = string.format(msg, ...)
 	print(str)
@@ -36,8 +39,11 @@ function errorf(msg, ...)
 	error(str)
 end
 
-local util = require "tundra.util"
-local native = require "tundra.native"
+function croak(msg, ...)
+	local str = string.format(msg, ...)
+	io.stderr:write(str, "\n")
+	native.exit(1)
+end
 
 -- Parse the command line options.
 do
@@ -211,8 +217,7 @@ local function run_build_script(fn)
 	local success, result = xpcall(args_stub, stack_dumper)
 
 	if not success then
-		io.stderr:write(result)
-		error("failure")
+		croak("%s", result)
 	else
 		return result
 	end
@@ -517,7 +522,32 @@ local function create_build_engine(opts)
 	}
 end
 
+local function use_caching(args)
+	local t = args.EngineOptions
+	return t and t.UseDagCaching
+end
+
+local cache_file = ".tundra-dagcache"
+
+local function get_cached_dag(build_tuples, args)
+	if not use_caching(args) then
+		return nil
+	end
+
+	local f = io.open(cache_file, "r")
+	if not f then
+		return nil
+	end
+	local data = f:read()
+	f:close()
+
+	local chunk = assert(loadstring(data, cache_file))
+	return chunk(build_tuples)
+end
+
 local function generate_dag(build_tuples, args, passes)
+	local cached_dag = get_cached_dag(build_tuples, args)
+
 	-- This is a regular build. Assume these generator sets are always
 	-- needed for now. Could possible make an option for which generator
 	-- sets to load in the future.
@@ -552,7 +582,7 @@ end
 
 function Build(args)
 	if type(args.Configs) ~= "table" or #args.Configs == 0 then
-		error("Need at least one config; got " .. util.tostring(args.Configs) )
+		croak("Need at least one config; got %s" .. util.tostring(args.Configs) )
 	end
 
 	local configs, variants, subvariants = {}, {}, {}
