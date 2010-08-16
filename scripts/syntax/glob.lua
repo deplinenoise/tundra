@@ -22,17 +22,19 @@ local native = require "tundra.native"
 local util = require "tundra.util"
 local path = require "tundra.path"
 
+local ignored_dirs = util.make_lookup_table { ".git", ".svn", "CVS" }
+
 local function glob(directory, recursive, filter_fn)
 	local result = {}
-	for dir, dirs, files in native.walk_path(directory) do
-		for _, fn in ipairs(files) do
-			local path = dir .. '/' .. fn
-			if filter_fn(path) then
-				result[#result + 1] = path
-			end
+	local function dir_filter(dir_name)
+		if not recursive or ignored_dirs[dir_name] then
+			return false
 		end
-		if not recursive then
-			util.clear_table(dirs)
+		return true
+	end
+	for _, path in native.walk_path(directory, dir_filter) do
+		if filter_fn(path) then
+			result[#result + 1] = path
 		end
 	end
 	return result

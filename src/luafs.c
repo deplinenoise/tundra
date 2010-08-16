@@ -25,6 +25,7 @@
 #include <stdio.h>
 
 #include "portable.h"
+#include "engine.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -153,105 +154,116 @@ enum
 int walk_path_count = 0;
 double walk_path_time = 0.0;
 
-static int tundra_walk_path_iter(lua_State* L)
+static void
+walk_dirs(lua_State* L, int path_index, int callback_index)
 {
-	const char* current_dir = "";
-	const char* path = ""; 
+	size_t dir_count;
+	int dir_table, file_table;
 
+	/* create a new table to store the work queue of directories in */
+	lua_newtable(L);
+	dir_table = lua_gettop(L);
+
+	/* put the initial path in the dir table */
+	lua_pushvalue(L, path_index);
+	lua_rawseti(L, dir_table, 1);
+
+	/* create a new table to store the resulting files in */
+	lua_newtable(L);
+	file_table = lua_gettop(L);
+
+	/* loop until the directory stack has been exhausted */
+	while (0 != (dir_count = lua_objlen(L, dir_table)))
+	{
+		int new_dir_table, new_file_table, path_index;
+		size_t i, e;
+		const char *path;
+
+		/* pick off last dir and remove from stack */
+		lua_rawgeti(L, dir_table, dir_count);
+		lua_pushnil(L);
+		lua_rawseti(L, dir_table, dir_count);
+
+		path = lua_tostring(L, -1);
+		path_index = lua_gettop(L);
+
+		/* pushes two tables on the stack, files and directories */
+		scan_directory(L, path);
+		new_file_table = lua_gettop(L);
+		new_dir_table = new_file_table - 1;
+
+		/* see what directories to keep */
+		for (i = 1, e = lua_objlen(L, new_dir_table); i <= e; ++i)
+		{
+			/* push three pieces <parent> </> <dir> in anticipation of success
+			 * so we don't have to reshuffle the stack */
+			lua_pushvalue(L, path_index);
+			lua_pushstring(L, TD_PATHSEP_STR);
+			lua_rawgeti(L, new_dir_table, (int) i);
+
+			/* If there's a callback function to filter directories, call it
+			 * now. Otherwise, just include everything. */
+			if (callback_index)
+			{
+				lua_pushvalue(L, callback_index);
+				lua_pushvalue(L, -2); /* push a copy of the new dir name */
+	
+				lua_call(L, 1, 1); /* stack -2, +1 */
+				if (!lua_toboolean(L, -1))
+				{
+					lua_pop(L, 4);
+					continue;
+				}
+
+				/* just pop the boolean */
+				lua_pop(L, 1);
+			}
+
+			lua_concat(L, 3);
+			lua_rawseti(L, dir_table, (int) (lua_objlen(L, dir_table) + 1));
+		}
+
+		/* add all files */
+		for (i = 1, e = lua_objlen(L, new_file_table); i <= e; ++i)
+		{
+			/* push three pieces <parent> </> <dir> in anticipation of success
+			 * so we don't have to reshuffle the stack */
+			lua_pushvalue(L, path_index);
+			lua_pushstring(L, TD_PATHSEP_STR);
+			lua_rawgeti(L, new_file_table, (int) i);
+			lua_concat(L, 3);
+			lua_rawseti(L, file_table, (int) (lua_objlen(L, file_table) + 1));
+		}
+
+		/* pop the two new tables */
+		lua_pop(L, 2);
+	}
+
+	lua_pushvalue(L, file_table);
+}
+
+int tundra_walk_path(lua_State* L)
+{
+	int dir_cb_index = 0;
 	double t1;
 
 	t1 = td_timestamp();
 
-	if (!lua_isnil(L, WALK_UPV_CWD))
-		current_dir = lua_tostring(L, WALK_UPV_CWD);
-
-	/* push any directories from the last iteration onto the work queue, we are
-	 * going to enter into these directories */
+	if (lua_gettop(L) > 1)
 	{
-		int i;
-		int count = (int) lua_objlen(L, WALK_UPV_DIRS);
-		for (i=1; i <= count; ++i)
-		{
-			/*
-			 * this loop does the equivalent of
-			 *
-			 * work_queue[#work_queue+1] = prev_dir .. '/' .. dirs[i]
-			 */
-			lua_pushstring(L, current_dir);
-
-			/* try to fetch the next directory in the directory array */
-			lua_rawgeti(L, WALK_UPV_DIRS, i);
-
-			if (lua_isnil(L, -1)) {
-				lua_pop(L, 2);
-				break;
-			}
-
-			/* concatenate parent path with directory name to yield new path */
-			lua_concat(L, 2);
-
-			/* stick the new path in the work queue */
-			lua_rawseti(L, WALK_UPV_QUEUE, (int) lua_objlen(L, WALK_UPV_QUEUE) + 1);
-		}
+		luaL_checktype(L, 2, LUA_TFUNCTION);
+		dir_cb_index = 2;
 	}
 
-	/* if there are no more directories to visit, we're done */
-	if (0 == lua_objlen(L, WALK_UPV_QUEUE))
-		return 0;
+	walk_dirs(L, 1, dir_cb_index);
 
-	/* retval #1: the directory; pick the first directory of the work queue */
-	lua_rawgeti(L, WALK_UPV_QUEUE, 1);
-	path = lua_tostring(L, -1);
-
-	/* set the directory (with a trailing slash) as the new current directory upvalue */
-	lua_pushvalue(L, -1);
-	lua_pushlstring(L, "/", 1);
-	lua_concat(L, 2);
-	lua_replace(L, WALK_UPV_CWD);
-
-	/* pushes two tables on the stack, files and directories */
-	scan_directory(L, path);
-
-	/* use this directory list next time */
+	lua_getglobal(L, "ipairs");
 	lua_pushvalue(L, -2);
-	lua_replace(L, WALK_UPV_DIRS);
-
-	/* we're done with this directory, so drop it off the work queue,
-	 * unfortunately this being lua we have to shift down all array members */
-	{
-		int i;
-		int count = (int) lua_objlen(L, WALK_UPV_QUEUE);
-		for (i=1, count; i < count; ++i)
-		{
-			lua_rawgeti(L, WALK_UPV_QUEUE, i+1);
-			lua_rawseti(L, WALK_UPV_QUEUE, i);
-		}
-
-		/* terminate array with a nil */
-		lua_pushnil(L);
-		lua_rawseti(L, WALK_UPV_QUEUE, i);
-	}
+	lua_call(L, 1, 3);
 
 	++walk_path_count;
 	walk_path_time += td_timestamp() - t1;
 
 	return 3;
-}
-
-int tundra_walk_path(lua_State* L)
-{
-	/* upvalue 1: parent directory path */
-	lua_pushnil(L);
-
-	/* upvalue 2: work queue = { arg1 } */
-	lua_newtable(L);
-	lua_pushvalue(L, 1);
-	lua_rawseti(L, -2, 1);
-
-	/* upvalue 3: directories = {} */
-	lua_newtable(L);
-
-	lua_pushcclosure(L, tundra_walk_path_iter, 3);
-	return 1;
 }
 
