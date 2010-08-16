@@ -188,7 +188,7 @@ int td_luaprof_install(lua_State *L)
 {
 	td_alloc_init(&alloc, 8, 1024 * 1024);
 	lua_sethook(L, luaprof_hook, LUA_MASKCALL|LUA_MASKRET, 0);
-	root_loc = resolve_loc("<root>");
+	root_loc = resolve_loc("<root>, , , -1");
 	call_stack[0].invocation = resolve_invocation(root_loc);
 	call_stack[0].start_time = td_timestamp();
 	call_stack[0].invocation->call_count = 1;
