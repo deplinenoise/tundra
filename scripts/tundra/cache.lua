@@ -48,24 +48,24 @@ function commit_cache(tuples, lua_files, cache_file)
 		local cfg = tuple.Config.Name
 		local variant = tuple.Variant.Name
 		local subv = tuple.SubVariant
-		local str = string.format("\t{ '%s', '%s', '%s' },\n", cfg, variant, subv)
+		local str = string.format("\t{ %q, %q, %q },\n", cfg, variant, subv)
 		cache_stream:write(str)
 	end
 	cache_stream:write("}\n")
 
 	cache_stream:write("Files = {\n")
 	for name, digest in pairs(lua_files) do 
-		cache_stream:write("\t'", name, "' = '", digest, "',\n")
+		cache_stream:write(string.format("\t[%q] = %q,\n", name, digest))
 	end
 	cache_stream:write("}\n")
 
 	local function dump_file_array(name, data)
 		if data and #data > 0 then
-			cache_stream:write("\t", name, " = {\n")
+			cache_stream:write("\t\t", name, " = {\n")
 			for _, i in ipairs(data) do
-				cache_stream:write(string.format("\t\t%q,\n", i))
+				cache_stream:write(string.format("\t\t\t%q,\n", i))
 			end
-			cache_stream:write("\t},\n")
+			cache_stream:write("\t\t},\n")
 		end
 	end
 
@@ -96,7 +96,7 @@ function commit_cache(tuples, lua_files, cache_file)
 			pass_index = pass_index + 1
 			my_pass_index = pass_index
 			pass_to_idx[node.pass] = my_pass_index
-			cache_stream:write(string.format("Passes[%d] = { Name = %q, BuildOrder = %d }\n",
+			cache_stream:write(string.format("\tPasses[%d] = { Name = %q, BuildOrder = %d }\n",
 				my_pass_index, node.pass.Name, node.pass.BuildOrder))
 		end
 
@@ -108,44 +108,44 @@ function commit_cache(tuples, lua_files, cache_file)
 				scanner_index = scanner_index + 1
 				my_scanner_idx = scanner_index
 				scanner_to_idx[node.scanner] = my_scanner_idx
-				cache_stream:write(string.format("Scanners[%d] = GlobalEngine:make_cpp_scanner {\n", my_scanner_idx))
+				cache_stream:write(string.format("\tScanners[%d] = GlobalEngine:make_cpp_scanner {\n", my_scanner_idx))
 				for _, path in ipairs(spec) do
-					cache_stream:write(string.format("\t%q,\n", path))
+					cache_stream:write(string.format("\t\t%q,\n", path))
 				end
-				cache_stream:write("}\n")
+				cache_stream:write("\t}\n")
 			end
 		end
 
 		if node.env and not env_blocks[node.env] then
 			env_block_index = env_block_index + 1
 			env_blocks[node.env] = env_block_index
-			cache_stream:write(string.format("Envs[%d] = {\n)", env_block_index))
+			cache_stream:write(string.format("\tEnvs[%d] = {\n", env_block_index))
 			for k, v in pairs(node.env) do
-				cache_stream:write(string.format("\t%q = %q,\n", k, v))
+				cache_stream:write(string.format("\t\t[%q] = %q,\n", k, v))
 			end
-			cache_stream:write("}\n\n")
+			cache_stream:write("\t}\n\n")
 		end
 
-		cache_stream:write(string.format("Nodes[%d] = GlobalEngine:make_node {\n", idx))
-		cache_stream:write(string.format("\taction = %q,\n", node.action))
-		cache_stream:write(string.format("\tannotation = %q,\n", node.annotation))
-		cache_stream:write(string.format("\tsalt = %q,\n", node.salt))
-		cache_stream:write(string.format("\tpass = Passes[%d],\n", my_pass_index))
+		cache_stream:write(string.format("\tNodes[%d] = GlobalEngine:make_node {\n", idx))
+		cache_stream:write(string.format("\t\taction = %q,\n", node.action))
+		cache_stream:write(string.format("\t\tannotation = %q,\n", node.annotation))
+		cache_stream:write(string.format("\t\tsalt = %q,\n", node.salt))
+		cache_stream:write(string.format("\t\tpass = Passes[%d],\n", my_pass_index))
 
 		dump_file_array("inputs", node.inputs)
 		dump_file_array("outputs", node.outputs)
 		dump_file_array("aux_outputs", node.aux_outputs)
 
 		if node.env then
-			cache_stream:write(string.format("\tenv = Envs[%d],\n", env_blocks[node.env]))
+			cache_stream:write(string.format("\t\tenv = Envs[%d],\n", env_blocks[node.env]))
 		end
 
 		if my_scanner_idx then
-			cache_stream:write(string.format("\tscanner = Scanners[%d],\n", my_scanner_idx))
+			cache_stream:write(string.format("\t\tscanner = Scanners[%d],\n", my_scanner_idx))
 		end
 
 		if node.deps and #node.deps > 0 then
-			cache_stream:write("\tdeps = { ")
+			cache_stream:write("\t\tdeps = { ")
 			for _, dep in ipairs(node.deps) do
 				local idx = assert(cache_node_to_data[dep])
 				local serialized_index = assert(node_written[idx])
@@ -153,16 +153,22 @@ function commit_cache(tuples, lua_files, cache_file)
 			end
 			cache_stream:write("},\n")
 		end
-		cache_stream:write("}\n\n")
+		cache_stream:write("\t}\n\n")
 	end
 
-	cache_stream:write("Scanners = {}\n")
-	cache_stream:write("Nodes = {}\n")
-	cache_stream:write("Envs = {}\n\n")
-	cache_stream:write("Passes = {}\n\n")
+	cache_stream:write("\n\nfunction CreateDag()\n")
+
+	cache_stream:write("\tlocal Scanners = {}\n")
+	cache_stream:write("\tlocal Nodes = {}\n")
+	cache_stream:write("\tlocal Envs = {}\n\n")
+	cache_stream:write("\tlocal Passes = {}\n\n")
 	for idx, node in ipairs(cache_data) do
 		emit_node(idx)
 	end
+
+	cache_stream:write("\treturn Nodes[#Nodes]\n")
+
+	cache_stream:write("end\n")
 
 	cache_stream:close()
 	cache_stream = nil

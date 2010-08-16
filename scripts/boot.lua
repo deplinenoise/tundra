@@ -232,8 +232,7 @@ local function run_build_script(fn)
 
 	local chunk, error_msg = loadfile(fn)
 	if not chunk then
-		io.stderr:write(error_msg .. '\n')
-		native.exit()
+		croak("%s", error_msg)
 	end
 	setfenv(chunk, script_globals)
 
@@ -554,32 +553,62 @@ local function create_build_engine(opts)
 	}
 end
 
-local function use_caching(args)
-	local t = args.EngineOptions
-	return t and t.UseDagCaching
-end
-
 local cache_file = ".tundra-dagcache"
 local cache_file_tmp = ".tundra-dagcache.tmp"
 
 local function get_cached_dag(build_tuples, args)
-	if not use_caching(args) then
-		return nil
-	end
-
 	local f = io.open(cache_file, "r")
 	if not f then
 		return nil
 	end
-	local data = f:read()
+	local data = f:read("*all")
 	f:close()
 
 	local chunk = assert(loadstring(data, cache_file))
-	return chunk(build_tuples)
+	local env = setmetatable({}, { __index = _G })
+	setfenv(chunk, env)
+	chunk()
+
+	local tuples_matched = 0
+	for _, tuple in ipairs(build_tuples) do
+		for _, data in ipairs(env.Tuples) do
+			if data[1] == tuple.Config.Name and data[2] == tuple.Variant.Name and data[3] == tuple.SubVariant then
+				tuples_matched = tuples_matched + 1
+			end
+		end
+	end
+
+	if tuples_matched ~= #build_tuples then
+		if Options.Verbose then
+			print("discarding cached DAG due to build tuple mismatch")
+		end
+		return nil
+	end
+
+	for file, old_digest in ipairs(env.Files) do
+		local new_digest = get_file_digest(file)
+		if new_digest ~= old_digest then
+			if Options.Verbose then
+				printf("discarding cached DAG as file %s has changed", file)
+			end
+			return nil
+		end
+	end
+
+	if Options.Verbose then
+		print("using cached DAG")
+	end
+	return env.CreateDag()
 end
 
 local function generate_dag(build_tuples, args, passes)
-	local cached_dag = get_cached_dag(build_tuples, args)
+	local cache_flag = args.EngineOptions and args.EngineOptions.UseDagCaching
+	if cache_flag then
+		local cached_dag = get_cached_dag(build_tuples, args)
+		if cached_dag then
+			return cached_dag
+		end
+	end
 
 	-- This is a regular build. Assume these generator sets are always
 	-- needed for now. Could possible make an option for which generator
@@ -591,7 +620,7 @@ local function generate_dag(build_tuples, args, passes)
 
 	local raw_nodes, default_names = parse_units(build_tuples, args, passes)
 
-	if use_caching(args) then
+	if cache_flag then
 		require "tundra.cache"
 		tundra.cache.open_cache(cache_file_tmp)
 	end
@@ -617,7 +646,7 @@ local function generate_dag(build_tuples, args, passes)
 		Dependencies = everything,
 	}
 
-	if use_caching(args) then
+	if cache_flag then
 		tundra.cache.commit_cache(build_tuples, accessed_lua_files, cache_file)
 	end
 
