@@ -469,9 +469,88 @@ local function setup_env(env, tuple)
 	end
 end
 
-function Build(args)
-	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
+local function parse_units(build_tuples, args, passes)
+	local d = decl.make_decl_env()
+	do
+		local platforms = {}
+		for _, tuple in ipairs(build_tuples) do
+			local platform_name, tools = match_build_id(tuple.Config.Name)
+			if not member(platforms, platform_name) then
+				platforms[#platforms + 1] = platform_name
+			end
+		end
+		if Options.Verbose then
+			printf("adding platforms: %s", table.concat(platforms, ", "))
+		end
+		d:add_platforms(platforms)
+	end
 
+	for _, id in util.nil_ipairs(args.SyntaxExtensions) do
+		if Options.Verbose then
+			printf("parsing user-defined declaration parsers from %s", id)
+		end
+		load_syntax(id, d, passes)
+	end
+
+	local raw_nodes, default_names = d:parse(args.Units or "units.lua")
+	assert(#default_names > 0, "no default unit name to build was set")
+	return raw_nodes, default_names
+end
+
+
+local function create_build_engine(opts)
+	local engine_opts = opts or {}
+
+	return native.make_engine {
+		-- per-session settings
+		Verbosity = Options.Verbosity,
+		ThreadCount = tonumber(Options.ThreadCount),
+		ContinueOnError = Options.Continue and 1 or 0,
+		DryRun = Options.DryRun and 1 or 0,
+		DebugFlags = Options.DebugFlags,
+
+		-- per-config settings
+		FileHashSize = engine_opts.FileHashSize,
+		RelationHashSize = engine_opts.RelationHashSize,
+		UseDigestSigning = engine_opts.UseDigestSigning,
+		DebugSigning = engine_opts.DebugSigning,
+	}
+end
+
+local function generate_dag(build_tuples, args, passes)
+	-- This is a regular build. Assume these generator sets are always
+	-- needed for now. Could possible make an option for which generator
+	-- sets to load in the future.
+	nodegen.add_generator_set("nodegen", "native")
+	nodegen.add_generator_set("nodegen", "dotnet")
+
+	local everything = {}
+
+	local raw_nodes, default_names = parse_units(build_tuples, args, passes)
+
+	-- Let the nodegen code generate DAG nodes for all active
+	-- configurations/variants.
+	for _, tuple in pairs(build_tuples) do
+		local env = default_env:clone()
+		setup_env(env, tuple)
+		everything[#everything + 1] = nodegen.generate {
+			Engine = GlobalEngine,
+			Env = env,
+			Config = tuple.Config.Name,
+			Variant = tuple.Variant,
+			Declarations = raw_nodes,
+			DefaultNames = default_names,
+			Passes = passes,
+		}
+	end
+
+	return default_env:make_node {
+		Label = "toplevel",
+		Dependencies = everything,
+	}
+end
+
+function Build(args)
 	if type(args.Configs) ~= "table" or #args.Configs == 0 then
 		error("Need at least one config; got " .. util.tostring(args.Configs) )
 	end
@@ -524,96 +603,28 @@ function Build(args)
 
 	local default_subvariant = args.DefaultSubVariant or subvariant_array[1]
 	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, subvariants, default_variant, default_subvariant)
+	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
 
 	if not Options.IdeGeneration then
-		-- This is a regular build. Assume these generator sets are always
-		-- needed for now. Could possible make an option for which generator
-		-- sets to load in the future.
-		nodegen.add_generator_set("nodegen", "native")
-		nodegen.add_generator_set("nodegen", "dotnet")
+		GlobalEngine = create_build_engine(args.EngineOptions)
 
-		local engine_opts = args.EngineOptions or {}
+		local dag = generate_dag(build_tuples, args, passes)
 
-		-- Create the build engine now.
-		GlobalEngine = native.make_engine {
-			-- per-session settings
-			Verbosity = Options.Verbosity,
-			ThreadCount = tonumber(Options.ThreadCount),
-			ContinueOnError = Options.Continue and 1 or 0,
-			DryRun = Options.DryRun and 1 or 0,
-			DebugFlags = Options.DebugFlags,
-
-			-- per-config settings
-			FileHashSize = engine_opts.FileHashSize,
-			RelationHashSize = engine_opts.RelationHashSize,
-			UseDigestSigning = engine_opts.UseDigestSigning,
-			DebugSigning = engine_opts.DebugSigning,
-		}
+		if Options.Clean then
+			GlobalEngine:build(dag, "clean")
+		else
+			GlobalEngine:build(dag)
+		end
 	else
 		-- We are generating IDE integration files. Load the specified
 		-- integration module rather than DAG builders.
 		nodegen.add_generator_set("ide", Options.IdeGeneration)
-	end
 
-	local d = decl.make_decl_env()
-	do
-		local platforms = {}
-		for _, tuple in ipairs(build_tuples) do
-			local platform_name, tools = match_build_id(tuple.Config.Name)
-			if not member(platforms, platform_name) then
-				platforms[#platforms + 1] = platform_name
-			end
-		end
-		if Options.Verbose then
-			printf("adding platforms: %s", table.concat(platforms, ", "))
-		end
-		d:add_platforms(platforms)
-	end
+		-- Parse the units file
+		local raw_nodes, default_names = parse_units(build_tuples, args, passes)
 
-	for _, id in util.nil_ipairs(args.SyntaxExtensions) do
-		if Options.Verbose then
-			printf("parsing user-defined declaration parsers from %s", id)
-		end
-		load_syntax(id, d, passes)
-	end
-
-	local raw_nodes, default_names = d:parse(args.Units or "units.lua")
-	assert(#default_names > 0, "no default unit name to build was set")
-
-	if not Options.IdeGeneration then
-		local everything = {}
-
-		-- Let the nodegen code generate DAG nodes for all active
-		-- configurations/variants.
-		for _, tuple in pairs(build_tuples) do
-			local env = default_env:clone()
-			setup_env(env, tuple, configs)
-			everything[#everything + 1] = nodegen.generate {
-				Engine = GlobalEngine,
-				Env = env,
-				Config = tuple.Config.Name,
-				Variant = tuple.Variant,
-				Declarations = raw_nodes,
-				DefaultNames = default_names,
-				Passes = passes,
-			}
-		end
-
-		-- Unless we're just creating IDE integration files, create a top-level
-		-- node and pass the full DAG to the build engine.
-		local toplevel = default_env:make_node {
-			Label = "toplevel",
-			Dependencies = everything,
-		}
-		if Options.Clean then
-			GlobalEngine:build(toplevel, "clean")
-		else
-			GlobalEngine:build(toplevel)
-		end
-
-	else
-		-- We're just generating IDE files. Pass the build tuples directly to
-		-- the generator and let it write files.
+		-- Pass the build tuples directly to the generator and let it write
+		-- files.
 		local env = default_env:clone()
 		nodegen.generate_ide_files(build_tuples, default_names, raw_nodes, env)
 	end
