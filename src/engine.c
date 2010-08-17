@@ -545,7 +545,7 @@ static int make_engine(lua_State *L)
 		self->settings.dry_run = get_int_override(L, 1, "DryRun", 0);
 		self->settings.continue_on_error = get_int_override(L, 1, "ContinueOnError", 0);
 		use_digest_signing = get_int_override(L, 1, "UseDigestSigning", 1);
-		debug_signing = get_int_override(L, 1, "DebugSigning", 1);
+		debug_signing = get_int_override(L, 1, "DebugSigning", 0);
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);
