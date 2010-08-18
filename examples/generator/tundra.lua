@@ -21,7 +21,13 @@ Build {
 			Name = "macosx-gcc",
 			DefaultOnHost = "macosx",
 			Inherit = common,
-			Tools = { "gcc", "mono" },
+			Tools = { "gcc" },
+		},
+		{
+			Name = "win32-msvc",
+			DefaultOnHost = "windows",
+			Inherit = common,
+			Tools = { "msvc-vs2008" },
 		},
 	},
 }
