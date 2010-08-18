@@ -1,5 +1,8 @@
 *.swp
 tundra-output
 .tundra-ancestors
+.tundra-relcache
+.tundra-dagcache
+tundra-sigdebug.txt
 tags
 build
