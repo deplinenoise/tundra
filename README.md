@@ -25,7 +25,7 @@ Tundra includes a public domain Lua Debugger, see below.
 Lua
 -----------------------------------------------------------------------------
 
-Copyright (c) 1994–2008 Lua.org, PUC-Rio.
+Copyright (c) 1994-2008 Lua.org, PUC-Rio.
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
 the Software without restriction, including without limitation the rights to
@@ -47,7 +47,7 @@ SOFTWARE.
 MD5
 -----------------------------------------------------------------------------
 
-Written by Solar Designer <solar at openwall.com> in 2001, and placed in the
+Written by Solar Designer `<solar at openwall.com>` in 2001, and placed in the
 public domain.  There's absolutely no warranty.
 
 Lua Debugger
@@ -56,4 +56,4 @@ Lua Debugger
 Tundra includes an optional Lua CLI debugger which is public domain software
 written by Dave Nichols.
 
-The debugger was obtained from http://luaforge.net/projects/clidebugger/
+The debugger was obtained from [luaforge.net](http://luaforge.net/projects/clidebugger/).
