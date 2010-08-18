@@ -69,7 +69,8 @@ local setup = toolset_once("msvc-vs2008", function()
 	}
 
 	return function (env, options)
-		local target_arch = options and assert(options.TargetArch) or "x86"
+		options = options or {}
+		local target_arch = options.TargetArch or "x86"
 		local host_arch = options.HostArch or get_host_arch()
 
 		local binDir = arch_dirs[host_arch][target_arch]
