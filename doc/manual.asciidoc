@@ -1,7 +1,7 @@
 // vim: ts=4 expandtab
 
-Tundra, a build system
-======================
+The Tundra Build System
+=======================
 Andreas Fredriksson <dep@defmacro.se>
 
 == Introduction ==
@@ -20,11 +20,12 @@ smaller projects too.
 ==== Simple and Fast ====
 
 Tundra is written in ANSI C (C89), with very few files (the whole codebase
-including scripts is about 7000 lines of code). Aside from Lua, there
-are no external dependencies. Most data structures are simple arrays, either
-stack based or allocated from a linear allocator. All allocations are discarded
-at once in pages when the program exits. This makes the code simple and the
-program fast as very little time is spent worrying about dynamic memory.
+including scripts and tools is about 10000 lines of code). Aside from Lua,
+there are no external dependencies. Most data structures in the C code are
+simple arrays, either stack based or allocated from a linear allocator. All
+allocations are discarded at once in pages when the program exits. This makes
+the code simple and the program fast as very little time is spent worrying
+about dynamic memory.
 
 ==== Utilize multi-core hardware ====
 
@@ -62,16 +63,16 @@ speed is unaffected by bad scripting and it is easier to diagnose a slow build.
 
 ==== Don't guess ====
 
-Tundra doesn't support auto-configuring toolsets or guessing what compiler you
-want to use. For a game project, there may be millions of builds between adding
-a new platform or configuration to a build system. Tools are also very brittle
-and need a specific configuration to produce working builds. The time it will
-take to support a new toolset while offset the time it tases to tell the build
-system about it by many magnitudes.
+Tundra doesn't go out of its way to support auto-configuration of toolsets or
+guessing what compiler you want to use. For a game project, there may be
+millions of builds between adding a new platform or configuration to a build
+system. Tools are also very brittle and need a specific configuration to
+produce working builds. The time it will take to support a new toolset while
+offset the time it takes to tell the build system about it by many magnitudes.
 
 Tundra therefore must be told explicitly in configuration what tools to use and
 how to run them, it never tries to auto-configure itself for your platform. If
-you need this capability, Tundra is not for you.
+you need this capability, Tundra is probably not for you.
 
 == Hello, world ==
 
@@ -119,6 +120,49 @@ The next mandatory step is of course to display the famous greeting:
 $ tundra-output/macosx-gcc-debug-default/HelloWorld
 hello, world
 -------------------------------------------------------------------------------
+
+More examples can be found in the `examples` directory in the Tundra
+distribution.
+
+== Installation ==
+
+=== Installing a binary package ===
+
+Download a binary package from http://github.com/deplinenoise/tundra/downloads
+
+Unpack it somewhere, and optionally stick it in your `PATH` environment
+variable if you use Tundra a lot.
+
+=== Installing from source ===
+
+Tundra can be obtained from the official GIT repository:
+`git://git@github.com:deplinenoise/tundra.git`.
+
+To build tundra, you can either use tundra itself, or CMake.
+
+To build with tundra, first install a binary package and then run:
+-------------------------------------------------------------------------------
+$ tundra release
+$ cp tundra-output/macosx-clang-release-default/tundra .
+-------------------------------------------------------------------------------
+
+Obviously your output directory must be adjusted to whatever platform you are
+actually building on. This example used the `macosx-clang` toolset.
+
+To build with CMake:
+-------------------------------------------------------------------------------
+$ mkdir build-dir
+$ cd build-dir
+$ cmake ..
+$ make
+$ cp tundra ..
+-------------------------------------------------------------------------------
+
+The last line of both examples copies the resulting binary into the tundra root
+dir (where it should live to be executed). If you prefer to run the executable
+from the build directory (because you're hacking on some feature) you can set
+the `TUNDRA_HOME` environment variable to the root directory of the tundra
+source distribution instead.
 
 == How Tundra works ==
 
