@@ -205,13 +205,13 @@ supports. Each configuration is in turn a table with the following syntax:
     }
 -------------------------------------------------------------------------------
 
-==== Per-config +Name+ property (required) ====
+==== Per-config Name property (required) ====
 
 The name of this configuration. Configuration names must be formatted in a
 dashed `platform-toolset` format. These two tokens form the first two in the
 quad `platform-toolset-variant-subvariant` system Tundra uses to id builds.
 
-==== Per-config +Tools+ property (required) ====
+==== Per-config Tools property (required) ====
 
 A list of tools this configuration uses. A tool specification is either a
 string, indicating that the defaults for that tool are to be used, or a table
@@ -221,13 +221,29 @@ configure it. Tools are loaded from the tool directory list.
 Projects can add their own tool scripts via a +ToolsetDirs+ array property in
 the +Build+ block.
 
-==== Per-config +DefaultOnHost+ property (optional) ====
+==== Per-config DefaultOnHost property (optional) ====
 
 If present, this config will be built by default when the host platform matches
 the string. This is convenient to have the host's native configuration build
 in the default variant when you just type `tundra` in the shell.
 
-==== Per-config +Inherit+ property (optional) ====
+==== Per-config Env property (optional) ====
+
+If present, must be set to a table. This table contains key-value bindings to
+apply to the environment for this configuration. This typically includes things
+such as include paths (`CPPPATH`), C preprocessor defines (`CPPDEFS`) and C
+compiler options (`CCOPTS`).
+
+-----------------------------------------------------------------------------
+Build {
+  Configs = {
+    { Name = "foo-bar", Env = { CPPDEFS = { "FOO", "BAR=BAZ", ... } }, },
+    ...
+  },
+}
+-----------------------------------------------------------------------------
+
+==== Per-config Inherit property (optional) ====
 
 If present, must be set to a table. This table will be scanned for values if
 they are not present in the Config table itself. This is useful to group common
@@ -240,22 +256,6 @@ Build {
   Configs = {
     { Name = "foo-bar", Inherit = foo_common, ... },
     { Name = "foo-baz", Inherit = foo_common, ... },
-    ...
-  },
-}
------------------------------------------------------------------------------
-
-==== Per-config +Env+ property (optional) ====
-
-If present, must be set to a table. This table contains key-value bindings to
-apply to the environment for this configuration. This typically includes things
-such as include paths (`CPPPATH`), C preprocessor defines (`CPPDEFS`) and C
-compiler options (`CCOPTS`).
-
------------------------------------------------------------------------------
-Build {
-  Configs = {
-    { Name = "foo-bar", Env = { CPPDEFS = { "FOO", "BAR=BAZ", ... } }, },
     ...
   },
 }
@@ -368,6 +368,103 @@ is then expanded in turn.
 
 Used with care this is a powerful way of letting users customize variables per
 configuration and then glue everything together with a simple template.
+
+== Environment Variables ==
+
+These environment variables apply to C-based toolsets:
+
+- `CPPPATH` - A list of search directories for include files
+- `CPPDEFS` - A list of preprocessor definitions
+- `LIBS` - A list of libraries to link with
+- `LIBPATH` -  A list of search directories for library files
+- `CC` - The C compiler
+- `C++` - The C++ compiler
+- `LIB` - The program that makes static libraries (archives)
+- `LD` - The linker
+- `CCOPTS` - Common compiler options for all configurations
+- `CCOPTS_<config>` - Compiler options for variant `<config>`, such as `CCOPTS_DEBUG`, `CCOPTS_RELEASE`.
+- `CCCOM` - Command line for C compilation
+- `CXXCOM` - Command line for C++ compilation
+- `PCHCOMPILE` - Command line for precompiled header compilation
+- `PROGOPTS` - Options specific to linking programs
+- `PROGCOM` - Command line to link a program
+- `LIBOPTS` - Options specific to creating a static library (archive)
+- `LIBCOM` - Command line to create a static library (archive)
+- `SHLIBOPTS` - Options specific to creating a shared library
+- `SHLIBCOM` - Command line to create a shared library
+- `FRAMEWORKS` - (OS X) Frameworks to include and link with
+- `AUX_FILES_PROGRAM`, `AUX_FILES_SHAREDLIB` - List of patterns that expand to auxilliary files to clean for programs, shared libraries. Useful to clean up debug and map files.
+
+These environment variables apply to .NET-based toolsets:
+
+- `CSC` - The C# compiler
+- `CSC_WARNING_LEVEL` - The C# warning level
+- `CSLIBS` - Assembly references
+- `CSRESOURCES` - Resource file references
+- `CSCOPTS` - Common options
+- `CSPROGSUFFIX` - The suffix of generated programs, by default `.exe`
+- `CSLIBSUFFIX` - The suffix of generated libraries, by default`.dll`
+- `CSRESGEN` - The resource compiler
+- `CSCLIBCOM` - Command line to generate a library
+- `CSCEXECOM` - Command line to generate an executable
+
+== Toolsets ==
+
+This section tries to document the stock toolsets that come included with Tundra.
+
+=== generic-cpp ===
+
+This isn't really a toolset you would import explicity, it is a base layer the
+other tools drag in to set up defaults. It has functionality to set up
+preprocessor scanners, registers functions to implicitly compile source files
+to object files and such. All other C toolsets import this toolset.
+
+=== gcc ===
+
+The `gcc` toolset is a simple GCC toolset that only uses basic options and does
+nothing fancy. It is suitable for run-of-the-mill UNIX clones such as Linux,
+BSD but also works well for command-line programs on Mac OS X.
+
+It formats include paths with `-I`, preprocessor defines with `-D` and so on.
+It tries to run `ar` to create static libraries and there is no support for
+dynamic libraries.
+
+=== gcc-osx and clang-osx ===
+
+`gcc-osx` extends the `gcc` toolset by adding Mac OS X specific options for
+frameworks and shared libraries (dylib). `clang-osx` is just like `gcc-osx` but
+uses the CLang frontend rather than GCC.
+
+=== msvc ===
+
+This toolset uses a `cl.exe` from the environment. It is suitable for direct
+use if you want to run with a local MSVC compiler that is already in your path.
+
+=== msvc-vs2008 ===
+
+This toolset imports the `msvc` toolset but can locate and set up the Visual
+Studio 2008 compiler from the registry and explicitly select between 32 and
+64-bit versions of the compilers. This gives two advantages:
+
+- You can just run tundra without setting up the environment with a compiler
+  (e.g. through the "Visual Studio Command Prompt" shortcut)
+- You can build for multiple target architectures at the same time, for example
+  build both x86 and x64 code in batch.
+
+This toolset supports two options:
+
+- `HostArch`: one of `x86`, `x64` or `itanium`; selects the host architecture
+  of the compiler binaries. Defaults to x64 on 64-bit machines, x86 on 32-bit
+  machines.
+- `TargetArch`: one of `x86`, `x64` or `itanium`; selects the target architecture
+  of the compiler binaries. Defaults to `x86`.
+
+Here's an example of how this toolset can be configured for an explicit target
+architecture:
+
+-------------------------------------------------------------------------------
+    Tools = { { "msvc-vs2008"; TargetArch = "itanium", HostArch = "x86" }, ... }
+-------------------------------------------------------------------------------
 
 // vim: set syntax=asciidoc
 
