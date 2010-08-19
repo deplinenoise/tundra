@@ -34,7 +34,6 @@ env:set_many {
 	["CCOPTS"] = "-Wall",
 	["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
 	["CXXCOM"] = "$(CCCOM)",
-	["PROGLIBS"] = "",
 	["PROGOPTS"] = "",
 	["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBS:p-l) -o $(@) $(<)",
 	["LIBOPTS"] = "",
