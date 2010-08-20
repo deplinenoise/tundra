@@ -8,7 +8,7 @@ decl_parser:add_source_generator("ExampleGenerator", function (args)
 	local source = assert(args.Source, "no source file specified!")
 	local outname = assert(args.OutName, "no output name specified!")
 	local full_fn = "$(OBJECTDIR)/_generated/" .. outname
-	return environment.memoize_per_config(function(env)
+	return function (env)
 		return env:make_node {
 			Label = "ExampleGen $(@)",
 			Action = "$(EXAMPLEGEN) $(<) $(@)",
@@ -17,6 +17,6 @@ decl_parser:add_source_generator("ExampleGenerator", function (args)
 			OutputFiles = { full_fn },
 			ImplicitInputs = { "$(EXAMPLEGEN)" },
 		}
-	end)
+	end
 end)
 
