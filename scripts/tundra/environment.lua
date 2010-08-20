@@ -128,6 +128,16 @@ function envclass:append(key, value)
 	self.vars[key] = result
 end
 
+function envclass:replace(key, value)
+	if type(value) == "string" then
+		value = { value }
+	end
+	assert(type(value) == "table")
+
+	self:invalidate_memos(key)
+	self.vars[key] = value
+end
+
 function envclass:prepend(key, value)
 	self:invalidate_memos(key)
 	local t = self:get_list(key, 1)
