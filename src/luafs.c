@@ -209,7 +209,7 @@ walk_dirs(lua_State* L, int path_index, int callback_index)
 			/* push three pieces <parent> </> <dir> in anticipation of success
 			 * so we don't have to reshuffle the stack */
 			lua_pushvalue(L, path_index);
-			lua_pushstring(L, TD_PATHSEP_STR);
+			lua_pushstring(L, "/");
 			lua_rawgeti(L, new_dir_table, (int) i);
 
 			/* If there's a callback function to filter directories, call it
@@ -240,7 +240,7 @@ walk_dirs(lua_State* L, int path_index, int callback_index)
 			/* push three pieces <parent> </> <dir> in anticipation of success
 			 * so we don't have to reshuffle the stack */
 			lua_pushvalue(L, path_index);
-			lua_pushstring(L, TD_PATHSEP_STR);
+			lua_pushstring(L, "/");
 			lua_rawgeti(L, new_file_table, (int) i);
 			lua_concat(L, 3);
 			lua_rawseti(L, file_table, (int) (lua_objlen(L, file_table) + 1));
