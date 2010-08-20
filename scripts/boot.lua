@@ -504,6 +504,20 @@ local function setup_env(env, tuple)
 			end
 		end
 	end
+
+	for env_tab in iter_inherits(config, "ReplaceEnv") do
+		for key, val in util.pairs(env_tab) do
+			if type(val) == "table" then
+				local list = nodegen.flatten_list(build_id, val)
+				if Options.VeryVerbose then
+					printf("Env Replace %s => %s", util.tostring(val), util.tostring(list))
+				end
+				env:replace(key, subvalue)
+			else
+				env:replace(key, val)
+			end
+		end
+	end
 end
 
 local function parse_units(build_tuples, args, passes)
