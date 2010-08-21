@@ -776,10 +776,14 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 			fputs(option_end + 1, tmp);
 			fclose(tmp);
 
-			strncpy(command_buf, cmd_line, min((int) (response - cmd_line), (int) sizeof(command_buf)));
-			command_buf[sizeof(command_buf)-1] = '\0';
-			strncpy(option_buf, option, min((int) (option_end - option), (int) sizeof(option_buf)));
-			option_buf[sizeof(option_buf)-1] = '\0';
+			{
+				int copy_len = min((int) (response - cmd_line), (int) (sizeof(command_buf) - 1));
+				strncpy(command_buf, cmd_line, copy_len);
+				command_buf[copy_len] = '\0';
+				copy_len = min((int) (option_end - option), (int) (sizeof(option_buf) - 1));
+				strncpy(option_buf, option, copy_len);
+				option_buf[copy_len] = '\0';
+			}
 
 			snprintf(new_cmd, sizeof(new_cmd), "%s %s%s", command_buf, option_buf, response_file);
 			new_cmd[sizeof(new_cmd)-1] = '\0';
@@ -791,8 +795,9 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 		}
 		else
 		{
-			strncpy(command_buf, cmd_line, min((int) (response - cmd_line), (int) sizeof(command_buf)));
-			command_buf[sizeof(command_buf)-1] = '\0';
+			int copy_len = min((int) (response - cmd_line), (int) (sizeof(command_buf) - 1));
+			strncpy(command_buf, cmd_line, copy_len);
+			command_buf[copy_len] = '\0';
 			snprintf(new_cmd, sizeof(new_cmd), "%s%s", command_buf, option_end + 1);
 			new_cmd[sizeof(new_cmd)-1] = '\0';
 			return win32_spawn(prefix, new_cmd, env, env_count);
