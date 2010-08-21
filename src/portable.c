@@ -901,6 +901,21 @@ td_init_homedir()
 #endif
 }
 
+int
+td_get_cwd(struct lua_State *L)
+{
+	char buffer[512];
+#if defined(_WIN32)
+	DWORD res = GetCurrentDirectoryA(sizeof(buffer), buffer);
+	if (0 == res || sizeof(buffer) <= res)
+		return luaL_error(L, "couldn't get working dir: win32 error=%d", (int) GetLastError());
+#else
+	if (NULL == getcwd(buffer, sizeof(buffer)))
+		return luaL_error(L, "couldn't get working dir: %s", strerror(errno));
+#endif
+	lua_pushstring(L, buffer);
+	return 1;
+}
 
 int
 td_set_cwd(struct lua_State *L)

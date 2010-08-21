@@ -226,12 +226,12 @@ default_env:set_many {
 	["SEP"] = SEP,
 }
 
-local function run_build_script(fn)
+local function run_build_script(text, fn)
 	local script_globals, script_globals_mt = {}, {}
 	script_globals_mt.__index = _G
 	setmetatable(script_globals, script_globals_mt)
 
-	local chunk, error_msg = loadfile(fn)
+	local chunk, error_msg = loadstring(text, fn)
 	if not chunk then
 		croak("%s", error_msg)
 	end
@@ -816,7 +816,31 @@ function Build(args)
 	end
 end
 
-run_build_script("tundra.lua")
+while true do
+	local working_dir = native.get_cwd()
+	if working_dir:sub(-1) ~= SEP then
+		working_dir = working_dir .. SEP
+	end
+	local f, err = io.open('tundra.lua', 'r')
+	if f then
+		if Options.VeryVerbose then
+			printf("found tundra.lua in %s", working_dir)
+		end
+		local data = f:read("*all")
+		f:close()
+		run_build_script(data, working_dir .. "tundra.lua")
+		break
+	else
+		local parent_dir = working_dir:gsub("[^/\\]+[/\\]$", "")
+		if working_dir == parent_dir or parent_dir:len() == 0 then
+			croak("couldn't find tundra.lua here or anywhere up to \"%s\"", parent_dir)
+		end
+		if Options.VeryVerbose then
+			printf("no tundra.lua in %s; trying %s", working_dir, parent_dir)
+		end
+		native.set_cwd(parent_dir)
+	end
+end
 
 if Options.Profile then
 	native.report_profiler("tundra.prof")

@@ -140,6 +140,8 @@ extern int tundra_walk_path(lua_State*);
 extern void td_engine_open(lua_State*);
 extern int td_scanner_open(lua_State*);
 extern int td_cpp_scanner_open(lua_State*);
+extern int td_get_cwd(lua_State*);
+extern int td_set_cwd(lua_State*);
 
 static int tundra_open(lua_State *L)
 {
@@ -152,7 +154,8 @@ static int tundra_open(lua_State *L)
 		{ "digest_guid", tundra_digest_guid },
 		/* query for environment string */
 		{ "getenv", tundra_getenv },
-		/* query for environment string */
+		/* working dir mgmt */
+		{ "get_cwd", td_get_cwd },
 		{ "set_cwd", td_set_cwd },
 		{ "install_profiler", td_luaprof_install },
 		{ "report_profiler", td_luaprof_report },
