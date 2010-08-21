@@ -49,6 +49,24 @@
 #include <stdio.h>
 #include <assert.h>
 #define snprintf _snprintf
+
+#if defined(__GNUC__)
+/* mingw has very old windows headers; declare CONDITION VARIABLE here */
+typedef void* CONDITION_VARIABLE;
+typedef CONDITION_VARIABLE* PCONDITION_VARIABLE;
+static void WINAPI (*InitializeConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+BOOL WINAPI (*SleepConditionVariableCS)(PCONDITION_VARIABLE ConditionVariable, PCRITICAL_SECTION CriticalSection, DWORD dwMilliseconds);
+static void WINAPI (*WakeConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+static void WINAPI (*WakeAllConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+
+#ifndef KEY_WOW64_64KEY
+#define KEY_WOW64_64KEY         (0x0100)
+#endif
+#ifndef KEY_WOW64_32KEY
+#define KEY_WOW64_32KEY         (0x0200)
+#endif
+#endif
+
 #endif
 
 const char * const td_platform_string =
@@ -322,6 +340,31 @@ void td_init_portable(void)
 #if defined(_WIN32)
 	/* Grab the environment block once and just let it leak. */
 	s_env_block = GetEnvironmentStringsA();
+
+#ifdef __GNUC__
+	{
+		int i;
+		static struct { void **ptr; const char *symbol; } init_table[] = {
+			{ (void**) &InitializeConditionVariable, "InitializeConditionVariable" },
+			{ (void**) &SleepConditionVariableCS, "SleepConditionVariableCS" },
+			{ (void**) &WakeConditionVariable, "WakeConditionVariable" },
+			{ (void**) &WakeAllConditionVariable, "WakeAllConditionVariable" },
+		};
+		HMODULE kernel32;
+
+		kernel32 = GetModuleHandleA("kernel32.dll");
+
+		for (i = 0; i < (sizeof(init_table)/sizeof(init_table[0])); ++i)
+		{
+			const char *symbol = init_table[i].symbol;
+			if (NULL == (*init_table[i].ptr = GetProcAddress(kernel32, symbol)))
+			{
+				td_croak("couldn't resolve symbol %s in kernel32.dll; your windows version is not supported", symbol);
+			}
+		}
+	}
+#endif
+
 #endif
 }
 
@@ -681,6 +724,8 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 #elif defined(_WIN32)
 	static const char response_prefix[] = "@RESPONSE|";
 	static const size_t response_prefix_len = sizeof(response_prefix) - 1;
+	char command_buf[512];
+	char option_buf[32];
 	char new_cmd[8192];
 	const char* response;
 	*was_signalled_out = 0;
@@ -731,10 +776,13 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 			fputs(option_end + 1, tmp);
 			fclose(tmp);
 
-			strncpy_s(new_cmd, sizeof(new_cmd), cmd_line, response - cmd_line);
-			strcat_s(new_cmd, sizeof(new_cmd), " ");
-			strncat_s(new_cmd, sizeof(new_cmd), option, option_end - option);
-			strcat_s(new_cmd, sizeof(new_cmd), response_file);
+			strncpy(command_buf, cmd_line, min((int) (response - cmd_line), (int) sizeof(command_buf)));
+			command_buf[sizeof(command_buf)-1] = '\0';
+			strncpy(option_buf, option, min((int) (option_end - option), (int) sizeof(option_buf)));
+			option_buf[sizeof(option_buf)-1] = '\0';
+
+			snprintf(new_cmd, sizeof(new_cmd), "%s %s%s", command_buf, option_buf, response_file);
+			new_cmd[sizeof(new_cmd)-1] = '\0';
 
 			cmd_result = win32_spawn(prefix, new_cmd, env, env_count);
 
@@ -743,8 +791,10 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 		}
 		else
 		{
-			strncpy_s(new_cmd, sizeof(new_cmd), cmd_line, response - cmd_line);
-			strcat_s(new_cmd, sizeof(new_cmd), option_end + 1);
+			strncpy(command_buf, cmd_line, min((int) (response - cmd_line), (int) sizeof(command_buf)));
+			command_buf[sizeof(command_buf)-1] = '\0';
+			snprintf(new_cmd, sizeof(new_cmd), "%s%s", command_buf, option_end + 1);
+			new_cmd[sizeof(new_cmd)-1] = '\0';
 			return win32_spawn(prefix, new_cmd, env, env_count);
 		}
 	}
