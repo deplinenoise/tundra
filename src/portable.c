@@ -930,3 +930,18 @@ td_set_cwd(struct lua_State *L)
 #endif
 	return 0;
 }
+
+int
+td_get_processor_count(void)
+{
+#if defined(_WIN32)
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	return (int) si.dwNumberOfProcessors;
+#else
+	long nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
+	if (nprocs_max < 0)
+		td_croak("couldn't get CPU count: %s", strerror(errno));
+	return (int) nprocs_max;
+#endif
+}

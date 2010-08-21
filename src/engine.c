@@ -533,6 +533,7 @@ static int make_engine(lua_State *L)
 	self->relhash_size = 92413;
 	self->L = L;
 	self->start_time = time(NULL);
+	self->settings.thread_count = td_get_processor_count();
 
 	/* apply optional overrides */
 	if (1 <= lua_gettop(L) && lua_istable(L, 1))
@@ -541,7 +542,7 @@ static int make_engine(lua_State *L)
 		self->relhash_size = get_int_override(L, 1, "RelationHashSize", self->relhash_size);
 		self->settings.debug_flags = get_int_override(L, 1, "DebugFlags", 0);
 		self->settings.verbosity = get_int_override(L, 1, "Verbosity", 0);
-		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", 1);
+		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", self->settings.thread_count);
 		self->settings.dry_run = get_int_override(L, 1, "DryRun", 0);
 		self->settings.continue_on_error = get_int_override(L, 1, "ContinueOnError", 0);
 		use_digest_signing = get_int_override(L, 1, "UseDigestSigning", 1);
