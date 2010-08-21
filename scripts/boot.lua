@@ -527,6 +527,10 @@ local function setup_env(env, tuple, build_id)
 			end
 		end
 	end
+
+	-- Run post-setup functions. This typically sets up implicit make functions.
+	env:run_setup_functions()
+
 	return env
 end
 

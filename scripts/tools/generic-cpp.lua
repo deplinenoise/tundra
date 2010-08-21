@@ -18,10 +18,9 @@
 -- generic-cpp.lua - Generic C, C++, Objective-C support
 
 local _outer_env = ...
-local depgraph = require("tundra.depgraph")
-local util = require("tundra.util")
-local path = require("tundra.path")
-local native = require("tundra.native")
+local nodegen = require "tundra.nodegen"
+local util = require "tundra.util"
+local path = require "tundra.path"
 
 local function get_cpp_scanner(env, fn)
 	local function new_scanner()
@@ -33,8 +32,10 @@ end
 
 -- Register implicit make functions for C, C++ ad Objective-C files.
 -- These functions are called to transform source files in unit lists into
--- object files.
-do
+-- object files. This function is registered as a setup function so it will be
+-- run after user modifications to the environment, but before nodes are
+-- processed. This way users can override the extension lists.
+local function generic_cpp_setup(env)
 	local _anyc_compile = function(env, pass, fn, label, action)
 		local pch_input = env:get('_PCH_FILE', '')
 		local function obj_fn()
@@ -61,27 +62,28 @@ do
 		}
 	end
 
-	local cc_compile = function(env, pass, fn)
-		return _anyc_compile(env, pass, fn, "Cc", "$(CCCOM)")
-	end
+	local mappings = {
+		["CCEXTS"] = { Label="Cc", Action="$(CCCOM)" },
+		["C++EXTS"] = { Label="C++", Action="$(CXXCOM)" },
+		["OBJCEXTS"] = { Label="ObjC", Action="$(OBJCCOM)" },
+	}
 
-	local objc_compile = function(env, pass, fn)
-		return _anyc_compile(env, pass, fn, "ObjC", "$(OBJCCOM)")
+	for key, setup in pairs(mappings) do
+		for _, ext in ipairs(env:get_list(key)) do
+			env:register_implicit_make_fn(ext, function(env, pass, fn)
+				return _anyc_compile(env, pass, fn, setup.Label, setup.Action)
+			end)
+		end
 	end
-
-	local cxx_compile = function(env, pass, fn)
-		return _anyc_compile(env, pass, fn, "C++", "$(CXXCOM)")
-	end
-
-	_outer_env:register_implicit_make_fn("c", cc_compile)
-	_outer_env:register_implicit_make_fn("m", objc_compile)
-	_outer_env:register_implicit_make_fn("cpp", cxx_compile)
-	_outer_env:register_implicit_make_fn("cc", cxx_compile)
-	_outer_env:register_implicit_make_fn("cxx", cxx_compile)
 end
+
+_outer_env:add_setup_function(generic_cpp_setup)
 
 _outer_env:set_many {
 	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
+	["CCEXTS"] = { "c" },
+	["C++EXTS"] = { "cpp", "cxx", "cc" },
+	["OBJCEXTS"] = { "m" },
 	["PROGSUFFIX"] = "$(HOSTPROGSUFFIX)",
 	["SHLIBSUFFIX"] = "$(HOSTSHLIBSUFFIX)",
 	["CPPPATH"] = "",

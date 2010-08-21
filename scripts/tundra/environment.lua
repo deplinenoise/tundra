@@ -388,6 +388,26 @@ function envclass:set_external_env_var(key, value)
 	t[key] = value
 end
 
+function envclass:add_setup_function(fn)
+	local t = self.setup_funcs
+	if not t then
+		t = {}
+		self.setup_funcs = t
+	end
+	t[#t + 1] = fn
+end
+
+function envclass:run_setup_functions(fn)
+	t = self.setup_funcs
+	local chain = self
+	while chain do
+		for _, func in util.nil_ipairs(chain.setup_funcs) do
+			func(self)
+		end
+		chain = chain.parent
+	end
+end
+
 function is_environment(datum)
 	return getmetatable(datum) == envclass
 end
