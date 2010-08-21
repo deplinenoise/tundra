@@ -35,8 +35,11 @@
 #include "util.h"
 #include "build.h"
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include <malloc.h> /* alloca */
+#endif
+
+#if defined(_MSC_VER)
 #define snprintf _snprintf
 #endif
 
