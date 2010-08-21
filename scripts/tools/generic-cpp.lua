@@ -82,6 +82,8 @@ end
 
 _outer_env:set_many {
 	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
+	["PROGSUFFIX"] = "$(HOSTPROGSUFFIX)",
+	["SHLIBSUFFIX"] = "$(HOSTSHLIBSUFFIX)",
 	["CPPPATH"] = "",
 	["CPPDEFS"] = "",
 	["LIBS"] = "",

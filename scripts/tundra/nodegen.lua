@@ -48,23 +48,37 @@ local function create_unit_map(state, raw_nodes)
 end
 
 function generate(args)
-	local env = assert(args.Env)
+	local envs = assert(args.Envs)
 	local raw_nodes = assert(args.Declarations)
 	local default_names = assert(args.DefaultNames)
 
 	local state = make_new_state {
-		base_env = env,
+		base_envs = envs,
+		root_env = envs["__default"], -- the outmost config's env in a cross-compilation scenario
 		config = assert(args.Config),
 		variant = assert(args.Variant),
 		passes = assert(args.Passes),
 	}
 
+	local subconfigs = state.config.SubConfigs
+
+	-- Pick a default environment which is used for
+	-- 1. Nodes without a SubConfig declaration
+	-- 2. Nodes with a missing SubConfig declaration
+	-- 3. All nodes if there are no SubConfigs set for the current config
+	if subconfigs then
+		state.default_subconfig = assert(state.config.DefaultSubConfig)
+		state.default_env = envs[state.default_subconfig]
+	else
+		state.default_env = assert(envs["__default"])
+	end
+
 	create_unit_map(state, raw_nodes)
 
 	local nodes_to_build = util.map(default_names, function (name) return state:get_node_of(name) end)
 
-	local result = env:make_node {
-		Label = "all-" .. env:get("BUILD_ID"),
+	local result = state.root_env:make_node {
+		Label = "all-" .. state.root_env:get("BUILD_ID"),
 		Dependencies = nodes_to_build,
 	}
 
@@ -239,7 +253,27 @@ local function config_matches(pattern, build_id)
 end
 
 function _generator:eval_unit(unit)
-	local unit_env = self.base_env:clone()
+	-- Select an environment for this unit based on its SubConfig tag
+	-- to support cross compilation.
+	local env
+	local subconfig = unit.Decl.SubConfig
+	if subconfig then
+		env = self.base_envs[subconfig]
+		if Options.VeryVerbose then
+			if env then
+				printf("%s: using subconfig %s (%s)", unit.Decl.Name, subconfig, env:get('BUILD_ID'))
+			else
+				printf("%s: no subconfig %s found; using default env", unit.Decl.Name, subconfig)
+			end
+		end
+	end
+
+	if not env then
+		env = self.default_env
+	end
+
+	local unit_env = env:clone()
+
 	local decl = unit.Decl
 	local unit_type = unit.Type
 	local eval_fn = self.evaluators[unit_type]
@@ -299,8 +333,8 @@ function flatten_list(build_id, list)
 end
 
 function generate_ide_files(config_tuples, default_names, raw_nodes, env)
-	local state = make_new_state { base_env = env }
-	assert(state.base_env)
+	local state = make_new_state { default_env = env }
+	assert(state.default_env)
 	create_unit_map(state, raw_nodes)
 	local backend_fn = assert(ide_backend)
 	backend_fn(state, config_tuples, raw_nodes, env)
