@@ -162,7 +162,10 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 
 	engine->stats.build_time += t2 - t1;
 
-	if (0 != result)
+	/* If the build failed, and the node isn't set to keep all its output files
+	 * in all possible cases (precious), then delete all output files as we
+	 * can't assume anything about their state. */
+	if (0 != result && 0 == (TD_NODE_PRECIOUS & node->flags))
 	{
 		pthread_mutex_unlock(&queue->mutex);
 		/* remove all output files */
@@ -171,7 +174,10 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 		pthread_mutex_lock(&queue->mutex);
 	}
 
-	/* mark all output files as dirty */
+	/* Mark all output files as dirty regardless of whether the build succeeded
+	 * or not. If it succeeded, we must assume the build overwrote them.
+	 * Otherwise, it's likely we've deleted them. In any case, touching them
+	 * again isn't going to hurt anything.*/
 	for (i = 0, count = node->output_count; i < count; ++i)
 		td_touch_file(node->outputs[i]);
 

@@ -142,6 +142,12 @@ typedef struct td_ancestor_data
 	time_t access_time;
 } td_ancestor_data;
 
+enum {
+	/* Don't delete node outputs on build error or when cleaning. Useful for
+	 * build jobs that take a very long time to run. */
+	TD_NODE_PRECIOUS = 1 << 0,
+};
+
 typedef struct td_node
 {
 	/* An annotation that should print when building this node.
@@ -181,6 +187,8 @@ typedef struct td_node
 
 	td_digest guid;
 	const td_ancestor_data *ancestor_data;
+
+	int flags;
 
 	td_job job;
 } td_node;

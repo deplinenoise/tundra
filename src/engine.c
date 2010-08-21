@@ -1015,6 +1015,13 @@ make_node(lua_State *L)
 	}
 	lua_pop(L, 1);
 
+	lua_getfield(L, 2, "is_precious");
+	if (lua_toboolean(L, -1))
+		node->flags = TD_NODE_PRECIOUS;
+	else
+		node->flags = 0;
+	lua_pop(L, 1);
+
 	node->deps = setup_deps(L, self, node, &node->dep_count);
 
 	setup_file_signers(L, self, node);
@@ -1244,6 +1251,10 @@ clean_file(td_engine *engine, td_node *node, td_file **dirs, int *dir_count, td_
 		*dir_count = index + 1;
 		dirs[index] = dir;
 	}
+
+	/* Don't delete the output of precious nodes. */
+	if (TD_NODE_PRECIOUS & node->flags)
+		return;
 
 	stat = td_stat_file(engine, file);
 
