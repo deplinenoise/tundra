@@ -4,9 +4,7 @@ Program {
 	Pass = "CompileGenerator",
 	Target = "$(MYGENERATOR)",
 	Sources = { "generator.c" },
-	ConfigRemap = {
-		["macosx-mingw32"] = "macosx-gcc",
-	},
+	SubConfig = "host",
 }
 
 Default "generator"

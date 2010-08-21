@@ -1,6 +1,6 @@
 local common = {
 	Env = {
-		MYGENERATOR = "$(OBJECTDIR)$(SEP)mygenerator$(PROGSUFFIX)",
+		MYGENERATOR = "$(OBJECTDIR)$(SEP)mygenerator$(HOSTPROGSUFFIX)",
 	},
 }
 
@@ -13,22 +13,34 @@ Build {
 	SyntaxDirs = { "." },
 	SyntaxExtensions = { "syntax" },
 	Configs = {
-		{
+		Config {
 			Name = "macosx-gcc",
 			Inherit = common,
 			DefaultOnHost = "macosx",
 			Tools = { "gcc" },
 		},
-		{
+		Config {
 			Name = "macosx-mingw32",
 			Inherit = common,
+			Virtual = true,
 			Tools = { "gcc" },
 			ReplaceEnv = {
+				PROGSUFFIX = ".exe",
+				SHLIBSUFFIX = ".dll",
 				CC = "i386-mingw32-gcc",
 				CXX = "i386-mingw32-g++",
 				AR = "i386-mingw32-ar",
 				LD = "i386-mingw32-gcc",
 			},
-		}
+		},
+		Config {
+			Name = "macosx-crosswin32",
+			Inherit = common,
+			SubConfigs = {
+				host = "macosx-gcc",
+				target = "macosx-mingw32"
+			},
+			DefaultSubConfig = "target",
+		},
 	},
 }

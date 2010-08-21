@@ -298,6 +298,9 @@ end
 
 function load_toolset(id, env, options)
 	local chunk = get_memoized_chunk("toolset", id, loaded_toolsets, toolset_dirs)
+	if Options.VeryVerbose then
+		print("applying toolset " .. id .. " to env " .. env:get('BUILD_ID'))
+	end
 	chunk(env, options)
 end
 
@@ -421,6 +424,9 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 	end
 
 	for _, config in ipairs(build_configs) do
+		if config.Virtual then
+			croak("can't build configuration %s directly; it is a support configuration only", config.Name)
+		end
 		for _, variant in ipairs(build_variants) do
 			for _, subvariant in ipairs(build_subvariants) do
 				build_tuples[#build_tuples + 1] = { Config = config, Variant = variant, SubVariant = subvariant }
@@ -458,15 +464,16 @@ local function iter_inherits(config, name)
 	end
 end
 
-local function setup_env(env, tuple)
+local function setup_env(env, tuple, build_id)
 	local config = tuple.Config
 	local variant_name = tuple.Variant.Name
-	local build_id = config.Name .. "-" .. variant_name .. "-" .. tuple.SubVariant
-	local naked_platform, naked_toolset = match_build_id(build_id)
 
-	if Options.Verbose then
+	if not build_id then
+		build_id = config.Name .. "-" .. variant_name .. "-" .. tuple.SubVariant
 		printf("configuring for %s", build_id)
 	end
+
+	local naked_platform, naked_toolset = match_build_id(build_id)
 
 	env:set("CURRENT_PLATFORM", naked_platform) -- e.g. linux or macosx
 	env:set("CURRENT_TOOLSET", naked_toolset) -- e.g. gcc or msvc
@@ -518,6 +525,32 @@ local function setup_env(env, tuple)
 			end
 		end
 	end
+
+	return env
+end
+
+local function setup_envs(tuple, configs)
+	local result = {}
+
+	local top_env = setup_env(default_env:clone(), tuple)
+	result["__default"] = top_env
+
+	-- Use the same build id for all subconfigurations
+	local build_id = top_env:get("BUILD_ID")
+
+	local cfg = configs[tuple.Config.Name]
+	for moniker, x in util.nil_pairs(cfg.SubConfigs) do
+		if Options.VeryVerbose then
+			printf("%s: setting up subconfiguration %s", tuple.Config.Name, x)
+		end
+		if result[x] then
+			croak("duplicate subconfig name: %s", x)
+		end
+		local sub_tuple = { Config = configs[x], Variant = tuple.Variant, SubVariant = tuple.SubVariant }
+		local sub_env = setup_env(default_env:clone(), sub_tuple, build_id)
+		result[moniker] = sub_env
+	end
+	return result
 end
 
 local function parse_units(build_tuples, args, passes)
@@ -628,7 +661,7 @@ local function get_cached_dag(build_tuples, args)
 	return env.CreateDag()
 end
 
-local function generate_dag(build_tuples, args, passes)
+local function generate_dag(build_tuples, args, passes, configs)
 	local cache_flag = args.EngineOptions and args.EngineOptions.UseDagCaching
 	if cache_flag then
 		local cached_dag = get_cached_dag(build_tuples, args)
@@ -654,12 +687,11 @@ local function generate_dag(build_tuples, args, passes)
 	-- Let the nodegen code generate DAG nodes for all active
 	-- configurations/variants.
 	for _, tuple in pairs(build_tuples) do
-		local env = default_env:clone()
-		setup_env(env, tuple)
+		local envs = setup_envs(tuple, configs)
 		everything[#everything + 1] = nodegen.generate {
 			Engine = GlobalEngine,
-			Env = env,
-			Config = tuple.Config.Name,
+			Envs = envs,
+			Config = tuple.Config,
 			Variant = tuple.Variant,
 			Declarations = raw_nodes,
 			DefaultNames = default_names,
@@ -679,6 +711,27 @@ local function generate_dag(build_tuples, args, passes)
 	return all
 end
 
+local _config_class = {}
+
+-- Table constructor to make tundra.lua syntax a bit nicer in the Configs array
+function Config(args)
+	local name = args.Name
+	if not name then
+		error("no `Name' specified for configuration")
+	end
+	if not name:match("^%w+-%w+$") then
+		errorf("configuration name %s doesn't follow <platform>-<toolset> pattern", name)
+	end
+
+	if args.SubConfigs then
+		if not args.DefaultSubConfig then
+			errorf("configuration %s has `SubConfigs' but no `DefaultSubConfig'", name)
+		end
+	end
+
+	return setmetatable(args, _config_class)
+end
+
 function Build(args)
 	if type(args.Configs) ~= "table" or #args.Configs == 0 then
 		croak("Need at least one config; got %s" .. util.tostring(args.Configs) )
@@ -686,12 +739,15 @@ function Build(args)
 
 	local configs, variants, subvariants = {}, {}, {}
 
-	for _, cfg in ipairs(args.Configs) do
-		local name = assert(cfg.Name)
-		if not name:match("^%w+-%w+$") then
-			errorf("configuration name %s doesn't follow <platform>-<toolset> pattern", name)
+	-- Legacy support: run "Config" constructor automatically on naked tables
+	-- passed in Configs array.
+	for idx = 1, #args.Configs do
+		local cfg = args.Configs[idx]
+		if getmetatable(cfg) ~= _config_class then
+			cfg = Config(cfg)
+			args.Configs[idx] = cfg
 		end
-		configs[name] = cfg
+		configs[cfg.Name] = cfg
 	end
 
 	for _, dir in util.nil_ipairs(args.ToolsetDirs) do
@@ -737,7 +793,7 @@ function Build(args)
 	if not Options.IdeGeneration then
 		GlobalEngine = create_build_engine(args.EngineOptions)
 
-		local dag = generate_dag(build_tuples, args, passes)
+		local dag = generate_dag(build_tuples, args, passes, configs)
 
 		if Options.Clean then
 			GlobalEngine:build(dag, "clean")

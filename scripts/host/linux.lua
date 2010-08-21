@@ -19,6 +19,6 @@ local env = ...
 
 env:set_many {
 	["DOTNETRUN"] = "mono ",
-	["PROGSUFFIX"] = "",
-	["SHLIBSUFFIX"] = ".so",
+	["HOSTPROGSUFFIX"] = "",
+	["HOSTSHLIBSUFFIX"] = ".so",
 }
