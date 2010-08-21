@@ -470,7 +470,9 @@ local function setup_env(env, tuple, build_id)
 
 	if not build_id then
 		build_id = config.Name .. "-" .. variant_name .. "-" .. tuple.SubVariant
-		printf("configuring for %s", build_id)
+		if Options.Verbose then
+			printf("configuring for %s", build_id)
+		end
 	end
 
 	local naked_platform, naked_toolset = match_build_id(build_id)
