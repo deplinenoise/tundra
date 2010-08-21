@@ -51,7 +51,7 @@ function open_cache(tmp)
 	end)
 end
 
-function commit_cache(tuples, lua_files, cache_file)
+function commit_cache(tuples, lua_files, cache_file, named_targets)
 	cache_stream:write("Tuples = {\n")
 	for _, tuple in ipairs(tuples) do
 		local cfg = tuple.Config.Name
@@ -65,6 +65,12 @@ function commit_cache(tuples, lua_files, cache_file)
 	cache_stream:write("Files = {\n")
 	for name, digest in pairs(lua_files) do
 		cache_stream:write(string.format("\t[%q] = %q,\n", name, digest))
+	end
+	cache_stream:write("}\n")
+
+	cache_stream:write("NamedTargets = {\n")
+	for _, name in ipairs(named_targets) do
+		cache_stream:write(string.format("\t[%q] = true,\n", name))
 	end
 	cache_stream:write("}\n")
 

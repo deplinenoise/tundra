@@ -196,9 +196,6 @@ function match_build_id(id, default)
 	assert(id)
 	local i = id:gmatch("[^-]+")
 	local platform_name, toolset, variant, subvariant = i() or default, i() or default, i() or default, i() or default
-	if not platform_name or not toolset then
-		errorf("%s doesn't follow <platform>-<toolset>-[<variant>-[<subvariant>]] convention", id)
-	end
 	return platform_name, toolset, variant, subvariant
 end
 
@@ -367,8 +364,8 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 				build_subvariants[#build_subvariants + 1] = name
 			else
 				local config, toolset, variant, subvariant = match_build_id(name)
-				config = config .. "-".. toolset
 				if config and variant then
+					config = config .. "-".. toolset
 					if not configs[config] then
 						local config_names = {}
 						for name, _ in pairs(configs) do config_names[#config_names + 1] = name end
@@ -443,6 +440,8 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 		end
 		native.exit()
 	end
+
+	table.sort(remaining_targets)
 
 	return remaining_targets, build_tuples
 end
@@ -609,7 +608,7 @@ end
 local cache_file = ".tundra-dagcache"
 local cache_file_tmp = ".tundra-dagcache.tmp"
 
-local function get_cached_dag(build_tuples, args)
+local function get_cached_dag(build_tuples, args, named_targets)
 	local f = io.open(cache_file, "r")
 	if not f then
 		return nil
@@ -636,6 +635,23 @@ local function get_cached_dag(build_tuples, args)
 			print("discarding cached DAG due to build tuple mismatch")
 		end
 		return nil
+	end
+
+	local old_named_targets = env.NamedTargets
+	if not old_named_targets then
+		if Options.Verbose then
+			print("discarding cached DAG due to missing NamedTargets list")
+		end
+		return nil
+	end
+
+	for _, name in ipairs(named_targets) do
+		if not old_named_targets[name] then return nil end
+	end
+
+	local named_target_lookup = util.make_lookup_table(named_targets)
+	for k,v in pairs(old_named_targets) do
+		if not named_target_lookup[k] then return nil end
 	end
 
 	for file, old_digest in pairs(env.Files) do
@@ -666,10 +682,10 @@ local function get_cached_dag(build_tuples, args)
 	return env.CreateDag()
 end
 
-local function generate_dag(build_tuples, args, passes, configs)
+local function generate_dag(build_tuples, args, passes, configs, named_targets)
 	local cache_flag = args.EngineOptions and args.EngineOptions.UseDagCaching
 	if cache_flag then
-		local cached_dag = get_cached_dag(build_tuples, args)
+		local cached_dag = get_cached_dag(build_tuples, args, named_targets)
 		if cached_dag then
 			return cached_dag
 		end
@@ -701,6 +717,7 @@ local function generate_dag(build_tuples, args, passes, configs)
 			Declarations = raw_nodes,
 			DefaultNames = default_names,
 			Passes = passes,
+			NamedTargets = named_targets,
 		}
 	end
 
@@ -710,7 +727,7 @@ local function generate_dag(build_tuples, args, passes, configs)
 	}
 
 	if cache_flag then
-		cache.commit_cache(build_tuples, accessed_lua_files, cache_file)
+		cache.commit_cache(build_tuples, accessed_lua_files, cache_file, named_targets)
 	end
 
 	return all
@@ -798,7 +815,7 @@ function Build(args)
 	if not Options.IdeGeneration then
 		GlobalEngine = create_build_engine(args.EngineOptions)
 
-		local dag = generate_dag(build_tuples, args, passes, configs)
+		local dag = generate_dag(build_tuples, args, passes, configs, named_targets)
 
 		if Options.Clean then
 			GlobalEngine:build(dag, "clean")

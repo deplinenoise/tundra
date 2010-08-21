@@ -75,7 +75,14 @@ function generate(args)
 
 	create_unit_map(state, raw_nodes)
 
-	local nodes_to_build = util.map(default_names, function (name) return state:get_node_of(name) end)
+	local nodes_to_build
+
+	if #args.NamedTargets > 0 then
+		print("named targets: ", util.tostring(args.NamedTargets))
+		nodes_to_build = util.map(args.NamedTargets, function(name) return state:get_node_of(name) end)
+	else
+		nodes_to_build = util.map(default_names, function (name) return state:get_node_of(name) end)
+	end
 
 	local result = state.root_env:make_node {
 		Label = "all-" .. state.root_env:get("BUILD_ID"),
