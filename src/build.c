@@ -121,7 +121,6 @@ static void
 delete_outputs(td_job_queue *queue, td_node *node)
 {
 	int i, count;
-	printf("deleting outputs of %s\n", node->annotation);
 	pthread_mutex_unlock(&queue->mutex);
 	for (i = 0, count = node->output_count; i < count; ++i)
 		remove(node->outputs[i]->path);
