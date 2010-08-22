@@ -1051,11 +1051,6 @@ make_node(lua_State *L)
 	node->flags |= check_flag(L, 2, "is_precious", TD_NODE_PRECIOUS);
 	node->flags |= check_flag(L, 2, "overwrite_outputs", TD_NODE_OVERWRITE);
 
-	if (TD_NODE_OVERWRITE & node->flags)
-		printf("%s: overwrite\n", node->annotation);
-	if (TD_NODE_PRECIOUS & node->flags)
-		printf("%s: precious\n", node->annotation);
-
 	node->deps = setup_deps(L, self, node, &node->dep_count);
 
 	setup_file_signers(L, self, node);
