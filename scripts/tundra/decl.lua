@@ -30,6 +30,7 @@ function make_decl_env()
 		SourceGen = {},
 		Results = {},
 		DefaultNames = {},
+		AlwaysNames = {},
 	}
 
 	local outer_env = _G
@@ -59,10 +60,16 @@ function make_decl_env()
 			end
 		end
 
+		if var == "Always" then
+			return function(always_name)
+				obj.AlwaysNames[#obj.AlwaysNames + 1] = always_name
+			end
+		end
+
 		return outer_env[var]
 	end
 
-	obj.FunctionMeta = { __index = indexfunc }
+	obj.FunctionMeta = { __index = indexfunc, __newindex = error }
 	obj.FunctionEnv = setmetatable({}, obj.FunctionMeta)
 
 	return setmetatable(obj, decl_meta)
@@ -94,5 +101,5 @@ function decl_meta:parse(file)
 
 	setfenv(chunk, self.FunctionEnv)
 	chunk()
-	return self.Results, self.DefaultNames
+	return self.Results, self.DefaultNames, self.AlwaysNames
 end

@@ -580,9 +580,9 @@ local function parse_units(build_tuples, args, passes)
 		load_syntax(id, d, passes)
 	end
 
-	local raw_nodes, default_names = d:parse(args.Units or "units.lua")
-	assert(#default_names > 0, "no default unit name to build was set")
-	return raw_nodes, default_names
+	local raw_nodes, default_names, always_names = d:parse(args.Units or "units.lua")
+	assert(#default_names > 0 or #always_names > 0, "no default unit name to build was set")
+	return raw_nodes, default_names, always_names
 end
 
 
@@ -645,13 +645,23 @@ local function get_cached_dag(build_tuples, args, named_targets)
 		return nil
 	end
 
-	for _, name in ipairs(named_targets) do
-		if not old_named_targets[name] then return nil end
+	local function check_named()
+		for _, name in ipairs(named_targets) do
+			if not old_named_targets[name] then return nil end
+		end
+
+		local named_target_lookup = util.make_lookup_table(named_targets)
+		for k,v in pairs(old_named_targets) do
+			if not named_target_lookup[k] then return nil end
+		end
+		return true
 	end
 
-	local named_target_lookup = util.make_lookup_table(named_targets)
-	for k,v in pairs(old_named_targets) do
-		if not named_target_lookup[k] then return nil end
+	if not check_named() then
+		if Options.Verbose then
+			print("discarding cached DAG due to different NamedTargets list")
+		end
+		return nil
 	end
 
 	for file, old_digest in pairs(env.Files) do
@@ -703,7 +713,7 @@ local function generate_dag(build_tuples, args, passes, configs, named_targets)
 		cache.open_cache(cache_file_tmp)
 	end
 
-	local raw_nodes, default_names = parse_units(build_tuples, args, passes)
+	local raw_nodes, default_names, always_names = parse_units(build_tuples, args, passes)
 
 	-- Let the nodegen code generate DAG nodes for all active
 	-- configurations/variants.
@@ -716,6 +726,7 @@ local function generate_dag(build_tuples, args, passes, configs, named_targets)
 			Variant = tuple.Variant,
 			Declarations = raw_nodes,
 			DefaultNames = default_names,
+			AlwaysNames = always_names,
 			Passes = passes,
 			NamedTargets = named_targets,
 		}
@@ -828,7 +839,7 @@ function Build(args)
 		nodegen.add_generator_set("ide", Options.IdeGeneration)
 
 		-- Parse the units file
-		local raw_nodes, default_names = parse_units(build_tuples, args, passes)
+		local raw_nodes, default_names, always_names = parse_units(build_tuples, args, passes)
 
 		-- Pass the build tuples directly to the generator and let it write
 		-- files.

@@ -51,6 +51,7 @@ function generate(args)
 	local envs = assert(args.Envs)
 	local raw_nodes = assert(args.Declarations)
 	local default_names = assert(args.DefaultNames)
+	local always_names = assert(args.AlwaysNames)
 
 	local state = make_new_state {
 		base_envs = envs,
@@ -75,13 +76,25 @@ function generate(args)
 
 	create_unit_map(state, raw_nodes)
 
-	local nodes_to_build
+	local name_set = {}
 
 	if #args.NamedTargets > 0 then
-		print("named targets: ", util.tostring(args.NamedTargets))
-		nodes_to_build = util.map(args.NamedTargets, function(name) return state:get_node_of(name) end)
+		for _, name in ipairs(args.NamedTargets) do
+			name_set[name] = state:get_node_of(name)
+		end
 	else
-		nodes_to_build = util.map(default_names, function (name) return state:get_node_of(name) end)
+		for _, name in ipairs(default_names) do
+			name_set[name] = state:get_node_of(name)
+		end
+	end
+
+	for _, name in ipairs(always_names) do
+		name_set[name] = state:get_node_of(name)
+	end
+
+	local nodes_to_build = {}
+	for _, v in pairs(name_set) do
+		nodes_to_build[#nodes_to_build + 1] = v
 	end
 
 	local result = state.root_env:make_node {
