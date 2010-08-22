@@ -591,6 +591,11 @@ static int make_engine(lua_State *L)
 
 	td_load_relcache(self);
 
+	/* Finally, associate this engine with a table in the registry. */
+	lua_pushvalue(L, -1);
+	lua_newtable(L);
+	lua_settable(L, LUA_REGISTRYINDEX);
+
 	return 1;
 }
 
@@ -947,14 +952,32 @@ leave:
 	lua_pop(L, 1);
 }
 
+/*
+ * Concat "<key>=<value>" as the result string. We store away the string in a
+ * Lua table so it will not be garbage collected. This procedure has the
+ * advantage of sharing environment strings between all nodes, as Lua
+ * internally store only one copy of each string.
+ */
 static const char*
-make_env_key(td_engine *engine, lua_State *L, int key, int value)
+record_env_mapping(td_engine *engine, lua_State *L, int engine_pos, int key, int value)
 {
-	int count;
-	char mapping[2048];
-	count = snprintf(mapping, sizeof(mapping), "%s=%s", lua_tostring(L, key), lua_tostring(L, value));
+	const char* result;
 
-	return td_page_strdup(&engine->alloc, mapping, count);
+	lua_pushvalue(L, engine_pos);
+	lua_gettable(L, LUA_REGISTRYINDEX);
+
+	lua_pushvalue(L, key);
+	lua_pushlstring(L, "=", 1);
+	lua_pushvalue(L, value);
+	lua_concat(L, 3);
+
+	result = lua_tostring(L, -1);
+
+	lua_pushboolean(L, 1);
+	lua_settable(L, -3);
+	lua_pop(L, 1);
+
+	return result;
 }
 
 void
@@ -1036,7 +1059,9 @@ make_node(lua_State *L)
 		lua_pushnil(L);
 		while (lua_next(L, -2))
 		{
-			node->env[index++] = make_env_key(self, L, -2, -1);
+			int top = lua_gettop(L);
+			node->env[index++] = record_env_mapping(self, L, 1, top-1, top);
+			assert(top == lua_gettop(L));
 			lua_pop(L, 1);
 		}
 	}
@@ -1469,6 +1494,12 @@ build_nodes(lua_State* L)
 		global_tundra_exit_code = 0;
 	else
 		global_tundra_exit_code = 1;
+
+	/* Finally remove our table of environment mappings. */
+	lua_pushvalue(L, 1);
+	lua_pushnil(L);
+	lua_settable(L, LUA_REGISTRYINDEX);
+
 	return 0;
 }
 
