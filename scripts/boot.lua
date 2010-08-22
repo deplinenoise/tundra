@@ -93,6 +93,7 @@ do
 		{ Name="IdeGeneration", Short="g", Long="ide-gen", Doc="Generate IDE integration files for the specified IDE", HasValue=true },
 		{ Name="AllConfigs", Short="a", Long="all-configs", Doc="Build all configurations at once (useful in IDE mode)" },
 		{ Name="Cwd", Short="C", Long="set-cwd", Doc="Set the current directory before building", HasValue=true },
+		{ Name="ShowConfigs", Long="show-configs", Doc="Show all available configurations" },
 		{ Name="DebugQueue", Long="debug-queue", Doc="Show build queue debug information" },
 		{ Name="DebugNodes", Long="debug-nodes", Doc="Show DAG node debug information" },
 		{ Name="DebugAncestors", Long="debug-ancestors", Doc="Show ancestor debug information" },
@@ -345,6 +346,26 @@ local function member(list, item)
 	return false
 end
 
+local function show_configs(configs, variants, subvariants, stream)
+	stream = stream or io.stderr
+	stream:write('Available configurations:\n')
+	for _, config in pairs(configs) do
+		if not config.Virtual then
+			stream:write("    ", config.Name, "\n")
+		end
+	end
+
+	stream:write('Available variants:\n')
+	for variant, _ in pairs(variants) do
+		stream:write("    ", variant, "\n")
+	end
+
+	stream:write('Available subvariants:\n')
+	for subvariant, _ in pairs(subvariants) do
+		stream:write("    ", subvariant, "\n")
+	end
+end
+
 local function analyze_targets(targets, configs, variants, subvariants, default_variant, default_subvariant)
 	local build_tuples = {}
 	local remaining_targets = {}
@@ -433,11 +454,7 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 
 	if #build_tuples == 0 then
 		io.stderr:write("no build tuples available and no host-default configs defined -- choose one of\n")
-		for _, config in pairs(configs) do
-			for variant, _ in pairs(variants) do
-				io.stderr:write(string.format("  %s-%s\n", config.Name, variant))
-			end
-		end
+		show_configs(configs, variants, subvariants)
 		native.exit()
 	end
 
@@ -822,6 +839,11 @@ function Build(args)
 	local default_subvariant = args.DefaultSubVariant or subvariant_array[1]
 	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, subvariants, default_variant, default_subvariant)
 	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
+
+	if Options.ShowConfigs then
+		show_configs(configs, variants, subvariants, io.stdout)
+		native.exit(0)
+	end
 
 	if not Options.IdeGeneration then
 		GlobalEngine = create_build_engine(args.EngineOptions)
