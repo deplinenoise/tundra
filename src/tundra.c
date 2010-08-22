@@ -142,6 +142,7 @@ extern int td_scanner_open(lua_State*);
 extern int td_cpp_scanner_open(lua_State*);
 extern int td_get_cwd(lua_State*);
 extern int td_set_cwd(lua_State*);
+extern int td_sanitize_lua_path(lua_State*);
 
 static int tundra_open(lua_State *L)
 {
@@ -161,6 +162,7 @@ static int tundra_open(lua_State *L)
 		{ "report_profiler", td_luaprof_report },
 		{ "delete_file", tundra_delete_file },
 		{ "rename_file", tundra_rename_file },
+		{ "sanitize_path", td_sanitize_lua_path },
 #ifdef _WIN32
 		/* windows-specific registry query function*/
 		{ "reg_query", td_win32_register_query },

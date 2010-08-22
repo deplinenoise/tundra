@@ -17,6 +17,8 @@
 
 module(..., package.seeall)
 
+local native = require "tundra.native"
+
 function split(fn)
 	local dir, file = fn:match("^(.*)[/\\]([^\\/]*)$")
 	if not dir then
@@ -26,19 +28,7 @@ function split(fn)
 	end
 end
 
-function normalize(fn)
-	local pieces = {}
-	for piece in string.gmatch(fn, "[^/\\]+") do
-		if piece == ".." then
-			table.remove(pieces)
-		elseif piece == "." then
-			-- nop
-		else
-			pieces[#pieces + 1] = piece
-		end
-	end
-	return table.concat(pieces, '/')
-end
+normalize = native.sanitize_path
 
 function join(dir, fn)
 	return normalize(dir .. '/' .. fn)

@@ -294,6 +294,8 @@ function _generator:eval_unit(unit)
 
 	local unit_env = env:clone()
 
+	unit_env:set('UNIT_PREFIX', '__' .. unit.Decl.Name)
+
 	local decl = unit.Decl
 	local unit_type = unit.Type
 	local eval_fn = self.evaluators[unit_type]

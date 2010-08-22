@@ -37,15 +37,27 @@ end
 -- processed. This way users can override the extension lists.
 local function generic_cpp_setup(env)
 	local _anyc_compile = function(env, pass, fn, label, action)
+		local object_fn
 		local pch_input = env:get('_PCH_FILE', '')
-		local function obj_fn()
-			if fn:match('^%$%(OBJECTDIR%)') then
-				return path.drop_suffix(fn) .. '$(OBJECTSUFFIX)'
+
+		-- Drop leading $(OBJECTDIR)[/\\] in the input filename.
+		do
+			local pname = fn:match("^%$%(OBJECTDIR%)[/\\](.*)$")
+			if pname then
+				object_fn = pname
 			else
-				return '$(OBJECTDIR)/' .. path.drop_suffix(fn) .. '$(OBJECTSUFFIX)'
+				object_fn = fn
 			end
 		end
-		local object_fn = obj_fn(fn)
+
+		-- Compute path under OBJECTDIR we want for the resulting object file.
+		-- Replace ".." with "dotdot" to avoid creating files outside the
+		-- object directory.
+		do
+			local relative_name = path.drop_suffix(object_fn:gsub("%.%.", "dotdot"))
+			object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. relative_name .. '$(OBJECTSUFFIX)'
+		end
+
 		local implicit_inputs = nil
 		if pch_input ~= '' then
 			implicit_inputs = { pch_input }

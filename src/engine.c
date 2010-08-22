@@ -223,13 +223,20 @@ sanitize_path(char *buffer, size_t buffer_size, size_t input_length)
 		}
 	}
 
-	if (dotdot_drops)
-		td_croak("attempt to .. below root dir");
-
 	/* Format the resulting path. It can never get longer by this operation, so
 	 * there's no need to check the buffer size. */
 	{
+		int first = 1;
 		char *cursor = buffer;
+
+		/* Emit all leading ".." tokens we've got left */
+		for (i = 0; i < dotdot_drops; ++i)
+		{
+			memcpy(cursor, ".." TD_PATHSEP_STR, 3);
+			cursor += 3;
+		}
+
+		/* Emit all remaining tokens. */
 		for (i = 0; i < segcount; ++i)
 		{
 			int len = segments[i].len;
@@ -238,13 +245,27 @@ sanitize_path(char *buffer, size_t buffer_size, size_t input_length)
 			if (segments[i].drop)
 				continue;
 
-			if (0 < i)
+			if (!first)
 				*cursor++ = TD_PATHSEP;
+			first = 0;
 			memcpy(cursor, seg, len);
 			cursor += len;
 		}
 		*cursor = 0;
 	}
+}
+
+int td_sanitize_lua_path(lua_State *L)
+{
+	char buffer[512];
+	size_t path_len;
+	const char *path = luaL_checklstring(L, 1, &path_len);
+	if (path_len >= sizeof(buffer))
+		return luaL_error(L, "path too long; %d > %d", (int) path_len, (int) sizeof(buffer));
+	strcpy(buffer, path);
+	sanitize_path(buffer, sizeof(buffer), path_len);
+	lua_pushstring(L, buffer);
+	return 1;
 }
 
 td_file *td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode mode)
