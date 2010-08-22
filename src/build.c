@@ -109,6 +109,25 @@ ensure_dir_exists(td_engine *engine, td_file *dir)
 	}
 }
 
+static void
+touch_outputs(td_node *node)
+{
+	int i, count;
+	for (i = 0, count = node->output_count; i < count; ++i)
+		td_touch_file(node->outputs[i]);
+}
+
+static void
+delete_outputs(td_job_queue *queue, td_node *node)
+{
+	int i, count;
+	printf("deleting outputs of %s\n", node->annotation);
+	pthread_mutex_unlock(&queue->mutex);
+	for (i = 0, count = node->output_count; i < count; ++i)
+		remove(node->outputs[i]->path);
+	pthread_mutex_lock(&queue->mutex);
+}
+
 static int
 run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 {
@@ -132,6 +151,12 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 	engine->stats.mkdir_time += t2 - t1;
 
 	++queue->jobs_run;
+
+	if (0 == (TD_NODE_OVERWRITE & node->flags))
+	{
+		delete_outputs(queue, node);
+		touch_outputs(node);
+	}
 
 	pthread_mutex_unlock(&queue->mutex);
 	if (td_verbosity_check(engine, 1))
@@ -166,20 +191,13 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 	 * in all possible cases (precious), then delete all output files as we
 	 * can't assume anything about their state. */
 	if (0 != result && 0 == (TD_NODE_PRECIOUS & node->flags))
-	{
-		pthread_mutex_unlock(&queue->mutex);
-		/* remove all output files */
-		for (i = 0, count = node->output_count; i < count; ++i)
-			remove(node->outputs[i]->path);
-		pthread_mutex_lock(&queue->mutex);
-	}
+		delete_outputs(queue, node);
 
 	/* Mark all output files as dirty regardless of whether the build succeeded
 	 * or not. If it succeeded, we must assume the build overwrote them.
 	 * Otherwise, it's likely we've deleted them. In any case, touching them
 	 * again isn't going to hurt anything.*/
-	for (i = 0, count = node->output_count; i < count; ++i)
-		td_touch_file(node->outputs[i]);
+	touch_outputs(node);
 
 	return result;
 }

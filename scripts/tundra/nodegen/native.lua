@@ -116,6 +116,9 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 		OutputFiles = targets,
 		AuxOutputFiles = aux_outputs,
 		Dependencies = deps,
+		-- Play it safe and delete the output files of this node before re-running it.
+		-- Solves iterative issues with e.g. AR
+		OverwriteOutputs = false,
 	}
 	return libnode
 end

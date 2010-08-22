@@ -976,6 +976,17 @@ td_call_cache_hook(lua_State *L, void *key, int spec_idx, int result_idx)
 }
 
 static int
+check_flag(lua_State *L, int args_index, const char *name, int value)
+{
+	int result = 0;
+	lua_getfield(L, 2, name);
+	if (lua_toboolean(L, -1))
+		result = value;
+	lua_pop(L, 1);
+	return result;
+}
+
+static int
 make_node(lua_State *L)
 {
 	td_engine * const self = td_check_engine(L, 1);
@@ -1036,12 +1047,14 @@ make_node(lua_State *L)
 	}
 	lua_pop(L, 1);
 
-	lua_getfield(L, 2, "is_precious");
-	if (lua_toboolean(L, -1))
-		node->flags = TD_NODE_PRECIOUS;
-	else
-		node->flags = 0;
-	lua_pop(L, 1);
+	node->flags = 0;
+	node->flags |= check_flag(L, 2, "is_precious", TD_NODE_PRECIOUS);
+	node->flags |= check_flag(L, 2, "overwrite_outputs", TD_NODE_OVERWRITE);
+
+	if (TD_NODE_OVERWRITE & node->flags)
+		printf("%s: overwrite\n", node->annotation);
+	if (TD_NODE_PRECIOUS & node->flags)
+		printf("%s: precious\n", node->annotation);
 
 	node->deps = setup_deps(L, self, node, &node->dep_count);
 

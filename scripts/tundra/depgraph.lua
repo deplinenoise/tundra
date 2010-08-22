@@ -52,6 +52,11 @@ function create_node(env_, data_)
 		['@'] = outputs
 	}
 
+	local overwrite = true
+	if type(data_.OverwriteOutputs) ~= "nil" then
+		overwrite = data_.OverwriteOutputs
+	end
+
 	local params = {
 		pass = data_.Pass or default_pass,
 		salt = env_:get("BUILD_ID", ""),
@@ -59,6 +64,8 @@ function create_node(env_, data_)
 		deps = data_.Dependencies,
 		inputs = inputs,
 		outputs = outputs,
+		is_precious = data_.Precious,
+		overwrite_outputs = overwrite,
 		aux_outputs = util.mapnil(data_.AuxOutputFiles, function (x)
 			local result = env_:interpolate(x, expand_env)
 			return path.normalize(result)

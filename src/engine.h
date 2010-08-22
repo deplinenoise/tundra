@@ -146,6 +146,9 @@ enum {
 	/* Don't delete node outputs on build error or when cleaning. Useful for
 	 * build jobs that take a very long time to run. */
 	TD_NODE_PRECIOUS = 1 << 0,
+
+	/* Don't bother deleting node outputs before running actions for this node. */
+	TD_NODE_OVERWRITE = 1 << 1,
 };
 
 typedef struct td_node
