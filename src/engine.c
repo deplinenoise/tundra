@@ -49,17 +49,10 @@ char td_scanner_hook_key;
 char td_node_hook_key;
 char td_dirwalk_hook_key;
 
-static int engine_count; /* guard against multiple instantiations */
-
-enum {
-	TD_OBJECT_LOCK_COUNT = 64
-};
-static pthread_mutex_t object_locks[TD_OBJECT_LOCK_COUNT];
-
 static pthread_mutex_t *
-get_object_lock(uint32_t hash)
+get_object_lock(td_engine *engine, uint32_t hash)
 {
-	return &object_locks[hash % TD_OBJECT_LOCK_COUNT];
+	return &engine->object_locks[hash % TD_OBJECT_LOCK_COUNT];
 }
 
 int
@@ -561,11 +554,6 @@ static int make_engine(lua_State *L)
 	int use_digest_signing = 1;
 	td_engine *self;
 
-	if (engine_count)
-		return luaL_error(L, "only one engine at a time");
-
-	++engine_count;
-
 	self = lua_newuserdata(L, sizeof(td_engine));
 	memset(self, 0, sizeof(td_engine));
 	self->magic_value = 0xcafebabe;
@@ -614,7 +602,7 @@ static int make_engine(lua_State *L)
 	td_load_relcache(self);
 
 	for (i = 0; i < TD_OBJECT_LOCK_COUNT; ++i)
-		td_mutex_init_or_die(&object_locks[i], NULL);
+		td_mutex_init_or_die(&self->object_locks[i], NULL);
 
 	self->lock = td_page_alloc(&self->alloc, sizeof(pthread_mutex_t));
 	td_mutex_init_or_die(self->lock, NULL);
@@ -658,13 +646,11 @@ static int engine_gc(lua_State *L)
 	self->ancestors = NULL;
 
 	for (i = TD_OBJECT_LOCK_COUNT-1; i >= 0; --i)
-		td_mutex_destroy_or_die(&object_locks[i]);
+		td_mutex_destroy_or_die(&self->object_locks[i]);
 
 	td_mutex_destroy_or_die(self->lock);
 
 	td_alloc_cleanup(&self->alloc);
-
-	--engine_count;
 	return 0;
 }
 
@@ -1345,7 +1331,8 @@ clean_file(td_engine *engine, td_node *node, td_file **dirs, int *dir_count, td_
 	if (TD_NODE_PRECIOUS & node->flags)
 		return;
 
-	stat = td_stat_file(engine, file);
+	stat_file_unlocked(file);
+	stat = &file->stat;
 
 	if (TD_STAT_EXISTS & stat->flags)
 	{
@@ -1652,7 +1639,7 @@ td_stat_file(td_engine *engine, td_file *f)
 
 	++engine->stats.stat_calls;
 
-	objlock = get_object_lock(f->hash);
+	objlock = get_object_lock(engine, f->hash);
 	td_mutex_unlock_or_die(engine->lock);
 	td_mutex_lock_or_die(objlock);
 
@@ -1686,7 +1673,7 @@ td_get_signature(td_engine *engine, td_file *f)
 		pthread_mutex_t *object_lock;
 		t1 = td_timestamp();
 
-		object_lock = get_object_lock(f->hash);
+		object_lock = get_object_lock(engine, f->hash);
 		td_mutex_unlock_or_die(engine->lock);
 		td_mutex_lock_or_die(object_lock);
 

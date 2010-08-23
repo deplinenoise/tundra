@@ -220,6 +220,10 @@ enum
 	TD_DEBUG_SCAN = 1 << 5
 };
 
+enum {
+	TD_OBJECT_LOCK_COUNT = 64
+};
+
 struct td_relcell;
 struct td_frozen_reldata;
 
@@ -286,6 +290,7 @@ typedef struct td_engine
 
 	void *lock;
 	void *sign_debug_file;
+	pthread_mutex_t object_locks[TD_OBJECT_LOCK_COUNT];
 } td_engine;
 
 #define td_verbosity_check(engine, level) ((engine)->settings.verbosity >= (level))
