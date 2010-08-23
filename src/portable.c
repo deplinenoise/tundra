@@ -1000,3 +1000,31 @@ td_get_processor_count(void)
 	return (int) nprocs_max;
 #endif
 }
+
+void
+td_mutex_lock_or_die(pthread_mutex_t *lock)
+{
+	if (0 != pthread_mutex_lock(lock))
+		td_croak("couldn't lock mutex");
+}
+
+void
+td_mutex_unlock_or_die(pthread_mutex_t *lock)
+{
+	if (0 != pthread_mutex_unlock(lock))
+		td_croak("couldn't unlock mutex");
+}
+
+void
+td_mutex_init_or_die(pthread_mutex_t *mutex, void *args)
+{
+	if (0 != pthread_mutex_init(mutex, args))
+		td_croak("couldn't init mutex");
+}
+
+void
+td_mutex_destroy_or_die(pthread_mutex_t *mutex)
+{
+	if (0 != pthread_mutex_destroy(mutex))
+		td_croak("couldn't destroy mutex");
+}
