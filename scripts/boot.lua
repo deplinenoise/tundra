@@ -151,7 +151,7 @@ do
 	end
 
 	if Options.Version or Options.Help then
-		io.write("Tundra Build Processor v0.5.1\n")
+		io.write("Tundra Build Processor v0.9 beta\n")
 		io.write("Copyright (C) 2010 Andreas Fredriksson\n\n")
 		io.write("This program comes with ABSOLUTELY NO WARRANTY.\n")
 		io.write("This is free software, and you are welcome to redistribute it\n")
