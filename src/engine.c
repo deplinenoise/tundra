@@ -62,14 +62,16 @@ get_object_lock(uint32_t hash)
 	return &object_locks[hash % TD_OBJECT_LOCK_COUNT];
 }
 
-const td_stat*
+int
 stat_file_unlocked(td_file *f);
 
 void td_sign_timestamp(td_file *f, td_digest *out)
 {
 	int zero_size;
 	const td_stat *stat;
-	stat = stat_file_unlocked(f);
+
+	stat_file_unlocked(f);
+	stat = &f->stat;
 
 	zero_size = sizeof(out->data) - sizeof(stat->timestamp);
 
@@ -1507,8 +1509,8 @@ build_nodes(lua_State* L)
 		printf("    - implicit dependency scanning: %.3fs\n", self->stats.scan_time);
 		printf("    - output directory creation/mgmt: %.3fs\n", self->stats.mkdir_time);
 		printf("    - command execution: %.3fs\n", self->stats.build_time);
-		printf("    - stat() time: %.3fs (%d calls out of %d queries)\n", self->stats.stat_time, self->stats.stat_calls, self->stats.stat_checks);
-		printf("    - file signing time: %.3fs (md5: %d, timestamp: %d)\n", self->stats.file_signing_time, self->stats.md5_sign_count, self->stats.timestamp_sign_count);
+		printf("    - (parallel) stat() time: %.3fs (%d calls out of %d queries)\n", self->stats.stat_time, self->stats.stat_calls, self->stats.stat_checks);
+		printf("    - (parallel) file signing time: %.3fs (md5: %d, timestamp: %d)\n", self->stats.file_signing_time, self->stats.md5_sign_count, self->stats.timestamp_sign_count);
 		printf("    - up2date checks time: %.3fs\n", self->stats.up2date_check_time);
 		if (t2 > t1)
 			printf("  efficiency: %.2f%%\n", (self->stats.build_time * 100.0) / (t2-t1));
@@ -1620,18 +1622,23 @@ void td_engine_open(lua_State *L)
 	create_mt(L, TUNDRA_NODEREF_MTNAME, node_mt_entries);
 }
 
-const td_stat *
+int
 stat_file_unlocked(td_file *f)
 {
-	if (0 != fs_stat_file(f->path, &f->stat))
+	if (f->stat_dirty)
 	{
+		if (0 != fs_stat_file(f->path, &f->stat))
+		{
+			f->stat_dirty = 0;
+			f->stat.flags = 0;
+			f->stat.size = 0;
+			f->stat.timestamp = 0;
+		}
 		f->stat_dirty = 0;
-		f->stat.flags = 0;
-		f->stat.size = 0;
-		f->stat.timestamp = 0;
+		return 1;
 	}
-	f->stat_dirty = 0;
-	return &f->stat;
+	else
+		return 0;
 }
 
 const td_stat *
@@ -1639,23 +1646,24 @@ td_stat_file(td_engine *engine, td_file *f)
 {
 	double t1, t2;
 	t1 = td_timestamp();
+	int did_stat = 0;
+
 	++engine->stats.stat_checks;
-	if (f->stat_dirty)
-	{
-		pthread_mutex_t *objlock;
-		++engine->stats.stat_calls;
+	pthread_mutex_t *objlock;
+	++engine->stats.stat_calls;
 
-		objlock = get_object_lock(f->hash);
-		td_mutex_lock_or_die(objlock);
-		td_mutex_unlock_or_die(engine->lock);
+	objlock = get_object_lock(f->hash);
+	td_mutex_unlock_or_die(engine->lock);
+	td_mutex_lock_or_die(objlock);
 
-		stat_file_unlocked(f);
+	did_stat = stat_file_unlocked(f);
 
-		td_mutex_lock_or_die(engine->lock);
-		td_mutex_unlock_or_die(objlock);
-	}
+	td_mutex_unlock_or_die(objlock);
+	td_mutex_lock_or_die(engine->lock);
+
 	t2 = td_timestamp();
 	engine->stats.stat_time += t2 - t1;
+	engine->stats.stat_checks += did_stat;
 
 	return &f->stat;
 }
@@ -1670,18 +1678,17 @@ td_touch_file(td_file *f)
 td_digest *
 td_get_signature(td_engine *engine, td_file *f)
 {
-	double t1, t2;
-
 	if (f->signature_dirty)
 	{
+		double t1, t2;
 		int count_bump = 0;
 		const int dry_run = engine->settings.dry_run;
 
-		pthread_mutex_t *object_lock = get_object_lock(f->hash);
-		td_mutex_lock_or_die(object_lock);
-		td_mutex_unlock_or_die(engine->lock);
-
 		t1 = td_timestamp();
+
+		pthread_mutex_t *object_lock = get_object_lock(f->hash);
+		td_mutex_unlock_or_die(engine->lock);
+		td_mutex_lock_or_die(object_lock);
 
 		if (!dry_run)
 		{
