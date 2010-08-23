@@ -31,13 +31,37 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 	local build_id = env:get("BUILD_ID")
 	local pch = decl.PrecompiledHeader
 	local my_pass = generator:resolve_pass(decl.Pass)
+	local dep_names = nodegen.flatten_list(build_id, decl.Depends)
+	local deps = util.mapnil(dep_names, function(x) return generator:get_node_of(x) end)
 	local pch_output
 	local gen_pch_node
 
-	for decl_key, env_key in pairs(decl_to_env_mappings) do
-		local data = decl[decl_key]
-		for _, item in util.nil_ipairs(nodegen.flatten_list(build_id, data)) do
-			env:append(env_key, item)
+	-- Push Libs, Defines and so in into the environment of this unit.
+	do
+		local propagate_blocks = nil
+
+		for _, dep_name in util.nil_ipairs(dep_names) do
+			local dep_decl = generator.units[dep_name]
+			local data = dep_decl.Decl.Propagate
+			if data then
+				propagate_blocks = propagate_blocks or {}
+				propagate_blocks[#propagate_blocks + 1] = data
+			end
+		end
+
+		for decl_key, env_key in pairs(decl_to_env_mappings) do
+			local function push_bindings(data)
+				for _, item in util.nil_ipairs(nodegen.flatten_list(build_id, data)) do
+					env:append(env_key, item)
+				end
+			end
+
+			-- First pick settings from our own unit.
+			push_bindings(decl[decl_key])
+
+			for _, data in util.nil_ipairs(propagate_blocks) do
+				push_bindings(data[decl_key])
+			end
 		end
 	end
 
@@ -96,11 +120,18 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 	end
 
 	local exts = env:get_list("NATIVE_SUFFIXES")
-	local deps = generator:resolve_deps(build_id, decl.Depends)
 	local source_files = nodegen.flatten_list(build_id, decl.Sources)
 	local sources = generator:resolve_sources(env, { source_files, deps }, {}, decl.SourceDir)
 	local inputs, ideps = generator:analyze_sources(sources, exts, implicit_make)
-	local targets = { generator:get_target(decl, suffix) }
+
+	if not command and #inputs > 0 then
+		errorf("unit %s has sources even though it is marked external", decl.Name)
+	end
+
+	local targets = nil
+	if suffix then
+		targets = { generator:get_target(decl, suffix) }
+	end
 
 	if gen_pch_node then
 		deps = util.merge_arrays_2(deps, { gen_pch_node })
@@ -109,7 +140,7 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 	deps = util.merge_arrays_2(deps, ideps)
 	deps = util.uniq(deps)
 	local libnode = env:make_node {
-		Label = label .. " $(@)",
+		Label = label,
 		Pass = my_pass,
 		Action = command,
 		InputFiles = inputs,
@@ -124,13 +155,17 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 end
 
 nodegen.add_evaluator("Program", function (generator, env, decl)
-	return eval_native_unit(generator, env, "Program", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
+	return eval_native_unit(generator, env, "Program $(@)", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
 end)
 
 nodegen.add_evaluator("StaticLibrary", function (generator, env, decl)
-	return eval_native_unit(generator, env, "StaticLib", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
+	return eval_native_unit(generator, env, "StaticLib $(@)", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
 end)
 
 nodegen.add_evaluator("SharedLibrary", function (generator, env, decl)
-	return eval_native_unit(generator, env, "SharedLib", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
+	return eval_native_unit(generator, env, "SharedLib $(@)", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
+end)
+
+nodegen.add_evaluator("ExternalLibrary", function (generator, env, decl)
+	return eval_native_unit(generator, env, "ExternalLibrary " .. decl.Name, nil, nil, decl)
 end)
