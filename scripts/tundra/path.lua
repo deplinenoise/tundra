@@ -43,6 +43,7 @@ function get_extension(fn)
 end
 
 function drop_suffix(fn)
+	assert(type(fn) == "string")
 	return fn:match("^(.*)%.[^./\\]+$") or fn
 end
 

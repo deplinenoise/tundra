@@ -18,7 +18,11 @@
 -- tundra.lua - Self-hosting build file for Tundra itself
 
 local common = {
-	Env = { CPPPATH = { "src", "lua/src" } },
+	Env = {
+		CPPPATH = { "src", "lua/src" },
+		LUAC = "$(OBJECTDIR)/tundra_luac$(HOSTPROGSUFFIX)",
+		GEN_LUA_DATA = "$(OBJECTDIR)/gen_lua_data$(HOSTPROGSUFFIX)",
+	},
 }
 
 local common_win32 = {
@@ -32,6 +36,10 @@ local common_win32 = {
 
 Build {
 	Units = "units.lua",
+	Passes= {
+		{ Name = "CodeGen", BuildOrder = 1 },
+	},
+	SyntaxExtensions = { "glob", "embed_lua" },
 	Configs = {
 		Config { Name = "macosx-clang", Inherit = common, Tools = { "clang-osx" }, DefaultOnHost = "macosx" },
 		Config { Name = "macosx-gcc", Inherit = common, Tools = { "gcc-osx" } },
@@ -54,5 +62,7 @@ Build {
 			},
 		},
 	},
+	SubVariants = { "dev", "standalone" },
+	DefaultSubVariant = "dev",
 }
 

@@ -46,6 +46,8 @@ if (APPLE)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -Werror -ansi")
 endif (APPLE)
 
+add_executable(gen_lua_data src/gen_lua_data.c)
+
 set(LUA_SOURCES 
 	lua/src/lapi.c lua/src/lauxlib.c lua/src/lbaselib.c lua/src/lcode.c
 	lua/src/ldblib.c lua/src/ldebug.c lua/src/ldo.c lua/src/ldump.c
