@@ -144,13 +144,6 @@ static void scan_directory(lua_State* L, const char* path)
 }
 #endif
 
-enum
-{
-	WALK_UPV_CWD = lua_upvalueindex(1),
-	WALK_UPV_DIRS = lua_upvalueindex(2),
-	WALK_UPV_QUEUE = lua_upvalueindex(3)
-};
-
 int walk_path_count = 0;
 double walk_path_time = 0.0;
 
