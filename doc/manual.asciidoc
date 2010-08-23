@@ -19,17 +19,16 @@ smaller projects too.
 
 ==== Simple and Fast ====
 
-Tundra is written in ANSI C (C89), with very few files (the whole codebase
-including scripts and tools is about 10000 lines of code). Aside from Lua,
-there are no external dependencies. Most data structures in the C code are
-simple arrays, either stack based or allocated from a linear allocator. All
+Tundra is written in ANSI C (C89), with very few files. Aside from Lua, there
+are no external dependencies. Most data structures in the C code are simple
+arrays, either stack based or allocated from a linear allocator. All
 allocations are discarded at once in pages when the program exits. This makes
 the code simple and the program fast as very little time is spent worrying
 about dynamic memory.
 
 ==== Utilize multi-core hardware ====
 
-All serious developers are using multi-core machines, so it is important that
+Almost all developers are using multi-core machines, so it is important that
 the build system can run multiple jobs at once. But it is equally important to
 utilize these cores to do other things like file signing and implicit
 dependency scanning. Tundra is one of very few (if any) build systems that do
@@ -41,7 +40,8 @@ builds.
 Most build systems work perfectly until you start generating source files
 dynamically in the build process. If these files are then included into other
 files many build systems start misbehaving, especially if multiple jobs are run
-concurrently. This is very hard to diagnose.
+concurrently. This is very hard to diagnose and work around, leading to various
+hacks and voodoo surrounding the build process.
 
 Tundra does away with this by adding the possibility of segmenting the build
 into multiple, sequenced passes. Build jobs are only allowed to implicitly
