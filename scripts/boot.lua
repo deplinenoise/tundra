@@ -613,12 +613,12 @@ local function create_build_engine(opts)
 		ContinueOnError = Options.Continue and 1 or 0,
 		DryRun = Options.DryRun and 1 or 0,
 		DebugFlags = Options.DebugFlags,
+		DebugSigning = Options.DebugSigning,
 
 		-- per-config settings
 		FileHashSize = engine_opts.FileHashSize,
 		RelationHashSize = engine_opts.RelationHashSize,
 		UseDigestSigning = engine_opts.UseDigestSigning,
-		DebugSigning = engine_opts.DebugSigning,
 	}
 end
 
