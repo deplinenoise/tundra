@@ -1645,11 +1645,11 @@ const td_stat *
 td_stat_file(td_engine *engine, td_file *f)
 {
 	double t1, t2;
-	t1 = td_timestamp();
 	int did_stat = 0;
-
-	++engine->stats.stat_checks;
 	pthread_mutex_t *objlock;
+
+	t1 = td_timestamp();
+
 	++engine->stats.stat_calls;
 
 	objlock = get_object_lock(f->hash);
@@ -1683,10 +1683,10 @@ td_get_signature(td_engine *engine, td_file *f)
 		double t1, t2;
 		int count_bump = 0;
 		const int dry_run = engine->settings.dry_run;
-
+		pthread_mutex_t *object_lock;
 		t1 = td_timestamp();
 
-		pthread_mutex_t *object_lock = get_object_lock(f->hash);
+		object_lock = get_object_lock(f->hash);
 		td_mutex_unlock_or_die(engine->lock);
 		td_mutex_lock_or_die(object_lock);
 
