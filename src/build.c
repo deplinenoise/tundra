@@ -31,7 +31,7 @@
 
 typedef struct td_job_queue
 {
-	pthread_mutex_t mutex;
+	pthread_mutex_t *mutex;
 	pthread_cond_t work_avail;
 	td_engine *engine;
 	td_sighandler_info siginfo;
@@ -57,7 +57,7 @@ scan_implicit_deps(td_job_queue *queue, td_node *node)
 
 	t1 = td_timestamp();
 	if (!queue->engine->settings.dry_run)
-		result = (*scanner->scan_fn)(queue->engine, &queue->mutex, node, scanner);
+		result = (*scanner->scan_fn)(queue->engine, queue->mutex, node, scanner);
 	else
 		result = 0;
 	t2 = td_timestamp();
@@ -121,10 +121,10 @@ static void
 delete_outputs(td_job_queue *queue, td_node *node)
 {
 	int i, count;
-	pthread_mutex_unlock(&queue->mutex);
+	pthread_mutex_unlock(queue->mutex);
 	for (i = 0, count = node->output_count; i < count; ++i)
 		remove(node->outputs[i]->path);
-	pthread_mutex_lock(&queue->mutex);
+	pthread_mutex_lock(queue->mutex);
 }
 
 static int
@@ -157,7 +157,7 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 		touch_outputs(node);
 	}
 
-	pthread_mutex_unlock(&queue->mutex);
+	pthread_mutex_unlock(queue->mutex);
 	if (td_verbosity_check(engine, 1))
 		printf("%s%s\n", line_prefix, node->annotation);
 	t1 = td_timestamp();
@@ -168,7 +168,7 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 	else
 		result = 0;
 	t2 = td_timestamp();
-	pthread_mutex_lock(&queue->mutex);
+	pthread_mutex_lock(queue->mutex);
 
 	if (0 != result)
 	{
@@ -496,7 +496,7 @@ build_worker(void *arg_)
 	td_job_queue * const queue = arg->queue;
 	const char * const line_prefix = arg->line_prefix;
 
-	pthread_mutex_lock(&queue->mutex);
+	pthread_mutex_lock(queue->mutex);
 
 	while (!queue->siginfo.flag)
 	{
@@ -506,7 +506,7 @@ build_worker(void *arg_)
 
 		if (0 == count)
 		{
-			pthread_cond_wait(&queue->work_avail, &queue->mutex);
+			pthread_cond_wait(&queue->work_avail, queue->mutex);
 			continue;
 		}
 
@@ -523,7 +523,7 @@ build_worker(void *arg_)
 			queue->siginfo.flag = 1;
 	}
 
-	pthread_mutex_unlock(&queue->mutex);
+	pthread_mutex_unlock(queue->mutex);
 	pthread_cond_broadcast(&queue->work_avail);
 
 	return NULL;
@@ -554,12 +554,13 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 	memset(&queue, 0, sizeof(queue));
 	queue.engine = engine;
 
-	pthread_mutex_init(&queue.mutex, NULL);
+	queue.mutex = engine->lock;
+
 	pthread_cond_init(&queue.work_avail, NULL);
 	queue.array_size = engine->node_count;
 	queue.array = (td_node **) calloc(engine->node_count, sizeof(td_node*));
 
-	queue.siginfo.mutex = &queue.mutex;
+	queue.siginfo.mutex = queue.mutex;
 	queue.siginfo.cond = &queue.work_avail;
 
 	thread_count = engine->settings.thread_count;
@@ -586,12 +587,12 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 			td_croak("couldn't start thread %d: %s", i, strerror(rc));
 	}
 
-	pthread_mutex_lock(&queue.mutex);
+	pthread_mutex_lock(queue.mutex);
 
 	node->job.flags |= TD_JOBF_ROOT;
 	enqueue(&queue, node);
 
-	pthread_mutex_unlock(&queue.mutex);
+	pthread_mutex_unlock(queue.mutex);
 	pthread_cond_broadcast(&queue.work_avail);
 
 	{
@@ -619,7 +620,6 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 
 	free(queue.array);
 	pthread_cond_destroy(&queue.work_avail);
-	pthread_mutex_destroy(&queue.mutex);
 
 	*jobs_run = queue.jobs_run;
 

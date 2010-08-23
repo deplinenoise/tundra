@@ -111,4 +111,9 @@ int td_set_cwd(struct lua_State *L);
 
 int td_get_processor_count(void);
 
+void td_mutex_lock_or_die(pthread_mutex_t *lock);
+void td_mutex_unlock_or_die(pthread_mutex_t *lock);
+void td_mutex_init_or_die(pthread_mutex_t *mutex, void *args);
+void td_mutex_destroy_or_die(pthread_mutex_t *mutex);
+
 #endif
