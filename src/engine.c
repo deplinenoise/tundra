@@ -1691,31 +1691,27 @@ td_get_signature(td_engine *engine, td_file *f)
 	object_lock = get_object_lock(engine, f->hash);
 	td_mutex_lock_or_die(object_lock);
 
-	if (!f->signature_dirty)
+	if (f->signature_dirty)
 	{
-		td_mutex_unlock_or_die(object_lock);
-		goto leave;
-	}
+		if (!dry_run)
+		{
+			assert(f->signer);
 
-	if (!dry_run)
-	{
-		assert(f->signer);
+			if (f->signer->is_lua)
+				td_croak("lua signers not implemented yet");
+			else
+				(*f->signer->function.function)(engine, f, &f->signature);
 
-		if (f->signer->is_lua)
-			td_croak("lua signers not implemented yet");
+			count_bump = 1;
+		}
 		else
-			(*f->signer->function.function)(engine, f, &f->signature);
+		{
+			memset(&f->signature, 0, sizeof(f->signature));
+		}
 
-		count_bump = 1;
-	}
-	else
-	{
-		memset(&f->signature, 0, sizeof(f->signature));
+		f->signature_dirty = 0;
 	}
 
-	f->signature_dirty = 0;
-
-leave:
 	td_mutex_unlock_or_die(object_lock);
 
 	/* modify stats once we're back in the engine lock */
