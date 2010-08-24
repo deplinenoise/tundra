@@ -37,7 +37,9 @@ local common_win32 = {
 Build {
 	Units = "units.lua",
 	Passes= {
-		{ Name = "CodeGen", BuildOrder = 1 },
+		CodeGen = { Name = "Code generation", BuildOrder = 1 },
+		LuaCompile = { Name = "Compile Lua sources for embedding", BuildOrder = 2 },
+		Tundra = { Name = "Main compile pass", BuildOrder = 3 },
 	},
 	SyntaxExtensions = { "glob", "embed_lua" },
 	Configs = {

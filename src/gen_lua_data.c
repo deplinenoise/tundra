@@ -29,7 +29,7 @@ int main(int argc, char *argv[1])
 
 	puts("/* automatically generated, do not edit */\n#include \"gen_lua_data.h\"\n");
 	printf("const int td_lua_file_count = %d;\n", argc - 1);
-	printf("const td_lua_file files[%d] = {\n", argc-1);
+	printf("const td_lua_file td_lua_files[%d] = {\n", argc-1);
 
 	for (i = 1; i < argc; ++i)
 	{
@@ -45,7 +45,7 @@ int main(int argc, char *argv[1])
 			exit(1);
 		}
 
-		printf("{\"%s\", \"", fn);
+		printf("{\"%s\", ", fn);
 
 		while (0 != (read_size = fread(buffer, 1, sizeof(buffer), f)))
 		{
@@ -53,6 +53,7 @@ int main(int argc, char *argv[1])
 
 			bytes_total += read_size;
 
+			printf("\"");
 			for (k = 0; k < read_size; ++k)
 			{
 				char ch = buffer[k];
@@ -70,15 +71,16 @@ int main(int argc, char *argv[1])
 									   putchar(ch);
 								   else
 								   {
-									   printf("\\x%02x", ch & 0xff);
+									   printf("\\%0o", ch & 0xff);
 								   }
 							   }
 							   break;
 				}
 			}
+			printf("\"\n");
 		}
 
-		printf("\", %u }%s\n\n", (unsigned int) bytes_total, (i + 1) < argc ? "," : "");
+		printf(", %u }%s\n\n", (unsigned int) bytes_total, (i + 1) < argc ? "," : "");
 	}
 	puts("};");
 

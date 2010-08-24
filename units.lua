@@ -17,8 +17,8 @@ StaticLibrary {
 }
 
 Program {
-	Pass = "CodeGen",
 	Name = "gen_lua_data",
+	Pass = "CodeGen",
 	Target = "$(GEN_LUA_DATA)",
 	Config = "*-*-*-standalone",
 	Sources = { "src/gen_lua_data.c" },
@@ -42,7 +42,7 @@ Always "luac"
 Program {
 	Name = "tundra",
 	Defines = { "TD_STANDALONE"; Config = "*-*-*-standalone" },
-	Depends = { "base_lua" },
+	Depends = { "base_lua", "luac", "gen_lua_data" },
 	Sources = {
 		"src/bin_alloc.c", "src/build.c",
 		"src/cpp_scanner.c", "src/debug.c", "src/engine.c",

@@ -24,11 +24,12 @@ local path = require "tundra.path"
 local function luac(env, src)
 	local target = "$(OBJECTDIR)/" .. path.drop_suffix(src) .. ".luac" 
 	return target, env:make_node {
-		Pass = passes.CodeGen,
+		Pass = passes.LuaCompile,
 		Label = "LuaC $(@)",
 		Action = "$(LUAC) -o $(@) -- $(<)",
 		InputFiles = { src },
 		OutputFiles = { target },
+		ImplicitInputs = { "$(LUAC)" },
 	}
 end
 
@@ -42,11 +43,12 @@ decl_parser:add_source_generator("EmbedLuaSources", function (args)
 		end
 		return env:make_node {
 			Label = "EmbedLuaSources $(@)",
-			Pass = passes.CodeGen,
+			Pass = passes.Tundra,
 			Action = "$(GEN_LUA_DATA) $(<) > $(@)",
 			InputFiles = files,
 			OutputFiles = { "$(OBJECTDIR)/" .. args.OutputFile },
 			Dependencies = deps,
+			ImplicitInputs = { "$(GEN_LUA_DATA)" },
 		}
 	end
 end)

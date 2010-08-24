@@ -1622,7 +1622,6 @@ stat_file_unlocked(td_engine *engine, td_file *f)
 	{
 		if (0 != fs_stat_file(f->path, &f->stat))
 		{
-			f->stat_dirty = 0;
 			f->stat.flags = 0;
 			f->stat.size = 0;
 			f->stat.timestamp = 0;
