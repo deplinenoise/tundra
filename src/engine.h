@@ -42,7 +42,7 @@ extern char td_scanner_hook_key;
 extern char td_node_hook_key;
 extern char td_dirwalk_hook_key;
 
-typedef void (*td_sign_fn)(struct td_file *f, td_digest *out);
+typedef void (*td_sign_fn)(struct td_engine *engine, struct td_file *f, td_digest *out);
 
 typedef struct td_signer
 {
