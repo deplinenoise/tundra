@@ -418,7 +418,7 @@ static void* signal_handler_thread_fn(void *arg)
 		}
 	}
 	else
-		td_croak("sigwait failed: %d", rc);
+		printf("sigwait failed: %d\n", rc);
 	return NULL;
 }
 #endif
@@ -1025,8 +1025,19 @@ td_mutex_unlock_or_die(pthread_mutex_t *lock)
 void
 td_mutex_init_or_die(pthread_mutex_t *mutex, void *args)
 {
-	if (0 != pthread_mutex_init(mutex, args))
+#ifndef _WIN32
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+
+	if (0 != pthread_mutex_init(mutex, &attr))
 		td_croak("couldn't init mutex");
+
+	pthread_mutexattr_destroy(&attr);
+#else
+	if (0 != pthread_mutex_init(mutex, NULL))
+		td_croak("couldn't init mutex");
+#endif
 }
 
 void

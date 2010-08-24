@@ -122,7 +122,11 @@ td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int
 {
 	td_relcell *chain;
 	int bucket;
+	int count_result = 0;
+	td_file **result = NULL;
 	unsigned int hash;
+
+	td_mutex_lock_or_die(engine->lock);
 
 	hash = file->hash ^ salt;
 	bucket = hash % engine->relhash_size;
@@ -133,23 +137,25 @@ td_engine_get_relations(td_engine *engine, td_file *file, unsigned int salt, int
 	{
 		if (salt == chain->salt && file == chain->file)
 		{
+			const td_digest *signature = td_get_signature(engine, chain->file);
+
 			/* Check that the cached file signature still is valid. This
 			 * prevents using stale cached information for generated header
 			 * files. */
-			const td_digest *signature = td_get_signature(engine, chain->file);
+			if (0 == memcmp(&chain->signature, signature, sizeof(td_digest)))
+			{
+				count_result = chain->count;
+				result = chain->files;
+			}
 
-			if (0 != memcmp(&chain->signature, signature, sizeof(td_digest)))
-				goto leave;
-
-			*count_out = chain->count;
-			return chain->files;
+			break;
 		}
 		chain = chain->bucket_next;
 	}
 
-leave:
-	*count_out = 0;
-	return NULL;
+	td_mutex_unlock_or_die(engine->lock);
+	*count_out = count_result;
+	return result;
 }
 
 static void
@@ -197,6 +203,7 @@ set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td
 	}
 
 	++engine->stats.relation_count;
+
 	chain = (td_relcell*) td_page_alloc(&engine->alloc, sizeof(td_relcell));
 	populate_relcell(engine, chain, file, salt, count, files, digest);
 	chain->bucket_next = engine->relhash[bucket];
@@ -206,7 +213,9 @@ set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td
 void
 td_engine_set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td_file **files)
 {
+	td_mutex_lock_or_die(engine->lock);
 	set_relations(engine, file, salt, count, files, td_get_signature(engine, file));
+	td_mutex_unlock_or_die(engine->lock);
 }
 
 static void

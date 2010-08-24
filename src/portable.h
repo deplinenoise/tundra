@@ -72,6 +72,7 @@ typedef struct w32_pthread_cond pthread_cond_t;
 typedef struct w32_mutexattr pthread_mutexattr_t;
 
 #define pthread_mutexattr_init(attr) do {} while(0)
+#define pthread_mutexattr_destroy(attr) do {} while(0)
 #define pthread_mutexattr_settype(attr, type) do {} while(0)
 
 int pthread_mutex_lock(pthread_mutex_t *lock);
