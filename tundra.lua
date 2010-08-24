@@ -22,8 +22,10 @@ local common = {
 		LUAC = "$(OBJECTDIR)/tundra_luac$(HOSTPROGSUFFIX)",
 		GEN_LUA_DATA = "$(OBJECTDIR)/gen_lua_data$(HOSTPROGSUFFIX)",
 		CPPPATH = { "src", "lua/src" },
-		CCOPTS = { "/WX", "/wd4127", "/wd4100", "/wd4324"; Config = "*-msvc-*" },
-		CCOPTS = { "-g"; Config = { "*-gcc-debug", "*-clang-debug", "*-gcc-production", "*-clang-production" } },
+		CCOPTS = {
+			{ "/WX", "/wd4127", "/wd4100", "/wd4324"; Config = "*-msvc-*" },
+			{ "-g"; Config = { "*-gcc-debug", "*-clang-debug", "*-gcc-production", "*-clang-production" } },
+		},
 		CPPDEFS = { "_CRT_SECURE_NO_WARNINGS"; Config = "*-msvc-*"  },
 		LIBS = { "kernel32.lib", "advapi32.lib"; Config = "*-msvc-*"  },
 	}
