@@ -21,7 +21,43 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
+
+static void
+print_fn(const char *fn)
+{
+	int i;
+	static const char build_prefix[] = "tundra-output/";
+	char buffer[260];
+
+	strncpy(buffer, fn, sizeof(buffer));
+	buffer[sizeof(buffer)-1] = 0;
+
+	for (i = 0; ; ++i)
+	{
+		char ch = buffer[i];
+		if (!ch)
+			break;
+		else if ('\\' == ch)
+			buffer[i] = '/';
+	}
+
+	putchar('"');
+
+	if (strstr(buffer, build_prefix) == buffer)
+	{
+		const char *second_slash = strchr(buffer + sizeof(build_prefix), '/');
+		if (second_slash)
+			fputs(second_slash+1, stdout);
+		else
+			fputs(buffer, stdout);
+	}
+	else
+		fputs(buffer, stdout);
+
+	putchar('"');
+}
 
 int main(int argc, char *argv[1])
 {
@@ -45,7 +81,9 @@ int main(int argc, char *argv[1])
 			exit(1);
 		}
 
-		printf("{\"%s\", ", fn);
+		fputs("{ ", stdout);
+		print_fn(fn);
+		fputs(", ", stdout);
 
 		while (0 != (read_size = fread(buffer, 1, sizeof(buffer), f)))
 		{
@@ -71,7 +109,7 @@ int main(int argc, char *argv[1])
 									   putchar(ch);
 								   else
 								   {
-									   printf("\\%0o", ch & 0xff);
+									   printf("\\x%02x\"\"", ch & 0xff);
 								   }
 							   }
 							   break;

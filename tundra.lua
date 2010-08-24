@@ -19,8 +19,8 @@
 
 local common = {
 	Env = {
-		LUAC = "$(OBJECTDIR)/tundra_luac$(HOSTPROGSUFFIX)",
-		GEN_LUA_DATA = "$(OBJECTDIR)/gen_lua_data$(HOSTPROGSUFFIX)",
+		LUAC = "$(OBJECTDIR)$(SEP)tundra_luac$(HOSTPROGSUFFIX)",
+		GEN_LUA_DATA = "$(OBJECTDIR)$(SEP)gen_lua_data$(HOSTPROGSUFFIX)",
 		CPPPATH = { "src", "lua/src" },
 		CCOPTS = {
 			{ "/WX", "/wd4127", "/wd4100", "/wd4324"; Config = "*-msvc-*" },
