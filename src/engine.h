@@ -311,7 +311,7 @@ const td_stat*
 td_stat_file(td_engine *engine, td_file *f);
 
 void
-td_touch_file(td_file *f);
+td_touch_file(td_engine *engine, td_file *f);
 
 td_digest *
 td_get_signature(td_engine *engine, td_file *f);

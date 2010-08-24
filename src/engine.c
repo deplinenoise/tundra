@@ -1342,7 +1342,7 @@ clean_file(td_engine *engine, td_node *node, td_file **dirs, int *dir_count, td_
 		if (0 != remove(file->path))
 			fprintf(stderr, "error: couldn't remove %s\n", file->path);
 
-		td_touch_file(file);
+		td_touch_file(engine, file);
 	}
 }
 
@@ -1661,10 +1661,15 @@ td_stat_file(td_engine *engine, td_file *f)
 }
 
 void
-td_touch_file(td_file *f)
+td_touch_file(td_engine *engine, td_file *f)
 {
+	pthread_mutex_t *obj_lock;
+	obj_lock = get_object_lock(engine, f->hash);
+
+	td_mutex_lock_or_die(obj_lock);
 	f->stat_dirty = 1;
 	f->signature_dirty = 1;
+	td_mutex_unlock_or_die(obj_lock);
 }
 
 td_digest *

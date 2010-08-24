@@ -104,17 +104,17 @@ ensure_dir_exists(td_engine *engine, td_file *dir)
 		}
 
 		/* could optimize to just set as a directory rather than stat again */
-		td_touch_file(dir);
+		td_touch_file(engine, dir);
 		return 0;
 	}
 }
 
 static void
-touch_outputs(td_node *node)
+touch_outputs(td_engine *engine, td_node *node)
 {
 	int i, count;
 	for (i = 0, count = node->output_count; i < count; ++i)
-		td_touch_file(node->outputs[i]);
+		td_touch_file(engine, node->outputs[i]);
 }
 
 static void
@@ -154,7 +154,7 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 	if (0 == (TD_NODE_OVERWRITE & node->flags))
 	{
 		delete_outputs(queue, node);
-		touch_outputs(node);
+		touch_outputs(engine, node);
 	}
 
 	pthread_mutex_unlock(queue->mutex);
@@ -196,7 +196,7 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 	 * or not. If it succeeded, we must assume the build overwrote them.
 	 * Otherwise, it's likely we've deleted them. In any case, touching them
 	 * again isn't going to hurt anything.*/
-	touch_outputs(node);
+	touch_outputs(engine, node);
 
 	return result;
 }
