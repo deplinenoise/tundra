@@ -203,6 +203,7 @@ set_relations(td_engine *engine, td_file *file, unsigned int salt, int count, td
 	}
 
 	++engine->stats.relation_count;
+
 	chain = (td_relcell*) td_page_alloc(&engine->alloc, sizeof(td_relcell));
 	populate_relcell(engine, chain, file, salt, count, files, digest);
 	chain->bucket_next = engine->relhash[bucket];
