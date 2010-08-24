@@ -275,7 +275,8 @@ int td_sanitize_lua_path(lua_State *L)
 	return 1;
 }
 
-td_file *td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode mode)
+td_file *
+td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode mode)
 {
 	unsigned int hash;
 	int slot;
@@ -302,13 +303,19 @@ td_file *td_engine_get_file(td_engine *engine, const char *input_path, td_get_fi
 		out_path = input_path;
 	}
 
+	td_mutex_lock_or_die(engine->lock);
+
 	slot = (int) (hash % engine->file_hash_size);
 	chain = engine->file_hash[slot];
 	
 	while (chain)
 	{
 		if (chain->hash == hash && 0 == strcmp(out_path, chain->path))
+		{
+			td_mutex_unlock_or_die(engine->lock);
 			return chain;
+		}
+
 		chain = chain->bucket_next;
 	}
 
@@ -329,6 +336,7 @@ td_file *td_engine_get_file(td_engine *engine, const char *input_path, td_get_fi
 	f->signature_dirty = 1;
 	f->frozen_relstring_index = ~(0u);
 	engine->file_hash[slot] = f;
+	td_mutex_unlock_or_die(engine->lock);
 	return f;
 }
 
@@ -563,6 +571,9 @@ static int make_engine(lua_State *L)
 	/* Allow max 100 x 1 MB pages for nodes, filenames and such */
 	td_alloc_init(&self->alloc, 100, 1024 * 1024);
 
+	self->lock = td_page_alloc(&self->alloc, sizeof(pthread_mutex_t));
+	td_mutex_init_or_die(self->lock, NULL);
+
 	self->file_hash_size = 92413;
 	self->relhash_size = 92413;
 	self->L = L;
@@ -603,9 +614,6 @@ static int make_engine(lua_State *L)
 
 	for (i = 0; i < TD_OBJECT_LOCK_COUNT; ++i)
 		td_mutex_init_or_die(&self->object_locks[i], NULL);
-
-	self->lock = td_page_alloc(&self->alloc, sizeof(pthread_mutex_t));
-	td_mutex_init_or_die(self->lock, NULL);
 
 	/* Finally, associate this engine with a table in the registry. */
 	lua_pushvalue(L, -1);
@@ -1645,17 +1653,15 @@ td_stat_file(td_engine *engine, td_file *f)
 
 	t1 = td_timestamp();
 
-	++engine->stats.stat_calls;
-
-	td_mutex_unlock_or_die(engine->lock);
-
 	did_stat = stat_file_unlocked(engine, f);
 
-	td_mutex_lock_or_die(engine->lock);
-
 	t2 = td_timestamp();
+
+	td_mutex_lock_or_die(engine->lock);
+	++engine->stats.stat_calls;
 	engine->stats.stat_time += t2 - t1;
 	engine->stats.stat_checks += did_stat;
+	td_mutex_unlock_or_die(engine->lock);
 
 	return &f->stat;
 }
@@ -1675,53 +1681,58 @@ td_touch_file(td_engine *engine, td_file *f)
 td_digest *
 td_get_signature(td_engine *engine, td_file *f)
 {
-	if (f->signature_dirty)
+	int count_bump = 0;
+	const int dry_run = engine->settings.dry_run;
+	double t1, t2;
+	pthread_mutex_t *object_lock;
+
+	t1 = td_timestamp();
+
+	object_lock = get_object_lock(engine, f->hash);
+	td_mutex_lock_or_die(object_lock);
+
+	if (!f->signature_dirty)
 	{
-		double t1, t2;
-		int count_bump = 0;
-		const int dry_run = engine->settings.dry_run;
-		pthread_mutex_t *object_lock;
-		t1 = td_timestamp();
-
-		object_lock = get_object_lock(engine, f->hash);
-		td_mutex_unlock_or_die(engine->lock);
-		td_mutex_lock_or_die(object_lock);
-
-		if (!dry_run)
-		{
-			assert(f->signer);
-
-			if (f->signer->is_lua)
-				td_croak("lua signers not implemented yet");
-			else
-				(*f->signer->function.function)(engine, f, &f->signature);
-
-			count_bump = 1;
-		}
-		else
-		{
-			memset(&f->signature, 0, sizeof(f->signature));
-		}
-
-		f->signature_dirty = 0;
-
 		td_mutex_unlock_or_die(object_lock);
-		td_mutex_lock_or_die(engine->lock);
-
-		/* modify stats once we're back in the engine lock */
-		if (count_bump && !f->signer->is_lua)
-		{
-			td_sign_fn function = f->signer->function.function;
-			if (td_sign_digest == function)
-				++engine->stats.timestamp_sign_count;
-			else if (td_sign_digest == function)
-				++engine->stats.md5_sign_count;
-		}
-
-		t2 = td_timestamp();
-
-		engine->stats.file_signing_time += t2 - t1;
+		goto leave;
 	}
+
+	if (!dry_run)
+	{
+		assert(f->signer);
+
+		if (f->signer->is_lua)
+			td_croak("lua signers not implemented yet");
+		else
+			(*f->signer->function.function)(engine, f, &f->signature);
+
+		count_bump = 1;
+	}
+	else
+	{
+		memset(&f->signature, 0, sizeof(f->signature));
+	}
+
+	f->signature_dirty = 0;
+
+leave:
+	td_mutex_unlock_or_die(object_lock);
+
+	/* modify stats once we're back in the engine lock */
+	td_mutex_lock_or_die(engine->lock);
+	if (count_bump && !f->signer->is_lua)
+	{
+		td_sign_fn function = f->signer->function.function;
+		if (td_sign_digest == function)
+			++engine->stats.timestamp_sign_count;
+		else if (td_sign_digest == function)
+			++engine->stats.md5_sign_count;
+	}
+
+	t2 = td_timestamp();
+	engine->stats.file_signing_time += t2 - t1;
+	td_mutex_unlock_or_die(engine->lock);
+
 	return &f->signature;
 }
 

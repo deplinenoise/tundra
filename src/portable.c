@@ -418,7 +418,7 @@ static void* signal_handler_thread_fn(void *arg)
 		}
 	}
 	else
-		td_croak("sigwait failed: %d", rc);
+		printf("sigwait failed: %d\n", rc);
 	return NULL;
 }
 #endif

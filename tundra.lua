@@ -18,16 +18,13 @@
 -- tundra.lua - Self-hosting build file for Tundra itself
 
 local common = {
-	Env = { CPPPATH = { "src", "lua/src" } },
-}
-
-local common_win32 = {
-	Inherit = common,
 	Env = {
-		CCOPTS = { "/WX", "/wd4127", "/wd4100", "/wd4324" },
-		CPPDEFS = { "_CRT_SECURE_NO_WARNINGS" },
-		LIBS = { "kernel32.lib", "advapi32.lib" },
-	},
+		CPPPATH = { "src", "lua/src" },
+		CCOPTS = { "/WX", "/wd4127", "/wd4100", "/wd4324"; Config = "*-msvc-*" },
+		CCOPTS = { "-g"; Config = { "*-gcc-debug", "*-clang-debug", "*-gcc-production", "*-clang-production" } },
+		CPPDEFS = { "_CRT_SECURE_NO_WARNINGS"; Config = "*-msvc-*"  },
+		LIBS = { "kernel32.lib", "advapi32.lib"; Config = "*-msvc-*"  },
+	}
 }
 
 Build {
@@ -35,8 +32,8 @@ Build {
 	Configs = {
 		Config { Name = "macosx-clang", Inherit = common, Tools = { "clang-osx" }, DefaultOnHost = "macosx" },
 		Config { Name = "macosx-gcc", Inherit = common, Tools = { "gcc-osx" } },
-		Config { Name = "win32-msvc", Inherit = common_win32, Tools = { { "msvc-vs2008"; TargetArch = "x86"} } },
-		Config { Name = "win64-msvc", Inherit = common_win32, Tools = { { "msvc-vs2008"; TargetArch = "x64"} } },
+		Config { Name = "win32-msvc", Inherit = common, Tools = { { "msvc-vs2008"; TargetArch = "x86"} } },
+		Config { Name = "win64-msvc", Inherit = common, Tools = { { "msvc-vs2008"; TargetArch = "x64"} } },
 		Config { Name = "linux-gcc", Inherit = common, Tools = { "gcc" } },
 
 		-- MingW32 cross compilation under OS X

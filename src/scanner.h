@@ -27,7 +27,7 @@ struct td_scanner;
 
 #define TUNDRA_SCANNER_REF_MTNAME "tundra_scanner_ref"
 
-typedef int (*td_scan_fn)(struct td_engine *engine, void *mutex, struct td_node *node, struct td_scanner *state);
+typedef int (*td_scan_fn)(struct td_engine *engine, struct td_node *node, struct td_scanner *state);
 
 typedef struct td_scanner {
 	const char *ident;

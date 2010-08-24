@@ -225,7 +225,6 @@ static void
 scan_file(
 	td_engine *engine,
 	td_alloc *scratch,
-	pthread_mutex_t *mutex,
 	td_file *file,
 	td_cpp_scanner *config,
 	unsigned int salt,
@@ -253,13 +252,8 @@ scan_file(
 	if (td_debug_check(engine, TD_DEBUG_SCAN))
 		printf("%s: scanning\n", file->path);
 
-	pthread_mutex_unlock(mutex);
-
 	count = scan_includes(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]));
 
-	/* TODO: Improve lock scope here; find_file() will create new file nodes and stat
-	   them. Can get a lot of speedup in syscalls by interleaving them */
-	pthread_mutex_lock(mutex);
 	for (i = 0; i < count; ++i)
 	{
 		if (NULL != (found_files[found_count] = find_file(file, engine, &includes[i], config)))
@@ -276,7 +270,7 @@ scan_file(
 }
 
 static int
-scan_cpp(td_engine *engine, void *mutex, td_node *node, td_scanner *state)
+scan_cpp(td_engine *engine, td_node *node, td_scanner *state)
 {
 	td_alloc scratch;
 	int i, count;
@@ -297,7 +291,7 @@ scan_cpp(td_engine *engine, void *mutex, td_node *node, td_scanner *state)
 	while (set_cursor < set->count)
 	{
 		td_file *input = set->files[set_cursor++];
-		scan_file(engine, &scratch, (pthread_mutex_t *)mutex, input, config, salt, set);
+		scan_file(engine, &scratch, input, config, salt, set);
 	}
 
 	node->job.idep_count = set->count - node->input_count;
