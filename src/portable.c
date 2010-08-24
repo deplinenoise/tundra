@@ -217,7 +217,14 @@ int
 td_mkdir(const char *path)
 {
 #if defined(__APPLE__) || defined(linux)
-	return mkdir(path, 0777);
+	int rc = mkdir(path, 0777);
+	if (0 == rc || EEXIST == errno)
+		return 0;
+	else
+	{
+		perror("mkdir");
+		return rc;
+	}
 #elif defined(_WIN32)
 	if (!CreateDirectoryA(path, NULL))
 	{
