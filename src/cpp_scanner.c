@@ -295,7 +295,11 @@ scan_cpp(td_engine *engine, td_node *node, td_scanner *state)
 	}
 
 	node->job.idep_count = set->count - node->input_count;
+
+	td_mutex_lock_or_die(engine->lock);
 	node->job.ideps = (td_file **) td_page_alloc(&engine->alloc, sizeof(td_file*) * node->job.idep_count);
+	td_mutex_unlock_or_die(engine->lock);
+
 	memcpy(&node->job.ideps[0], &set->files[node->input_count], sizeof(td_file*) * node->job.idep_count);
 
 	td_alloc_cleanup(&scratch);
