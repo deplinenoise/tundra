@@ -693,8 +693,6 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 	if (0 != queue.thread_count)
 		td_croak("threads are still running");
 
-	printf("join done..\n");
-
 	/* there is a tiny race condition here if a user presses Ctrl-C just
 	 * before the write to the static pointer occurs, but that's in nanosecond
 	 * land */
