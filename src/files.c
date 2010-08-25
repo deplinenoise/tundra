@@ -35,7 +35,6 @@ td_stat_file(td_engine *engine, td_file *f)
 	double t1 = 0.0;
 	int did_stat = 0;
 	int collect_stats = 0;
-	int result;
 	pthread_mutex_t *objlock;
 
 	collect_stats = td_debug_check(engine, TD_DEBUG_STATS);
@@ -55,10 +54,7 @@ td_stat_file(td_engine *engine, td_file *f)
 			f->stat.timestamp = 0;
 		}
 		f->stat_dirty = 0;
-		result = 1;
 	}
-	else
-		result = 0;
 
 	td_mutex_unlock_or_die(objlock);
 
@@ -128,7 +124,7 @@ td_get_signature(td_engine *engine, td_file *f)
 	if (count_bump && !f->signer->is_lua)
 	{
 		td_sign_fn function = f->signer->function.function;
-		if (td_sign_digest == function)
+		if (td_sign_timestamp == function)
 			++engine->stats.timestamp_sign_count;
 		else if (td_sign_digest == function)
 			++engine->stats.md5_sign_count;
