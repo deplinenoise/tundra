@@ -44,7 +44,7 @@ Program {
 	Defines = { "TD_STANDALONE"; Config = "*-*-*-standalone" },
 	Depends = { "base_lua", "luac", "gen_lua_data" },
 	Sources = {
-		"src/bin_alloc.c", "src/build.c",
+		"src/bin_alloc.c", "src/build.c", "src/clean.c",
 		"src/cpp_scanner.c", "src/debug.c", "src/engine.c",
 		"src/luafs.c", "src/md5.c", "src/scanner.c",
 		"src/tundra.c", "src/util.c", "src/portable.c",

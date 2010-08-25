@@ -21,6 +21,7 @@
 #include "portable.h"
 #include "md5.h"
 #include "relcache.h"
+#include "clean.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -55,16 +56,12 @@ get_object_lock(td_engine *engine, uint32_t hash)
 	return &engine->object_locks[hash % TD_OBJECT_LOCK_COUNT];
 }
 
-int
-stat_file_unlocked(td_engine *engine, td_file *f);
-
 void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 {
 	int zero_size;
 	const td_stat *stat;
 
-	stat_file_unlocked(engine, f);
-	stat = &f->stat;
+	stat = td_stat_file(engine, f);
 
 	zero_size = sizeof(out->data) - sizeof(stat->timestamp);
 
@@ -1310,128 +1307,6 @@ connect_pass_barriers(td_engine *engine)
 	}
 }
 
-enum { TD_MAX_CLEAN_DIRS = 4096 };
-
-static void
-clean_file(td_engine *engine, td_node *node, td_file **dirs, int *dir_count, td_file *file)
-{
-	int k;
-	const td_stat *stat;
-	td_file *dir = td_parent_dir(engine, file);
-
-	/* scan for this directory */
-	for (k = *dir_count - 1; k >= 0; --k)
-	{
-		if (dirs[k] == dir)
-			break;
-	}
-
-	if (k < 0)
-	{
-		int index = *dir_count;
-		if (index >= TD_MAX_CLEAN_DIRS)
-			td_croak("too many dirs to clean! limit is %d", TD_MAX_CLEAN_DIRS);
-		*dir_count = index + 1;
-		dirs[index] = dir;
-	}
-
-	/* Don't delete the output of precious nodes. */
-	if (TD_NODE_PRECIOUS & node->flags)
-		return;
-
-	stat_file_unlocked(engine, file);
-	stat = &file->stat;
-
-	if (TD_STAT_EXISTS & stat->flags)
-	{
-		if (td_verbosity_check(engine, 1))
-			printf("Clean %s\n", file->path);
-
-		if (0 != remove(file->path))
-			fprintf(stderr, "error: couldn't remove %s\n", file->path);
-
-		td_touch_file(engine, file);
-	}
-}
-
-static void
-clean_output_files(td_engine *engine, td_node *root, td_file **dirs, int *dir_count)
-{
-	int i, count;
-
-	root->job.flags |= TD_JOBF_CLEANED;
-
-	for (i = 0, count = root->output_count; i < count; ++i)
-		clean_file(engine, root, dirs, dir_count, root->outputs[i]);
-
-	for (i = 0, count = root->aux_output_count; i < count; ++i)
-		clean_file(engine, root, dirs, dir_count, root->aux_outputs[i]);
-
-	for (i = 0, count = root->dep_count; i < count; ++i)
-	{
-		td_node *dep = root->deps[i];
-		if (0 == (dep->job.flags & TD_JOBF_CLEANED))
-		{
-			clean_output_files(engine, dep, dirs, dir_count);
-		}
-	}
-}
-
-static int
-path_separator_count(const char *fn, int len)
-{
-	int i, result = 0;
-	for (i = 0; i < len; ++i)
-	{
-		char ch = fn[i];
-		if ('/' == ch || '\\' == ch)
-			++result;
-	}
-	return result;
-}
-
-static int
-directory_depth_compare(const void *l, const void *r)
-{
-	int lc, rc;
-	const td_file *lf = *(const td_file **)l;
-	const td_file *rf = *(const td_file **)r;
-
-	/* Just count the number of path separators in the path, as it is normalized. */
-	lc = path_separator_count(lf->path, lf->path_len);
-	rc = path_separator_count(rf->path, rf->path_len);
-
-	return rc - lc;
-}
-
-static void
-clean_files(td_engine *engine, td_node *root)
-{
-	int i;
-	int dir_clean_count = 0;
-	td_file *dirs_to_clean[TD_MAX_CLEAN_DIRS];
-
-	/* First remove as many files as possible. As we pass through directories
-	 * with generated files, keep track of those. We assume that directories
-	 * where output files are placed are OK to remove when cleaning provided
-	 * they are empty.*/
-	clean_output_files(engine, root, dirs_to_clean, &dir_clean_count);
-
-	/* Now sort the list of dirs in depth order so that leaves will be removed
-	 * first. */
-	qsort(&dirs_to_clean, dir_clean_count, sizeof(td_file *), directory_depth_compare);
-
-	/* Now we can try to remove directories if they are empty. */
-	for (i = 0; i < dir_clean_count; ++i)
-	{
-		if (0 == td_rmdir(dirs_to_clean[i]->path))
-		{
-			if (td_verbosity_check(engine, 1))
-				printf("RmDir %s\n", dirs_to_clean[i]->path);
-		}
-	}
-}
-
 /*
  * Execute actions needed to update a dependency graph.
  *
@@ -1479,7 +1354,7 @@ build_nodes(lua_State* L)
 	}
 	else
 	{
-		clean_files(self, root);
+		td_clean_files(self, root);
 		build_result = TD_BUILD_SUCCESS;
 	}
 	t2 = td_timestamp();
@@ -1617,11 +1492,19 @@ void td_engine_open(lua_State *L)
 	create_mt(L, TUNDRA_NODEREF_MTNAME, node_mt_entries);
 }
 
-int
-stat_file_unlocked(td_engine *engine, td_file *f)
+const td_stat *
+td_stat_file(td_engine *engine, td_file *f)
 {
+	double t1 = 0.0;
+	int did_stat = 0;
+	int collect_stats = 0;
 	int result;
 	pthread_mutex_t *objlock;
+
+	collect_stats = td_debug_check(engine, TD_DEBUG_STATS);
+
+	if (collect_stats)
+		t1 = td_timestamp();
 
 	objlock = get_object_lock(engine, f->hash);
 	td_mutex_lock_or_die(objlock);
@@ -1641,26 +1524,16 @@ stat_file_unlocked(td_engine *engine, td_file *f)
 		result = 0;
 
 	td_mutex_unlock_or_die(objlock);
-	return result;
-}
 
-const td_stat *
-td_stat_file(td_engine *engine, td_file *f)
-{
-	double t1, t2;
-	int did_stat = 0;
-
-	t1 = td_timestamp();
-
-	did_stat = stat_file_unlocked(engine, f);
-
-	t2 = td_timestamp();
-
-	td_mutex_lock_or_die(engine->lock);
-	++engine->stats.stat_calls;
-	engine->stats.stat_time += t2 - t1;
-	engine->stats.stat_checks += did_stat;
-	td_mutex_unlock_or_die(engine->lock);
+	if (collect_stats)
+	{
+		double t2 = td_timestamp();
+		td_mutex_lock_or_die(engine->lock);
+		++engine->stats.stat_calls;
+		engine->stats.stat_time += t2 - t1;
+		engine->stats.stat_checks += did_stat;
+		td_mutex_unlock_or_die(engine->lock);
+	}
 
 	return &f->stat;
 }

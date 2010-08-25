@@ -71,6 +71,8 @@ src/bin_alloc.c
 src/bin_alloc.h
 src/build.c
 src/build.h
+src/clean.c
+src/clean.h
 src/cpp_scanner.c
 src/debug.c
 src/debug.h
