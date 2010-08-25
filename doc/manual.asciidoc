@@ -11,47 +11,46 @@ possible incremental build times even for very large software projects.
 
 Its design was motivated by the games industry where projects are huge and
 iterative rebuilding common. In games, teams of 20-30 developers working on the
-same multi-MLOC codebase is not uncommon. Each second wasted by a build system
-to produce a incremental build wastes productivity. But Tundra works well for
-smaller projects too.
+same multi-MLOC codebase is not uncommon. Each second spent by a build system
+not building wastes productivity, especially when there are thousands of builds
+every day!
 
 === Design Philosphy ===
 
-==== Simple and Fast ====
+Here are some philosophical ideas and how they have influenced the design of
+Tundra.
+
+==== Simple is Fast ====
 
 Tundra is written in ANSI C (C89), with very few files. Aside from Lua, there
 are no external dependencies. Most data structures in the C code are simple
-arrays, either stack based or allocated from a linear allocator. All
-allocations are discarded at once in pages when the program exits. This makes
+arrays, either stack based or allocated from a linear allocator. This makes
 the code simple and the program fast as very little time is spent worrying
 about dynamic memory.
 
+==== Support just enough ====
+
+Many modern build systems can sync code from a plethora of version control
+systems, download files from HTTP and lots lots more. Tundra doesn't do any of
+those things. It is a relatively simple command execution platform with a Lua
+configuration frontend. A smaller scope means Tundra is easier to optimize.
+
 ==== Utilize multi-core hardware ====
 
-Almost all developers are using multi-core machines, so it is important that
-the build system can run multiple jobs at once. But it is equally important to
-utilize these cores to do other things like file signing and implicit
-dependency scanning. Tundra is one of very few (if any) build systems that do
-this whenever possible. This design choice give a nice speedup to incremental
-builds.
+It is important that a build system can run multiple jobs at once. But it is
+equally important to utilize all cores to do other things like file signing and
+implicit dependency scanning. Tundra is one of very few (if any) build systems
+that do this whenever possible. This design gives a nice speedup to incremental
+builds where most of the time is spent signing and checking file metadata.
 
 ==== Reliably support code generation ====
 
-Most build systems work perfectly until you start generating source files
-dynamically in the build process. If these files are then included into other
-files many build systems start misbehaving, especially if multiple jobs are run
-concurrently. This is very hard to diagnose and work around, leading to various
-hacks and voodoo surrounding the build process.
-
-Tundra does away with this by adding the possibility of segmenting the build
-into multiple, sequenced passes. Build jobs are only allowed to implicitly
-depend on (that is, +#include+) files generated in previous passes. This keeps
-file generation entirely predictable and it becomes easy to support a
-multi-layered system where the code generation tool itself is built in a first
-pass, it is run to generate output in a second pass and then the full build
-commences. Tundra will still go wide within each pass, but each pass is fully
-synchronous with regards to the others so using the +-j+ option is fully
-supported.
+Tundra is designed around the concept of build passes, which segment the input
+dependency graph into serialized regions. Dependencies (even implicit
+dependencies) can only point to nodes in the same or earlier passes. This
+design makes it easy to reliably support code generation scenarios of arbitrary
+complexity while still supporting fully multi-threaded execution whenever
+possible.
 
 ==== Separate configuration and building ====
 
@@ -64,31 +63,32 @@ speed is unaffected by bad scripting and it is easier to diagnose a slow build.
 ==== Don't guess ====
 
 Tundra doesn't go out of its way to support auto-configuration of toolsets or
-guessing what compiler you want to use. For a game project, there may be
-millions of builds between adding a new platform or configuration to a build
-system. Tools are also very brittle and need a specific configuration to
-produce working builds. The time it will take to support a new toolset while
-offset the time it takes to tell the build system about it by many magnitudes.
+guessing what compiler you want to use. It assumes you can list the
+configurations you care for up front. This speeds up incremental builds as no
+time is wasted scanning for tools in the environment every time.
 
-Tundra therefore must be told explicitly in configuration what tools to use and
-how to run them, it never tries to auto-configure itself for your platform. If
-you need this capability, Tundra is probably not for you.
+For a game project, there may be millions of builds between adding a new
+platform or configuration to a build system. Tools are also very brittle and
+need a specific configuration to produce working builds. The time it will take
+to support a new toolset will offset the time it takes to tell the build
+system about it by several orders of magnitude.
 
 == Hello, world ==
 
 A Tundra project needs atleast two files, one is +tundra.lua+ which specifies
 what build configurations are available for this project. Here is a sample
 minimal +tundra.lua+ file that creates a configuration +macosx-gcc+ which pulls
-in the default +gcc+ and +mono+ toolsets:
+in the stock +gcc+ toolset. We also say that this configuration is to be the
+default if nothing is specified when Tundra is run on Mac OS X:
 
 -------------------------------------------------------------------------------
 Build {
     Units = "units.lua",
     Configs = {
-        {
+        Config {
             Name = "macosx-gcc",
             DefaultOnHost = "macosx",
-            Tools = { "gcc", "mono" },
+            Tools = { "gcc" },
         },
     },
 }
@@ -105,7 +105,9 @@ Program {
 Default "HelloWorld"
 -------------------------------------------------------------------------------
 
-If we now run Tundra on this input, it will build our +HelloWorld+ executable:
+If we now run Tundra on this input, it will build our +HelloWorld+ executable.
+The output path shows that tundra has defaulted the variant to `debug` and the
+subvariant to `default`.
 
 -------------------------------------------------------------------------------
 $ tundra
@@ -164,6 +166,42 @@ from the build directory (because you're hacking on some feature) you can set
 the `TUNDRA_HOME` environment variable to the root directory of the tundra
 source distribution instead.
 
+== A bit of Tundra nomenclature ==
+
+Here are some terms and definitions used in Tundra and elsewhere in this document:
+
+- *configuration* - A two-tuple value separated with a dash; usually in the
+  format `host-toolset`. Two common examples are `win32-msvc` and `linux-gcc`.
+  Configurations can load one or more toolsets.
+
+- *variant* - A variant of a configuration; such as a with or without debugging
+  information. Variants serve as tags to filter settings against. By default,
+  tundra provides three variants: `debug`, `production` and `release` but these
+  can be overridden as desired.
+
+- *subvariant* - An additional axis of separation that is orthagonal to
+  variants but serve the same purpose. By default there is only one subvariant
+  called `default`. Tundra itself uses two subvariants to select between build with
+  Lua files embedded (`standalone`) or with Lua files in the file system (`dev`).
+
+- *build id* - A four-tuple `host-toolset-variant-subvariant` used to fully
+  identify a build. Available through `BUILD_ID` in the unit environment.
+
+- *unit* - A high-level declaration of a piece of software. Unit declarations
+  appear as a syntactic elements in unit input files. Static and dynamic
+  libraries, programs and .NET assemblies are examples of units. Units are passed
+  through the `nodegen` layer to produce dependency graphs from the declarations.
+
+- *environment* - A data structure with key-value mappings used to track
+  configuration data inside Tundra. Sometimes refers to the OS environment.
+
+- *toolset* - A set of commands (e.g. compiler, linker and so on) that can be
+  used to produce output files. Multiple toolsets can be loaded into a single
+  configuration as long as there is no overlap in their settings, that is, a .NET
+  toolset like `mono` can coexists with something like `gcc`, but you can't have
+  two `gcc`-style toolsets loaded into the same configuration at once. Use different
+  configurations for that.
+
 == How Tundra works ==
 
 A Tundra build can divided into a few distinct phases:
@@ -172,15 +210,35 @@ A Tundra build can divided into a few distinct phases:
 - Load toolsets, syntax files and other information as required by the configuration script
 - Run the referred +Units+ file in syntax mode to define the project's build units
 - Parse the resulting declarations and generate DAG nodes
-- Pass the DAG to the native build engine
+- Pass the DAG to the native build engine for building
 
-== The +tundra.lua+ file ==
+== The tundra.lua file ==
 
 The file +tundra.lua+ is read by Tundra when you invoke it. This is a regular
 Lua source file. Its purpose is to call the global +Build+ function with a
 declarative input describing the build session to Tundra. The following
 sections are a reference of what you can place in the +Build+ block.
 Declarations within the block can appear in any order.
+
+.Build block synopsis
+---------------------------------------------------
+Build {
+    -- Required
+    Units = "...",
+    Configs = { ... },
+
+    -- Optional
+    Variants = { ... },
+    DefaultVariant = "...",
+    SubVariants = { ... },
+    DefaultSubVariant = "...",
+    ToolsetDirs = { ... },
+    SyntaxDirs = { ... },
+    SyntaxExtensions = { ... },
+    Passes = { ... },
+    EngineOptions = { ... },
+}
+---------------------------------------------------
 
 === Units (required) ===
 
@@ -192,26 +250,38 @@ any valid filename is OK.
 
 === Configs (required) ===
 
-The +Configs+ key should be set to an array of configurations this build
-supports. Each configuration is in turn a table with the following syntax:
+The +Configs+ key should be set to an array of configurations this build system
+supports. Each configuration is in turn a `Config` table.
 
+==== Config ====
+
+Config blocks describe configuration parameters that apply to all units in the
+build for that configuration, such as include paths, libraries and so on.
+
+.Config Synopsis
 -------------------------------------------------------------------------------
-    {
-        Name = "myplatform-mytoolset",
-        Tools = { ... },
-        DefaultOnHost = "..." ,
-        Inherit = ...,
-        Env = { ... },
-    }
+Config {
+    -- Required
+    Name = "...-...",
+    Tools = { ... },
+
+    -- Optional
+    DefaultOnHost = "..." ,
+    Inherit = ...,
+    Env = { ... },
+    ReplaceEnv = { ... },
+    Virtual = ...,
+    SubConfigs = { ... },
+}
 -------------------------------------------------------------------------------
 
-==== Per-config Name property (required) ====
+==== Config Name property (required) ====
 
 The name of this configuration. Configuration names must be formatted in a
 dashed `platform-toolset` format. These two tokens form the first two in the
 quad `platform-toolset-variant-subvariant` system Tundra uses to id builds.
 
-==== Per-config Tools property (required) ====
+==== Config Tools property (optional) ====
 
 A list of tools this configuration uses. A tool specification is either a
 string, indicating that the defaults for that tool are to be used, or a table
@@ -221,59 +291,157 @@ configure it. Tools are loaded from the tool directory list.
 Projects can add their own tool scripts via a +ToolsetDirs+ array property in
 the +Build+ block.
 
-==== Per-config DefaultOnHost property (optional) ====
+.Config Tools Synopsis
+-------------------------------------------------------------------------------
+Tools = {
+    "foo",
+    ...
+    { "qux"; Foo = 10, Bar = "some value" },
+    ...
+}
+-------------------------------------------------------------------------------
+
+==== Config DefaultOnHost property (optional) ====
 
 If present, this config will be built by default when the host platform matches
 the string. This is convenient to have the host's native configuration build
 in the default variant when you just type `tundra` in the shell.
 
-==== Per-config Env property (optional) ====
+==== Config Env property (optional) ====
 
-If present, must be set to a table. This table contains key-value bindings to
-apply to the environment for this configuration. This typically includes things
-such as include paths (`CPPPATH`), C preprocessor defines (`CPPDEFS`) and C
-compiler options (`CCOPTS`).
+If present, must be set to a table of key-value bindings to append to the
+environment for this configuration. This typically includes things such as
+include paths (`CPPPATH`), C preprocessor defines (`CPPDEFS`) and C compiler
+options (`CCOPTS`).
 
+.Config Env Synopsis
 -----------------------------------------------------------------------------
-Build {
-  Configs = {
-    { Name = "foo-bar", Env = { CPPDEFS = { "FOO", "BAR=BAZ", ... } }, },
-    ...
+Config {
+    Name = "foo-bar",
+    Env = {
+        CPPDEFS = { "FOO", "BAR=BAZ" },
+        CCOPTS = "-frobnicate",
+    },
   },
 }
 -----------------------------------------------------------------------------
 
-==== Per-config Inherit property (optional) ====
+==== Config ReplaceEnv property (optional) ====
+
+Just like the Env block describe above, but replaces the settings rather than
+appending them to the environment.
+
+.Config ReplaceEnv Synopsis
+-----------------------------------------------------------------------------
+Config {
+    Name = "foo-bar",
+    Tools = { "gcc" },
+    ReplaceEnv = {
+        CC = "/my/other/gcc",
+    },
+  },
+}
+-----------------------------------------------------------------------------
+
+==== Config Inherit property (optional) ====
 
 If present, must be set to a table. This table will be scanned for values if
 they are not present in the Config table itself. This is useful to group common
-settings between configs in external tables:
+settings between configs in external tables. These external tables can also
+inherit settings further by applying a new `Inherit` property.
 
+.Inherit Synopsis
 -----------------------------------------------------------------------------
-local foo_common = { Env = { CPPDEFS = { "Bar", "Baz" } } }
+local foo_common = { ... }
+local bar_common = { ..., Inherit = foo_common, }
 
 Build {
   Configs = {
-    { Name = "foo-bar", Inherit = foo_common, ... },
-    { Name = "foo-baz", Inherit = foo_common, ... },
+    Config { ..., Inherit = foo_common, ... },
+    Config { ..., Inherit = bar_common, ... },
     ...
   },
 }
 -----------------------------------------------------------------------------
+
+==== Config Virtual property (optional) ====
+
+If specified, and set to `true`, this configuration is marked as virtual and
+cannot be built directly from the command line. This is useful for
+configurations that only work as subconfigurations in a cross-compilation
+scenario.
+
+==== Config SubConfigs property (optional) ====
+
+If present, must be set to a mapping of identifiers to configuration names. The
+named subconfigurations will be selectable via these identifiers using the
+`SubConfig` selector in units. This feature enables multi-toolset builds; that
+is, building parts of a program with different C compilers, or
+cross-compilation where some parts of the build must be built with the target
+compiler and some with the host compiler.
+
+.Config SubConfigs Synopsis
+-----------------------------------------------------------------------------
+Configs = {
+    Config {
+        Name = "foo-bar",
+        Virtual = true,
+    },
+    Config {
+        Name = "foo-baz",
+        Virtual = true,
+    },
+    ...,
+    Config {
+        Name = "foo-qux",
+        SubConfigs = {
+            abc = "foo-bar",
+            def = "foo-baz",
+            ...
+        }
+    }
+    ...
+}
+-----------------------------------------------------------------------------
+
+=== Variants (optional) ===
+
+Specifies a list of variants and their options. If present, these variants
+completely replace Tundra's built-in variants. There must be atleast one
+variant. A variant consists of a required `Name` property and an optional
+`Options` table.
+
+.Variants synopsis
+---------------------------------------------------
+Variants = {
+    { Name = "...", Options = { ... } }
+}
+---------------------------------------------------
+
+==== Variant Options ====
+
+The only currently recognized option is `GeneratePdb', which causes the MSVC
+toolset to generate debugging files in pdb format.
 
 === Passes (optional) ===
 
 The build block can contain an array of passes which can be used to place
 barriers between groups of build jobs. This is required if files are generated
-that can be discovered only as implicit dependencies.
+that can be discovered only as implicit dependencies. Passes have two
+properties, `Name` and `BuildOrder`, both of which are required. Passes are
+ordered with the lowest `BuildOrder` first.
 
-Here's an example of how +Passes+ can be used within the +Build+ block:
+.Passes Synopsis
 -------------------------------------------------------------------------------
+Build {
+    ...
     Passes = {
-        Foo = { Name="User friendly name", BuildOrder = 1 },
-        Bar = { Name="Some other name", BuildOrder = 2 },
-        -- ...
+        Foo = { Name="...", BuildOrder = 1 },
+        Bar = { Name="...", BuildOrder = 2 },
+        ...
     },
+   ...
+}
 -------------------------------------------------------------------------------
 
 == The Environment ==
