@@ -25,8 +25,13 @@ local common = {
 		CCOPTS = {
 			{ "/WX", "/wd4127", "/wd4100", "/wd4324"; Config = "*-msvc-*" },
 			{ "-g"; Config = { "*-gcc-debug", "*-clang-debug", "*-gcc-production", "*-clang-production" } },
+			{ "-O2"; Config = { "*-gcc-production", "*-clang-production" } },
+			{ "-O3"; Config = { "*-gcc-release", "*-clang-release" } },
 		},
-		CPPDEFS = { "_CRT_SECURE_NO_WARNINGS"; Config = "*-msvc-*"  },
+		CPPDEFS = {
+			{ "_CRT_SECURE_NO_WARNINGS"; Config = "*-msvc-*"  },
+			{ "NDEBUG"; Config = "*-*-release"  },
+		},
 		LIBS = { "kernel32.lib", "advapi32.lib"; Config = "*-msvc-*"  },
 	}
 }
