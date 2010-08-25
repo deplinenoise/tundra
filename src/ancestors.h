@@ -1,5 +1,5 @@
-#ifndef TD_GEN_LUA_DATA_H
-#define TD_GEN_LUA_DATA_H
+#ifndef TD_ANCESTORS_H
+#define TD_ANCESTORS_H
 
 /*
    Copyright 2010 Andreas Fredriksson
@@ -20,13 +20,13 @@
    along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-typedef struct {
-	const char *filename;
-	const char *data;
-	unsigned int size;
-} td_lua_file;
+struct td_engine;
+struct td_node;
 
-extern const int td_lua_file_count;
-extern const td_lua_file td_lua_files[];
+void
+td_load_ancestors(struct td_engine *engine);
+
+void
+td_save_ancestors(struct td_engine *engine, struct td_node *root);
 
 #endif

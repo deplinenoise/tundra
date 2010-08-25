@@ -1,5 +1,5 @@
-#ifndef TD_GEN_LUA_DATA_H
-#define TD_GEN_LUA_DATA_H
+#ifndef TD_FILES_H
+#define TD_FILES_H
 
 /*
    Copyright 2010 Andreas Fredriksson
@@ -20,13 +20,30 @@
    along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-typedef struct {
-	const char *filename;
-	const char *data;
-	unsigned int size;
-} td_lua_file;
+struct td_engine;
+struct td_file;
+struct td_stat;
+struct td_digest;
 
-extern const int td_lua_file_count;
-extern const td_lua_file td_lua_files[];
+typedef enum {
+	TD_BORROW_STRING = 0,
+	TD_COPY_STRING = 1,
+} td_get_file_mode;
+
+struct td_file *
+td_engine_get_file(struct td_engine *engine, const char *path, td_get_file_mode mode);
+
+const struct td_stat*
+td_stat_file(struct td_engine *engine, struct td_file *f);
+
+void
+td_touch_file(struct td_engine *engine, struct td_file *f);
+
+struct td_digest *
+td_get_signature(struct td_engine *engine, struct td_file *f);
+
+struct td_file *
+td_parent_dir(struct td_engine *engine, struct td_file *f);
+
 
 #endif
