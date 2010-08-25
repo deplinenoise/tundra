@@ -20,6 +20,7 @@
 #include "util.h"
 #include "engine.h"
 #include "portable.h"
+#include "files.h"
 
 #include <string.h>
 #include <stdlib.h>

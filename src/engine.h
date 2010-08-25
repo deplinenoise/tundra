@@ -299,27 +299,12 @@ typedef struct td_engine
 #define td_check_noderef(L, index) ((struct td_noderef *) luaL_checkudata(L, index, TUNDRA_NODEREF_MTNAME))
 #define td_check_engine(L, index) ((struct td_engine *) luaL_checkudata(L, index, TUNDRA_ENGINE_MTNAME))
 
-typedef enum {
-	TD_BORROW_STRING = 0,
-	TD_COPY_STRING = 1,
-} td_get_file_mode;
-
-td_file *
-td_engine_get_file(td_engine *engine, const char *path, td_get_file_mode mode);
-
-const td_stat*
-td_stat_file(td_engine *engine, td_file *f);
-
-void
-td_touch_file(td_engine *engine, td_file *f);
-
-td_digest *
-td_get_signature(td_engine *engine, td_file *f);
-
-td_file *
-td_parent_dir(td_engine *engine, td_file *f);
-
 void
 td_call_cache_hook(struct lua_State *L, void* key, int spec_idx, int result_idx);
+
+int td_compare_ancestors(const void* l, const void* r);
+
+void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out);
+void td_sign_digest(td_engine *engine, td_file *file, td_digest *out);
 
 #endif

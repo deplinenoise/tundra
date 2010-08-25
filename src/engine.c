@@ -21,7 +21,10 @@
 #include "portable.h"
 #include "md5.h"
 #include "relcache.h"
-#include "clean.h"
+#include "scanner.h"
+#include "util.h"
+#include "ancestors.h"
+#include "files.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -31,11 +34,6 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#include "debug.h"
-#include "scanner.h"
-#include "util.h"
-#include "build.h"
-
 #ifdef _WIN32
 #include <malloc.h> /* alloca */
 #endif
@@ -44,17 +42,9 @@
 #define snprintf _snprintf
 #endif
 
-#define TD_ANCESTOR_FILE ".tundra-ancestors"
-
 char td_scanner_hook_key;
 char td_node_hook_key;
 char td_dirwalk_hook_key;
-
-static pthread_mutex_t *
-get_object_lock(td_engine *engine, uint32_t hash)
-{
-	return &engine->object_locks[hash % TD_OBJECT_LOCK_COUNT];
-}
 
 void td_sign_timestamp(td_engine *engine, td_file *f, td_digest *out)
 {
@@ -129,7 +119,7 @@ compute_node_guid(td_engine *engine, td_node *node)
 	}
 }
 
-static int compare_ancestors(const void* l_, const void* r_)
+int td_compare_ancestors(const void* l_, const void* r_)
 {
 	const td_ancestor_data *l = (const td_ancestor_data *) l_, *r = (const td_ancestor_data *) r_;
 	return memcmp(l->guid.data, r->guid.data, sizeof(l->guid.data));
@@ -363,183 +353,6 @@ static void configure_from_env(td_engine *engine)
 		engine->settings.thread_count = atoi(tmp);
 }
 
-static void
-load_ancestors(td_engine *engine)
-{
-	FILE* f;
-	int i, count;
-	long file_size;
-	size_t read_count;
-
-	if (NULL == (f = fopen(TD_ANCESTOR_FILE, "rb")))
-	{
-		if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
-			printf("couldn't open %s; no ancestor information present\n", TD_ANCESTOR_FILE);
-		return;
-	}
-
-	fseek(f, 0, SEEK_END);
-	file_size = ftell(f);
-	rewind(f);
-
-	if (file_size % sizeof(td_ancestor_data) != 0)
-		td_croak("illegal ancestor file: %d not a multiple of %d bytes",
-				(int) file_size, sizeof(td_ancestor_data));
-
-	engine->ancestor_count = count = (int) (file_size / sizeof(td_ancestor_data));
-	engine->ancestors = malloc(file_size);
-	engine->ancestor_used = (td_node **)calloc(sizeof(td_node *), count);
-	read_count = fread(engine->ancestors, sizeof(td_ancestor_data), count, f);
-
-	if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
-		printf("read %d ancestors\n", count);
-
-	if (read_count != (size_t) count)
-		td_croak("only read %d items, wanted %d", read_count, count);
-
-	for (i = 1; i < count; ++i)
-	{
-		int cmp = compare_ancestors(&engine->ancestors[i-1], &engine->ancestors[i]);
-		if (cmp == 0)
-			td_croak("bad ancestor file; duplicate item (%d/%d)", i, count);
-		if (cmp > 0)
-			td_croak("bad ancestor file; bad sort order on item (%d/%d)", i, count);
-	}
-
-	if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
-	{
-		printf("full ancestor dump on load:\n");
-		for (i = 0; i < count; ++i)
-		{
-			char guid[33], sig[33];
-			td_digest_to_string(&engine->ancestors[i].guid, guid);
-			td_digest_to_string(&engine->ancestors[i].input_signature, sig);
-			printf("%s %s %ld %d\n", guid, sig, (long) engine->ancestors[i].access_time, engine->ancestors[i].job_result);
-		}
-	}
-
-	fclose(f);
-}
-
-static void
-update_ancestors(
-		td_engine *engine,
-		td_node *node,
-		time_t now,
-		int *cursor,
-		td_ancestor_data *output,
-		unsigned char *visited)
-{
-	int i, count, output_index;
-
-	if (node->job.flags & TD_JOBF_ANCESTOR_UPDATED)
-		return;
-
-	node->job.flags |= TD_JOBF_ANCESTOR_UPDATED;
-
-	/* If this node had an ancestor record, flag it as visited. This way it
-	 * will be disregarded when writing out all the other ancestors that
-	 * weren't used this build session. */
-	{
-		const td_ancestor_data *data;
-		if (NULL != (data = node->ancestor_data))
-		{
-			int index = (int) (data - engine->ancestors);
-			assert(index < engine->ancestor_count);
-			assert(0 == visited[index]);
-			visited[index] = 1;
-		}
-	}
-
-	output_index = *cursor;
-	*cursor += 1;
-	memset(&output[output_index], 0, sizeof(td_ancestor_data));
-
-	memcpy(&output[output_index].guid, &node->guid, sizeof(td_digest));
-	memcpy(&output[output_index].input_signature, &node->job.input_signature, sizeof(td_digest));
-	output[output_index].access_time = now;
-	output[output_index].job_result = node->job.state;
-
-	for (i = 0, count = node->dep_count; i < count; ++i)
-		update_ancestors(engine, node->deps[i], now, cursor, output, visited);
-}
-
-enum {
-	TD_ANCESTOR_TTL_DAYS = 7,
-	TD_SECONDS_PER_DAY = (60 * 60 * 24),
-	TD_ANCESTOR_TTL_SECS = TD_SECONDS_PER_DAY * TD_ANCESTOR_TTL_DAYS,
-};
-
-static int
-ancestor_timed_out(const td_ancestor_data *data, time_t now)
-{
-	return data->access_time + TD_ANCESTOR_TTL_SECS < now;
-}
-
-static void
-save_ancestors(td_engine *engine, td_node *root)
-{
-	FILE* f;
-	int i, count, max_count;
-	int output_cursor, write_count;
-	td_ancestor_data *output;
-	unsigned char *visited;
-	time_t now = time(NULL);
-	const int dbg = td_debug_check(engine, TD_DEBUG_ANCESTORS);
-
-	if (NULL == (f = fopen(TD_ANCESTOR_FILE ".tmp", "wb")))
-	{
-		fprintf(stderr, "warning: couldn't save ancestors\n");
-		return;
-	}
-
-	max_count = engine->node_count + engine->ancestor_count;
-	output = (td_ancestor_data *) malloc(sizeof(td_ancestor_data) * max_count);
-	visited = (unsigned char *) calloc(engine->ancestor_count, 1);
-
-	output_cursor = 0;
-	update_ancestors(engine, root, now, &output_cursor, output, visited);
-
-	if (dbg)
-		printf("refreshed %d ancestors\n", output_cursor);
-
-	for (i = 0, count = engine->ancestor_count; i < count; ++i)
-	{
-		const td_ancestor_data *a = &engine->ancestors[i];
-		if (!visited[i] && !ancestor_timed_out(a, now))
-			output[output_cursor++] = *a;
-	}
-
-	if (dbg)
-		printf("%d ancestors to save in total\n", output_cursor);
-
-	qsort(output, output_cursor, sizeof(td_ancestor_data), compare_ancestors);
-
-	if (dbg)
-	{
-		printf("full ancestor dump on save:\n");
-		for (i = 0; i < output_cursor; ++i)
-		{
-			char guid[33], sig[33];
-			td_digest_to_string(&output[i].guid, guid);
-			td_digest_to_string(&output[i].input_signature, sig);
-			printf("%s %s %ld %d\n", guid, sig, (long) output[i].access_time, output[i].job_result);
-		}
-	}
-
-	write_count = (int) fwrite(output, sizeof(td_ancestor_data), output_cursor, f);
-
-	fclose(f);
-	free(visited);
-	free(output);
-
-	if (write_count != output_cursor)
-		td_croak("couldn't write %d entries; only wrote %d", output_cursor, write_count);
-
-	if (0 != td_move_file(TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE))
-		td_croak("couldn't rename %s to %s", TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE);
-}
-
 static const char*
 copy_string_field(lua_State *L, td_engine *engine, int index, const char *field_name)
 {
@@ -605,7 +418,7 @@ static int make_engine(lua_State *L)
 
 	configure_from_env(self);
 
-	load_ancestors(self);
+	td_load_ancestors(self);
 
 	td_load_relcache(self);
 
@@ -672,7 +485,7 @@ setup_ancestor_data(td_engine *engine, td_node *node)
 		key.guid = node->guid; /* only key field is relevant */
 
 		node->ancestor_data = (td_ancestor_data *)
-			bsearch(&key, engine->ancestors, engine->ancestor_count, sizeof(td_ancestor_data), compare_ancestors);
+			bsearch(&key, engine->ancestors, engine->ancestor_count, sizeof(td_ancestor_data), td_compare_ancestors);
 
 		if (node->ancestor_data)
 		{
@@ -1190,223 +1003,12 @@ insert_output_files(lua_State *L)
 	return insert_file_list(L, self->output_count, self->outputs);
 }
 
-static void
-add_pending_job(td_engine *engine, td_node *blocking_node, td_node *blocked_node)
-{
-	td_job_chain *chain;
-
-	chain = blocking_node->job.pending_jobs;
-	while (chain)
-	{
-		if (chain->node == blocked_node)
-			return;
-		chain = chain->next;
-	}
-
-	chain = td_page_alloc(&engine->alloc, sizeof(td_job_chain));
-	chain->node = blocked_node;
-	chain->next = blocking_node->job.pending_jobs;
-	blocking_node->job.pending_jobs = chain;
-	blocked_node->job.block_count++;
-}
-
-enum {
-	TD_MAX_DEPTH = 1024
-};
-
-static void
-assign_jobs(td_engine *engine, td_node *root_node, td_node *stack[TD_MAX_DEPTH], int level)
-{
-	int i, dep_count;
-	td_node **deplist = root_node->deps;
-
-	for (i = 0; i < level; ++i)
-	{
-		if (stack[i] == root_node)
-		{
-			fprintf(stderr, "cyclic dependency detected:\n");
-			for (; i < level; ++i)
-			{
-				fprintf(stderr, "  \"%s\" depends on\n", stack[i]->annotation);
-			}
-			fprintf(stderr, "  \"%s\"\n", root_node->annotation);
-
-			td_croak("giving up");
-		}
-	}
-
-	if (level >= TD_MAX_DEPTH)
-		td_croak("dependency graph is too deep; bump TD_MAX_DEPTH");
-
-	stack[level] = root_node;
-
-	dep_count = root_node->dep_count;
-
-	if (0 == (TD_JOBF_SETUP_COMPLETE & root_node->job.flags))
-	{
-		for (i = 0; i < dep_count; ++i)
-		{
-			td_node *dep = deplist[i];
-			add_pending_job(engine, dep, root_node);
-		}
-
-		for (i = 0; i < dep_count; ++i)
-		{
-			td_node *dep = deplist[i];
-			assign_jobs(engine, dep, stack, level+1);
-		}
-	}
-
-	root_node->job.flags |= TD_JOBF_SETUP_COMPLETE;
-}
-
-static int
-comp_pass_ptrs(const void *l, const void *r)
-{
-	const td_pass **lhs = (const td_pass **)l;
-	const td_pass **rhs = (const td_pass **)r;
-	return (*lhs)->build_order - (*rhs)->build_order;
-}
-
-static void add_pass_deps(td_engine *engine, td_pass *prec, td_pass *succ)
-{
-	int count;
-	td_node **dep_array;
-	td_job_chain *chain;
-
-	dep_array = td_page_alloc(&engine->alloc, sizeof(td_node*) * prec->node_count);
-	count = 0;
-	chain = prec->nodes;
-	while (chain)
-	{
-		dep_array[count++] = chain->node;
-		chain = chain->next;
-	}
-	assert(count == prec->node_count);
-
-	succ->barrier_node->dep_count = count;
-	succ->barrier_node->deps = dep_array;
-}
-
-static void
-connect_pass_barriers(td_engine *engine)
-{
-	int i, count;
-	td_pass *passes[TD_PASS_MAX];
-
-	count = engine->pass_count;
-	for (i = 0; i < count; ++i)
-		passes[i] = &engine->passes[i];
-
-	qsort(&passes[0], count, sizeof(td_pass *), comp_pass_ptrs);
-
-	/* arrange for job barriers to depend on all nodes in the preceding pass */
-	for (i = 1; i < count; ++i)
-	{
-		add_pass_deps(engine, passes[i-1], passes[i]);
-	}
-}
-
 /*
  * Execute actions needed to update a dependency graph.
  *
  * Input:
  * A list of dag nodes to build.
  */
-static int
-build_nodes(lua_State* L)
-{
-	td_build_result build_result;
-	int pre_file_count;
-	td_engine * self;
-	td_node *root;
-	double t1, t2, script_end_time;
-	extern int global_tundra_exit_code;
-	int is_clean = 0;
-
-	/* record this timestamp as the time when Lua ended */
-	script_end_time = td_timestamp();
-
-	self = td_check_engine(L, 1);
-	root = td_check_noderef(L, 2)->node;
-
-	if (lua_gettop(L) >= 3)
-	{
-		const char *how = luaL_checkstring(L, 3);
-		if (0 == strcmp("clean", how))
-		{
-			is_clean = 1;
-		}
-	}
-
-	connect_pass_barriers(self);
-
-	pre_file_count = self->stats.file_count;
-
-	t1 = td_timestamp();
-	if (0 == is_clean)
-	{
-		int jobs_run = 0;
-		td_node *stack[TD_MAX_DEPTH];
-		assign_jobs(self, root, stack, 0);
-		build_result = td_build(self, root, &jobs_run);
-		printf("*** build %s, %d jobs run\n", td_build_result_names[build_result], jobs_run);
-	}
-	else
-	{
-		td_clean_files(self, root);
-		build_result = TD_BUILD_SUCCESS;
-	}
-	t2 = td_timestamp();
-
-	if (td_debug_check(self, TD_DEBUG_STATS))
-	{
-		extern int global_tundra_stats;
-		extern double script_call_t1;
-		extern int walk_path_count;
-		extern double walk_path_time;
-		double file_load = 100.0 * self->stats.file_count / self->file_hash_size;
-		double relation_load = 100.0 * self->stats.relation_count / self->relhash_size;
-
-		printf("post-build stats:\n");
-		printf("  files tracked: %d (%d directly from DAG), file table load %.2f%%\n", self->stats.file_count, pre_file_count, file_load);
-		printf("  relations tracked: %d, table load %.2f%%\n", self->stats.relation_count, relation_load);
-		printf("  relation cache load: %.3fs save: %.3fs\n", self->stats.relcache_load, self->stats.relcache_save);
-		printf("  nodes with ancestry: %d of %d possible\n", self->stats.ancestor_nodes, self->stats.ancestor_checks);
-		printf("  time spent in Lua doing setup: %.3fs\n", script_end_time - script_call_t1);
-		printf("    - time spent iterating directories (glob): %.3fs over %d calls\n", walk_path_time, walk_path_count);
-		printf("  total time spent in build loop: %.3fs\n", t2-t1);
-		printf("    - implicit dependency scanning: %.3fs\n", self->stats.scan_time);
-		printf("    - output directory creation/mgmt: %.3fs\n", self->stats.mkdir_time);
-		printf("    - command execution: %.3fs\n", self->stats.build_time);
-		printf("    - (parallel) stat() time: %.3fs (%d calls out of %d queries)\n", self->stats.stat_time, self->stats.stat_calls, self->stats.stat_checks);
-		printf("    - (parallel) file signing time: %.3fs (md5: %d, timestamp: %d)\n", self->stats.file_signing_time, self->stats.md5_sign_count, self->stats.timestamp_sign_count);
-		printf("    - up2date checks time: %.3fs\n", self->stats.up2date_check_time);
-		if (t2 > t1)
-			printf("  efficiency: %.2f%%\n", (self->stats.build_time * 100.0) / (t2-t1));
-
-		/* have main print total time spent, including script */
-		global_tundra_stats = 1;
-	}
-
-	if (!self->settings.dry_run)
-	{
-		save_ancestors(self, root);
-		td_save_relcache(self);
-	}
-
-	if (TD_BUILD_SUCCESS == build_result)
-		global_tundra_exit_code = 0;
-	else
-		global_tundra_exit_code = 1;
-
-	/* Finally remove our table of environment mappings. */
-	lua_pushvalue(L, 1);
-	lua_pushnil(L);
-	lua_settable(L, LUA_REGISTRYINDEX);
-
-	return 0;
-}
 
 static int
 is_node(lua_State *L)
@@ -1450,9 +1052,11 @@ set_node_cache_hook(lua_State *L) { return set_callback(L, &td_node_hook_key); }
 static int
 set_dirwalk_cache_hook(lua_State *L) { return set_callback(L, &td_dirwalk_hook_key); }
 
+extern int td_build_nodes(lua_State* L);
+
 static const luaL_Reg engine_mt_entries[] = {
 	{ "make_node", make_node },
-	{ "build", build_nodes },
+	{ "build", td_build_nodes }, /* in build_setup.c */
 	{ "set_scanner_cache_hook", set_scanner_cache_hook },
 	{ "set_node_cache_hook", set_node_cache_hook },
 	{ "set_dirwalk_cache_hook", set_dirwalk_cache_hook },
@@ -1490,139 +1094,4 @@ void td_engine_open(lua_State *L)
 	/* set up engine and node object metatable */
 	create_mt(L, TUNDRA_ENGINE_MTNAME, engine_mt_entries);
 	create_mt(L, TUNDRA_NODEREF_MTNAME, node_mt_entries);
-}
-
-const td_stat *
-td_stat_file(td_engine *engine, td_file *f)
-{
-	double t1 = 0.0;
-	int did_stat = 0;
-	int collect_stats = 0;
-	int result;
-	pthread_mutex_t *objlock;
-
-	collect_stats = td_debug_check(engine, TD_DEBUG_STATS);
-
-	if (collect_stats)
-		t1 = td_timestamp();
-
-	objlock = get_object_lock(engine, f->hash);
-	td_mutex_lock_or_die(objlock);
-
-	if (f->stat_dirty)
-	{
-		if (0 != fs_stat_file(f->path, &f->stat))
-		{
-			f->stat.flags = 0;
-			f->stat.size = 0;
-			f->stat.timestamp = 0;
-		}
-		f->stat_dirty = 0;
-		result = 1;
-	}
-	else
-		result = 0;
-
-	td_mutex_unlock_or_die(objlock);
-
-	if (collect_stats)
-	{
-		double t2 = td_timestamp();
-		td_mutex_lock_or_die(engine->lock);
-		++engine->stats.stat_calls;
-		engine->stats.stat_time += t2 - t1;
-		engine->stats.stat_checks += did_stat;
-		td_mutex_unlock_or_die(engine->lock);
-	}
-
-	return &f->stat;
-}
-
-void
-td_touch_file(td_engine *engine, td_file *f)
-{
-	pthread_mutex_t *obj_lock;
-	obj_lock = get_object_lock(engine, f->hash);
-
-	td_mutex_lock_or_die(obj_lock);
-	f->stat_dirty = 1;
-	f->signature_dirty = 1;
-	td_mutex_unlock_or_die(obj_lock);
-}
-
-td_digest *
-td_get_signature(td_engine *engine, td_file *f)
-{
-	int count_bump = 0;
-	const int dry_run = engine->settings.dry_run;
-	double t1, t2;
-	pthread_mutex_t *object_lock;
-
-	t1 = td_timestamp();
-
-	object_lock = get_object_lock(engine, f->hash);
-	td_mutex_lock_or_die(object_lock);
-
-	if (f->signature_dirty)
-	{
-		if (!dry_run)
-		{
-			assert(f->signer);
-
-			if (f->signer->is_lua)
-				td_croak("lua signers not implemented yet");
-			else
-				(*f->signer->function.function)(engine, f, &f->signature);
-
-			count_bump = 1;
-		}
-		else
-		{
-			memset(&f->signature, 0, sizeof(f->signature));
-		}
-
-		f->signature_dirty = 0;
-	}
-
-	td_mutex_unlock_or_die(object_lock);
-
-	/* modify stats once we're back in the engine lock */
-	td_mutex_lock_or_die(engine->lock);
-	if (count_bump && !f->signer->is_lua)
-	{
-		td_sign_fn function = f->signer->function.function;
-		if (td_sign_digest == function)
-			++engine->stats.timestamp_sign_count;
-		else if (td_sign_digest == function)
-			++engine->stats.md5_sign_count;
-	}
-
-	t2 = td_timestamp();
-	engine->stats.file_signing_time += t2 - t1;
-	td_mutex_unlock_or_die(engine->lock);
-
-	return &f->signature;
-}
-
-td_file *td_parent_dir(td_engine *engine, td_file *f)
-{
-	int i;
-	char path_buf[512];
-
-	if (f->path_len >= sizeof(path_buf) - 1)
-		td_croak("path too long: %s", f->path);
-
-	strncpy(path_buf, f->path, sizeof(path_buf));
-
-	for (i = f->path_len - 1; i >= 0; --i)
-	{
-		char ch = path_buf[i];
-		if (TD_PATHSEP == ch)
-		{
-			path_buf[i] = '\0';
-			return td_engine_get_file(engine, path_buf, TD_COPY_STRING);
-		}
-	}
-
-	return NULL;
 }

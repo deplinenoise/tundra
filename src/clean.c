@@ -19,6 +19,7 @@
 
 #include "clean.h"
 #include "engine.h"
+#include "files.h"
 
 #include <stdio.h>
 #include <stdlib.h>

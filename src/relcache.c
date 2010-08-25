@@ -21,6 +21,7 @@
 #include "engine.h"
 #include "util.h"
 #include "portable.h"
+#include "files.h"
 
 #include <assert.h>
 #include <string.h>

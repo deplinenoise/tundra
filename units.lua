@@ -44,11 +44,23 @@ Program {
 	Defines = { "TD_STANDALONE"; Config = "*-*-*-standalone" },
 	Depends = { "base_lua", "luac", "gen_lua_data" },
 	Sources = {
-		"src/bin_alloc.c", "src/build.c", "src/clean.c",
-		"src/cpp_scanner.c", "src/debug.c", "src/engine.c",
-		"src/luafs.c", "src/md5.c", "src/scanner.c",
-		"src/tundra.c", "src/util.c", "src/portable.c",
-		"src/relcache.c", "src/luaprof.c",
+		"src/ancestors.c",
+		"src/build.c",
+		"src/build_setup.c",
+		"src/bin_alloc.c",
+		"src/clean.c",
+	 	"src/cpp_scanner.c",
+	 	"src/debug.c",
+	 	"src/engine.c",
+	 	"src/files.c",
+		"src/luafs.c",
+		"src/md5.c",
+		"src/scanner.c",
+		"src/tundra.c",
+		"src/util.c",
+		"src/portable.c",
+		"src/relcache.c",
+		"src/luaprof.c",
 
 		{
 			EmbedLuaSources {

@@ -51,6 +51,7 @@
 #include "util.h"
 #include "scanner.h"
 #include "md5.h"
+#include "files.h"
 
 #include <string.h>
 #include <stdio.h>

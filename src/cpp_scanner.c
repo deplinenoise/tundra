@@ -22,6 +22,7 @@
 #include "scanner.h"
 #include "portable.h"
 #include "relcache.h"
+#include "files.h"
 
 #include <ctype.h>
 #include <lua.h>
