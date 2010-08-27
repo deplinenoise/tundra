@@ -15,12 +15,13 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
-local env = ...
+module(..., package.seeall)
 
-env:set_many {
-	["CSLIBS"] = "", -- assembly references
-	["CSCOPTS"] = "-optimize",
-	["CSRESOURCES"] = "",
-	["CSC_WARNING_LEVEL"] = "4",
-}
-
+function apply(env, options)
+	env:set_many {
+		["CSLIBS"] = "", -- assembly references
+		["CSCOPTS"] = "-optimize",
+		["CSRESOURCES"] = "",
+		["CSC_WARNING_LEVEL"] = "4",
+	}
+end

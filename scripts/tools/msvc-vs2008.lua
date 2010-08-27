@@ -18,11 +18,7 @@
 -- msvc-vs2008.lua - Settings to use Microsoft Visual Studio 2008 from the
 -- registry.
 
-local env, options = ...
-
--- Load basic MSVC environment setup first. We're going to replace the paths to
--- some tools.
-load_toolset('msvc', env)
+module(..., package.seeall)
 
 local setup = toolset_once("msvc-vs2008", function()
 	local native = require "tundra.native"
@@ -132,4 +128,9 @@ local setup = toolset_once("msvc-vs2008", function()
 	end
 end)
 
-setup(env, options)
+function apply(env, options)
+	-- Load basic MSVC environment setup first. We're going to replace the paths to
+	-- some tools.
+	load_toolset('msvc', env)
+	setup(env, options)
+end

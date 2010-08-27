@@ -17,7 +17,8 @@
 
 -- generic-cpp.lua - Generic C, C++, Objective-C support
 
-local _outer_env = ...
+module(..., package.seeall)
+
 local nodegen = require "tundra.nodegen"
 local util = require "tundra.util"
 local path = require "tundra.path"
@@ -89,23 +90,26 @@ local function generic_cpp_setup(env)
 	end
 end
 
-_outer_env:add_setup_function(generic_cpp_setup)
+function apply(_outer_env, options)
 
-_outer_env:set_many {
-	["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
-	["CCEXTS"] = { "c" },
-	["C++EXTS"] = { "cpp", "cxx", "cc" },
-	["OBJCEXTS"] = { "m" },
-	["PROGSUFFIX"] = "$(HOSTPROGSUFFIX)",
-	["SHLIBSUFFIX"] = "$(HOSTSHLIBSUFFIX)",
-	["CPPPATH"] = "",
-	["CPPDEFS"] = "",
-	["LIBS"] = "",
-	["LIBPATH"] = "",
-	["CPPDEFS_DEBUG"] = "",
-	["CPPDEFS_PRODUCTION"] = "",
-	["CPPDEFS_RELEASE"] = "",
-	["CCOPTS_DEBUG"] = "",
-	["CCOPTS_PRODUCTION"] = "",
-	["CCOPTS_RELEASE"] = "",
-}
+	_outer_env:add_setup_function(generic_cpp_setup)
+
+	_outer_env:set_many {
+		["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
+		["CCEXTS"] = { "c" },
+		["C++EXTS"] = { "cpp", "cxx", "cc" },
+		["OBJCEXTS"] = { "m" },
+		["PROGSUFFIX"] = "$(HOSTPROGSUFFIX)",
+		["SHLIBSUFFIX"] = "$(HOSTSHLIBSUFFIX)",
+		["CPPPATH"] = "",
+		["CPPDEFS"] = "",
+		["LIBS"] = "",
+		["LIBPATH"] = "",
+		["CPPDEFS_DEBUG"] = "",
+		["CPPDEFS_PRODUCTION"] = "",
+		["CPPDEFS_RELEASE"] = "",
+		["CCOPTS_DEBUG"] = "",
+		["CCOPTS_PRODUCTION"] = "",
+		["CCOPTS_RELEASE"] = "",
+	}
+end

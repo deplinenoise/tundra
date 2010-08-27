@@ -15,16 +15,18 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
-local env = ...
+module(..., package.seeall)
 
-load_toolset("generic-dotnet", env)
+function apply(env, options)
+	load_toolset("generic-dotnet", env)
 
-env:set_many {
-	["CSC"] = "gmcs",
-	["CSPROGSUFFIX"] = ".exe",
-	["CSLIBSUFFIX"] = ".dll",
-	["CSRESGEN"] = "resgen2 $(<) $(@)",
-	["_CSC_COMMON"] = "-warn:$(CSC_WARNING_LEVEL) /nologo $(CSLIBPATH:p-lib\\:) $(CSRESOURCES:p-resource\\:) $(CSLIBS:p-reference\\::A.dll)",
-	["CSCLIBCOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:library -out:$(@) $(<)",
-	["CSCEXECOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:exe -out:$(@) $(<)",
-}
+	env:set_many {
+		["CSC"] = "gmcs",
+		["CSPROGSUFFIX"] = ".exe",
+		["CSLIBSUFFIX"] = ".dll",
+		["CSRESGEN"] = "resgen2 $(<) $(@)",
+		["_CSC_COMMON"] = "-warn:$(CSC_WARNING_LEVEL) /nologo $(CSLIBPATH:p-lib\\:) $(CSRESOURCES:p-resource\\:) $(CSLIBS:p-reference\\::A.dll)",
+		["CSCLIBCOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:library -out:$(@) $(<)",
+		["CSCEXECOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:exe -out:$(@) $(<)",
+	}
+end

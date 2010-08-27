@@ -15,13 +15,14 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
+module(..., package.seeall)
 
-local env = ...
+function apply(env, options)
+	load_toolset("gcc-osx", env)
 
-load_toolset("gcc-osx", env)
-
-env:set_many {
-	["CC"] = "clang",
-	["C++"] = "clang",
-	["LD"] = "clang",
-}
+	env:set_many {
+		["CC"] = "clang",
+		["C++"] = "clang",
+		["LD"] = "clang",
+	}
+end

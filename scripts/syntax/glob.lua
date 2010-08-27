@@ -17,7 +17,8 @@
 
 -- glob.lua - Glob syntax elements for declarative tundra.lua usage
 
-local decl_parser = ...
+module(..., package.seeall)
+
 local native = require "tundra.native"
 local util = require "tundra.util"
 local path = require "tundra.path"
@@ -58,7 +59,7 @@ end
 --
 --	  Recursive = boolean (optional, default: true)
 --	  - Specified whether to recurse into subdirectories
-decl_parser:add_source_generator("Glob", function (args)
+local function Glob(args)
 	local recursive = args.Recursive
 	if type(recursive) == "nil" then
 		recursive = true
@@ -69,7 +70,7 @@ decl_parser:add_source_generator("Glob", function (args)
 		local ext = path.get_extension(fn)
 		return ext_lookup[ext]
 	end)
-end)
+end
 
 -- FGlob syntax - Search for source files matching extension list with
 -- configuration filtering
@@ -85,7 +86,7 @@ end)
 --       },
 --       [Recursive = false],
 --   }
-decl_parser:add_source_generator("FGlob", function (args)
+local function FGlob(args)
 	-- Use the regular glob to fetch the file list.
 	local files = Glob(args)
 	local pats = {}
@@ -122,4 +123,10 @@ decl_parser:add_source_generator("FGlob", function (args)
 		end
 	end
 	return result
-end)
+end
+
+function apply(decl_parser)
+	decl_parser:add_source_generator("Glob", Glob)
+	decl_parser:add_source_generator("FGlob", FGlob)
+end
+

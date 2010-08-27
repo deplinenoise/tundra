@@ -263,48 +263,35 @@ do
 	chunk(default_env)
 end
 
-local syntax_dirs = { TundraRootDir .. "/scripts/syntax/" }
-local toolset_dirs = { TundraRootDir .. "/scripts/tools/" }
-local loaded_toolsets = {}
-local loaded_syntaxes = {}
+local syntax_dirs = { TundraRootDir .. "/scripts/syntax/?.lua" }
+local toolset_dirs = { TundraRootDir .. "/scripts/tools/?.lua" }
 local toolset_once_map = {}
 
-local function get_memoized_chunk(kind, id, table, dirs)
-	local chunk = table[id]
-	if chunk then return chunk end
+local function import_script(kind, id, dirs)
+	local old_path = package.path
+	package.path = table.concat(dirs, ';') .. ';' .. package.path
+	local mod, err = require(id)
+	package.path = old_path
 
-	for _, dir in ipairs(dirs) do
-		if dir:len() > 0 then
-			dir = dir .. '/'
-		end
-		local path = dir .. id ..".lua"
-		local f, err = io.open(path, 'r')
-		if f then
-			if Options.Verbose then
-				print("loading toolset " .. id .. " from " .. path)
-			end
-			local data = f:read("*a")
-			f:close()
-			chunk = assert(loadstring(data, path))
-			table[id] = chunk
-			return chunk
-		end
+	if not mod then
+		io.stderr:write(err, "\n")
+		errorf("couldn't find %s %s in any of these paths: %s", kind, id, util.tostring(dirs))
 	end
 
-	errorf("couldn't find %s %s in any of these paths: %s", kind, id, util.tostring(dirs))
+	return mod
 end
 
 function load_toolset(id, env, options)
-	local chunk = get_memoized_chunk("toolset", id, loaded_toolsets, toolset_dirs)
+	local pkg = import_script("toolset", id, toolset_dirs)
 	if Options.VeryVerbose then
 		print("applying toolset " .. id .. " to env " .. env:get('BUILD_ID'))
 	end
-	chunk(env, options)
+	pkg.apply(env, options)
 end
 
 function load_syntax(id, decl, passes)
-	local chunk = get_memoized_chunk("syntax", id, loaded_syntaxes, syntax_dirs)
-	chunk(decl, passes)
+	local pkg = import_script("syntax", id, syntax_dirs)
+	pkg.apply(decl, passes)
 end
 
 function toolset_once(id, fn)
@@ -321,7 +308,7 @@ local function add_toolset_dir(dir)
 		printf("adding toolset dir \"%s\"", dir)
 	end
 	-- Make sure dir is sane
-	dir = path.normalize(dir)
+	dir = path.normalize(dir) .. SEP .. "?.lua"
 	-- Add user toolset dir first so they can override builtin scripts.
 	table.insert(toolset_dirs, 1, dir)
 end
@@ -331,7 +318,7 @@ local function add_syntax_dir(dir)
 		printf("adding syntax dir \"%s\"", dir)
 	end
 	-- Make sure dir is sane and ends with a slash
-	dir = path.normalize(dir)
+	dir = path.normalize(dir) .. SEP .. "?.lua"
 	-- Add user toolset dir first so they can override builtin scripts.
 	table.insert(syntax_dirs, 1, dir)
 end

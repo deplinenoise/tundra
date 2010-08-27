@@ -15,28 +15,30 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
-local env = ...
+module(..., package.seeall)
 
--- load the generic C toolset first
-load_toolset("generic-cpp", env)
+local native = require "tundra.native"
 
-local native = require("tundra.native")
+function apply(env, options)
+	-- load the generic C toolset first
+	load_toolset("generic-cpp", env)
 
-env:set_many {
-	["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".a", ".o" },
-	["OBJECTSUFFIX"] = ".o",
-	["LIBSUFFIX"] = ".a",
-	["_GCC_BINPREFIX"] = "",
-	["CC"] = "$(_GCC_BINPREFIX)gcc",
-	["C++"] = "$(_GCC_BINPREFIX)g++",
-	["LIB"] = "$(_GCC_BINPREFIX)ar",
-	["LD"] = "$(_GCC_BINPREFIX)gcc",
-	["_OS_CCOPTS"] = "",
-	["CCOPTS"] = "-Wall",
-	["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
-	["CXXCOM"] = "$(CCCOM)",
-	["PROGOPTS"] = "",
-	["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBS:p-l) -o $(@) $(<)",
-	["LIBOPTS"] = "",
-	["LIBCOM"] = "$(LIB) -rs $(LIBOPTS) $(@) $(<)",
-}
+	env:set_many {
+		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".a", ".o" },
+		["OBJECTSUFFIX"] = ".o",
+		["LIBSUFFIX"] = ".a",
+		["_GCC_BINPREFIX"] = "",
+		["CC"] = "$(_GCC_BINPREFIX)gcc",
+		["C++"] = "$(_GCC_BINPREFIX)g++",
+		["LIB"] = "$(_GCC_BINPREFIX)ar",
+		["LD"] = "$(_GCC_BINPREFIX)gcc",
+		["_OS_CCOPTS"] = "",
+		["CCOPTS"] = "-Wall",
+		["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
+		["CXXCOM"] = "$(CCCOM)",
+		["PROGOPTS"] = "",
+		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBS:p-l) -o $(@) $(<)",
+		["LIBOPTS"] = "",
+		["LIBCOM"] = "$(LIB) -rs $(LIBOPTS) $(@) $(<)",
+	}
+end
