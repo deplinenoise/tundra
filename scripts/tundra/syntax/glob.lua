@@ -59,7 +59,7 @@ end
 --
 --	  Recursive = boolean (optional, default: true)
 --	  - Specified whether to recurse into subdirectories
-local function Glob(args)
+function Glob(args)
 	local recursive = args.Recursive
 	if type(recursive) == "nil" then
 		recursive = true

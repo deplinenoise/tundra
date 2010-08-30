@@ -21,6 +21,9 @@ module(..., package.seeall)
 
 local util = require "tundra.util"
 local path = require "tundra.path"
+local glob = require "tundra.syntax.glob"
+
+local lua_exts = { ".lua" }
 
 function apply(decl_parser, passes)
 	local function luac(env, src)
@@ -41,11 +44,18 @@ function apply(decl_parser, passes)
 			local deps = {}
 			local inputs = {}
 			local action_fragments = {}
-			for module_name, filename in pairs(args.Sources) do
-				inputs[#inputs + 1] = filename
-				files[#files + 1], deps[#deps + 1] = luac(env, filename)
-				action_fragments[#action_fragments + 1] = module_name
-				action_fragments[#action_fragments + 1] = files[#files]
+
+			for _, base_dir in ipairs(args.Dirs) do
+				local lua_files = glob.Glob { Dir = base_dir, Extensions = lua_exts }
+				local dir_len = base_dir:len()
+				for _, filename in pairs(lua_files) do
+					local rel_name = filename:sub(dir_len+2)
+					local pkg_name = rel_name:gsub("[/\\]", "."):gsub("%.lua$", "")
+					inputs[#inputs + 1] = filename
+					files[#files + 1], deps[#deps + 1] = luac(env, filename)
+					action_fragments[#action_fragments + 1] = pkg_name
+					action_fragments[#action_fragments + 1] = files[#files]
+				end
 			end
 
 			return env:make_node {

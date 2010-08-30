@@ -24,41 +24,6 @@
 #include <string.h>
 #include <ctype.h>
 
-static void
-print_fn(const char *fn)
-{
-	int i;
-	static const char build_prefix[] = "tundra-output/";
-	char buffer[260];
-
-	strncpy(buffer, fn, sizeof(buffer));
-	buffer[sizeof(buffer)-1] = 0;
-
-	for (i = 0; ; ++i)
-	{
-		char ch = buffer[i];
-		if (!ch)
-			break;
-		else if ('\\' == ch)
-			buffer[i] = '/';
-	}
-
-	putchar('"');
-
-	if (strstr(buffer, build_prefix) == buffer)
-	{
-		const char *second_slash = strchr(buffer + sizeof(build_prefix), '/');
-		if (second_slash)
-			fputs(second_slash+1, stdout);
-		else
-			fputs(buffer, stdout);
-	}
-	else
-		fputs(buffer, stdout);
-
-	putchar('"');
-}
-
 int main(int argc, char *argv[1])
 {
 	int i;
@@ -67,9 +32,10 @@ int main(int argc, char *argv[1])
 	printf("const int td_lua_file_count = %d;\n", argc - 1);
 	printf("const td_lua_file td_lua_files[%d] = {\n", argc-1);
 
-	for (i = 1; i < argc; ++i)
+	for (i = 1; (i + 1) < argc; i += 2)
 	{
-		const char *fn = argv[i];
+		const char *module_name = argv[i];
+		const char *fn = argv[i+1];
 		size_t read_size;
 		size_t bytes_total = 0;
 		char buffer[2048];
@@ -81,9 +47,7 @@ int main(int argc, char *argv[1])
 			exit(1);
 		}
 
-		fputs("{ ", stdout);
-		print_fn(fn);
-		fputs(", ", stdout);
+		printf("{ \"%s\", ", module_name);
 
 		while (0 != (read_size = fread(buffer, 1, sizeof(buffer), f)))
 		{
