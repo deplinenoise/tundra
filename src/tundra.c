@@ -202,6 +202,16 @@ static int get_traceback(lua_State *L)
 	return 1;
 }
 
+#if defined(TD_STANDALONE)
+static int
+td_load_embedded_file(lua_State *L)
+{
+	const char *name = luaL_checkstring(L, 1);
+	printf("looking for %s among embedded files\n", name);
+	return 0;
+}
+#endif
+
 static int on_lua_panic(lua_State *L)
 {
 	TD_UNUSED(L);
@@ -213,11 +223,14 @@ double script_call_t1 = 0.0;
 int global_tundra_stats = 0;
 int global_tundra_exit_code = 0;
 
+static const char boot_snippet[] =
+	"local m = require 'tundra.boot'\n"
+	"m.main(...)\n";
+
 int main(int argc, char** argv)
 {
 	td_bin_allocator bin_alloc;
 	const char *homedir;
-	char boot_script[260];
 	int res, rc, i;
 	lua_State* L;
 
@@ -238,21 +251,47 @@ int main(int argc, char** argv)
 
 	tundra_open(L);
 
-	snprintf(boot_script, sizeof(boot_script), "%s/scripts/boot.lua", homedir);
+#if defined(TD_STANDALONE)
+	/* this is equivalent to table.insert(package.loaders, 1, td_load_embedded_file) */
+
+	/* get the function */
+	lua_getglobal(L, "table");
+	lua_getfield(L, -1, "insert");
+	lua_remove(L, -2);
+	assert(!lua_isnil(L, -1));
+
+	/* arg1: the package.loaders table */
+	lua_getglobal(L, "package");
+	lua_getfield(L, -1, "loaders");
+	lua_remove(L, -2);
+	assert(!lua_isnil(L, -1));
+
+	lua_pushinteger(L, 1); /* arg 2 */
+	lua_pushcfunction(L, td_load_embedded_file); /* arg 3 */
+
+	lua_call(L, 3, 0);
+#endif
+
+	/* setup package.path */
+	{
+		char ppath[1024];
+		snprintf(ppath, sizeof(ppath), "%s/scripts/?.lua;%s/lua/etc/?.lua", homedir, homedir);
+		lua_getglobal(L, "package");
+		assert(LUA_TTABLE == lua_type(L, -1));
+		lua_pushstring(L, ppath);
+		lua_setfield(L, -2, "path");
+	}
 
 	/* push our error handler on the stack now (before the chunk to run) */
 	lua_pushcclosure(L, get_traceback, 0);
 
-	switch (luaL_loadfile(L, boot_script))
+	switch (luaL_loadbuffer(L, boot_snippet, sizeof(boot_snippet)-1, "boot_snippet"))
 	{
 	case LUA_ERRMEM:
-		fprintf(stderr, "%s: out of memory\n", boot_script);
+		td_croak("out of memory");
 		return 1;
 	case LUA_ERRSYNTAX:
-		fprintf(stderr, "%s: syntax error\n%s\n", boot_script, lua_tostring(L, -1));
-		return 1;
-	case LUA_ERRFILE:
-		fprintf(stderr, "%s: file not found\n", boot_script);
+		td_croak("syntax error\n%s\n", lua_tostring(L, -1));
 		return 1;
 	}
 

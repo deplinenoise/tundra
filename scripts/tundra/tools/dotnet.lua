@@ -21,7 +21,7 @@ local frameworkDir = "c:\\Windows\\Microsoft.NET\\Framework"
 local defaultFrameworkVersion = "v3.5"
 
 function apply(env, options)
-	load_toolset("generic-dotnet", env)
+	tundra.boot.load_toolset("generic-dotnet", env)
 
 	local version = options and assert(options.Version) or defaultFrameworkVersion
 	env:set_external_env_var('FrameworkDir', frameworkDir)

@@ -15,10 +15,12 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
-local env = ...
+module(..., package.seeall)
 
-env:set_many {
-	["DOTNETRUN"] = "mono ",
-	["HOSTPROGSUFFIX"] = "",
-	["HOSTSHLIBSUFFIX"] = ".dylib",
-}
+function apply_host(env)
+	env:set_many {
+		["DOTNETRUN"] = "",
+		["HOSTPROGSUFFIX"] = ".exe",
+		["HOSTSHLIBSUFFIX"] = ".dll",
+	}
+end

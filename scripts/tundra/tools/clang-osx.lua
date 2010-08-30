@@ -18,7 +18,7 @@
 module(..., package.seeall)
 
 function apply(env, options)
-	load_toolset("gcc-osx", env)
+	tundra.boot.load_toolset("gcc-osx", env)
 
 	env:set_many {
 		["CC"] = "clang",

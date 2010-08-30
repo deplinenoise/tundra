@@ -17,6 +17,7 @@
 
 module(..., package.seeall)
 
+local boot = require "tundra.boot"
 local util = require "tundra.util"
 local path = require "tundra.path"
 local native = require "tundra.native"
@@ -246,7 +247,7 @@ local function get_cached_pattern(p)
 	if not v then
 		local comp = '%w+'
 		local sub_pattern = p:gsub('*', '%%w+')
-		local platform, tool, variant, subvariant = match_build_id(sub_pattern, comp)
+		local platform, tool, variant, subvariant = boot.match_build_id(sub_pattern, comp)
 		v = string.format('^%s%%-%s%%-%s%%-%s$', platform, tool, variant, subvariant)
 		pattern_cache[p] = v
 	end
@@ -317,12 +318,12 @@ function add_evaluator(name, fn)
 end
 
 function add_generator_set(type_name, id)
-	local fn = TundraRootDir .. "/scripts/tundra/" .. type_name .. "/" .. id .. ".lua"
-	local chunk, err = loadfile(fn)
-	if not chunk then
-		croak("couldn't load %s file %s (%s): %s", type_name, id, fn, err)
+	local pkg_name =  "tundra." .. type_name .. "." .. id
+	local mod, err = require(pkg_name)
+	if not mod then
+		croak(err)
 	end
-	chunk(_generator)
+	mod.apply_nodegen(_generator)
 end
 
 -- Given a list of strings or nested lists, flatten the structure to a single

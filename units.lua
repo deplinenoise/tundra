@@ -66,11 +66,41 @@ Program {
 			EmbedLuaSources {
 				OutputFile = "data_files.c",
 				Sources = {
-					"lua/etc/strict.lua",
-					Glob {
-						Extensions = { ".lua" },
-						Dir = "scripts"
-					}
+					["strict"] = "lua/etc/strict.lua",
+
+					["clang-osx"] = "scripts/tools/clang-osx.lua",
+					["dotnet"] = "scripts/tools/dotnet.lua",
+					["gcc-osx"] = "scripts/tools/gcc-osx.lua",
+					["gcc"] = "scripts/tools/gcc.lua",
+					["generic-cpp"] = "scripts/tools/generic-cpp.lua",
+					["generic-dotnet"] = "scripts/tools/generic-dotnet.lua",
+					["mono"] = "scripts/tools/mono.lua",
+					["msvc-vs2008"] = "scripts/tools/msvc-vs2008.lua",
+					["msvc"] = "scripts/tools/msvc.lua",
+					["openwatcom"] = "scripts/tools/openwatcom.lua",
+
+					["glob"] = "scripts/syntax/glob.lua",
+					["embed_lua"] = "scripts/syntax/embed_lua",
+
+					["boot"] = "scripts/boot.lua",
+					["debugger"] = "scripts/debugger.lua",
+
+					["linux"] = "scripts/host/linux.lua",
+					["macosx"] = "scripts/host/macosx.lua",
+					["windows"] = "scripts/host/windows.lua",
+
+					["tundra.cache"] = "scripts/tundra/cache.lua",
+					["tundra.decl"] = "scripts/tundra/decl.lua",
+					["tundra.depgraph"] = "scripts/tundra/depgraph.lua",
+					["tundra.environment"] = "scripts/tundra/environment.lua",
+					["tundra.nodegen"] = "scripts/tundra/nodegen.lua",
+					["tundra.path"] = "scripts/tundra/path.lua",
+					["tundra.util"] = "scripts/tundra/util.lua",
+
+					["tundra.ide.msvc80"] = "scripts/tundra/ide/msvc80.lua",
+
+					["tundra.nodegen.native"] = "scripts/tundra/nodegen/native.lua",
+					["tundra.nodegen.dotnet"] = "scripts/tundra/nodegen/dotnet.lua",
 				}
 			}
 			; Config = "*-*-*-standalone"

@@ -118,8 +118,11 @@ td_build_file_array(lua_State *L, td_engine *engine, int index, int *count_out)
 
 	for (i = 0; i < count; ++i)
 	{
+		const char* str;
 		lua_rawgeti(L, index, i+1);
-		result[i] = td_engine_get_file(engine, lua_tostring(L, -1), TD_COPY_STRING);
+		if (NULL == (str = lua_tostring(L, -1)))
+			luaL_error(L, "index %d is not a string (type %s)", i + 1, lua_typename(L, lua_type(L, -1)));
+		result[i] = td_engine_get_file(engine, str, TD_COPY_STRING);
 		lua_pop(L, 1);
 	}
 

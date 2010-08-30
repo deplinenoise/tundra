@@ -20,13 +20,14 @@
 module(..., package.seeall)
 
 local nodegen = require "tundra.nodegen"
+local boot = require "tundra.boot"
 local util = require "tundra.util"
 local path = require "tundra.path"
 
 local function get_cpp_scanner(env, fn)
 	local function new_scanner()
 		local paths = util.map(env:get_list("CPPPATH"), function (v) return env:interpolate(v) end)
-		return GlobalEngine:make_cpp_scanner(paths)
+		return boot.GlobalEngine:make_cpp_scanner(paths)
 	end
 	return env:memoize("CPPPATH", "_cpp_scanner", new_scanner)
 end

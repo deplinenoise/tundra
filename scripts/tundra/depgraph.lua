@@ -17,10 +17,11 @@
 
 module(..., package.seeall)
 
-local util = require("tundra.util")
-local path = require("tundra.path")
-local native = require("tundra.native")
-local environment = require("tundra.environment")
+local boot = require "tundra.boot"
+local util = require "tundra.util"
+local path = require "tundra.path"
+local native = require "tundra.native"
+local environment = require "tundra.environment"
 
 local default_pass = { Name = "Default", BuildOrder = 100000 }
 
@@ -82,6 +83,6 @@ function create_node(env_, data_)
 
 	params.annotation = env_:interpolate(data_.Label or "?", expand_env)
 
-	return GlobalEngine:make_node(params)
+	return boot.GlobalEngine:make_node(params)
 end
 

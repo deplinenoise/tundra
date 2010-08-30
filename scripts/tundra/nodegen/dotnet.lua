@@ -15,6 +15,8 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
+module(..., package.seeall)
+
 local util = require("tundra.util")
 local nodegen = require("tundra.nodegen")
 
@@ -91,10 +93,12 @@ local function eval_csharp_unit(generator, env, label, suffix, command, decl)
 	}
 end
 
-nodegen.add_evaluator("CSharpExe", function (generator, env, decl)
-	return eval_csharp_unit(generator, env, "CSharpExe", "$(CSPROGSUFFIX)", "$(CSCEXECOM)", decl)
-end)
+function apply_nodegen()
+	nodegen.add_evaluator("CSharpExe", function (generator, env, decl)
+		return eval_csharp_unit(generator, env, "CSharpExe", "$(CSPROGSUFFIX)", "$(CSCEXECOM)", decl)
+	end)
 
-nodegen.add_evaluator("CSharpLib", function (generator, env, decl)
-	return eval_csharp_unit(generator, env, "CSharpLib", "$(CSLIBSUFFIX)", "$(CSCLIBCOM)", decl)
-end)
+	nodegen.add_evaluator("CSharpLib", function (generator, env, decl)
+		return eval_csharp_unit(generator, env, "CSharpLib", "$(CSLIBSUFFIX)", "$(CSCLIBCOM)", decl)
+	end)
+end

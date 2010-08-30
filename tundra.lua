@@ -24,6 +24,7 @@ local common = {
 		CPPPATH = { "src", "lua/src" },
 		CCOPTS = {
 			{ "/WX", "/wd4127", "/wd4100", "/wd4324"; Config = "*-msvc-*" },
+			{ "-Werror"; Config = { "*-gcc-*", "*-clang-*" } },
 			{ "-g"; Config = { "*-gcc-debug", "*-clang-debug", "*-gcc-production", "*-clang-production" } },
 			{ "-O2"; Config = { "*-gcc-production", "*-clang-production" } },
 			{ "-O3"; Config = { "*-gcc-release", "*-clang-release" } },
@@ -31,6 +32,7 @@ local common = {
 		CPPDEFS = {
 			{ "_CRT_SECURE_NO_WARNINGS"; Config = "*-msvc-*"  },
 			{ "NDEBUG"; Config = "*-*-release"  },
+			{ "TD_STANDALONE"; Config = "*-*-*-standalone"  },
 		},
 		LIBS = { "kernel32.lib", "advapi32.lib"; Config = "*-msvc-*"  },
 	}

@@ -15,17 +15,13 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
--- Set up the package path based on the script path first thing so we can require() stuff.
-local cmdline_args = ...
-TundraRootDir = assert(cmdline_args[1])
-do
-	local package = require("package")
-	package.path = string.format("%s/scripts/?.lua;%s/lua/etc/?.lua", TundraRootDir, TundraRootDir)
-end
+module(..., package.seeall)
 
 -- Use "strict" when developing to flag accesses to nil global variables
 require "strict"
 local native = require "tundra.native"
+
+local build_script_env = {}
 
 -- Track accessed Lua files, for cache tracking. There's a Tundra-specific
 -- callback that can be installed by calling set_loadfile_callback(). This
@@ -61,130 +57,21 @@ end
 
 local util = require "tundra.util"
 
-function printf(msg, ...)
+-- This trio is so useful we want them everywhere without imports.
+function _G.printf(msg, ...)
 	local str = string.format(msg, ...)
 	print(str)
 end
 
-function errorf(msg, ...)
+function _G.errorf(msg, ...)
 	local str = string.format(msg, ...)
 	error(str)
 end
 
-function croak(msg, ...)
+function _G.croak(msg, ...)
 	local str = string.format(msg, ...)
 	io.stderr:write(str, "\n")
 	native.exit(1)
-end
-
--- Parse the command line options.
-do
-	local message = nil
-	local option_blueprints = {
-		{ Name="Help", Short="h", Long="help", Doc="This message" },
-		{ Name="Version", Short="V", Long="version", Doc="Display version info" },
-		{ Name="Clean", Short="c", Long="clean", Doc="Remove output files (clean)" },
-		{ Name="Quiet", Short="q", Long="quiet", Doc="Don't print actions as they execute" },
-		{ Name="Continue", Short="k", Long="continue", Doc="Build as much as possible" },
-		{ Name="Verbose", Short="v", Long="verbose", Doc="Be verbose" },
-		{ Name="VeryVerbose", Short="w", Long="very-verbose", Doc="Be very verbose" },
-		{ Name="DryRun", Short="n", Long="dry-run", Doc="Don't execute any actions" },
-		{ Name="ThreadCount", Short="j", Long="threads", Doc="Specify number of build threads", HasValue=true },
-		{ Name="IdeGeneration", Short="g", Long="ide-gen", Doc="Generate IDE integration files for the specified IDE", HasValue=true },
-		{ Name="AllConfigs", Short="a", Long="all-configs", Doc="Build all configurations at once (useful in IDE mode)" },
-		{ Name="Cwd", Short="C", Long="set-cwd", Doc="Set the current directory before building", HasValue=true },
-		{ Name="ShowConfigs", Long="show-configs", Doc="Show all available configurations" },
-		{ Name="DebugQueue", Long="debug-queue", Doc="Show build queue debug information" },
-		{ Name="DebugNodes", Long="debug-nodes", Doc="Show DAG node debug information" },
-		{ Name="DebugAncestors", Long="debug-ancestors", Doc="Show ancestor debug information" },
-		{ Name="DebugStats", Long="debug-stats", Doc="Show statistics on the build session" },
-		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
-		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
-		{ Name="DebugSigning", Long="debug-sign", Doc="Dump detailed signing log to `tundra-signdebug.txt'" },
-		{ Name="Debugger", Long="lua-debugger", Doc="Run with Lua debugger enabled (use 'exit' to continue)" },
-		{ Name="SelfTest", Long="self-test", Doc="Run a test of Tundra's internals" },
-		{ Name="Profile", Long="lua-profile", Doc="Enable the Lua profiler" },
-	}
-	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
-	if message then
-		io.write(message, "\n")
-		io.write("Try `tundra -h' to display an option summary\n")
-		return 1
-	end
-
-	if Options.Profile then
-		native.install_profiler()
-	end
-
-	if Options.Debugger then
-		require "debugger"
-		pause()
-	end
-
-	Options.DebugFlags = 0
-	do
-		local flag_values = {
-			[1] = Options.DebugQueue,
-			[2] = Options.DebugNodes,
-			[4] = Options.DebugAncestors,
-			[8] = Options.DebugStats,
-			[16] = Options.DebugReason,
-			[32] = Options.DebugScan,
-		}
-
-		for k, v in pairs(flag_values) do
-			if v then
-				Options.DebugFlags = Options.DebugFlags + k
-			end
-		end
-	end
-
-	if Options.VeryVerbose then
-		Options.Verbosity = 3
-		Options.Verbose = true
-	elseif Options.Verbose then
-		Options.Verbosity = 2
-	elseif Options.Quiet then
-		Options.Verbosity = 0
-	else
-		Options.Verbosity = 1 -- default
-	end
-
-	if Options.Version or Options.Help then
-		io.write("Tundra Build Processor v0.9 beta\n")
-		io.write("Copyright (C) 2010 Andreas Fredriksson\n\n")
-		io.write("This program comes with ABSOLUTELY NO WARRANTY.\n")
-		io.write("This is free software, and you are welcome to redistribute it\n")
-		io.write("under certain conditions; see the GNU GPL license for details.\n")
-	end
-
-	if Options.Help then
-		io.write("\nCommand-line options:\n")
-		for _, bp in ipairs(option_blueprints) do
-			local h = string.format("  %- 3s %s",
-			bp.Short and "-" .. bp.Short or "",
-			bp.Long and "--" .. bp.Long or "")
-
-			if bp.HasValue then
-				h = h .. "=<value>"
-			end
-
-			if h:len() < 30 then
-				h = h .. string.rep(" ", 30 - h:len())
-			end
-
-			io.write(h, bp.Doc or "", "\n")
-		end
-	end
-
-	if Options.Version or Options.Help then
-		return 0
-	end
-
-	if Options.SelfTest then
-		dofile(TundraRootDir .. "/scripts/selftest.lua")
-		native.exit(0)
-	end
 end
 
 local environment = require "tundra.environment"
@@ -193,6 +80,11 @@ local decl = require "tundra.decl"
 local path = require "tundra.path"
 local cache = require "tundra.cache"
 
+local SEP = native.host_platform == "windows" and "\\" or "/"
+local default_env
+
+GlobalEngine = nil
+
 function match_build_id(id, default)
 	assert(id)
 	local i = id:gmatch("[^-]+")
@@ -200,33 +92,9 @@ function match_build_id(id, default)
 	return platform_name, toolset, variant, subvariant
 end
 
-
-if Options.VeryVerbose then
-	print("Options:")
-	for k, v in pairs(Options) do
-		print(k .. ": " .. util.tostring(v))
-	end
-end
-
-if Options.Cwd then
-	if Options.VeryVerbose then
-		print("changing to dir \"" .. Options.Cwd .. "\"")
-	end
-	native.set_cwd(Options.Cwd)
-end
-
-local SEP = native.host_platform == "windows" and "\\" or "/"
-GlobalEngine = nil
-
-local default_env = environment.create()
-default_env:set_many {
-	["OBJECTROOT"] = "tundra-output",
-	["SEP"] = SEP,
-}
-
 local function run_build_script(text, fn)
 	local script_globals, script_globals_mt = {}, {}
-	script_globals_mt.__index = _G
+	script_globals_mt.__index = build_script_env
 	setmetatable(script_globals, script_globals_mt)
 
 	local chunk, error_msg = loadstring(text, fn)
@@ -236,7 +104,6 @@ local function run_build_script(text, fn)
 	setfenv(chunk, script_globals)
 
 	local function stack_dumper(err_obj)
-		local debug = require "debug"
 		return debug.traceback(err_obj, 2)
 	end
 
@@ -253,74 +120,27 @@ local function run_build_script(text, fn)
 	end
 end
 
-
-do
-	local host_script = TundraRootDir .. "/scripts/host/" .. native.host_platform .. ".lua"
-	if Options.Verbose then
-		print("loading host settings from " .. host_script) 
+local function apply_extension_module(id, default_package, ...)
+	-- For non-qualified packages, use a default package
+	if not id:find("%.") then
+		id = default_package .. id
 	end
-	local chunk = assert(loadfile(host_script))
-	chunk(default_env)
+
+	local pkg, err = require(id)
+
+	if err then
+		errorf("couldn't load extension module %s: %s", id, err)
+	end
+
+	pkg.apply(...)
 end
 
-local syntax_dirs = { TundraRootDir .. "/scripts/syntax/?.lua" }
-local toolset_dirs = { TundraRootDir .. "/scripts/tools/?.lua" }
-local toolset_once_map = {}
-
-local function import_script(kind, id, dirs)
-	local old_path = package.path
-	package.path = table.concat(dirs, ';') .. ';' .. package.path
-	local mod, err = require(id)
-	package.path = old_path
-
-	if not mod then
-		io.stderr:write(err, "\n")
-		errorf("couldn't find %s %s in any of these paths: %s", kind, id, util.tostring(dirs))
-	end
-
-	return mod
-end
-
-function load_toolset(id, env, options)
-	local pkg = import_script("toolset", id, toolset_dirs)
-	if Options.VeryVerbose then
-		print("applying toolset " .. id .. " to env " .. env:get('BUILD_ID'))
-	end
-	pkg.apply(env, options)
+function load_toolset(id, ...)
+	apply_extension_module(id, "tundra.tools.", ...)
 end
 
 function load_syntax(id, decl, passes)
-	local pkg = import_script("syntax", id, syntax_dirs)
-	pkg.apply(decl, passes)
-end
-
-function toolset_once(id, fn)
-	local v = toolset_once_map[id]
-	if not v then
-		v = fn()
-		toolset_once_map[id] = v
-	end
-	return v
-end
-
-local function add_toolset_dir(dir)
-	if Options.VeryVerbose then
-		printf("adding toolset dir \"%s\"", dir)
-	end
-	-- Make sure dir is sane
-	dir = path.normalize(dir) .. SEP .. "?.lua"
-	-- Add user toolset dir first so they can override builtin scripts.
-	table.insert(toolset_dirs, 1, dir)
-end
-
-local function add_syntax_dir(dir)
-	if Options.VeryVerbose then
-		printf("adding syntax dir \"%s\"", dir)
-	end
-	-- Make sure dir is sane and ends with a slash
-	dir = path.normalize(dir) .. SEP .. "?.lua"
-	-- Add user toolset dir first so they can override builtin scripts.
-	table.insert(syntax_dirs, 1, dir)
+	apply_extension_module(id, "tundra.syntax.", decl, passes)
 end
 
 local function member(list, item)
@@ -751,7 +571,7 @@ end
 local _config_class = {}
 
 -- Table constructor to make tundra.lua syntax a bit nicer in the Configs array
-function Config(args)
+function build_script_env.Config(args)
 	local name = args.Name
 	if not name then
 		error("no `Name' specified for configuration")
@@ -769,7 +589,7 @@ function Config(args)
 	return setmetatable(args, _config_class)
 end
 
-function Build(args)
+function build_script_env.Build(args)
 	if type(args.Configs) ~= "table" or #args.Configs == 0 then
 		croak("Need at least one config; got %s" .. util.tostring(args.Configs) )
 	end
@@ -781,18 +601,22 @@ function Build(args)
 	for idx = 1, #args.Configs do
 		local cfg = args.Configs[idx]
 		if getmetatable(cfg) ~= _config_class then
-			cfg = Config(cfg)
+			cfg = build_script_env.Config(cfg)
 			args.Configs[idx] = cfg
 		end
 		configs[cfg.Name] = cfg
 	end
 
-	for _, dir in util.nil_ipairs(args.ToolsetDirs) do
-		add_toolset_dir(dir)
-	end
+	for _, dir in util.nil_ipairs(args.ScriptDirs) do
+		-- Make sure dir is sane and ends with a slash
+		local expr = path.normalize(dir) .. SEP .. "?.lua"
 
-	for _, dir in util.nil_ipairs(args.SyntaxDirs) do
-		add_syntax_dir(dir)
+		-- Add user toolset dir first so they can override builtin scripts.
+		package.path = expr .. ";" .. package.path
+
+		if Options.VeryVerbose then
+			printf("package.path is now \"%s\"", package.path)
+		end
 	end
 
 	if args.Variants then
@@ -857,32 +681,174 @@ function Build(args)
 	end
 end
 
-while true do
-	local working_dir = native.get_cwd()
-	if working_dir:sub(-1) ~= SEP then
-		working_dir = working_dir .. SEP
+function main(cmdline_args)
+	TundraRootDir = assert(cmdline_args[1])
+
+	-- Parse the command line options.
+	local message = nil
+	local option_blueprints = {
+		{ Name="Help", Short="h", Long="help", Doc="This message" },
+		{ Name="Version", Short="V", Long="version", Doc="Display version info" },
+		{ Name="Clean", Short="c", Long="clean", Doc="Remove output files (clean)" },
+		{ Name="Quiet", Short="q", Long="quiet", Doc="Don't print actions as they execute" },
+		{ Name="Continue", Short="k", Long="continue", Doc="Build as much as possible" },
+		{ Name="Verbose", Short="v", Long="verbose", Doc="Be verbose" },
+		{ Name="VeryVerbose", Short="w", Long="very-verbose", Doc="Be very verbose" },
+		{ Name="DryRun", Short="n", Long="dry-run", Doc="Don't execute any actions" },
+		{ Name="ThreadCount", Short="j", Long="threads", Doc="Specify number of build threads", HasValue=true },
+		{ Name="IdeGeneration", Short="g", Long="ide-gen", Doc="Generate IDE integration files for the specified IDE", HasValue=true },
+		{ Name="AllConfigs", Short="a", Long="all-configs", Doc="Build all configurations at once (useful in IDE mode)" },
+		{ Name="Cwd", Short="C", Long="set-cwd", Doc="Set the current directory before building", HasValue=true },
+		{ Name="ShowConfigs", Long="show-configs", Doc="Show all available configurations" },
+		{ Name="DebugQueue", Long="debug-queue", Doc="Show build queue debug information" },
+		{ Name="DebugNodes", Long="debug-nodes", Doc="Show DAG node debug information" },
+		{ Name="DebugAncestors", Long="debug-ancestors", Doc="Show ancestor debug information" },
+		{ Name="DebugStats", Long="debug-stats", Doc="Show statistics on the build session" },
+		{ Name="DebugReason", Long="debug-reason", Doc="Show build reasons" },
+		{ Name="DebugScan", Long="debug-scan", Doc="Show dependency scanner debug information" },
+		{ Name="DebugSigning", Long="debug-sign", Doc="Dump detailed signing log to `tundra-signdebug.txt'" },
+		{ Name="Debugger", Long="lua-debugger", Doc="Run with Lua debugger enabled (use 'exit' to continue)" },
+		{ Name="SelfTest", Long="self-test", Doc="Run a test of Tundra's internals" },
+		{ Name="Profile", Long="lua-profile", Doc="Enable the Lua profiler" },
+	}
+	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
+	if message then
+		io.write(message, "\n")
+		io.write("Try `tundra -h' to display an option summary\n")
+		return 1
 	end
-	local f, err = io.open('tundra.lua', 'r')
-	if f then
-		if Options.VeryVerbose then
-			printf("found tundra.lua in %s", working_dir)
+
+	if Options.Profile then
+		native.install_profiler()
+	end
+
+	if Options.Debugger then
+		require "tundra.debugger"
+		pause()
+	end
+
+	Options.DebugFlags = 0
+	do
+		local flag_values = {
+			[1] = Options.DebugQueue,
+			[2] = Options.DebugNodes,
+			[4] = Options.DebugAncestors,
+			[8] = Options.DebugStats,
+			[16] = Options.DebugReason,
+			[32] = Options.DebugScan,
+		}
+
+		for k, v in pairs(flag_values) do
+			if v then
+				Options.DebugFlags = Options.DebugFlags + k
+			end
 		end
-		local data = f:read("*all")
-		f:close()
-		run_build_script(data, working_dir .. "tundra.lua")
-		break
+	end
+
+	if Options.VeryVerbose then
+		Options.Verbosity = 3
+		Options.Verbose = true
+	elseif Options.Verbose then
+		Options.Verbosity = 2
+	elseif Options.Quiet then
+		Options.Verbosity = 0
 	else
-		local parent_dir = working_dir:gsub("[^/\\]+[/\\]$", "")
-		if working_dir == parent_dir or parent_dir:len() == 0 then
-			croak("couldn't find tundra.lua here or anywhere up to \"%s\"", parent_dir)
+		Options.Verbosity = 1 -- default
+	end
+
+	if Options.Version or Options.Help then
+		io.write("Tundra Build Processor v0.9 beta\n")
+		io.write("Copyright (C) 2010 Andreas Fredriksson\n\n")
+		io.write("This program comes with ABSOLUTELY NO WARRANTY.\n")
+		io.write("This is free software, and you are welcome to redistribute it\n")
+		io.write("under certain conditions; see the GNU GPL license for details.\n")
+	end
+
+	if Options.Help then
+		io.write("\nCommand-line options:\n")
+		for _, bp in ipairs(option_blueprints) do
+			local h = string.format("  %- 3s %s",
+			bp.Short and "-" .. bp.Short or "",
+			bp.Long and "--" .. bp.Long or "")
+
+			if bp.HasValue then
+				h = h .. "=<value>"
+			end
+
+			if h:len() < 30 then
+				h = h .. string.rep(" ", 30 - h:len())
+			end
+
+			io.write(h, bp.Doc or "", "\n")
 		end
+	end
+
+	if Options.Version or Options.Help then
+		return 0
+	end
+
+	if Options.SelfTest then
+		dofile(TundraRootDir .. "/scripts/selftest.lua")
+		native.exit(0)
+	end
+
+	if Options.VeryVerbose then
+		print("Options:")
+		for k, v in pairs(Options) do
+			print(k .. ": " .. util.tostring(v))
+		end
+	end
+
+	if Options.Cwd then
 		if Options.VeryVerbose then
-			printf("no tundra.lua in %s; trying %s", working_dir, parent_dir)
+			print("changing to dir \"" .. Options.Cwd .. "\"")
 		end
-		native.set_cwd(parent_dir)
+		native.set_cwd(Options.Cwd)
+	end
+
+	default_env = environment.create()
+	default_env:set_many {
+		["OBJECTROOT"] = "tundra-output",
+		["SEP"] = SEP,
+	}
+
+	do
+		local mod_name = "tundra.host." .. native.host_platform
+		local mod = require(mod_name)
+		if Options.Verbose then
+			print("applying host settings from " .. mod_name)
+		end
+		mod.apply_host(default_env)
+	end
+
+	while true do
+		local working_dir = native.get_cwd()
+		if working_dir:sub(-1) ~= SEP then
+			working_dir = working_dir .. SEP
+		end
+		local f, err = io.open('tundra.lua', 'r')
+		if f then
+			if Options.VeryVerbose then
+				printf("found tundra.lua in %s", working_dir)
+			end
+			local data = f:read("*all")
+			f:close()
+			run_build_script(data, working_dir .. "tundra.lua")
+			break
+		else
+			local parent_dir = working_dir:gsub("[^/\\]+[/\\]$", "")
+			if working_dir == parent_dir or parent_dir:len() == 0 then
+				croak("couldn't find tundra.lua here or anywhere up to \"%s\"", parent_dir)
+			end
+			if Options.VeryVerbose then
+				printf("no tundra.lua in %s; trying %s", working_dir, parent_dir)
+			end
+			native.set_cwd(parent_dir)
+		end
+	end
+
+	if Options.Profile then
+		native.report_profiler("tundra.prof")
 	end
 end
 
-if Options.Profile then
-	native.report_profiler("tundra.prof")
-end

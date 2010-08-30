@@ -17,6 +17,7 @@
 
 module(..., package.seeall)
 
+local boot = require "tundra.boot"
 local depgraph = require "tundra.depgraph"
 local native = require "tundra.native"
 
@@ -36,22 +37,23 @@ function open_cache(tmp)
 	cache_stream = assert(io.open(tmp, "w"))
 	cache_stream:write("-- Tundra DAG cache file, don't edit\n\n")
 
-	GlobalEngine:set_scanner_cache_hook(function(spec, object)
+	boot.GlobalEngine:set_scanner_cache_hook(function(spec, object)
 		cache_scanners[object] = spec
 	end)
 
-	GlobalEngine:set_node_cache_hook(function(spec, object)
+	boot.GlobalEngine:set_node_cache_hook(function(spec, object)
 		local index = #cache_data + 1
 		cache_data[index] = spec
 		cache_node_to_data[object] = index
 	end)
 
-	GlobalEngine:set_dirwalk_cache_hook(function(dir, files)
+	boot.GlobalEngine:set_dirwalk_cache_hook(function(dir, files)
 		cache_dirwalks[dir] = checksum_file_list(files)
 	end)
 end
 
 function commit_cache(tuples, lua_files, cache_file, named_targets)
+	cache_stream:write("local e = tundra.boot.GlobalEngine\n")
 	cache_stream:write("Tuples = {\n")
 	for _, tuple in ipairs(tuples) do
 		local cfg = tuple.Config.Name
@@ -129,7 +131,7 @@ function commit_cache(tuples, lua_files, cache_file, named_targets)
 				scanner_index = scanner_index + 1
 				my_scanner_idx = scanner_index
 				scanner_to_idx[node.scanner] = my_scanner_idx
-				cache_stream:write(string.format("\tScanners[%d] = GlobalEngine:make_cpp_scanner {\n", my_scanner_idx))
+				cache_stream:write(string.format("\tScanners[%d] = e:make_cpp_scanner {\n", my_scanner_idx))
 				for _, path in ipairs(spec) do
 					cache_stream:write(string.format("\t\t%q,\n", path))
 				end
@@ -147,7 +149,7 @@ function commit_cache(tuples, lua_files, cache_file, named_targets)
 			cache_stream:write("\t}\n\n")
 		end
 
-		cache_stream:write(string.format("\tNodes[%d] = GlobalEngine:make_node {\n", idx))
+		cache_stream:write(string.format("\tNodes[%d] = e:make_node {\n", idx))
 		cache_stream:write(string.format("\t\taction = %q,\n", node.action))
 		cache_stream:write(string.format("\t\tannotation = %q,\n", node.annotation))
 		cache_stream:write(string.format("\t\tsalt = %q,\n", node.salt))

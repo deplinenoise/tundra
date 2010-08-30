@@ -17,16 +17,28 @@
 
 module(..., package.seeall)
 
+local native = require "tundra.native"
+
 function apply(env, options)
-	load_toolset("generic-dotnet", env)
+	-- load the generic C toolset first
+	tundra.boot.load_toolset("generic-cpp", env)
 
 	env:set_many {
-		["CSC"] = "gmcs",
-		["CSPROGSUFFIX"] = ".exe",
-		["CSLIBSUFFIX"] = ".dll",
-		["CSRESGEN"] = "resgen2 $(<) $(@)",
-		["_CSC_COMMON"] = "-warn:$(CSC_WARNING_LEVEL) /nologo $(CSLIBPATH:p-lib\\:) $(CSRESOURCES:p-resource\\:) $(CSLIBS:p-reference\\::A.dll)",
-		["CSCLIBCOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:library -out:$(@) $(<)",
-		["CSCEXECOM"] = "$(CSC) $(_CSC_COMMON) $(CSCOPTS) -target:exe -out:$(@) $(<)",
+		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".a", ".o" },
+		["OBJECTSUFFIX"] = ".o",
+		["LIBSUFFIX"] = ".a",
+		["_GCC_BINPREFIX"] = "",
+		["CC"] = "$(_GCC_BINPREFIX)gcc",
+		["C++"] = "$(_GCC_BINPREFIX)g++",
+		["LIB"] = "$(_GCC_BINPREFIX)ar",
+		["LD"] = "$(_GCC_BINPREFIX)gcc",
+		["_OS_CCOPTS"] = "",
+		["CCOPTS"] = "-Wall",
+		["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
+		["CXXCOM"] = "$(CCCOM)",
+		["PROGOPTS"] = "",
+		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBS:p-l) -o $(@) $(<)",
+		["LIBOPTS"] = "",
+		["LIBCOM"] = "$(LIB) -rs $(LIBOPTS) $(@) $(<)",
 	}
 end

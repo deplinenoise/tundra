@@ -202,7 +202,7 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 end
 
 
-do
+function apply(state)
 	local types = { "Program", "SharedLibrary", "StaticLibrary", "CSharpExe", "CSharpLib" } 
 	for _, type_name in ipairs(types) do
 		nodegen.add_evaluator(type_name, function (generator, env, decl)
@@ -231,5 +231,4 @@ do
 		local state = setmetatable({}, msvc_generator)
 		state:generate_files(...)
 	end)
-
 end

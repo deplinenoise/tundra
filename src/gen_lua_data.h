@@ -26,7 +26,9 @@ typedef struct {
 	unsigned int size;
 } td_lua_file;
 
+#if defined(TD_STANDALONE)
 extern const int td_lua_file_count;
 extern const td_lua_file td_lua_files[];
+#endif
 
 #endif

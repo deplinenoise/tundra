@@ -15,6 +15,8 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
+module(..., package.seeall)
+
 local util = require("tundra.util")
 local nodegen = require("tundra.nodegen")
 local path = require("tundra.path")
@@ -154,18 +156,20 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 	return libnode
 end
 
-nodegen.add_evaluator("Program", function (generator, env, decl)
-	return eval_native_unit(generator, env, "Program $(@)", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
-end)
+function apply_nodegen()
+	nodegen.add_evaluator("Program", function (generator, env, decl)
+		return eval_native_unit(generator, env, "Program $(@)", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
+	end)
 
-nodegen.add_evaluator("StaticLibrary", function (generator, env, decl)
-	return eval_native_unit(generator, env, "StaticLib $(@)", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
-end)
+	nodegen.add_evaluator("StaticLibrary", function (generator, env, decl)
+		return eval_native_unit(generator, env, "StaticLib $(@)", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
+	end)
 
-nodegen.add_evaluator("SharedLibrary", function (generator, env, decl)
-	return eval_native_unit(generator, env, "SharedLib $(@)", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
-end)
+	nodegen.add_evaluator("SharedLibrary", function (generator, env, decl)
+		return eval_native_unit(generator, env, "SharedLib $(@)", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
+	end)
 
-nodegen.add_evaluator("ExternalLibrary", function (generator, env, decl)
-	return eval_native_unit(generator, env, "ExternalLibrary " .. decl.Name, nil, nil, decl)
-end)
+	nodegen.add_evaluator("ExternalLibrary", function (generator, env, decl)
+		return eval_native_unit(generator, env, "ExternalLibrary " .. decl.Name, nil, nil, decl)
+	end)
+end

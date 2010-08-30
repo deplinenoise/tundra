@@ -44,7 +44,7 @@ local function setup(env, options)
 
 end
 
-function(env, options)
+function apply(env, options)
 	-- load the generic C toolset first
 	load_toolset("generic-cpp", env)
 
@@ -75,4 +75,4 @@ function(env, options)
 		["SHLIBOPTS"] = "",
 		["SHLIBCOM"] = "", -- "$(LD) /nologo @RESPONSE|@|$(SHLIBOPTS) $(LIBPATH:b:p/LIBPATH\\:) $(LIBS) /out:$(@:b) $(<:b)",
 	}
-
+end
