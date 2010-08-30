@@ -15,9 +15,11 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
+module(..., package.seeall)
+
 local error_count = 0
 
-function unit_test(label, fn)
+function _G.unit_test(label, fn)
 	local t_mt = {
 		check_equal = function (obj, a, b) 
 			if a ~= b then
@@ -30,7 +32,7 @@ function unit_test(label, fn)
 
 	local t = setmetatable({}, t_mt)
 	local function stack_dumper(err_obj)
-		local debug = require('debug')
+		local debug = require 'debug'
 		return debug.traceback(err_obj, 2)
 	end
 
@@ -45,6 +47,4 @@ function unit_test(label, fn)
 	end
 end
 
-dofile(TundraRootDir .. "/scripts/test/t_env.lua")
-
-return error_count
+require "tundra.test.t_env"

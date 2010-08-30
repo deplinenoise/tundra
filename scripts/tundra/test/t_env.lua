@@ -15,8 +15,10 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
+module(..., package.seeall)
+
 unit_test('scalar interpolation', function (t)
-	local e = require('tundra.environment')
+	local e = require 'tundra.environment'
 	local e1, e2, e3
 	e1 = e.create(nil, { Foo="Foo", Baz="Strut" })
 	e2 = e1:clone({ Foo="Bar" })
@@ -44,7 +46,7 @@ unit_test('scalar interpolation', function (t)
 end)
 
 unit_test('list interpolation', function (t)
-	local e = require('tundra.environment')
+	local e = require 'tundra.environment'
 	local e1 = e.create()
 
 	e1:set("Foo", { "Foo" })

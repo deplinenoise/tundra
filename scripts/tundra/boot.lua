@@ -788,7 +788,7 @@ function main(cmdline_args)
 	end
 
 	if Options.SelfTest then
-		dofile(TundraRootDir .. "/scripts/selftest.lua")
+		require "tundra.selftest"
 		native.exit(0)
 	end
 
