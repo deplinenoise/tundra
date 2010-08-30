@@ -26,6 +26,10 @@
 #include "portable.h"
 #include "md5.h"
 
+#if defined(TD_STANDALONE)
+#include "gen_lua_data.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -206,8 +210,19 @@ static int get_traceback(lua_State *L)
 static int
 td_load_embedded_file(lua_State *L)
 {
-	const char *name = luaL_checkstring(L, 1);
-	printf("looking for %s among embedded files\n", name);
+	int i, count;
+	const char *module_name = luaL_checkstring(L, 1);
+
+	for (i = 0, count = td_lua_file_count; i < count; ++i)
+	{
+		if (0 == strcmp(td_lua_files[i].module_name, module_name))
+		{
+			if (0 != luaL_loadbuffer(L, td_lua_files[i].data, td_lua_files[i].size, module_name))
+				td_croak("couldn't load embedded chunk for %s", module_name);
+			return 1;
+		}
+	}
+	
 	return 0;
 }
 #endif

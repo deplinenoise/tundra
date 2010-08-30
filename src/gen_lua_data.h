@@ -20,10 +20,12 @@
    along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stddef.h>
+
 typedef struct {
-	const char *filename;
+	const char *module_name;
 	const char *data;
-	unsigned int size;
+	size_t size;
 } td_lua_file;
 
 #if defined(TD_STANDALONE)

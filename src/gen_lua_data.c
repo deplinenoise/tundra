@@ -26,11 +26,13 @@
 
 int main(int argc, char *argv[1])
 {
-	int i;
+	int i, count;
+
+	count = (argc - 1) / 2;
 
 	puts("/* automatically generated, do not edit */\n#include \"gen_lua_data.h\"\n");
-	printf("const int td_lua_file_count = %d;\n", argc - 1);
-	printf("const td_lua_file td_lua_files[%d] = {\n", argc-1);
+	printf("const int td_lua_file_count = %d;\n", count);
+	printf("const td_lua_file td_lua_files[%d] = {\n", count);
 
 	for (i = 1; (i + 1) < argc; i += 2)
 	{
