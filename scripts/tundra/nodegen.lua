@@ -70,7 +70,7 @@ function generate(args)
 	-- 3. All nodes if there are no SubConfigs set for the current config
 	if subconfigs then
 		state.default_subconfig = assert(state.config.DefaultSubConfig)
-		state.default_env = envs[state.default_subconfig]
+		state.default_env = assert(envs[state.default_subconfig], "unknown DefaultSubConfig specified")
 	else
 		state.default_env = assert(envs["__default"])
 	end
@@ -277,14 +277,18 @@ function _generator:eval_unit(unit)
 	-- Select an environment for this unit based on its SubConfig tag
 	-- to support cross compilation.
 	local env
-	local subconfig = unit.Decl.SubConfig
+	local subconfig = unit.Decl.SubConfig or self.default_subconfig
 	if subconfig then
 		env = self.base_envs[subconfig]
 		if tundra.boot.Options.VeryVerbose then
 			if env then
 				printf("%s: using subconfig %s (%s)", unit.Decl.Name, subconfig, env:get('BUILD_ID'))
 			else
-				printf("%s: no subconfig %s found; using default env", unit.Decl.Name, subconfig)
+				if self.default_subconfig then
+					errorf("%s: couldn't find a subconfig env", unit.Decl.Name)
+				else
+					printf("%s: no subconfig %s found; using default env", unit.Decl.Name, subconfig)
+				end
 			end
 		end
 	end
