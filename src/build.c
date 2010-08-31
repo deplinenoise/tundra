@@ -79,27 +79,37 @@ typedef struct td_job_queue
 static int
 scan_implicit_deps(td_job_queue *queue, td_node *node)
 {
-	double t1, t2;
+	int collect_stats;
+	double t1 = 0.0, t2 = 0.0;
+	td_engine *engine = queue->engine;
 	td_scanner *scanner = node->scanner;
 	int result;
 
 	if (!scanner)
 		return 0;
 
+	collect_stats = td_debug_check(engine, TD_DEBUG_STATS);
+
 	td_mutex_unlock_or_die(&queue->mutex);
 
-	t1 = td_timestamp();
+	if (collect_stats)
+		t1 = td_timestamp();
+
 	if (!queue->engine->settings.dry_run)
 		result = (*scanner->scan_fn)(queue->engine, node, scanner);
 	else
 		result = 0;
-	t2 = td_timestamp();
-
-	td_mutex_lock_or_die(queue->engine->lock);
-	queue->engine->stats.scan_time += t2 - t1;
-	td_mutex_unlock_or_die(queue->engine->lock);
 
 	td_mutex_lock_or_die(&queue->mutex);
+
+	if (collect_stats)
+	{
+		t2 = td_timestamp();
+		td_mutex_lock_or_die(engine->stats_lock);
+		engine->stats.scan_time += t2 - t1;
+		td_mutex_unlock_or_die(engine->stats_lock);
+	}
+
 	return result;
 }
 
@@ -240,10 +250,13 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 	touch_outputs(engine, node);
 
 	/* Update engine stats. */
-	td_mutex_lock_or_die(engine->lock);
-	engine->stats.mkdir_time += mkdir_time;
-	engine->stats.build_time += cmd_time;
-	td_mutex_unlock_or_die(engine->lock);
+	if (td_debug_check(engine, TD_DEBUG_STATS))
+	{
+		td_mutex_lock_or_die(engine->stats_lock);
+		engine->stats.mkdir_time += mkdir_time;
+		engine->stats.build_time += cmd_time;
+		td_mutex_unlock_or_die(engine->stats_lock);
+	}
 
 leave:
 	td_mutex_lock_or_die(&queue->mutex);
@@ -374,14 +387,18 @@ update_input_signature(td_job_queue *queue, td_node *node)
 static int
 is_up_to_date(td_job_queue *queue, td_node *node)
 {
-	double t1, t2;
+	double t1 = 0.0, t2 = 0.0;
+	int collect_stats;
 	int i, count;
 	const td_digest *prev_signature = NULL;
 	td_engine *engine = queue->engine;
 	const td_ancestor_data *ancestor;
 	int up_to_date = 0;
 
-	t1 = td_timestamp();
+	collect_stats = td_debug_check(engine, TD_DEBUG_STATS);
+
+	if (collect_stats)
+		t1 = td_timestamp();
 
 	/* We can safely drop the build queue lock in here as no job state is accessed. */
 	td_mutex_unlock_or_die(&queue->mutex);
@@ -430,11 +447,13 @@ is_up_to_date(td_job_queue *queue, td_node *node)
 	up_to_date = 1;
 
 leave:
-	t2 = td_timestamp();
-
-	td_mutex_lock_or_die(engine->lock);
-	engine->stats.up2date_check_time += t2 - t1;
-	td_mutex_unlock_or_die(engine->lock);
+	if (collect_stats)
+	{
+		t2 = td_timestamp();
+		td_mutex_lock_or_die(engine->lock);
+		engine->stats.up2date_check_time += t2 - t1;
+		td_mutex_unlock_or_die(engine->lock);
+	}
 
 	td_mutex_lock_or_die(&queue->mutex);
 	return up_to_date;
