@@ -54,6 +54,7 @@ td_stat_file(td_engine *engine, td_file *f)
 			f->stat.timestamp = 0;
 		}
 		f->stat_dirty = 0;
+		did_stat = 1;
 	}
 
 	td_mutex_unlock_or_die(objlock);
