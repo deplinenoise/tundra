@@ -232,8 +232,7 @@ Build {
     DefaultVariant = "...",
     SubVariants = { ... },
     DefaultSubVariant = "...",
-    ToolsetDirs = { ... },
-    SyntaxDirs = { ... },
+    ScriptsDirs = { ... },
     SyntaxExtensions = { ... },
     Passes = { ... },
     EngineOptions = { ... },
@@ -288,8 +287,8 @@ string, indicating that the defaults for that tool are to be used, or a table
 `{ "toolname"; Foo=1, Bar=".." }` passing arbitrary options to the tool to
 configure it. Tools are loaded from the tool directory list.
 
-Projects can add their own tool scripts via a +ToolsetDirs+ array property in
-the +Build+ block.
+Projects can add their own tool script directories via a +ScriptDirs+ array
+property in the +Build+ block.
 
 .Config Tools Synopsis
 -------------------------------------------------------------------------------
@@ -444,12 +443,166 @@ Build {
 }
 -------------------------------------------------------------------------------
 
+== Unit Syntax ==
+
+=== Native Units ===
+
+Native units are implemented by the tundra.nodegen.native module and provide
+support for building shared and static libraries as well as executables with C,
+C++ and Objective-C tools. These unit types are selected through the following
+keywords:
+
+- `Program` - specifies a program
+- `StaticLibrary` - specifies a static library (archive)
+- `SharedLibrary` - specifies a shared library (dll)
+- `ExternalLibrary` - specifies an "external library" (a collection of settings)
+
+All these follow the same synopsis:
+
+.Native Unit Synopsis
+-------------------------------------------------------------------------------
+<unit type> {
+    -- required
+    Name = "...",
+
+    -- optional
+    Config = ...,
+    Propagate = { ... },
+    SourceDir = "...",
+    Sources = { ... },      -- config filtered
+    Depends = { ... },      -- config filtered
+    Defines = { ... },      -- config filtered
+    Libs = { ... },         -- config filtered
+    Frameworks = { ... },   -- config filtered
+}
+-------------------------------------------------------------------------------
+
+==== Native Unit Name property (required) ====
+
+The `Name` property must always be set to a unique name. These names are
+exposed on the command line (e.g. +tundra foo+ will build the unit `foo`) and
+are also used as stems when computing output filenames. For example, a
+`Program` unit `bar` might end up as `bar.exe` on Windows.
+
+Stay away from funny characters in the names, alphanumeric is a safe bet.
+
+==== Native Unit Config property ====
+
+Specifies what configuration(s) this unit will be present in. Configuration
+pattern matching is applied as usual. For example, to include a unit only in
+debug, you could say: +Config = "\*-\*-debug"+ and to include a unit only for two
+toolsets you could say +Config = { "foo-bar-\*", "baz-qux-*" }+.
+
+When a unit is filtered out like this it is replaced by a null node in the DAG,
+but it will still be present so there's no need to remove it from depenency
+lists.
+
+==== Native Unit Propagate property ====
+
+A nested block of settings to be propagated onto units that depend on this
+unit. This is mostly useful for the `ExternalLibrary` unit type which serves as
+a bag of settings, but it can occasionally be useful with other unit types such
+as shared libraries to push say a certain define into the compilation options
+of everyone who links to this library. The propagate block can contain `Libs`,
+`Defines`, and so on.
+
+.Native Unit Propagate synopsis
+---------------------------------------------------
+<unit type> {
+    ...
+    Propagate {
+        ...
+        Key = { Value, Value, ... },
+    }
+}
+---------------------------------------------------
+
+For example, to push a define `ZLIB_DLL` onto users of a library, one might use
+the following:
+
+---------------------------------------------------
+SharedLibrary {
+    Name = "zlib",
+    Sources = { ... },
+    Propagate {
+        Defines = { "ZLIB_DLL" },
+    }
+}
+---------------------------------------------------
+
+==== Native Unit SourceDir property ====
+
+If present, specifies a prefix to be applied to all files in the `Sources` list.
+
+==== Native Unit Sources property ====
+
+An arbitrarily nested list of source files and filters. Elements in the lists
+can be either strings which are taken to be source files, or nodes, in which
+case their output files are used. It is therefore possible to call source
+generators in this block and then include their output files as inputs directly
+to the unit.
+
+==== Native Unit Depends property ====
+
+A list of unit names which are the dependencies of this unit. Depending on a
+library unit has the side effect of linking with that archive. All `Propagate`
+blocks from dependencies will be applied to the depending unit.
+
+==== Native Unit Defines property ====
+
+A list of C preprocessor defines (strings), either of the style `"FOO"` or `"FOO=BAR"`.
+
+==== Native Unit Libs property ====
+
+A list of external libraries to be fed to the linker. Typically very platform
+specific and thus it is common that every lib is wrapped in a configuration
+block, like this:
+
+-------------------------------------------------------------------------------
+Libs = {
+    { "kernel32.lib"; Config = { "win32-*-*", "win64-*-*" } },
+    { "pthread", "m"; Config = "linux-*-*" },
+}
+-------------------------------------------------------------------------------
+
+==== Native Unit Frameworks property ====
+
+This is a Mac OS X-only feature to specify frameworks to include from and link
+against. Currently these is no way to select a version, so the list includes
+only framework names as strings.
+
+=== C# Units ===
+
+Tundra has basic support for building C# .NET assemblies. The following unit types
+are supported:
+
+- `CSharpExe` - Builds a C# executable
+- `CSharpLib` - Builds a C# library (dll)
+
+.C# Unit Synopsis
+-------------------------------------------------------------------------------
+<unit type> {
+    -- required
+    Name = "...",
+
+    -- optional
+    Config = ...,
+    SourceDir = "...",
+    References = { ... },   -- config filtered
+    Sources = { ... },      -- config filtered
+    Depends = { ... },      -- config filtered
+}
+-------------------------------------------------------------------------------
+
 == The Environment ==
 
 Tundra uses a hierarchical key-value environment to store information used to
 build the commands to run. This design is similar to the SCons environment.
 Values are always stored as lists (in this way the environment is similar to
 Jam variables).
+
+Environment strings are typically set in the `tundra.lua` file and in toolset
+scripts.
 
 === The basic environment ===
 
