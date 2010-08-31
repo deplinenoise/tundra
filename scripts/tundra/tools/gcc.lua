@@ -37,7 +37,7 @@ function apply(env, options)
 		["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
 		["CXXCOM"] = "$(CCCOM)",
 		["PROGOPTS"] = "",
-		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBS:p-l) -o $(@) $(<)",
+		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) $(LIBS:p-l) -o $(@) $(<)",
 		["LIBOPTS"] = "",
 		["LIBCOM"] = "$(LIB) -rs $(LIBOPTS) $(@) $(<)",
 	}

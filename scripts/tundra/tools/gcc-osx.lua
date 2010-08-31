@@ -27,7 +27,7 @@ function apply(env, options)
 		["SHLIBOPTS"] = "-shared",
 		["_OS_CCOPTS"] = "$(FRAMEWORKS:p-F)",
 		["SHLIBCOM"] = "$(LD) $(SHLIBOPTS) $(LIBPATH:p-L) $(LIBS:p-l) $(FRAMEWORKS:p-framework ) -o $(@) $(<)",
-		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBS:p-l)  $(FRAMEWORKS:p-framework ) -o $(@) $(<)",
+		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) $(LIBS:p-l)  $(FRAMEWORKS:p-framework ) -o $(@) $(<)",
 		["OBJCCOM"] = "$(CCCOM)", -- objc uses same commandline
 	}
 end
