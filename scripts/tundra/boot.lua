@@ -375,6 +375,9 @@ local function setup_envs(tuple, configs)
 			croak("duplicate subconfig name: %s", x)
 		end
 		local sub_tuple = { Config = configs[x], Variant = tuple.Variant, SubVariant = tuple.SubVariant }
+		if not sub_tuple.Config then
+			errorf("%s: no such config (in SubConfigs specification)", x)
+		end
 		local sub_env = setup_env(default_env:clone(), sub_tuple, build_id)
 		result[moniker] = sub_env
 	end
