@@ -20,7 +20,7 @@ module(..., package.seeall)
 function apply(env, options)
 
 	-- load the generic C toolset first
-	load_toolset("generic-cpp", env)
+	tundra.boot.load_toolset("generic-cpp", env)
 
 	env:set_many {
 		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj" },
