@@ -21,8 +21,6 @@ module(..., package.seeall)
 require "strict"
 local native = require "tundra.native"
 
-local build_script_env = {}
-
 -- Track accessed Lua files, for cache tracking. There's a Tundra-specific
 -- callback that can be installed by calling set_loadfile_callback(). This
 -- could improved if the Lua interpreted was changed to checksum files as they
@@ -94,7 +92,7 @@ end
 
 local function run_build_script(text, fn)
 	local script_globals, script_globals_mt = {}, {}
-	script_globals_mt.__index = build_script_env
+	script_globals_mt.__index = _G
 	setmetatable(script_globals, script_globals_mt)
 
 	local chunk, error_msg = loadstring(text, fn)
@@ -574,7 +572,7 @@ end
 local _config_class = {}
 
 -- Table constructor to make tundra.lua syntax a bit nicer in the Configs array
-function build_script_env.Config(args)
+function _G.Config(args)
 	local name = args.Name
 	if not name then
 		error("no `Name' specified for configuration")
@@ -592,7 +590,7 @@ function build_script_env.Config(args)
 	return setmetatable(args, _config_class)
 end
 
-function build_script_env.Build(args)
+function _G.Build(args)
 	if type(args.Configs) ~= "table" or #args.Configs == 0 then
 		croak("Need at least one config; got %s" .. util.tostring(args.Configs) )
 	end
@@ -604,7 +602,7 @@ function build_script_env.Build(args)
 	for idx = 1, #args.Configs do
 		local cfg = args.Configs[idx]
 		if getmetatable(cfg) ~= _config_class then
-			cfg = build_script_env.Config(cfg)
+			cfg = Config(cfg)
 			args.Configs[idx] = cfg
 		end
 		configs[cfg.Name] = cfg
