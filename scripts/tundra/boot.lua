@@ -609,7 +609,8 @@ function build_script_env.Build(args)
 
 	for _, dir in util.nil_ipairs(args.ScriptDirs) do
 		-- Make sure dir is sane and ends with a slash
-		local expr = path.normalize(dir) .. SEP .. "?.lua"
+		dir = dir:gsub("[/\\]", SEP):gsub("[/\\]$", "")
+		local expr = dir .. SEP .. "?.lua"
 
 		-- Add user toolset dir first so they can override builtin scripts.
 		package.path = expr .. ";" .. package.path

@@ -6,10 +6,10 @@ local common = {
 }
 
 Build {
-	Units = "tundra/units.lua",
+	Units = "support/units.lua",
 
-	SyntaxDirs = { "tundra" },
-	SyntaxExtensions = { "example-syntax" },
+	ScriptDirs = { "." },
+	SyntaxExtensions = { "support.example-syntax" },
 
 	Passes = {
 		CompileGenerator = { Name="Compile generator", BuildOrder = 1 },
