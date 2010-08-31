@@ -280,7 +280,7 @@ function _generator:eval_unit(unit)
 	local subconfig = unit.Decl.SubConfig
 	if subconfig then
 		env = self.base_envs[subconfig]
-		if Options.VeryVerbose then
+		if tundra.boot.Options.VeryVerbose then
 			if env then
 				printf("%s: using subconfig %s (%s)", unit.Decl.Name, subconfig, env:get('BUILD_ID'))
 			else
