@@ -18,9 +18,13 @@
 
 -- Microsoft Visual Studio 2008 Solution/Project file generation
 
+module(..., package.seeall)
+
 local nodegen = require"tundra.nodegen"
 local util = require"tundra.util"
 local native = require"tundra.native"
+
+local Options = tundra.boot.Options
 
 local LF = '\r\n'
 local UTF_HEADER = '\239\187\191' -- byte mark EF BB BF 
@@ -202,7 +206,7 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 end
 
 
-function apply(state)
+function apply_nodegen(state)
 	local types = { "Program", "SharedLibrary", "StaticLibrary", "CSharpExe", "CSharpLib" } 
 	for _, type_name in ipairs(types) do
 		nodegen.add_evaluator(type_name, function (generator, env, decl)
