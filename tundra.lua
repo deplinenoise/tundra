@@ -59,13 +59,23 @@ Build {
 			Inherit = common,
 			Tools = { "gcc" },
 			Env = {
-				_GCC_BINPREFIX="/usr/local/i386-mingw32-4.3.0/bin/i386-mingw32-",
+				_GCC_BINPREFIX="i386-mingw32-",
 				CCOPTS = "-Werror",
 			},
 			ReplaceEnv = {
 				PROGSUFFIX=".exe",
 				SHLIBSUFFIX=".dll",
 			},
+			Virtual = true,
+		},
+
+		Config {
+			Name = "macosx-crosswin32",
+			SubConfigs = {
+				host = "macosx-clang",
+				target = "macosx-mingw32",
+			},
+			DefaultSubConfig = "target",
 		},
 	},
 	SubVariants = { "dev", "standalone" },

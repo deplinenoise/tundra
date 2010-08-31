@@ -11,9 +11,17 @@ local lua_sources = {
 }
 
 StaticLibrary {
+	Name = "base_lua_host",
+	Pass = "CodeGen",
+	Sources = lua_sources,
+	SubConfig = "host",
+}
+
+StaticLibrary {
 	Name = "base_lua",
 	Pass = "CodeGen",
 	Sources = lua_sources,
+	SubConfig = "target",
 }
 
 Program {
@@ -22,6 +30,7 @@ Program {
 	Target = "$(GEN_LUA_DATA)",
 	Config = "*-*-*-standalone",
 	Sources = { "src/gen_lua_data.c" },
+	SubConfig = "host",
 }
 
 Program {
@@ -29,11 +38,12 @@ Program {
 	Pass = "CodeGen",
 	Target = "$(LUAC)",
 	Config = "*-*-*-standalone",
-	Depends = { "base_lua" },
+	Depends = { "base_lua_host" },
 	Sources = {
 		"lua/src/luac.c",
 		"lua/src/print.c",
 	},
+	SubConfig = "host",
 }
 
 Always "gen_lua_data"
