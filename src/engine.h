@@ -289,6 +289,7 @@ typedef struct td_engine
 	struct td_frozen_reldata *relcache_data;
 
 	pthread_mutex_t *lock;
+	pthread_mutex_t *stats_lock;
 	void *sign_debug_file;
 	pthread_mutex_t object_locks[TD_OBJECT_LOCK_COUNT];
 } td_engine;

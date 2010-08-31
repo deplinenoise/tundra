@@ -384,6 +384,9 @@ static int make_engine(lua_State *L)
 	self->lock = td_page_alloc(&self->alloc, sizeof(pthread_mutex_t));
 	td_mutex_init_or_die(self->lock, NULL);
 
+	self->stats_lock = td_page_alloc(&self->alloc, sizeof(pthread_mutex_t));
+	td_mutex_init_or_die(self->stats_lock, NULL);
+
 	self->file_hash_size = 92413;
 	self->relhash_size = 92413;
 	self->L = L;
@@ -466,6 +469,7 @@ static int engine_gc(lua_State *L)
 	for (i = TD_OBJECT_LOCK_COUNT-1; i >= 0; --i)
 		td_mutex_destroy_or_die(&self->object_locks[i]);
 
+	td_mutex_destroy_or_die(self->stats_lock);
 	td_mutex_destroy_or_die(self->lock);
 
 	td_alloc_cleanup(&self->alloc);

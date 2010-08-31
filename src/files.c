@@ -61,11 +61,11 @@ td_stat_file(td_engine *engine, td_file *f)
 	if (collect_stats)
 	{
 		double t2 = td_timestamp();
-		td_mutex_lock_or_die(engine->lock);
+		td_mutex_lock_or_die(engine->stats_lock);
 		++engine->stats.stat_calls;
 		engine->stats.stat_time += t2 - t1;
 		engine->stats.stat_checks += did_stat;
-		td_mutex_unlock_or_die(engine->lock);
+		td_mutex_unlock_or_die(engine->stats_lock);
 	}
 
 	return &f->stat;
@@ -86,12 +86,14 @@ td_touch_file(td_engine *engine, td_file *f)
 td_digest *
 td_get_signature(td_engine *engine, td_file *f)
 {
+	const int collect_stats = td_debug_check(engine, TD_DEBUG_STATS);
 	int count_bump = 0;
 	const int dry_run = engine->settings.dry_run;
-	double t1, t2;
+	double t1 = 0.0, t2 = 0.0;
 	pthread_mutex_t *object_lock;
 
-	t1 = td_timestamp();
+	if (collect_stats)
+		t1 = td_timestamp();
 
 	object_lock = get_object_lock(engine, f->hash);
 	td_mutex_lock_or_die(object_lock);
@@ -119,20 +121,22 @@ td_get_signature(td_engine *engine, td_file *f)
 
 	td_mutex_unlock_or_die(object_lock);
 
-	/* modify stats once we're back in the engine lock */
-	td_mutex_lock_or_die(engine->lock);
-	if (count_bump && !f->signer->is_lua)
+	if (collect_stats)
 	{
-		td_sign_fn function = f->signer->function.function;
-		if (td_sign_timestamp == function)
-			++engine->stats.timestamp_sign_count;
-		else if (td_sign_digest == function)
-			++engine->stats.md5_sign_count;
-	}
+		td_mutex_lock_or_die(engine->stats_lock);
+		if (count_bump && !f->signer->is_lua)
+		{
+			td_sign_fn function = f->signer->function.function;
+			if (td_sign_timestamp == function)
+				++engine->stats.timestamp_sign_count;
+			else if (td_sign_digest == function)
+				++engine->stats.md5_sign_count;
+		}
 
-	t2 = td_timestamp();
-	engine->stats.file_signing_time += t2 - t1;
-	td_mutex_unlock_or_die(engine->lock);
+		t2 = td_timestamp();
+		engine->stats.file_signing_time += t2 - t1;
+		td_mutex_unlock_or_die(engine->stats_lock);
+	}
 
 	return &f->signature;
 }
