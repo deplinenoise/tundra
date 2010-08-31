@@ -10,8 +10,8 @@ Build {
 		CompileGenerator = { Name = "Compile Generator", BuildOrder = 1 },
 		CodeGeneration = { Name = "Code Generation", BuildOrder = 2 },
 	},
-	SyntaxDirs = { "." },
-	SyntaxExtensions = { "syntax" },
+	ScriptDirs = { "." },
+	SyntaxExtensions = { "support.syntax" },
 	Configs = {
 		Config {
 			Name = "macosx-gcc",
@@ -35,7 +35,6 @@ Build {
 		},
 		Config {
 			Name = "macosx-crosswin32",
-			Inherit = common,
 			SubConfigs = {
 				host = "macosx-gcc",
 				target = "macosx-mingw32"
