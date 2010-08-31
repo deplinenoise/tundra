@@ -290,7 +290,9 @@ int main(int argc, char** argv)
 	/* setup package.path */
 	{
 		char ppath[1024];
-		snprintf(ppath, sizeof(ppath), "%s/scripts/?.lua;%s/lua/etc/?.lua", homedir, homedir);
+		snprintf(ppath, sizeof(ppath),
+			"%s" TD_PATHSEP_STR "scripts" TD_PATHSEP_STR "?.lua;"
+			"%s" TD_PATHSEP_STR "lua" TD_PATHSEP_STR "etc" TD_PATHSEP_STR "?.lua", homedir, homedir);
 		lua_getglobal(L, "package");
 		assert(LUA_TTABLE == lua_type(L, -1));
 		lua_pushstring(L, ppath);
