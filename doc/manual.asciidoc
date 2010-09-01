@@ -445,6 +445,44 @@ Build {
 
 == Unit Syntax ==
 
+This section describes the default syntax elements that are available for use
+in the units file. You can add your own syntax extensions and source generators
+via `Build` properties.
+
+=== Configuration Filtering ===
+
+It is often desirable to include various bits of data for a certain
+configuration only, for example to include a source file only in the debug
+build of a program, or to include certain libraries only for a specific
+toolset. Tundra has a general mechanism called configuration filtering which
+supports this.
+
+Configuration filtering uses the key-value part of a list to introduce a key
+`Config` into the list. The `Config` key can be set to either a single pattern
+string or a list of patters. The items in the list will then be included only
+when one of the config patterns match:
+
+.Configuration Filtering
+-------------------------------------------------------------------------------
+... { "foo.c"; Config = "*-*-debug" } ...
+... { "bar.c", "qux.c"; Config = { "*-foo-*", "*-bar-*" } ...
+-------------------------------------------------------------------------------
+
+In order to combine multiple options all filtered lists can be nested
+arbitrarily; the filtering process flattens these lists. The following example
+results in `foo.c` always being included, while `bar.c` is only included in
+debug builds, and `foo-gcc.c` is included if the toolset matches `gcc` or
+`mingw`. So for the `linux-gcc-debug` configuration all three files will be
+included.
+
+.Configuration Filtering Flattening
+-------------------------------------------------------------------------------
+{ "foo.c",
+    { "bar.c"; Config = "*-*-debug" },
+    { "foo-gcc.c"; Config = { "*-gcc-*", "*-mingw-*" },
+}
+-------------------------------------------------------------------------------
+
 === Native Units ===
 
 Native units are implemented by the tundra.nodegen.native module and provide
@@ -591,6 +629,90 @@ are supported:
     References = { ... },   -- config filtered
     Sources = { ... },      -- config filtered
     Depends = { ... },      -- config filtered
+}
+-------------------------------------------------------------------------------
+
+=== Syntax Extensions ===
+
+Tundra provides a small set of syntax extensions by default.
+
+==== File Globbing ====
+
+Globbing basically means pattern matching over filenames. It is a convenient
+way to use the filesystem as the index of what files to build rather than to
+manually type every file out in the `Sources` list. You can also combine the
+two for greater control by mixing globs and filenames.
+
+Globs come in two versions, `Glob` and `FGlob`.
+
+.Glob Synopsis
+-------------------------------------------------------------------------------
+Glob {
+    -- required
+    Dir = "...",
+    Extensions = { ".ext", ... },
+    -- optional
+    Recursive = false, -- default: true
+}
+-------------------------------------------------------------------------------
+
+`Glob` works by scanning `Dir` for files matching any of the extensions passed
+in the `Extensions` list. By default, it will recurse into subdirectories, but
+you can disable this behaviour by passing +Recursive = false+. In this example
+we're getting all `.c` and `.cpp` files from `my_dir`.
+
+.Glob Example
+-------------------------------------------------------------------------------
+Program {
+    ...
+    Sources = { Glob { Dir = "my_dir", Extensions = { ".c", ".cpp" } } },
+    ...
+}
+-------------------------------------------------------------------------------
+
+Sometimes you want to get the files from the file system but some of them are
+only to be compiled for specific configurations. A common scenario is when
+there are platform-specific subdirectories with source files for that platform
+only. `FGlob` extends `Glob` and adds a list of filters to apply after the file
+list has been retrieved:
+
+.FGlob Synopsis
+-------------------------------------------------------------------------------
+FGlob {
+    -- required
+    Dir = "...",
+    Extensions = { ".ext", ... },
+    Filters = {
+        { Pattern = "...", Config = "..." },
+        ...
+    },
+    -- optional
+    Recursive = false, -- default: true
+}
+-------------------------------------------------------------------------------
+
+The `Pattern` attributes are regular Lua patterns that are matched against the
+relative filename returned by the glob. To make patterns portable (and to save
+typing), globs always return their filenames with forward slashes. In this
+example, we're tagging files in the `debug` directory for a specific
+configuration only, and we're tagging files with `win32` anywhere in the
+filename for that platform:
+
+.FGlob Example
+-------------------------------------------------------------------------------
+Program {
+    ...
+    Sources = {
+        FGlob {
+            Dir = "my_dir",
+            Extensions = { ".c", ".cpp" },
+            Filters = {
+                { Pattern = "/debug/"; Config = "*-*-debug" },
+                { Pattern = "win32"; Config = "win32-*-*" },
+            }
+        }
+    },
+    ...
 }
 -------------------------------------------------------------------------------
 
