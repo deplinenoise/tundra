@@ -548,7 +548,7 @@ of everyone who links to this library. The propagate block can contain `Libs`,
 ---------------------------------------------------
 <unit type> {
     ...
-    Propagate {
+    Propagate = {
         ...
         Key = { Value, Value, ... },
     }
@@ -562,7 +562,7 @@ the following:
 SharedLibrary {
     Name = "zlib",
     Sources = { ... },
-    Propagate {
+    Propagate = {
         Defines = { "ZLIB_DLL" },
     }
 }
