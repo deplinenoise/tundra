@@ -28,13 +28,15 @@ local common = {
 			{ "-g"; Config = { "*-gcc-debug", "*-clang-debug", "*-gcc-production", "*-clang-production" } },
 			{ "-O2"; Config = { "*-gcc-production", "*-clang-production" } },
 			{ "-O3"; Config = { "*-gcc-release", "*-clang-release" } },
+			{ "/O2"; Config = "*-msvc-production" },
+			{ "/Ox"; Config = "*-msvc-release" },
 		},
 		CPPDEFS = {
 			{ "_CRT_SECURE_NO_WARNINGS"; Config = "*-msvc-*"  },
 			{ "NDEBUG"; Config = "*-*-release"  },
 			{ "TD_STANDALONE"; Config = "*-*-*-standalone"  },
 		},
-		LIBS = { "kernel32.lib", "advapi32.lib"; Config = "*-msvc-*"  },
+		LIBS = { "kernel32.lib", "advapi32.lib"; Config = { "win32-*-*", "win64-*-*" } },
 	}
 }
 
