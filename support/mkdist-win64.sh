@@ -2,6 +2,9 @@
 
 test -f tundra.lua || exit 1
 
+find examples -name tundra-output -exec rm -rf {} \;
+find examples -name .tundra-\* -exec rm -f {} \;
+
 rm -rf build dist
 
 mkdir build
