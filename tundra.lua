@@ -36,7 +36,6 @@ local common = {
 			{ "NDEBUG"; Config = "*-*-release"  },
 			{ "TD_STANDALONE"; Config = "*-*-*-standalone"  },
 		},
-		LIBS = { "kernel32.lib", "advapi32.lib"; Config = { "win32-*-*", "win64-*-*" } },
 	}
 }
 

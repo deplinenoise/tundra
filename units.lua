@@ -44,6 +44,7 @@ Program {
 		"lua/src/print.c",
 	},
 	SubConfig = "host",
+	Libs = { "m", "pthread"; Config = "linux-*-*" },
 }
 
 Always "gen_lua_data"
@@ -53,6 +54,10 @@ Program {
 	Name = "tundra",
 	Defines = { "TD_STANDALONE"; Config = "*-*-*-standalone" },
 	Depends = { "base_lua", "luac", "gen_lua_data" },
+	Libs = {
+		{ "kernel32.lib", "advapi32.lib"; Config = { "win32-*-*", "win64-*-*" } }, 
+		{ "m", "pthread"; Config = "linux-*-*" }, 
+	},
 	Sources = {
 		"src/ancestors.c",
 		"src/build.c",
