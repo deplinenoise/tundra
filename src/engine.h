@@ -105,17 +105,30 @@ typedef struct td_job_chain
 
 enum
 {
+	/* Indicates that the job structure is on the job queue. */
 	TD_JOBF_QUEUED            = 1 <<  0,
+
+	/* This job is the root job. Only one job should have this set. When this
+	 * job completes, the build queue exists. */
 	TD_JOBF_ROOT              = 1 <<  1,
+
+	/* Housekeeping flag used when serializing ancestor information. */
 	TD_JOBF_ANCESTOR_UPDATED  = 1 << 16,
+
+	/* Housekeeping flag used when setting up dependencies before a build. */
 	TD_JOBF_SETUP_COMPLETE    = 1 << 17,
+
+	/* Housekeeping flag used when cleaning nodes. */
 	TD_JOBF_CLEANED           = 1 << 18
 };
 
 
 typedef struct td_job
 {
+	/* See TD_JOBF_* */
 	int flags;
+
+	/* State of this job in the job queue; >= 100 means job has completed in one way or another. */
 	td_jobstate state;
 
 	/* implicit dependencies, discovered by the node's scanner */
@@ -128,12 +141,19 @@ typedef struct td_job
 	/* # of dependencies that have failed */
 	int failed_deps;
 
-	/* list of jobs this job will unblock once completed */
+	/* List of jobs this job will unblock once completed. */
 	td_job_chain *pending_jobs;
 
+	/* Contains input signature of this job when state >= TD_JOB_RUNNING. Saved
+	 * as ancestor data. */
 	td_digest input_signature;
 } td_job;
 
+/* Ancestor data for a node. An ancestor records for a node guid the input
+ * signature and job result of the last time the node was updated. There's also
+ * housekeeping information to garbage collect these records when they haven't
+ * been accessed for a long time. These are the basis of the rebuild checks.
+ */
 typedef struct td_ancestor_data
 {
 	td_digest guid;
@@ -151,6 +171,14 @@ enum {
 	TD_NODE_OVERWRITE = 1 << 1,
 };
 
+/* The DAG node structure. With the exception of the `job' sub-structure this
+ * structure is read-only during the build process and may be read freely
+ * by any build thread.
+ *
+ * Nodes are allocated from the engine linear allocator when Lua calls
+ * make_node, and are then wrapped with a td_noderef structure which Lua can
+ * decide to throw away later if the script doesn't keep a reference to it.
+ */
 typedef struct td_node
 {
 	/* An annotation that should print when building this node.
@@ -183,24 +211,37 @@ typedef struct td_node
 	/* An index into the engine's pass array. */
 	int pass_index;
 
+	/* Implicit dependency scanner */
 	struct td_scanner *scanner;
 
+	/* Direct dependencies */
 	int dep_count;
 	struct td_node **deps;
 
+	/* GUID of this node, computed from action, annotation, inputs and so on.
+	 * This value is used to find ancestor data from previous runs. */
 	td_digest guid;
+
+	/* Ancestor data, if present */
 	const td_ancestor_data *ancestor_data;
 
+	/* Node flags, one of TD_NODE_PRECIOUS or TD_NODE_OVERWRITE */
 	int flags;
 
+	/* Dynamic job structure */
 	td_job job;
 } td_node;
 
+/* Lua wrapper for a td_node. These can be GC'd, but we don't want the nodes
+ * themeselves to be GC'd from Lua because we store internal pointers to them
+ * in the td_node structure. */
 typedef struct td_noderef
 {
 	td_node *node;
 } td_noderef;
 
+/* A build pass. Passes are create on-demand based on the pass data received in
+ * make_node calls. */
 typedef struct td_pass
 {
 	const char *name;
@@ -227,29 +268,41 @@ enum {
 struct td_relcell;
 struct td_frozen_reldata;
 
+/* "Build engine" state as seen from Lua. Stores global data for a build
+ * session accumulated through Lua calls. */
 typedef struct td_engine
 {
 	int magic_value;
 
-	/* memory allocation */
+	/* Linear memory allocator. Nodes, files and so on are allocated here. */
 	td_alloc alloc;
 
-	/* file db */
+	/* Hash table of files. All mentioned files map to a unique td_file
+	 * structure; this hash table serves as a place to look up files on name. */
 	int file_hash_size;
 	td_file **file_hash;
 
-	/* file relation cache */
+	/* File relation cache hash table. Maps a (salted) file to a list of other
+	 * files. In the common case of header dependencies, the key file would be
+	 * a c or h file and the salt would be a hash of the CPPPATH. This is so
+	 * different uses of the same header/source file can have different
+	 * dependency lists depending on include path. */
 	int relhash_size;
 	struct td_relcell **relhash;
 
-	/* build passes */
+	/* Build passes set up implicitly through pass data in make_node calls. */
 	int pass_count;
 	td_pass passes[TD_PASS_MAX];
 
+	/* Default signer object for nodes created with a nil signer. Can be set to
+	 * either timestamp or MD5 via the "UseDigestSigning" option when creating
+	 * the engine. */
 	td_signer *default_signer;
 
+	/* For stats; total # DAG nodes created. */
 	int node_count;
 
+	/* Settings picked up from Lua creation call. */
 	struct {
 		int verbosity;
 		int debug_flags;
@@ -258,6 +311,7 @@ typedef struct td_engine
 		int continue_on_error;
 	} settings;
 
+	/* Stats; lock `stats_lock' to modify these. */
 	struct {
 		int relation_count;
 		int file_count;
@@ -278,19 +332,36 @@ typedef struct td_engine
 		int build_called;
 	} stats;
 
+	/* # anctors in array. Read directly from disk. */
 	int ancestor_count;
 	struct td_ancestor_data *ancestors;
+
+	/* Array of pointers to nodes that are associated with ancestors in the
+	 * `ancestors' array. Array is exactly the same length as `ancestors'. This
+	 * is so we can track what ancestors have already been attached to nodes.
+	 */
 	struct td_node **ancestor_used;
 
-	struct lua_State *L;
-
+	/* A start time; saved with newly created ancestor records for future GC. */
 	time_t start_time;
 
+	/* Deserialized relation cache data. */
 	struct td_frozen_reldata *relcache_data;
 
+	/* Lock for general modification; for example of the file table, relation
+	 * cache and so on. */
 	pthread_mutex_t *lock;
+
+	/* Lock for modifying stats. */
 	pthread_mutex_t *stats_lock;
+
+	/* Really a pointer to FILE; but we avoid including stdio.h here. If set,
+	 * points to a FILE where signature debug info can be output .*/
 	void *sign_debug_file;
+
+	/* Small collision table of mutexes to lock file objects e.g. when
+	 * computing input signatures and stat() data. Files index into this array
+	 * using their name hash value modulo he table size. See files.c */
 	pthread_mutex_t object_locks[TD_OBJECT_LOCK_COUNT];
 } td_engine;
 

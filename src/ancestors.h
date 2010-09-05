@@ -23,10 +23,16 @@
 struct td_engine;
 struct td_node;
 
+/* Load ancestor data (populates the ancestors array). */
 void
 td_load_ancestors(struct td_engine *engine);
 
+/* Save updated ancestor data. */
 void
 td_save_ancestors(struct td_engine *engine, struct td_node *root);
+
+/* Compute node GUID and attach ancestor data to node. */
+void
+td_setup_ancestor_data(struct td_engine *engine, struct td_node *node);
 
 #endif

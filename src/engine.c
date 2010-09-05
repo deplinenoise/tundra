@@ -90,41 +90,11 @@ void td_sign_digest(td_engine *engine, td_file *file, td_digest *out)
 static td_signer sign_timestamp = { 0, { td_sign_timestamp } };
 static td_signer sign_digest = { 0, { td_sign_digest } };
 
-static void
-md5_string(MD5_CTX *context, const char *string)
-{
-	static unsigned char zero_byte = 0;
-
-	if (string)
-		MD5_Update(context, (unsigned char*) string, (int) strlen(string)+1);
-	else
-		MD5_Update(context, &zero_byte, 1);
-}
-
-static void
-compute_node_guid(td_engine *engine, td_node *node)
-{
-	MD5_CTX context;
-	MD5_Init(&context);
-	md5_string(&context, node->action);
-	md5_string(&context, node->annotation);
-	md5_string(&context, node->salt);
-	MD5_Final(node->guid.data, &context);
-
-	if (td_debug_check(engine, TD_DEBUG_NODES))
-	{
-		char guidstr[33];
-		td_digest_to_string(&node->guid, guidstr);
-		printf("%s with guid %s\n", node->annotation, guidstr);
-	}
-}
-
 int td_compare_ancestors(const void* l_, const void* r_)
 {
 	const td_ancestor_data *l = (const td_ancestor_data *) l_, *r = (const td_ancestor_data *) r_;
 	return memcmp(l->guid.data, r->guid.data, sizeof(l->guid.data));
 }
-
 
 static const char*
 find_basename(const char *path, int path_len)
@@ -389,7 +359,6 @@ static int make_engine(lua_State *L)
 
 	self->file_hash_size = 92413;
 	self->relhash_size = 92413;
-	self->L = L;
 	self->start_time = time(NULL);
 	self->settings.thread_count = td_get_processor_count();
 
@@ -476,47 +445,6 @@ static int engine_gc(lua_State *L)
 	return 0;
 }
 
-static void
-setup_ancestor_data(td_engine *engine, td_node *node)
-{
-	compute_node_guid(engine, node);
-
-	++engine->stats.ancestor_checks;
-
-	if (engine->ancestors)
-	{
-		td_ancestor_data key;
-		key.guid = node->guid; /* only key field is relevant */
-
-		node->ancestor_data = (td_ancestor_data *)
-			bsearch(&key, engine->ancestors, engine->ancestor_count, sizeof(td_ancestor_data), td_compare_ancestors);
-
-		if (node->ancestor_data)
-		{
-			int index = (int) (node->ancestor_data - engine->ancestors);
-			td_node *other;
-			if (NULL != (other = engine->ancestor_used[index]))
-				td_croak("node error: nodes \"%s\" and \"%s\" share the same ancestor", node->annotation, other->annotation);
-			engine->ancestor_used[index] = node;
-			++engine->stats.ancestor_nodes;
-		}
-		else
-		{
-			if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
-			{
-				char guidstr[33];
-				td_digest_to_string(&node->guid, guidstr);
-				printf("no ancestor for %s with guid %s\n", node->annotation, guidstr);
-			}
-		}
-	}
-	else
-	{
-		node->ancestor_data = NULL;
-	}
-}
-
-
 static td_node *
 make_pass_barrier(td_engine *engine, const td_pass *pass)
 {
@@ -529,7 +457,7 @@ make_pass_barrier(td_engine *engine, const td_pass *pass)
 	result = td_page_alloc(&engine->alloc, sizeof(td_node));
 	memset(result, 0, sizeof(*result));
 	result->annotation = td_page_strdup(&engine->alloc, name, strlen(name));
-	setup_ancestor_data(engine, result);
+	td_setup_ancestor_data(engine, result);
 	++engine->node_count;
 	return result;
 }
@@ -930,7 +858,7 @@ make_node(lua_State *L)
 	luaL_getmetatable(L, TUNDRA_NODEREF_MTNAME);
 	lua_setmetatable(L, -2);
 
-	setup_ancestor_data(self, node);
+	td_setup_ancestor_data(self, node);
 
 	++self->node_count;
 

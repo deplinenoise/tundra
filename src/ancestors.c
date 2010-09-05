@@ -20,6 +20,7 @@
 
 #include "ancestors.h"
 #include "engine.h"
+#include "md5.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +28,35 @@
 #include <assert.h>
 
 #define TD_ANCESTOR_FILE ".tundra-ancestors"
+
+static void
+md5_string(MD5_CTX *context, const char *string)
+{
+	static unsigned char zero_byte = 0;
+
+	if (string)
+		MD5_Update(context, (unsigned char*) string, (int) strlen(string)+1);
+	else
+		MD5_Update(context, &zero_byte, 1);
+}
+
+static void
+compute_node_guid(td_engine *engine, td_node *node)
+{
+	MD5_CTX context;
+	MD5_Init(&context);
+	md5_string(&context, node->action);
+	md5_string(&context, node->annotation);
+	md5_string(&context, node->salt);
+	MD5_Final(node->guid.data, &context);
+
+	if (td_debug_check(engine, TD_DEBUG_NODES))
+	{
+		char guidstr[33];
+		td_digest_to_string(&node->guid, guidstr);
+		printf("%s with guid %s\n", node->annotation, guidstr);
+	}
+}
 
 void
 td_load_ancestors(td_engine *engine)
@@ -53,7 +83,7 @@ td_load_ancestors(td_engine *engine)
 
 	engine->ancestor_count = count = (int) (file_size / sizeof(td_ancestor_data));
 	engine->ancestors = malloc(file_size);
-	engine->ancestor_used = (td_node **)calloc(sizeof(td_node *), count);
+	engine->ancestor_used = calloc(sizeof(td_node *), count);
 	read_count = fread(engine->ancestors, sizeof(td_ancestor_data), count, f);
 
 	if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
@@ -203,5 +233,47 @@ td_save_ancestors(td_engine *engine, td_node *root)
 
 	if (0 != td_move_file(TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE))
 		td_croak("couldn't rename %s to %s", TD_ANCESTOR_FILE ".tmp", TD_ANCESTOR_FILE);
+}
+
+void
+td_setup_ancestor_data(td_engine *engine, td_node *node)
+{
+	compute_node_guid(engine, node);
+
+	++engine->stats.ancestor_checks;
+
+	if (engine->ancestors)
+	{
+		td_ancestor_data key;
+		key.guid = node->guid; /* only key field is relevant */
+
+		node->ancestor_data = (td_ancestor_data *)
+			bsearch(&key, engine->ancestors, engine->ancestor_count, sizeof(td_ancestor_data), td_compare_ancestors);
+
+		if (node->ancestor_data)
+		{
+			int index = (int) (node->ancestor_data - engine->ancestors);
+			td_node *other;
+			if (NULL != (other = engine->ancestor_used[index]))
+				td_croak("node error: nodes \"%s\" and \"%s\" share the same ancestor", node->annotation, other->annotation);
+			engine->ancestor_used[index] = node;
+			++engine->stats.ancestor_nodes;
+		}
+		else
+		{
+			if (td_debug_check(engine, TD_DEBUG_ANCESTORS))
+			{
+				char guidstr[33];
+				td_digest_to_string(&node->guid, guidstr);
+				printf("no ancestor for %s with guid %s\n", node->annotation, guidstr);
+			}
+		}
+	}
+	else
+	{
+		/* We didn't load any ancestor data, just set the ancestor to NULL.
+		 * Everything will rebuild without ancestry. */
+		node->ancestor_data = NULL;
+	}
 }
 
