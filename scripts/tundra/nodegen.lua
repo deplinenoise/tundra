@@ -278,7 +278,7 @@ function _generator:eval_unit(unit)
 	-- to support cross compilation.
 	local env
 	local subconfig = unit.Decl.SubConfig or self.default_subconfig
-	if subconfig then
+	if subconfig and self.base_envs then
 		env = self.base_envs[subconfig]
 		if tundra.boot.Options.VeryVerbose then
 			if env then

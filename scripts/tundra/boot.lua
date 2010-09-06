@@ -233,7 +233,11 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 		end
 	else
 		-- User has requested all configurations at once. Possibly due to IDE mode.
-		for _, cfg in pairs(configs) do build_configs[#build_configs + 1] = cfg end
+		for _, cfg in pairs(configs) do
+			if not cfg.Virtual then
+				build_configs[#build_configs + 1] = cfg
+			end
+		end
 		for _, var in pairs(variants) do build_variants[#build_variants + 1] = var end
 		for var, _ in pairs(subvariants) do build_subvariants[#build_subvariants + 1] = var end
 	end
