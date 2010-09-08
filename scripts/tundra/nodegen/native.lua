@@ -38,7 +38,6 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 	local pch_output
 	local gen_pch_node
 
-	-- Push Libs, Defines and so in into the environment of this unit.
 	do
 		local propagate_blocks = nil
 
@@ -51,18 +50,34 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 			end
 		end
 
-		for decl_key, env_key in pairs(decl_to_env_mappings) do
-			local function push_bindings(data)
+		local function push_bindings(env_key, data)
+			if data then
 				for _, item in util.nil_ipairs(nodegen.flatten_list(build_id, data)) do
 					env:append(env_key, item)
 				end
 			end
+		end
 
+
+		-- Push Libs, Defines and so in into the environment of this unit.
+		-- These are named for convenience but are aliases for syntax niceness.
+		for decl_key, env_key in pairs(decl_to_env_mappings) do
 			-- First pick settings from our own unit.
-			push_bindings(decl[decl_key])
+			push_bindings(env_key, decl[decl_key])
 
 			for _, data in util.nil_ipairs(propagate_blocks) do
-				push_bindings(data[decl_key])
+				push_bindings(env_key, data[decl_key])
+			end
+		end
+
+		-- Push Env blocks as is
+		for k, v in util.nil_pairs(decl.Env) do
+			push_bindings(k, v)
+		end
+
+		for _, block in util.nil_ipairs(propagate_blocks) do
+			for k, v in util.nil_pairs(block.Env) do
+				push_bindings(k, v)
 			end
 		end
 	end
