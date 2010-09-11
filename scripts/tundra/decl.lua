@@ -93,7 +93,12 @@ function decl_meta:add_source_generator(name, fn)
 end
 
 function decl_meta:parse(file)
-	local chunk = assert(loadfile(file))
+	local chunk
+	if type(file) == "function" then
+		chunk = file
+	else
+		chunk =assert(loadfile(file))
+	end
 
 	for name, _ in pairs(nodegen._generator.evaluators) do
 		self.ProjectTypes[name] = true
