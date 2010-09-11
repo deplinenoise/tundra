@@ -596,7 +596,7 @@ end
 
 function _G.Build(args)
 	if type(args.Configs) ~= "table" or #args.Configs == 0 then
-		croak("Need at least one config; got %s" .. util.tostring(args.Configs) )
+		croak("Need at least one config; got %s", util.tostring(args.Configs or "none at all"))
 	end
 
 	local configs, variants, subvariants = {}, {}, {}
