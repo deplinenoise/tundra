@@ -657,6 +657,17 @@ function _G.Build(args)
 	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, subvariants, default_variant, default_subvariant)
 	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
 
+	-- Validate pass data
+	for id, data in pairs(passes) do
+		if not data.Name then
+			croak("Pass %s has no Name attribute", id)
+		elseif not data.BuildOrder then
+			croak("Pass %s has no BuildOrder attribute", id)
+		end
+	end
+
+	assert(#passes == 0)
+
 	if Options.ShowConfigs then
 		show_configs(configs, variants, subvariants, io.stdout)
 		native.exit(0)
