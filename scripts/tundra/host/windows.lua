@@ -22,5 +22,6 @@ function apply_host(env)
 		["DOTNETRUN"] = "",
 		["HOSTPROGSUFFIX"] = ".exe",
 		["HOSTSHLIBSUFFIX"] = ".dll",
+		["_COPY_FILE"] = "copy $(>) $(@)",
 	}
 end

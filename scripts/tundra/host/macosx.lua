@@ -22,5 +22,6 @@ function apply_host(env)
 		["DOTNETRUN"] = "mono ",
 		["HOSTPROGSUFFIX"] = "",
 		["HOSTSHLIBSUFFIX"] = ".dylib",
+		["_COPY_FILE"] = "cp -f $(<) $(@)",
 	}
 end
