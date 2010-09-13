@@ -19,7 +19,7 @@
 
 module(..., package.seeall)
 
-local function copy_file(env, src, target, pass)
+function copy_file(env, src, target, pass)
 	return env:make_node {
 		Pass = pass,
 		Label = "CopyFile $(@)",
