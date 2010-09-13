@@ -105,7 +105,7 @@ function apply(_outer_env, options)
 		["CPPPATH"] = "",
 		["CPPDEFS"] = "",
 		["LIBS"] = "",
-		["LIBPATH"] = "",
+		["LIBPATH"] = "$(OBJECTDIR)",
 		["CPPDEFS_DEBUG"] = "",
 		["CPPDEFS_PRODUCTION"] = "",
 		["CPPDEFS_RELEASE"] = "",

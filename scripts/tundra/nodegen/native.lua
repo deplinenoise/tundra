@@ -29,7 +29,7 @@ local decl_to_env_mappings = {
 	LibPaths = "LIBPATH",
 }
 
-local function eval_native_unit(generator, env, label, suffix, command, decl)
+local function eval_native_unit(generator, env, label, prefix, suffix, command, decl)
 	local build_id = env:get("BUILD_ID")
 	local pch = decl.PrecompiledHeader
 	local my_pass = generator:resolve_pass(decl.Pass)
@@ -79,6 +79,15 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 			for k, v in util.nil_pairs(block.Env) do
 				push_bindings(k, v)
 			end
+		end
+	end
+
+	-- Link with shared libraries in dependencies.
+	for _, dep_name in util.nil_ipairs(dep_names) do
+		local dep_type, dep_decl = generator:get_type_and_decl_of(dep_name)
+		if dep_type == "SharedLibrary" then
+			local target = dep_decl.Target or dep_decl.Name
+			env:append('LIBS', target)
 		end
 	end
 
@@ -147,7 +156,7 @@ local function eval_native_unit(generator, env, label, suffix, command, decl)
 
 	local targets = nil
 	if suffix then
-		targets = { generator:get_target(decl, suffix) }
+		targets = { generator:get_target(decl, suffix, prefix) }
 	end
 
 	if gen_pch_node then
@@ -173,18 +182,18 @@ end
 
 function apply_nodegen()
 	nodegen.add_evaluator("Program", function (generator, env, decl)
-		return eval_native_unit(generator, env, "Program $(@)", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
+		return eval_native_unit(generator, env, "Program $(@)", "$(PROGPREFIX)", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
 	end)
 
 	nodegen.add_evaluator("StaticLibrary", function (generator, env, decl)
-		return eval_native_unit(generator, env, "StaticLib $(@)", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
+		return eval_native_unit(generator, env, "StaticLib $(@)", "$(LIBPREFIX)", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
 	end)
 
 	nodegen.add_evaluator("SharedLibrary", function (generator, env, decl)
-		return eval_native_unit(generator, env, "SharedLib $(@)", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
+		return eval_native_unit(generator, env, "SharedLib $(@)", "$(SHLIBPREFIX)", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
 	end)
 
 	nodegen.add_evaluator("ExternalLibrary", function (generator, env, decl)
-		return eval_native_unit(generator, env, "ExternalLibrary " .. decl.Name, nil, nil, decl)
+		return eval_native_unit(generator, env, "ExternalLibrary " .. decl.Name, nil, nil, nil, decl)
 	end)
 end

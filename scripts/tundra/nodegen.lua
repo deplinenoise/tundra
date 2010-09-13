@@ -106,6 +106,13 @@ function generate(args)
 	return result
 end
 
+function _generator:get_type_and_decl_of(name)
+	assert(name)
+	local n = self.units[name]
+	assert(n)
+	return n.Type, n.Decl
+end
+
 function _generator:get_node_of(name)
 	assert(name)
 	local n = self.unit_nodes[name]
@@ -233,10 +240,10 @@ function _generator:analyze_sources(list, suffixes, transformer)
 	end
 end
 
-function _generator:get_target(decl, suffix)
+function _generator:get_target(decl, suffix, prefix)
 	local target = decl.Target
 	if not target then
-		target = "$(OBJECTDIR)/" .. decl.Name .. suffix
+		target = "$(OBJECTDIR)/" .. (prefix or "") .. decl.Name .. (suffix or "")
 	end
 	return target
 end
