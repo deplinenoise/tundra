@@ -25,6 +25,7 @@ function apply(env, options)
 	env:set_many {
 		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj" },
 		["OBJECTSUFFIX"] = ".obj",
+		["LIBPREFIX"] = ".lib",
 		["LIBSUFFIX"] = ".lib",
 		["CC"] = "cl",
 		["C++"] = "cl",
@@ -48,6 +49,8 @@ function apply(env, options)
 		["PROGCOM"] = "$(LD) /nologo @RESPONSE|@|$(_USE_PDB_LINK) $(PROGOPTS) $(LIBPATH:b:p/LIBPATH\\:) $(LIBS) /out:$(@:b) $(<:b)",
 		["LIBOPTS"] = "",
 		["LIBCOM"] = "$(LIB) /nologo @RESPONSE|@|$(LIBOPTS) /out:$(@:b) $(<:b)",
+		["PROGPREFIX"] = "",
+		["SHLIBPREFIX"] = "",
 		["SHLIBOPTS"] = "",
 		["SHLIBCOM"] = "$(LD) /DLL /nologo @RESPONSE|@|$(_USE_PDB_LINK) $(SHLIBOPTS) $(LIBPATH:b:p/LIBPATH\\:) $(LIBS) /out:$(@:b) $(<:b)",
 		["AUX_FILES_PROGRAM"] = { "$(@:B:a.exe.manifest)", "$(@:B:a.pdb)" },
