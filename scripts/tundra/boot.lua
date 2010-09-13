@@ -666,8 +666,6 @@ function _G.Build(args)
 		end
 	end
 
-	assert(#passes == 0)
-
 	if Options.ShowConfigs then
 		show_configs(configs, variants, subvariants, io.stdout)
 		native.exit(0)
