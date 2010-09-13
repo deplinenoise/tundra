@@ -50,6 +50,7 @@ function apply(env, options)
 		["LIBOPTS"] = "",
 		["LIBCOM"] = "$(LIB) /nologo @RESPONSE|@|$(LIBOPTS) /out:$(@:b) $(<:b)",
 		["PROGPREFIX"] = "",
+		["SHLIBLINKSUFFIX"] = ".lib",
 		["SHLIBPREFIX"] = "",
 		["SHLIBOPTS"] = "",
 		["SHLIBCOM"] = "$(LD) /DLL /nologo @RESPONSE|@|$(_USE_PDB_LINK) $(SHLIBOPTS) $(LIBPATH:b:p/LIBPATH\\:) $(LIBS) /out:$(@:b) $(<:b)",

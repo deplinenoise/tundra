@@ -112,5 +112,6 @@ function apply(_outer_env, options)
 		["CCOPTS_DEBUG"] = "",
 		["CCOPTS_PRODUCTION"] = "",
 		["CCOPTS_RELEASE"] = "",
+		["SHLIBLINKSUFFIX"] = "",
 	}
 end

@@ -87,6 +87,7 @@ local function eval_native_unit(generator, env, label, prefix, suffix, command, 
 		local dep_type, dep_decl = generator:get_type_and_decl_of(dep_name)
 		if dep_type == "SharedLibrary" then
 			local target = dep_decl.Target or dep_decl.Name
+			target = target .. "$(SHLIBLINKSUFFIX)"
 			env:append('LIBS', target)
 		end
 	end
