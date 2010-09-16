@@ -15,6 +15,8 @@ same multi-MLOC codebase is not uncommon. Each second spent by a build system
 not building wastes productivity, especially when there are thousands of builds
 every day!
 
+<<<
+
 === Design Philosphy ===
 
 Here are some philosophical ideas and how they have influenced the design of
@@ -73,6 +75,8 @@ need a specific configuration to produce working builds. The time it will take
 to support a new toolset will offset the time it takes to tell the build
 system about it by several orders of magnitude.
 
+<<<
+
 == Hello, world ==
 
 A Tundra project needs atleast two files, one is +tundra.lua+ which specifies
@@ -83,7 +87,13 @@ default if nothing is specified when Tundra is run on Mac OS X:
 
 -------------------------------------------------------------------------------
 Build {
-    Units = "units.lua",
+    Units = function()
+        Program {
+            Name = "HelloWorld",
+            Sources = { "hello.c" },
+        }
+        Default "HelloWorld"
+    end,
     Configs = {
         Config {
             Name = "macosx-gcc",
@@ -94,16 +104,11 @@ Build {
 }
 -------------------------------------------------------------------------------
 
-As you can see, it refers to another file, +units.lua+. The +Units+ file is a
-declarative input file describing the targets that are available:
-
--------------------------------------------------------------------------------
-Program {
-    Name = "HelloWorld",
-    Sources = { "hello.c" },
-}
-Default "HelloWorld"
--------------------------------------------------------------------------------
+The funny `Units` function specifies the available targets using the "unit
+syntax", a set of keywords and conventions designed to describe build target in
+a high-level manner. This data will typically be big for bigger projects so
+it can also be put in a separate file, in which case Units can be set to a
+string which is taken as a filename.
 
 If we now run Tundra on this input, it will build our +HelloWorld+ executable.
 The output path shows that tundra has defaulted the variant to `debug` and the
@@ -125,6 +130,8 @@ hello, world
 
 More examples can be found in the `examples` directory in the Tundra
 distribution.
+
+<<<
 
 == Installation ==
 
@@ -166,6 +173,8 @@ from the build directory (because you're hacking on some feature) you can set
 the `TUNDRA_HOME` environment variable to the root directory of the tundra
 source distribution instead.
 
+<<<
+
 == A bit of Tundra nomenclature ==
 
 Here are some terms and definitions used in Tundra and elsewhere in this document:
@@ -201,6 +210,8 @@ Here are some terms and definitions used in Tundra and elsewhere in this documen
   toolset like `mono` can coexists with something like `gcc`, but you can't have
   two `gcc`-style toolsets loaded into the same configuration at once. Use different
   configurations for that.
+
+<<<
 
 == How Tundra works ==
 
@@ -442,6 +453,8 @@ Build {
    ...
 }
 -------------------------------------------------------------------------------
+
+<<<
 
 == Unit Syntax ==
 
@@ -716,6 +729,8 @@ Program {
 }
 -------------------------------------------------------------------------------
 
+<<<
+
 == The Environment ==
 
 Tundra uses a hierarchical key-value environment to store information used to
@@ -748,7 +763,7 @@ environment. For example, to construct a list of include paths
 from a environment variable +CPPPATH+, you can say +$(CPPPATH:p-I)+.
 
 .Interpolation Syntax
-[width="90%",cols="1,9",options="header"]
+[width="90%",cols="4,9",options="header"]
 |=============================================================================
 |Syntax                 |Effect
 |+$(VAR:f)+             |Convert to forward slashes (+/+)
@@ -779,7 +794,7 @@ Assume there is an environment with the following bindings:
 
 Then interpolating the following strings will give the associated result:
 
-[width="90%",cols="1,9",options="header"]
+[width="90%",cols="4,9",options="header"]
 |=============================================================================
 |Expression             |Resulting String
 |`$(FOO)`               |`String`
