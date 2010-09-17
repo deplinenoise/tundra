@@ -30,6 +30,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #elif defined(__APPLE__) || defined(linux)
+#include <errno.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #else
@@ -94,7 +95,7 @@ static void scan_directory(lua_State* L, const char* path)
 	const size_t path_len = strlen(path);
 
 	if (!(dir = opendir(path)))
-		return;
+		luaL_error(L, "can't opendir \"%s\": %s", path, strerror(errno));
 
 	if (path_len + 1 > sizeof(full_fn))
 	{
