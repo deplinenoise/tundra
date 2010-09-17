@@ -79,11 +79,12 @@ system about it by several orders of magnitude.
 
 == Hello, world ==
 
-A Tundra project needs atleast two files, one is +tundra.lua+ which specifies
-what build configurations are available for this project. Here is a sample
-minimal +tundra.lua+ file that creates a configuration +macosx-gcc+ which pulls
-in the stock +gcc+ toolset. We also say that this configuration is to be the
-default if nothing is specified when Tundra is run on Mac OS X:
+A Tundra project requires the file +tundra.lua+ which specifies what build
+configurations are available for the project. It is analogous to a +Makefile+.
+Here is a sample minimal +tundra.lua+ file that creates a configuration
++macosx-gcc+ which pulls in the stock +gcc+ toolset. We also say that this
+configuration is to be the default if nothing is specified when Tundra is run
+on Mac OS X:
 
 -------------------------------------------------------------------------------
 Build {
