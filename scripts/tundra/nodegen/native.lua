@@ -86,9 +86,45 @@ local function eval_native_unit(generator, env, label, prefix, suffix, command, 
 	for _, dep_name in util.nil_ipairs(dep_names) do
 		local dep_type, dep_decl = generator:get_type_and_decl_of(dep_name)
 		if dep_type == "SharedLibrary" then
+
+			-- On Win32 toolsets, we need foo.lib
+			-- On UNIX toolsets, we need -lfoo
 			local target = dep_decl.Target or dep_decl.Name
 			target = target .. "$(SHLIBLINKSUFFIX)"
 			env:append('LIBS', target)
+
+			--[[
+
+			A note about win32 import libraries:
+
+			It is tempting to add an implicit input dependency on the import
+			library of the linked-to shared library here; but this would be
+			suboptimal:
+
+			1. Because there is a dependency between the nodes themselves,
+			the import library generation will always run before this link
+			step is run. Therefore, the import lib will always exist and be
+			updated before this link step runs.
+
+			2. Because the import library is regenerated whenever the DLL is
+			relinked we would have to custom-sign it (using a hash of the
+			DLLs export list) to avoid relinking the executable all the
+			time when only the DLL's internals change.
+
+			3. The DLL's export list should be available in headers anyway,
+			which is already covered in the compilation of the object files
+			that actually uses those APIs.
+
+			Therefore the best way right now is to not tell Tundra about the
+			import lib at all and rely on header scanning to pick up API
+			changes.
+
+			An implicit input dependency would be needed however if someone
+			is doing funky things with their import library (adding
+			non-linker-generated code for example). These cases are so rare
+			that we can safely put them off.
+
+			]]--
 		end
 	end
 
