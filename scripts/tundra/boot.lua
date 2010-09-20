@@ -725,6 +725,7 @@ function main(cmdline_args)
 		{ Name="Debugger", Long="lua-debugger", Doc="Run with Lua debugger enabled (use 'exit' to continue)" },
 		{ Name="SelfTest", Long="self-test", Doc="Run a test of Tundra's internals" },
 		{ Name="Profile", Long="lua-profile", Doc="Enable the Lua profiler" },
+		{ Name="Init", Long="init", Doc="Create a default tundra.lua in the current directory." },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then
@@ -819,6 +820,23 @@ function main(cmdline_args)
 			print("changing to dir \"" .. Options.Cwd .. "\"")
 		end
 		native.set_cwd(Options.Cwd)
+	end
+
+	if Options.Init then
+		require "tundra.init"
+		local f, err = io.open('tundra.lua', 'r')
+		if f then
+			f:close()
+			croak("cannot use --init when there is a tundra.lua in the current dir (it would be overwritten)")
+		else
+			f, err = io.open('tundra.lua', 'w')
+			if f then
+				f:write(tundra.init.init_tundra_lua)
+				f:close()
+			else
+				croak("could not write default tundra.lua to disk.")
+			end
+		end
 	end
 
 	default_env = environment.create()
