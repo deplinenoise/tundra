@@ -26,18 +26,17 @@
 
 #include "portable.h"
 #include "engine.h"
+#include "config.h"
 
-#ifdef _WIN32
+#if defined(TUNDRA_WIN32)
 #include <windows.h>
-#elif defined(__APPLE__) || defined(linux)
+#elif defined(TUNDRA_UNIX)
 #include <errno.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#else
-#error jaha du
 #endif
 
-#ifdef _WIN32
+#if defined(TUNDRA_WIN32)
 static void scan_directory(lua_State* L, const char* path)
 {
 	int i;
@@ -82,9 +81,9 @@ static void scan_directory(lua_State* L, const char* path)
 	if (!FindClose(h))
 		luaL_error(L, "%s: couldn't close file handle: %d", path, GetLastError());
 }
-#endif
 
-#if defined(__APPLE__) || defined(linux)
+#elif defined(TUNDRA_UNIX)
+
 static void scan_directory(lua_State* L, const char* path)
 {
 	char full_fn[512];

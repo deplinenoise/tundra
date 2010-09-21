@@ -22,10 +22,11 @@
 #include "util.h"
 #include "lua.h"
 #include "lauxlib.h"
+#include "config.h"
 
 #include <string.h>
 
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/wait.h>
@@ -37,18 +38,21 @@
 #include <errno.h>
 #endif
 
-#if defined(__APPLE__)
+#if defined(TUNDRA_APPLE)
 #include <mach-o/dyld.h>
 #endif
 
-#ifdef _WIN32
+#if defined(TUNDRA_WIN32)
 #include <windows.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <process.h>
 #include <stdio.h>
 #include <assert.h>
+
+#if defined(_MSC_VER)
 #define snprintf _snprintf
+#endif
 
 #if defined(__GNUC__)
 /* mingw has very old windows headers; declare CONDITION VARIABLE here */
@@ -70,17 +74,19 @@ static void WINAPI (*WakeAllConditionVariable)(PCONDITION_VARIABLE ConditionVari
 #endif
 
 const char * const td_platform_string =
-#if defined(__APPLE__)
+#if defined(TUNDRA_APPLE)
 	"macosx";
-#elif defined(linux)
+#elif defined(TUNDRA_LINUX)
 	"linux";
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 	"windows";
+#elif defined(TUNDRA_FREEBSD)
+	"freebsd";
 #else
 #error implement me
 #endif
 
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 int pthread_mutex_init(pthread_mutex_t *mutex, void *args)
 {
 	TD_UNUSED(args);
@@ -216,7 +222,7 @@ int pthread_join(pthread_t thread, void **result_out)
 int
 td_mkdir(const char *path)
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	int rc = mkdir(path, 0777);
 	if (0 == rc || EEXIST == errno)
 		return 0;
@@ -225,7 +231,7 @@ td_mkdir(const char *path)
 		perror("mkdir");
 		return rc;
 	}
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 	if (!CreateDirectoryA(path, NULL))
 	{
 		switch (GetLastError())
@@ -238,17 +244,15 @@ td_mkdir(const char *path)
 	}
 	else
 		return 0;
-#else
-#error meh
 #endif
 }
 
 int
 td_rmdir(const char *path)
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	return rmdir(path);
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 	if (RemoveDirectoryA(path))
 		return 0;
 	else
@@ -262,7 +266,7 @@ td_rmdir(const char *path)
 int
 fs_stat_file(const char *path, td_stat *out)
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	int err;
 	struct stat s;
 	if (0 != (err = stat(path, &s)))
@@ -272,7 +276,7 @@ fs_stat_file(const char *path, td_stat *out)
 	out->size = s.st_size;
 	out->timestamp = s.st_mtime;
 	return 0;
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 #define EPOCH_DIFF 0x019DB1DED53E8000LL /* 116444736000000000 nsecs */
 #define RATE_DIFF 10000000 /* 100 nsecs */
 	WIN32_FIND_DATAA data;
@@ -294,9 +298,9 @@ fs_stat_file(const char *path, td_stat *out)
 
 int td_move_file(const char *source, const char *dest)
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	return rename(source, dest);
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 	if (MoveFileExA(source, dest, MOVEFILE_REPLACE_EXISTING))
 		return 0;
 	else
@@ -307,10 +311,10 @@ int td_move_file(const char *source, const char *dest)
 
 }
 
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 static double perf_to_secs;
 static LARGE_INTEGER initial_time;
-#elif defined(__APPLE__) || defined(linux)
+#elif defined(TUNDRA_UNIX)
 static double start_time;
 static double dtime_now(void)
 {
@@ -324,9 +328,9 @@ static double dtime_now(void)
 
 static void init_timer(void)
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	start_time = dtime_now();
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 	LARGE_INTEGER perf_freq;
 	if (!QueryPerformanceFrequency(&perf_freq))
 		td_croak("QueryPerformanceFrequency failed: %d", (int) GetLastError());
@@ -336,7 +340,7 @@ static void init_timer(void)
 #endif
 }
 
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 static char *s_env_block;
 #endif
 
@@ -344,11 +348,11 @@ void td_init_portable(void)
 {
 	init_timer();
 
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 	/* Grab the environment block once and just let it leak. */
 	s_env_block = GetEnvironmentStringsA();
 
-#ifdef __GNUC__
+#if defined(__GNUC__)
 	{
 		int i;
 		static struct { void **ptr; const char *symbol; } init_table[] = {
@@ -377,9 +381,9 @@ void td_init_portable(void)
 
 double td_timestamp(void)
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	return dtime_now() - start_time;
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 	LARGE_INTEGER c;
 	if (!QueryPerformanceCounter(&c))
 		td_croak("QueryPerformanceCounter failed: %d", (int) GetLastError());
@@ -391,7 +395,7 @@ double td_timestamp(void)
 
 static td_sighandler_info * volatile siginfo;
 
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 static void* signal_handler_thread_fn(void *arg)
 {
 	int sig, rc;
@@ -427,14 +431,14 @@ void td_install_sighandler(td_sighandler_info *info)
 {
 	siginfo = info;
 
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	{
 		pthread_t sigthread;
 		if (0 != pthread_create(&sigthread, NULL, signal_handler_thread_fn, NULL))
 			td_croak("couldn't start signal handler thread");
 		pthread_detach(sigthread);
 	}
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 #else
 #error Meh
 #endif
@@ -447,7 +451,7 @@ void td_remove_sighandler(void)
 
 void td_block_signals(int block)
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	sigset_t sigs;
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGINT);
@@ -459,7 +463,7 @@ void td_block_signals(int block)
 	TD_UNUSED(block);
 }
 
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 static int
 append_string(char* block, size_t block_size, size_t *cursor, const char *src)
 {
@@ -669,7 +673,7 @@ leave:
 
 int td_exec(const char* cmd_line, int env_count, const char **env, int *was_signalled_out, const char *prefix)
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(TUNDRA_UNIX)
 	pid_t child;
 	if (0 == (child = fork()))
 	{
@@ -728,7 +732,7 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 		return return_code;
 	}
 
-#elif defined(_WIN32)
+#elif defined(TUNDRA_WIN32)
 	static const char response_prefix[] = "@RESPONSE|";
 	static const size_t response_prefix_len = sizeof(response_prefix) - 1;
 	char command_buf[512];
@@ -820,7 +824,7 @@ int td_exec(const char* cmd_line, int env_count, const char **env, int *was_sign
 #endif
 }
 
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 static void push_win32_error(lua_State *L, DWORD err, const char *context)
 {
 	int chars;
@@ -932,7 +936,7 @@ td_init_homedir()
 	if (NULL != (tmp = getenv("TUNDRA_HOME")))
 		return set_homedir(tmp);
 
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 	if (0 == GetModuleFileNameA(NULL, homedir, (DWORD)sizeof(homedir)))
 		return NULL;
 
@@ -940,7 +944,7 @@ td_init_homedir()
 		*tmp = 0;
 	return homedir;
 
-#elif defined(__APPLE__)
+#elif defined(TUNDRA_APPLE)
 	char path[1024], resolved_path[1024];
 	uint32_t size = sizeof(path);
 	if (_NSGetExecutablePath(path, &size) != 0)
@@ -951,8 +955,18 @@ td_init_homedir()
 		return NULL;
 	
 
-#elif defined(linux)
+#elif defined(TUNDRA_LINUX)
 	if (-1 == readlink("/proc/self/exe", homedir, sizeof(homedir)))
+		return NULL;
+
+	if ((tmp = strrchr(homedir, '/')))
+		*tmp = 0;
+	return homedir;
+#elif defined(TUNDRA_FREEBSD)
+	char linkpath[256];
+	snprintf(linkpath, sizeof(linkpath), "/proc/%d/file", getpid());
+	linkpath[sizeof(linkpath-1)] = 1;
+	if (-1 == readlink(linkpath, homedir, sizeof(homedir)))
 		return NULL;
 
 	if ((tmp = strrchr(homedir, '/')))
@@ -967,7 +981,7 @@ int
 td_get_cwd(struct lua_State *L)
 {
 	char buffer[512];
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 	DWORD res = GetCurrentDirectoryA(sizeof(buffer), buffer);
 	if (0 == res || sizeof(buffer) <= res)
 		return luaL_error(L, "couldn't get working dir: win32 error=%d", (int) GetLastError());
@@ -983,7 +997,7 @@ int
 td_set_cwd(struct lua_State *L)
 {
 	const char *dir = luaL_checkstring(L, 1);
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 	if (!SetCurrentDirectoryA(dir))
 		return luaL_error(L, "couldn't change into %s: win32 error=%d", dir, (int) GetLastError());
 #else
@@ -996,7 +1010,7 @@ td_set_cwd(struct lua_State *L)
 int
 td_get_processor_count(void)
 {
-#if defined(_WIN32)
+#if defined(TUNDRA_WIN32)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
 	return (int) si.dwNumberOfProcessors;
@@ -1025,7 +1039,7 @@ td_mutex_unlock_or_die(pthread_mutex_t *lock)
 void
 td_mutex_init_or_die(pthread_mutex_t *mutex, void *args)
 {
-#ifndef _WIN32
+#if defined(TUNDRA_UNIX)
 	pthread_mutexattr_t attr;
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -1034,9 +1048,11 @@ td_mutex_init_or_die(pthread_mutex_t *mutex, void *args)
 		td_croak("couldn't init mutex");
 
 	pthread_mutexattr_destroy(&attr);
-#else
+#elif defined(TUNDRA_WIN32)
 	if (0 != pthread_mutex_init(mutex, NULL))
 		td_croak("couldn't init mutex");
+#else
+#error implement me
 #endif
 }
 

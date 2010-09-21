@@ -1,6 +1,3 @@
-#ifndef TD_CLEAN_H
-#define TD_CLEAN_H
-
 /*
    Copyright 2010 Andreas Fredriksson
 
@@ -20,9 +17,23 @@
    along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-struct td_engine;
-struct td_node;
+#ifndef TUNDRA_CONFIG_H
+#define TUNDRA_CONFIG_H
 
-void td_clean_files(struct td_engine *engine, struct td_node *root);
+#if defined(__APPLE__)
+#define TUNDRA_UNIX 1
+#define TUNDRA_APPLE 1
+#elif defined(_WIN32)
+#define TUNDRA_WIN32 1
+#elif defined(linux)
+#define TUNDRA_UNIX 1
+#define TUNDRA_LINUX 1
+#elif defined(__FreeBSD__)
+#define TUNDRA_UNIX 1
+#define TUNDRA_FREEBSD 1
+#else
+#error Unsupported OS
+#endif
+
 
 #endif

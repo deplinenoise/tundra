@@ -42,9 +42,9 @@ if (WIN32)
     add_definitions(/DWIN32 /D_WIN32 /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS)
 endif (WIN32)
 
-if (APPLE)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -Werror -ansi")
-endif (APPLE)
+if (UNIX)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -Werror")
+endif (UNIX)
 
 add_executable(gen_lua_data src/gen_lua_data.c)
 

@@ -25,9 +25,13 @@
 #include <stdlib.h>
 #include "util.h"
 #include "portable.h"
+#include "config.h"
 
-#ifdef _WIN32
+#ifdef TUNDRA_WIN32
 #include <malloc.h>
+#endif
+
+#ifdef _MSC_VER
 #define snprintf _snprintf
 #endif
 

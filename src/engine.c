@@ -25,6 +25,7 @@
 #include "util.h"
 #include "ancestors.h"
 #include "files.h"
+#include "config.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -34,7 +35,7 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#ifdef _WIN32
+#if defined(TUNDRA_WIN32)
 #include <malloc.h> /* alloca */
 #endif
 
