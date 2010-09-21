@@ -5,6 +5,16 @@ Tundra, a build system
 Tundra is a high-performance code build system designed to give the best
 possible incremental build times even for very large software projects.
 
+Tundra is portable and works on
+
+  - Mac OSX (only 10.6.4 tested, but most any version should work)
+  - Linux
+  - FreeBSD
+  - Windows (Vista and later, 32/64 bit native)
+
+Porting to UNIX-like platforms will be very easy, porting to other platforms
+will take a little bit of work in a few well-defined places.
+
 See doc/manual.asciidoc for more detailed usage information.
 
 License and Copyright
