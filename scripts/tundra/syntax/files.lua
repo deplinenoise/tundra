@@ -19,13 +19,25 @@
 
 module(..., package.seeall)
 
-function copy_file(env, src, target, pass)
+function copy_file(env, src, target, pass, extra_deps)
 	return env:make_node {
 		Pass = pass,
 		Label = "CopyFile $(@)",
 		Action = "$(_COPY_FILE)",
 		InputFiles = { src },
 		OutputFiles = { target },
+		Dependencies = extra_deps,
+	}
+end
+
+function hardlink_file(env, src, target, pass, extra_deps)
+	return env:make_node {
+		Pass = pass,
+		Label = "Hardlink $(@)",
+		Action = "$(_HARDLINK_FILE)",
+		InputFiles = { src },
+		OutputFiles = { target },
+		Dependencies = extra_deps,
 	}
 end
 

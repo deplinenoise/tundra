@@ -31,5 +31,6 @@ function apply(env, options)
 		["SHLIBCOM"] = "$(LD) $(SHLIBOPTS) $(LIBPATH:p-L) $(LIBS:p-l) $(FRAMEWORKS:p-framework ) -o $(@) $(<)",
 		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) $(LIBS:p-l)  $(FRAMEWORKS:p-framework ) -o $(@) $(<)",
 		["OBJCCOM"] = "$(CCCOM)", -- objc uses same commandline
+		["NIBCC"] = "ibtool --output-format binary1 --compile $(@) $(<)",
 	}
 end
