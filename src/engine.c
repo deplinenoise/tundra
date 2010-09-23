@@ -901,7 +901,7 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 	table_size = (int) lua_objlen(L, 2);
 	for (i = 0; i < file_count; ++i)
 	{
-		int x;
+		int x, emit = 0;
 		const char *ext_pos;
 		const char *fn = files[i]->path;
 
@@ -909,14 +909,24 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 		if (!ext_pos)
 			ext_pos = "";
 
-		for (x = 0; x < ext_count; ++x)
+		if (ext_count > 0)
 		{
-			if (0 == strcmp(ext_pos, exts[x]))
+			for (x = 0; x < ext_count; ++x)
 			{
-				lua_pushstring(L, fn);
-				lua_rawseti(L, 2, ++table_size);
-				break;
+				if (0 == strcmp(ext_pos, exts[x]))
+				{
+					emit = 1;
+					break;
+				}
 			}
+		}
+		else
+			emit = 1;
+		
+		if (emit)
+		{
+			lua_pushstring(L, fn);
+			lua_rawseti(L, 2, ++table_size);
 		}
 	}
 	return 0;
