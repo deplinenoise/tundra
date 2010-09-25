@@ -43,23 +43,29 @@ local function eval_osx_bundle(generator, env, decl, passes)
 		copy_deps[#copy_deps+1] = files.hardlink_file(env, decl.Executable, contents .. "/MacOS/" .. basename, pass, deps)
 	end
 
-	local resource_dir = contents .. "/Resources/"
+	local dirs = {
+		{ Tag = "Resources", Dir = contents .. "/Resources/" },
+		{ Tag = "MacOSFiles", Dir = contents .. "/MacOS/" },
+	}
 
-	local function do_copy(fn)
-		local basename = select(2, path.split(fn))
-		copy_deps[#copy_deps+1] = files.hardlink_file(env, fn, resource_dir .. basename, pass, deps)
-	end
+	for _, params in ipairs(dirs) do
+		local function do_copy(fn)
+			local basename = select(2, path.split(fn))
+			copy_deps[#copy_deps+1] = files.hardlink_file(env, fn, params.Dir .. basename, pass, deps)
+		end
 
-	for _, resource in util.nil_ipairs(nodegen.flatten_list(env:get('BUILD_ID'), decl.Resources)) do
-		if type(resource) == "string" then
-			do_copy(resource)
-		else
-			local node = resource(env)
-			deps[#deps+1] = node
-			local files = {}
-			node:insert_output_files(files)
-			for _, fn in ipairs(files) do
+		local items = decl[params.Tag]
+		for _, fn in util.nil_ipairs(nodegen.flatten_list(env:get('BUILD_ID'), items)) do
+			if type(fn) == "string" then
 				do_copy(fn)
+			else
+				local node = fn(env)
+				deps[#deps+1] = node
+				local files = {}
+				node:insert_output_files(files)
+				for _, fn in ipairs(files) do
+					do_copy(fn)
+				end
 			end
 		end
 	end
