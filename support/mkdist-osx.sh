@@ -21,3 +21,6 @@ cp -r README.md COPYING examples dist
 cp doc/manual.asciidoc dist/doc
 cp tundra-output/macosx-clang-release-standalone/tundra dist
 git log -1 >> dist/SNAPSHOT_REVISION
+find dist -name \*.swp -exec rm {} \;
+find dist -name .DS_Store -exec rm {} \;
+
