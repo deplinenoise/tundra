@@ -85,6 +85,8 @@ int main(int argc, char *argv[1])
 		}
 
 		printf(", %u }%s\n\n", (unsigned int) bytes_total, (i + 1) < argc ? "," : "");
+
+		fclose(f);
 	}
 	puts("};");
 
