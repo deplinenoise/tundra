@@ -140,7 +140,7 @@ function load_toolset(id, ...)
 end
 
 function load_syntax(id, decl, passes)
-	apply_extension_module(id, "tundra.syntax.", decl, passes)
+	apply_extension_module(id, "", decl, passes)
 end
 
 local function member(list, item)

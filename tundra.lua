@@ -46,7 +46,7 @@ Build {
 		LuaCompile = { Name = "Compile Lua sources for embedding", BuildOrder = 2 },
 		Tundra = { Name = "Main compile pass", BuildOrder = 3 },
 	},
-	SyntaxExtensions = { "glob", "embed_lua" },
+	SyntaxExtensions = { "tundra.syntax.glob", "tundra.syntax.embed_lua" },
 	Configs = {
 		Config { Name = "macosx-clang", Inherit = common, Tools = { "clang-osx" }, DefaultOnHost = "macosx" },
 		Config { Name = "macosx-gcc", Inherit = common, Tools = { "gcc-osx" } },

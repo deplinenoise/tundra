@@ -648,14 +648,17 @@ are supported:
 
 === Syntax Extensions ===
 
-Tundra provides a small set of syntax extensions by default.
+Tundra provides a small set of syntax extensions by default. To use syntax
+extensions, add a SyntaxExtensions list to the `tundra.lua` file specifying the
+extensions you want to enable. These are Lua package names.
 
 ==== File Globbing ====
 
-Globbing basically means pattern matching over filenames. It is a convenient
-way to use the filesystem as the index of what files to build rather than to
-manually type every file out in the `Sources` list. You can also combine the
-two for greater control by mixing globs and filenames.
+The `tundra.syntax.glob` extension provides file globbing (pattern matching
+over filenames.) It is a convenient way to use the filesystem as the index of
+what files to build rather than to manually type every file out in the
+`Sources` list. You can also combine the two for greater control by mixing
+globs and filenames.
 
 Globs come in two versions, `Glob` and `FGlob`.
 
