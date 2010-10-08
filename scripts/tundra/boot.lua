@@ -95,6 +95,8 @@ local function run_build_script(text, fn)
 	script_globals_mt.__index = _G
 	setmetatable(script_globals, script_globals_mt)
 
+	record_lua_access(fn)
+
 	local chunk, error_msg = loadstring(text, fn)
 	if not chunk then
 		croak("%s", error_msg)
