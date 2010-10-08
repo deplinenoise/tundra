@@ -340,7 +340,7 @@ static int make_engine(lua_State *L)
 {
 	int i;
 	int debug_signing = 0;
-	int use_digest_signing = 1;
+	int use_digest_signing = 0;
 	td_engine *self;
 
 	self = lua_newuserdata(L, sizeof(td_engine));
@@ -373,7 +373,7 @@ static int make_engine(lua_State *L)
 		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", self->settings.thread_count);
 		self->settings.dry_run = get_int_override(L, 1, "DryRun", 0);
 		self->settings.continue_on_error = get_int_override(L, 1, "ContinueOnError", 0);
-		use_digest_signing = get_int_override(L, 1, "UseDigestSigning", 1);
+		use_digest_signing = get_int_override(L, 1, "UseDigestSigning", 0);
 		debug_signing = get_int_override(L, 1, "DebugSigning", 0);
 	}
 
