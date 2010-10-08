@@ -114,7 +114,6 @@ local function setup(env, options)
 	path[#path + 1] = vc_dir .. binDir
 	path[#path + 1] = env:get_external_env_var('PATH')
 
-	print("PATH", table.concat(path, ';'))
 	env:set_external_env_var("PATH", table.concat(path, ';'))
 end
 
