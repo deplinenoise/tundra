@@ -220,7 +220,7 @@ A Tundra build can divided into a few distinct phases:
 
 - Run the project's +tundra.lua+ script to set options
 - Load toolsets, syntax files and other information as required by the configuration script
-- Run the referred +Units+ file in syntax mode to define the project's build units
+- Run the referred +Units+ file (or function) in syntax mode to define the project's build units
 - Parse the resulting declarations and generate DAG nodes
 - Pass the DAG to the native build engine for building
 
@@ -253,10 +253,10 @@ Build {
 
 === Units (required) ===
 
-The build block must contain a reference to a secondary file containing unit
-declarations. This file is separate because it uses a custom, extensible syntax
-set which is suitable to define build system input. The +Units+ option must be
-a string designating the filename to read. A common name is +"units.lua"+, but
+The build block must be either a function or the (string) filename of a
+secondary file containing unit declarations. This file/function is separate
+because it uses a custom, extensible syntax set which is suitable to define
+build system input. A common name for external unit files is +"units.lua"+, but
 any valid filename is OK.
 
 === Configs (required) ===
