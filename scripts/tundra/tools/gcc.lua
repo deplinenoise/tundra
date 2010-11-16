@@ -39,6 +39,7 @@ function apply(env, options)
 		["CXXCOM"] = "$(CCCOM)",
 		["PROGOPTS"] = "",
 		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) $(LIBS:p-l) -o $(@) $(<)",
+		["PROGPREFIX"] = "",
 		["LIBOPTS"] = "",
 		["LIBCOM"] = "$(LIB) -rs $(LIBOPTS) $(@) $(<)",
 	}
