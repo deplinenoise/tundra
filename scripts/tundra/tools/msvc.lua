@@ -25,7 +25,7 @@ function apply(env, options)
 	env:set_many {
 		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj" },
 		["OBJECTSUFFIX"] = ".obj",
-		["LIBPREFIX"] = ".lib",
+		["LIBPREFIX"] = "",
 		["LIBSUFFIX"] = ".lib",
 		["CC"] = "cl",
 		["C++"] = "cl",
