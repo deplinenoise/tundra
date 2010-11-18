@@ -207,11 +207,11 @@ end
 
 
 function apply_nodegen(state)
-	local types = { "Program", "SharedLibrary", "StaticLibrary", "CSharpExe", "CSharpLib" } 
+	local types = { "Program", "SharedLibrary", "StaticLibrary", "CSharpExe", "CSharpLib", "ExternalLibrary" } 
 	for _, type_name in ipairs(types) do
 		nodegen.add_evaluator(type_name, function (generator, env, decl)
 			local relative_fn = decl.Name .. ".vcproj"
-			local sources = nodegen.flatten_list("*-*-*-*", decl.Sources)
+			local sources = nodegen.flatten_list("*-*-*-*", decl.Sources) or {}
 			sources = util.filter(sources, function (x) return type(x) == "string" end)
 
 			if decl.SourceDir then
