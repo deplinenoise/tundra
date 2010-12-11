@@ -172,7 +172,7 @@ delete_outputs(td_node *node)
 }
 
 static int
-run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
+run_job(td_job_queue *queue, td_node *node, int job_id)
 {
 	double t1, mkdir_time, cmd_time;
 	td_engine *engine = queue->engine;
@@ -204,16 +204,17 @@ run_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 		touch_outputs(engine, node);
 	}
 
-	/* Optionally print the command annotation */
-	if (td_verbosity_check(engine, 1))
-		printf("%s%s\n", line_prefix, node->annotation);
-
-	/* Optionally print the command line to execute */
-	if (td_verbosity_check(engine, 2))
-		printf("%s%s\n", line_prefix, command);
-
 	if (!engine->settings.dry_run)
-		result = td_exec(command, node->env_count, node->env, &was_signalled, line_prefix);
+	{
+		result = td_exec(
+				command,
+				node->env_count,
+				node->env,
+				&was_signalled,
+				job_id,
+				td_verbosity_check(engine, 2),
+				td_verbosity_check(engine, 1) ? node->annotation : NULL);
+	}
 	else
 		result = 0;
 
@@ -460,7 +461,7 @@ leave:
 }
 
 static void
-advance_job(td_job_queue *queue, td_node *node, const char *line_prefix)
+advance_job(td_job_queue *queue, td_node *node, int job_id)
 {
 	td_jobstate state;
 	while ((state = node->job.state) < TD_JOB_COMPLETED)
@@ -522,7 +523,7 @@ advance_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 			break;
 
 		case TD_JOB_RUNNING:
-			if (0 != run_job(queue, node, line_prefix))
+			if (0 != run_job(queue, node, job_id))
 				transition_job(queue, node, TD_JOB_FAILED);
 			else
 				transition_job(queue, node, TD_JOB_COMPLETED);
@@ -573,7 +574,7 @@ advance_job(td_job_queue *queue, td_node *node, const char *line_prefix)
 typedef struct
 {
 	td_job_queue *queue;
-	char line_prefix[16];
+	int job_id;
 } thread_start_arg;
 
 static void *
@@ -582,7 +583,7 @@ build_worker(void *arg_)
 	thread_start_arg *arg = (thread_start_arg *) arg_;
 
 	td_job_queue * const queue = arg->queue;
-	const char * const line_prefix = arg->line_prefix;
+	const int job_id = arg->job_id;
 
 	pthread_mutex_lock(&queue->mutex);
 
@@ -607,7 +608,7 @@ build_worker(void *arg_)
 
 		node->job.flags &= ~TD_JOBF_QUEUED;
 
-		advance_job(queue, node, line_prefix);
+		advance_job(queue, node, job_id);
 
 		if (is_completed(node) && is_root(node))
 			queue->siginfo.flag = 1;
@@ -622,12 +623,6 @@ build_worker(void *arg_)
 
 #define TD_MAX_THREADS (32)
 
-static void
-set_line_prefix(thread_start_arg* arg, int id)
-{
-	sprintf(arg->line_prefix, "%d> ", id);
-}
-
 static thread_start_arg thread_arg[TD_MAX_THREADS];
 static pthread_t threads[TD_MAX_THREADS];
 
@@ -640,6 +635,9 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 
 	if (engine->stats.build_called)
 		td_croak("build() called more than once on same engine");
+
+	if (0 != td_init_exec())
+		td_croak("couldn't initialize command execution");
 
 	engine->stats.build_called = 1;
 
@@ -671,7 +669,7 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 		if (td_debug_check(engine, TD_DEBUG_QUEUE))
 			printf("starting thread %d\n", i);
 
-		set_line_prefix(&thread_arg[i], i + 2);
+		thread_arg[i].job_id = i + 2;
 		thread_arg[i].queue = &queue;
 
 		rc = pthread_create(&threads[i], NULL, build_worker, &thread_arg[i]);
@@ -689,11 +687,7 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 
 	{
 		thread_start_arg main_arg;
-		if (1 == thread_count)
-			main_arg.line_prefix[0] = '\0';
-		else
-			set_line_prefix(&main_arg, 1);
-
+		main_arg.job_id = 1;
 		main_arg.queue = &queue;
 
 		build_worker(&main_arg);

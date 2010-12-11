@@ -81,6 +81,8 @@ src/debug.c
 src/debug.h
 src/engine.c
 src/engine.h
+src/exec_unix.c
+src/exec_win32.c
 src/files.c
 src/files.h
 src/luafs.c

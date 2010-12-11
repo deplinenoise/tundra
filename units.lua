@@ -67,6 +67,8 @@ Program {
 	 	"src/cpp_scanner.c",
 	 	"src/debug.c",
 	 	"src/engine.c",
+	 	"src/exec_unix.c",
+	 	"src/exec_win32.c",
 	 	"src/files.c",
 		"src/luafs.c",
 		"src/md5.c",
