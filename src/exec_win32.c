@@ -269,6 +269,12 @@ int td_exec(
 	const char* response;
 	*was_signalled_out = 0;
 
+	if (annotation)
+		printf("%d> %s\n", job_id, annotation);
+
+	if (echo_cmdline)
+		printf("%d> %s\n", job_id, cmd_line);
+
 	/* scan for a @RESPONSE|<option>|.... section at the end of the command line */
 	if (NULL != (response = strstr(cmd_line, response_prefix)))
 	{
