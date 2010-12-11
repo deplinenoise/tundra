@@ -239,6 +239,7 @@ flush_output_queue(int job_id)
 			queued_linebufs[i] = queued_linebufs[--queued_linebuf_count];
 			free_linebufs[free_linebuf_count++] = b;
 
+#if LINEBUF_DEBUG
 			int k, j;
 			for (j = 0; j < queued_linebuf_count; ++j)
 			{
@@ -247,6 +248,7 @@ flush_output_queue(int job_id)
 					assert(queued_linebufs[j] != free_linebufs[k]);
 				}
 			}
+#endif
 		}
 		else
 			++i;
