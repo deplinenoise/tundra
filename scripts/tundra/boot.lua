@@ -28,10 +28,14 @@ local native = require "tundra.native"
 -- again. OTOH, they should be in disk cache now.
 local accessed_lua_files = {}
 local function get_file_digest(fn)
-	local f = assert(io.open(fn, 'rb'))
-	local data = f:read("*all")
-	f:close()
-	return native.digest_guid(data)
+	local f = io.open(fn, 'rb')
+	if f then
+		local data = f:read("*all")
+		f:close()
+		return native.digest_guid(data)
+	else
+		return native.digest_guid('missing file')
+	end
 end
 local function record_lua_access(fn)
 	if accessed_lua_files[fn] then return end
