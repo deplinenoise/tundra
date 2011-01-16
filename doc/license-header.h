@@ -1,5 +1,5 @@
 /*
-   Copyright 2010 Andreas Fredriksson
+   Copyright 2010-2011 Andreas Fredriksson
 
    This file is part of Tundra.
 
