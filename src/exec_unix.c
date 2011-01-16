@@ -21,6 +21,7 @@
 
 #include "portable.h"
 #include "config.h"
+#include "util.h"
 
 #if defined(TUNDRA_UNIX)
 
@@ -28,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -148,6 +150,16 @@ static line_buffer linebufs[LINEBUF_COUNT];
  * structure; otherwise every line_buffer access would be a cache miss. */
 static char buffer_data[LINEBUF_COUNT][LINEBUF_SIZE];
 
+static void set_fd_nonblocking(int fd)
+{
+	int flags;
+	
+	flags = fcntl(fd, F_GETFL);
+	flags |= O_NONBLOCK;
+	if (-1 == fcntl(fd, F_SETFL, flags))
+		td_croak("couldn't unblock fd %d", fd);
+}
+
 int
 td_init_exec(void)
 {
@@ -255,6 +267,8 @@ flush_output_queue(int job_id)
 	}
 
 	if (1 == count)
+		pthread_cond_signal(&can_print);
+	else if (count > 1)
 		pthread_cond_broadcast(&can_print);
 
 #if LINEBUF_DEBUG
@@ -276,7 +290,12 @@ emit_data(int job_id, int is_stderr, int sort_key, int fd)
 	count = read(fd, text, LINEBUF_SIZE);
 
 	if (count <= 0)
-		return -1;
+	{
+		if (EAGAIN == errno)
+			return 0;
+		else
+			return -1;
+	}
 
 	td_mutex_lock_or_die(&linelock);
 
@@ -476,6 +495,9 @@ int td_exec(
 		rfds[0] = stdout_pipe[pipe_read];
 		rfds[1] = stderr_pipe[pipe_read];
 
+		set_fd_nonblocking(rfds[0]);
+		set_fd_nonblocking(rfds[1]);
+
 		/* Close write end of the pipe, we're just going to be reading */
 		close(stdout_pipe[pipe_write]);
 		close(stderr_pipe[pipe_write]);
@@ -486,6 +508,7 @@ int td_exec(
 			int fd;
 			int count;
 			int max_fd = 0;
+			struct timeval timeout;
 
 			FD_ZERO(&read_fds);
 
@@ -500,35 +523,47 @@ int td_exec(
 			}
 
 			++max_fd;
+			
+			timeout.tv_sec = 0;
+			timeout.tv_usec = 500000;
 
-			count = select(max_fd, &read_fds, NULL, NULL, NULL);
+			count = select(max_fd, &read_fds, NULL, NULL, &timeout);
 
 			if (-1 == count) // happens in gdb due to syscall interruption
 				continue;
 
 			for (fd = 0; fd < 2; ++fd)
 			{
-				if (!FD_ISSET(rfds[fd], &read_fds))
-					continue;
-
-				if (0 == emit_data(job_id, /*is_stderr:*/ 1 == fd, sort_key++, rfds[fd]))
-					continue;
-
-				/* Done with this FD. */
-				rfds[fd] = 0;
-				--rfd_count;
+				if (0 != rfds[fd] && FD_ISSET(rfds[fd], &read_fds))
+				{
+					if (0 != emit_data(job_id, /*is_stderr:*/ 1 == fd, sort_key++, rfds[fd]))
+					{
+						/* Done with this FD. */
+						rfds[fd] = 0;
+						--rfd_count;
+					}
+				}
 			}
+
+			p = waitpid(child, &return_code, WNOHANG);
+
+			if (0 == p)
+			{
+				/* child still running */
+				continue;
+			}
+			else if (p != child)
+			{
+				return_code = 1;
+				perror("waitpid failed");
+				break;
+			}
+			else
+				break;
 		}
 
 		close(stdout_pipe[pipe_read]);
 		close(stderr_pipe[pipe_read]);
-
-		p = waitpid(child, &return_code, 0);
-		if (p != child)
-		{
-			perror("waitpid failed");
-			return 1;
-		}
 
 		on_job_exit(job_id);
 	
