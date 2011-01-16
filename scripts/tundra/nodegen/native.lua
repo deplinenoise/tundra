@@ -60,8 +60,14 @@ local function eval_native_unit(generator, env, label, prefix, suffix, command, 
 
 		local function replace_bindings(env_key, data)
 			if data then
+				local first = true
 				for _, item in util.nil_ipairs(nodegen.flatten_list(build_id, data)) do
-					env:replace(env_key, item)
+					if first then
+						env:replace(env_key, item)
+						first = false
+					else
+						env:append(env_key, item)
+					end
 				end
 			end
 		end
