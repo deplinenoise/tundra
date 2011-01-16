@@ -38,6 +38,10 @@ local function eval_osx_bundle(generator, env, decl, passes)
 	local infoplist = assert(decl.InfoPList)
 	copy_deps[#copy_deps+1] = files.hardlink_file(env, decl.InfoPList, contents .. "/Info.plist", pass, deps)
 
+	if decl.PkgInfo then
+		copy_deps[#copy_deps+1] = files.hardlink_file(env, decl.PkgInfo, contents .. "/PkgInfo", pass, deps)
+	end
+
 	if decl.Executable then
 		local basename = select(2, path.split(decl.Executable))
 		copy_deps[#copy_deps+1] = files.hardlink_file(env, decl.Executable, contents .. "/MacOS/" .. basename, pass, deps)
