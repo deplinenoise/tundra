@@ -486,7 +486,7 @@ int td_exec(
 	else
 	{
 		pid_t p;
-		int return_code;
+		int return_code = 0;
 		int sort_key = 0;
 		int rfd_count = 2;
 		int rfds[2];
