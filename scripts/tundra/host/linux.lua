@@ -23,5 +23,6 @@ function apply_host(env)
 		["HOSTPROGSUFFIX"] = "",
 		["HOSTSHLIBSUFFIX"] = ".so",
 		["_COPY_FILE"] = "cp -f $(<) $(@)",
+		["_HARDLINK_FILE"] = "ln -f $(<) $(@)",
 	}
 end

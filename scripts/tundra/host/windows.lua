@@ -22,6 +22,7 @@ function apply_host(env)
 		["DOTNETRUN"] = "",
 		["HOSTPROGSUFFIX"] = ".exe",
 		["HOSTSHLIBSUFFIX"] = ".dll",
-		["_COPY_FILE"] = "copy $(>) $(@)",
+		["_COPY_FILE"] = "copy $(<) $(@)",
+		["_HARDLINK_FILE"] = "copy /f $(<) $(@)",
 	}
 end
