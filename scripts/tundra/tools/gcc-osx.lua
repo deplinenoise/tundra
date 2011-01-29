@@ -22,7 +22,8 @@ function apply(env, options)
 	tundra.boot.load_toolset("gcc", env)
 
 	env:set_many {
-		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".m", ".a", ".o" },
+		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".m", ".mm", ".a", ".o" },
+		["C++EXTS"] = { "cpp", "cxx", "cc", "mm" },
 		["FRAMEWORKS"] = "",
 		["SHLIBPREFIX"] = "lib",
 		["SHLIBOPTS"] = "-shared",
