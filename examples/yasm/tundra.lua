@@ -2,7 +2,7 @@ Build {
 	Units = function ()
 		Program {
 			Name = "yasm-example",
-			Sources = { "main.c", "aux.asm" },
+			Sources = { "main.c", "example.asm" },
 		}
 		Default "yasm-example"
 	end,
