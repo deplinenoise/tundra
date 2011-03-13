@@ -779,8 +779,8 @@ function main(cmdline_args)
 	end
 
 	if Options.Version or Options.Help then
-		io.write("Tundra Build Processor v0.97\n")
-		io.write("Copyright (C) 2010 Andreas Fredriksson\n\n")
+		io.write("Tundra Build Processor v0.98\n")
+		io.write("Copyright (C) 2010-2011 Andreas Fredriksson\n\n")
 		io.write("This program comes with ABSOLUTELY NO WARRANTY.\n")
 		io.write("This is free software, and you are welcome to redistribute it\n")
 		io.write("under certain conditions; see the GNU GPL license for details.\n")
