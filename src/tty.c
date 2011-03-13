@@ -26,7 +26,47 @@
 #include <stdarg.h>
 
 /* tty.c - line buffer handling to linearize output from overlapped command
- * execution */
+ * execution
+ *
+ * This solves the issue of having multiple programs (compilers and such)
+ * writing output to both stdout and stderr at the same time. Normally on UNIX
+ * the terminal will arbitrate amongst them in a decent fashion, but it really
+ * screws up long error messages that span several lines. On Win32, commands
+ * will happily write all over each other and there's no help from the
+ * operating system console so a custom solution must be devised.
+ *
+ * The solution implemented here works as follows (on UNIX, win32 is similar).
+ *
+ * - We assign the TTY to one job thread which is allowed to echo its child
+ *   process text directly. The job id of the current TTY owner is stored in
+ *   `printing_job'.
+ *
+ * - exec_unix.c: We create pipes for stdout and stderr for all spawned child processes. We
+ *   loop around these fds using select() until they both return EOF.
+ *
+ * - exec_unix.c: Whenever select() returns we try to read up to LINEBUF_SIZE bytes. If
+ *   there isn't anything to read, the fd is closed. The select loop will exit
+ *   only when both stdout and stderr have been closed.
+ *
+ * - The data read from child FDs is either
+ *   a) Directly emitted to the build tool's stdout/stderr if the job owns the
+ *      TTY (or can become the owner).
+ *   b) Buffered, in which case it will be output later.
+ *
+ * - If all buffers are occupied we will block the thread until one is ready.
+ *   This of course wastes time, but this typically only happens when there is
+ *   lots and lots of error message output (interactive builds) so it isn't as
+ *   bad as it sounds.
+ *
+ * - When jobs finish they will wait for TTY ownership and flush their queued
+ *   messages. This is to avoid the TTY drifting too far off from what's
+ *   actually being executed.
+ *
+ * For the outside observer this will produce log output with all the output
+ * for each job together in a nice and linear fashion. For the case when
+ * thread-count is 1, it will naturally copy text right out to stdout/stderr
+ * without any buffering.
+ */
 
 /* Enable copious amounts of linebuf-related debug messages. Useful when
  * changing this code. */
