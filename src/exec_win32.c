@@ -28,6 +28,7 @@
 
 #include "portable.h"
 #include "config.h"
+#include "tty.h"
 
 #if defined(TUNDRA_WIN32)
 
@@ -39,7 +40,7 @@
 
 int
 td_init_exec(void) {
-	return 0;
+	return tty_init();
 }
 
 static int
@@ -137,39 +138,22 @@ make_env_block(char* env_block, size_t block_size, const char **env, int env_cou
    addition to whatever is already set, not replace everything.
  */
 
-static char *
-emit_lines(int job_id, char* buffer, size_t size)
-{
-	size_t i, start = 0;
-	for (i = 0; i < size; ++i)
-	{
-		if ('\n' == buffer[i])
-		{
-			buffer[i] = '\0';
-			printf("%d> %s\n", job_id, &buffer[start]);
-			start = i+1;
-		}
-	}
-
-	if (start > 0)
-		memmove(buffer, buffer + start, size - start);
-	return buffer + size - start;
-}
 
 static void
 pump_stdio(int job_id,  HANDLE input, HANDLE proc)
 {
-	char buffer[1024];
+	char buffer[4096];
 	char *bufp = buffer;
-	int remain = sizeof(buffer);
 	DWORD bytes_read;
+	int index = 0;
 	for (;;)
 	{
+		int remain = sizeof(buffer) - 1;
 		if (!ReadFile(input, bufp, remain, &bytes_read, NULL) || !bytes_read)
 			break;
 	
-		bufp = emit_lines(job_id, buffer, (size_t) bytes_read + (bufp - buffer));
-		remain = (int) (buffer + sizeof(buffer) - bufp);
+		buffer[bytes_read] = '\0';
+		tty_emit(job_id, 0, ++index, buffer, bytes_read);
 	}
 }
 
@@ -234,6 +218,9 @@ int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_coun
 		while (WAIT_OBJECT_0 != WaitForSingleObject(pinfo.hProcess, INFINITE))
 			/* nop */;
 
+		/* flush any buffered data for this job */
+		tty_job_exit(job_id);
+
 		GetExitCodeProcess(pinfo.hProcess, &result);
 		CloseHandle(pinfo.hProcess);
 		result_code = (int) result;
@@ -270,10 +257,10 @@ int td_exec(
 	*was_signalled_out = 0;
 
 	if (annotation)
-		printf("%d> %s\n", job_id, annotation);
+		tty_printf(job_id, -200, "%s\n", annotation);
 
 	if (echo_cmdline)
-		printf("%d> %s\n", job_id, cmd_line);
+		tty_printf(job_id, -199, "%s\n", cmd_line);
 
 	/* scan for a @RESPONSE|<option>|.... section at the end of the command line */
 	if (NULL != (response = strstr(cmd_line, response_prefix)))

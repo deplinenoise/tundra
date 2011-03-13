@@ -78,6 +78,7 @@ Program {
 		"src/portable.c",
 		"src/relcache.c",
 		"src/luaprof.c",
+		"src/tty.c",
 
 		{
 			EmbedLuaSources {
