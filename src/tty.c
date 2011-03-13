@@ -370,6 +370,6 @@ void tty_printf(int job_id, int sort_key, const char *format, ...)
 	va_start(a, format);
 	vsnprintf(buffer, sizeof(buffer), format, a);
 	buffer[sizeof(buffer)-1] = '\0';
-	tty_emit(job_id, 0, sort_key, buffer, strlen(buffer));
+	tty_emit(job_id, 0, sort_key, buffer, (int) strlen(buffer));
 	va_end(a);
 }
