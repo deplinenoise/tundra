@@ -154,12 +154,6 @@ int td_exec(
 			setenv(name_block, equals + 1, 1);
 		}
 
-		if (annotation)
-			puts(annotation);
-
-		if (echo_cmdline)
-			puts(cmd_line);
-
 		fflush(stdout);
 
 		if (-1 == execv("/bin/sh", (char **) args))
@@ -194,6 +188,12 @@ int td_exec(
 		/* Close write end of the pipe, we're just going to be reading */
 		close(stdout_pipe[pipe_write]);
 		close(stderr_pipe[pipe_write]);
+
+		if (annotation)
+			tty_printf(job_id, -200, "%s\n", annotation);
+
+		if (echo_cmdline)
+			tty_printf(job_id, -199, "%s\n", cmd_line);
 
 		/* Sit in a select loop over the two fds */
 		while (rfd_count > 0)
