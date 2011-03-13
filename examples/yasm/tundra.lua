@@ -17,6 +17,14 @@ Build {
 				ASMOPTS = { "-f macho32" },
 			},
 		},
+		{
+			Name = "win32-winsdk",
+			DefaultOnHost = "windows",
+			Tools = { { "msvc-winsdk"; TargetArch = "x86" }, "yasm" },
+			Env = {
+				ASMOPTS = { "-f win32" },
+			},
+		},
 	},
 }
 
