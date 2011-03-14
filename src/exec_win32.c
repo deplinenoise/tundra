@@ -151,8 +151,21 @@ pump_stdio(int job_id,  HANDLE input, HANDLE proc)
 		int remain = sizeof(buffer) - 1;
 		if (!ReadFile(input, bufp, remain, &bytes_read, NULL) || !bytes_read)
 			break;
-	
+
 		buffer[bytes_read] = '\0';
+
+		/* Nuke CR characters from the input read, as we will be printing it
+		 * out again. Only keep line feeds. */
+		{
+			char* p = buffer;
+			char* e = buffer + bytes_read + 1; /* include nul byte */
+			while (NULL != (p = strchr(p, '\r')))
+			{
+				memmove(p, p + 1, e - p);
+				--e;
+			}
+		}
+	
 		tty_emit(job_id, 0, ++index, buffer, bytes_read);
 	}
 }
