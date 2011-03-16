@@ -32,7 +32,7 @@ function apply(env, options)
 		["LIB"] = "lib",
 		["LD"] = "link",
 		["CPPDEFS"] = "_WIN32",
-		["CCOPTS"] = "/W4",
+		["CCOPTS"] = "",
 		["_CPPDEFS"] = "$(CPPDEFS:p/D) $(CPPDEFS_$(CURRENT_VARIANT:u):p/D)",
 		["_USE_PCH_OPT"] = "/Fp$(_PCH_FILE:b) /Yu$(_PCH_HEADER)",
 		["_USE_PCH"] = "",
