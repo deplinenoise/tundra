@@ -24,11 +24,23 @@
  * support so-called "response files" which are basically just the contents of
  * the command line, but written to a file. Tundra implements this via the
  * @RESPONSE handling.
+ *
+ * Also, rather than using the tty merging module that unix uses, this module
+ * handles output merging via temporary files.  This removes the pipe
+ * read/write deadlocks I've seen from time to time when using the TTY merging
+ * code. Rather than losing my last sanity points on debugging win32 internals
+ * I've opted for this much simpler approach.
+ *
+ * Instead of buffering stuff in memory via pipe babysitting, this new code
+ * first passes the stdout handle straight down to the first process it spawns.
+ * Subsequent child processes that are spawned when the TTY is busy instead get
+ * to inherit a temporary file handle. Once the process completes, it will wait
+ * to get the TTY and flush its temporary output file to the console. The
+ * temporary is then deleted.
  */
 
 #include "portable.h"
 #include "config.h"
-#include "tty.h"
 
 #if defined(TUNDRA_WIN32)
 
@@ -38,9 +50,127 @@
 #include <string.h>
 #include <windows.h>
 
+static char temp_path[MAX_PATH];
+static DWORD tundra_pid;
+static pthread_mutex_t fd_mutex;
+static pthread_cond_t tty_free;
+static int tty_owner = -1;
+
+static void get_fn(int job_id, char buf[MAX_PATH])
+{
+	_snprintf(buf, MAX_PATH, "%stundra.%u.%d", temp_path, tundra_pid, job_id);
+}
+
+static HANDLE alloc_fd(int job_id)
+{
+	HANDLE result;
+	td_mutex_lock_or_die(&fd_mutex);
+	
+	if (-1 == tty_owner)
+	{
+		tty_owner = job_id;
+		td_mutex_unlock_or_die(&fd_mutex);
+		result = GetStdHandle(STD_OUTPUT_HANDLE);
+	}
+	else
+	{
+		char filename[MAX_PATH];
+		DWORD access, sharemode, disp, flags;
+
+		td_mutex_unlock_or_die(&fd_mutex);
+
+		get_fn(job_id, filename);
+		access = GENERIC_WRITE | GENERIC_READ;
+		sharemode = FILE_SHARE_WRITE;
+		disp = CREATE_ALWAYS;
+		flags = FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_TEMPORARY;
+
+		result = CreateFileA(filename, access, sharemode, NULL, disp, flags, NULL);
+		if (INVALID_HANDLE_VALUE == result)
+		{
+			fprintf(stderr, "couldn't create temporary file %s: %u\n", filename, GetLastError());
+			return NULL;
+		}
+
+		SetHandleInformation(result, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+	}
+
+	return result;
+}
+
+static void free_fd(int job_id, HANDLE h)
+{
+	td_mutex_lock_or_die(&fd_mutex);
+
+	if (tty_owner == job_id)
+	{
+		tty_owner = -1;
+		pthread_cond_signal(&tty_free);
+		td_mutex_unlock_or_die(&fd_mutex);
+	}
+	else
+	{
+		int retries = 0;
+		char buf[1024], filename[MAX_PATH];
+		HANDLE target = GetStdHandle(STD_OUTPUT_HANDLE);
+		SetFilePointer(h, 0, NULL, FILE_BEGIN);
+
+		// Wait until we can take the TTY.
+		while (tty_owner != -1)
+			pthread_cond_wait(&tty_free, &fd_mutex);
+
+		tty_owner = job_id;
+		td_mutex_unlock_or_die(&fd_mutex);
+
+		// Dump the contents of the temporary file to the TTY.
+		for (;;)
+		{
+			DWORD rb, wb;
+			if (!ReadFile(h, buf, sizeof(buf), &rb, NULL) || rb == 0)
+				break;
+			if (!WriteFile(target, buf, rb, &wb, NULL))
+				break;
+		}
+
+		// Mark the TTY as free again and wake waiters.
+		td_mutex_lock_or_die(&fd_mutex);
+		tty_owner = -1;
+		pthread_cond_signal(&tty_free);
+		td_mutex_unlock_or_die(&fd_mutex);
+
+		// Close the temporary file handle, we're done with it.
+		if (!CloseHandle(h))
+			fprintf(stderr, "warning: couldn't close temporary file handle\n");
+
+		// Try to delete the temporary file.
+		//
+		// This can fail now and then, presumably because the spawned
+		// process can still be holding on to the inherited handle. Wait
+		// for it to die a little bit. Normally one retry solves it.
+
+		get_fn(job_id, filename);
+
+		while (!DeleteFileA(filename) && retries++ < 100)
+			Sleep(50);
+	}
+}
+
 int
-td_init_exec(void) {
-	return tty_init();
+td_init_exec(void)
+{
+	tundra_pid = GetCurrentProcessId();
+
+	if (0 == GetTempPathA(sizeof(temp_path), temp_path)) {
+		fprintf(stderr, "error: couldn't get temporary directory path\n");
+		return 1;
+	}
+
+	if (0 != pthread_cond_init(&tty_free, NULL))
+		return 1;
+
+	td_mutex_init_or_die(&fd_mutex, NULL);
+
+	return 0;
 }
 
 static int
@@ -125,6 +255,14 @@ make_env_block(char* env_block, size_t block_size, const char **env, int env_cou
 	return 0;
 }
 
+static void
+println_to_handle(HANDLE h, const char *str)
+{
+	DWORD bw;
+	WriteFile(h, str, (DWORD) strlen(str), &bw, NULL);
+	WriteFile(h, "\r\n", 2, &bw, NULL);
+}
+
 /*
    win32_spawn -- spawn and wait for a a sub-process on Windows.
 
@@ -138,44 +276,12 @@ make_env_block(char* env_block, size_t block_size, const char **env, int env_cou
    addition to whatever is already set, not replace everything.
  */
 
-
-static void
-pump_stdio(int job_id,  HANDLE input, HANDLE proc)
-{
-	char buffer[4096];
-	char *bufp = buffer;
-	DWORD bytes_read;
-	int index = 0;
-	for (;;)
-	{
-		int remain = sizeof(buffer) - 1;
-		if (!ReadFile(input, bufp, remain, &bytes_read, NULL) || !bytes_read)
-			break;
-
-		buffer[bytes_read] = '\0';
-
-		/* Nuke CR characters from the input read, as we will be printing it
-		 * out again. Only keep line feeds. */
-		{
-			char* p = buffer;
-			char* e = buffer + bytes_read + 1; /* include nul byte */
-			while (NULL != (p = strchr(p, '\r')))
-			{
-				memmove(p, p + 1, e - p);
-				--e;
-			}
-		}
-	
-		tty_emit(job_id, 0, ++index, buffer, bytes_read);
-	}
-}
-
-int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_count)
+int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_count, const char *annotation, int echo_cmdline)
 {
 	int result_code = 1;
 	char buffer[8192];
 	char env_block[128*1024];
-	HANDLE std_in_rd = NULL, std_in_wr = NULL, std_out_rd = NULL, std_out_wr = NULL;
+	HANDLE output_handle;
 	STARTUPINFO sinfo;
 	PROCESS_INFORMATION pinfo;
 	
@@ -187,52 +293,28 @@ int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_coun
 
 	_snprintf(buffer, sizeof(buffer), "cmd.exe /c %s", cmd_line);
 
-	{
-		/* Set the bInheritHandle flag so pipe handles are inherited. */
-		SECURITY_ATTRIBUTES pipe_attr; 
-		pipe_attr.nLength = sizeof(SECURITY_ATTRIBUTES); 
-		pipe_attr.bInheritHandle = TRUE; 
-		pipe_attr.lpSecurityDescriptor = NULL; 
-		if (!CreatePipe(&std_in_rd, &std_in_wr, &pipe_attr, 0) ||
-			!CreatePipe(&std_out_rd, &std_out_wr, &pipe_attr, 0))
-		{
-			fprintf(stderr, "%d: couldn't create pipe; win32 error = %d\n", job_id, (int) GetLastError());
-			result_code = 1;
-			goto leave;
-		}
-	}
-
-	if (!SetHandleInformation(std_out_rd, HANDLE_FLAG_INHERIT, 0))
-		goto leave;
-	if (!SetHandleInformation(std_in_wr, HANDLE_FLAG_INHERIT, 0))
-		goto leave;
+	output_handle = alloc_fd(job_id);
 
 	memset(&pinfo, 0, sizeof(pinfo));
-
 	memset(&sinfo, 0, sizeof(sinfo));
 	sinfo.cb = sizeof(sinfo);
-	sinfo.hStdInput = std_in_rd;
-	sinfo.hStdOutput = std_out_wr;
-	sinfo.hStdError = std_out_wr;
+	sinfo.hStdInput = NULL;
+	sinfo.hStdOutput = sinfo.hStdError = output_handle;
 	sinfo.dwFlags = STARTF_USESTDHANDLES;
+
+	if (annotation)
+		println_to_handle(output_handle, annotation);
+
+	if (echo_cmdline)
+		println_to_handle(output_handle, cmd_line);
 
 	if (CreateProcess(NULL, buffer, NULL, NULL, TRUE, 0, env_block, NULL, &sinfo, &pinfo))
 	{
 		DWORD result;
 		CloseHandle(pinfo.hThread);
 
-		CloseHandle(std_in_wr);
-		std_in_wr = NULL;
-		CloseHandle(std_out_wr);
-		std_out_wr = NULL;
-
-		pump_stdio(job_id, std_out_rd, pinfo.hProcess);
-		
 		while (WAIT_OBJECT_0 != WaitForSingleObject(pinfo.hProcess, INFINITE))
 			/* nop */;
-
-		/* flush any buffered data for this job */
-		tty_job_exit(job_id);
 
 		GetExitCodeProcess(pinfo.hProcess, &result);
 		CloseHandle(pinfo.hProcess);
@@ -243,11 +325,7 @@ int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_coun
 		fprintf(stderr, "%d: Couldn't launch process; Win32 error = %d\n", job_id, (int) GetLastError());
 	}
 
-leave:
-	if (std_in_rd) CloseHandle(std_in_rd);
-	if (std_in_wr) CloseHandle(std_in_wr);
-	if (std_out_rd) CloseHandle(std_out_rd);
-	if (std_out_wr) CloseHandle(std_out_wr);
+	free_fd(job_id, output_handle);
 
 	return result_code;
 }
@@ -268,12 +346,6 @@ int td_exec(
 	char new_cmd[8192];
 	const char* response;
 	*was_signalled_out = 0;
-
-	if (annotation)
-		tty_printf(job_id, -200, "%s\n", annotation);
-
-	if (echo_cmdline)
-		tty_printf(job_id, -199, "%s\n", cmd_line);
 
 	/* scan for a @RESPONSE|<option>|.... section at the end of the command line */
 	if (NULL != (response = strstr(cmd_line, response_prefix)))
@@ -333,7 +405,7 @@ int td_exec(
 			_snprintf(new_cmd, sizeof(new_cmd), "%s %s%s", command_buf, option_buf, response_file);
 			new_cmd[sizeof(new_cmd)-1] = '\0';
 
-			cmd_result = win32_spawn(job_id, new_cmd, env, env_count);
+			cmd_result = win32_spawn(job_id, new_cmd, env, env_count, annotation, echo_cmdline);
 
 			remove(response_file);
 			return cmd_result;
@@ -345,13 +417,13 @@ int td_exec(
 			command_buf[copy_len] = '\0';
 			_snprintf(new_cmd, sizeof(new_cmd), "%s%s", command_buf, option_end + 1);
 			new_cmd[sizeof(new_cmd)-1] = '\0';
-			return win32_spawn(job_id, new_cmd, env, env_count);
+			return win32_spawn(job_id, new_cmd, env, env_count, annotation, echo_cmdline);
 		}
 	}
 	else
 	{
 		/* no section in command line at all, just run it */
-		return win32_spawn(job_id, cmd_line, env, env_count);
+		return win32_spawn(job_id, cmd_line, env, env_count, annotation, echo_cmdline);
 	}
 }
 
