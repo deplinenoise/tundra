@@ -38,6 +38,11 @@
 #include <errno.h>
 #endif
 
+#if defined(TUNDRA_FREEBSD)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
+
 #if defined(TUNDRA_APPLE)
 #include <mach-o/dyld.h>
 #endif
@@ -602,10 +607,14 @@ td_init_homedir()
 		*tmp = 0;
 	return homedir;
 #elif defined(TUNDRA_FREEBSD)
-	char linkpath[256];
-	snprintf(linkpath, sizeof(linkpath), "/proc/%d/file", getpid());
-	linkpath[sizeof(linkpath-1)] = 1;
-	if (-1 == readlink(linkpath, homedir, sizeof(homedir)))
+	/* FreeBSD has a sysctl query function to get at the ELF path. */
+	size_t cb = sizeof(homedir);
+	int mib[4];
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PATHNAME;
+	mib[3] = -1;
+	if (0 != sysctl(mib, 4, homedir, &cb, NULL, 0))
 		return NULL;
 
 	if ((tmp = strrchr(homedir, '/')))
