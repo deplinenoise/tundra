@@ -44,7 +44,7 @@ Program {
 		"lua/src/print.c",
 	},
 	SubConfig = "host",
-	Libs = { "m", "pthread"; Config = "linux-*-*" },
+	Libs = { "m", "pthread"; Config = { "linux-*-*", "freebsd-*-*" } },
 }
 
 Always "gen_lua_data"
@@ -55,8 +55,8 @@ Program {
 	Defines = { "TD_STANDALONE"; Config = "*-*-*-standalone" },
 	Depends = { "base_lua", "luac", "gen_lua_data" },
 	Libs = {
-		{ "kernel32.lib", "advapi32.lib"; Config = { "win32-*-*", "win64-*-*" } }, 
-		{ "m", "pthread"; Config = "linux-*-*" }, 
+		{ "kernel32.lib", "advapi32.lib"; Config = { "win32-*-*", "win64-*-*" } },
+		{ "m", "pthread"; Config = { "linux-*-*", "freebsd-*-*" } },
 	},
 	Sources = {
 		"src/ancestors.c",

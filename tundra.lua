@@ -52,7 +52,8 @@ Build {
 		Config { Name = "macosx-gcc", Inherit = common, Tools = { "gcc-osx" } },
 		Config { Name = "win32-msvc", Inherit = common, Tools = { { "msvc-winsdk"; TargetArch = "x86" } } },
 		Config { Name = "win64-msvc", Inherit = common, Tools = { { "msvc-winsdk"; TargetArch = "x64" } } },
-		Config { Name = "linux-gcc", Inherit = common, Tools = { "gcc" } },
+		Config { Name = "linux-gcc", Inherit = common, Tools = { "gcc" }, DefaultOnHost = "linux" },
+		Config { Name = "freebsd-gcc", Inherit = common, Tools = { "gcc" }, DefaultOnHost = "freebsd" },
 
 		-- MingW32 cross compilation under OS X
 		Config {
