@@ -204,37 +204,41 @@ int td_exec(
 			int max_fd = 0;
 			struct timeval timeout;
 
-			FD_ZERO(&read_fds);
-
-			for (fd = 0; fd < 2; ++fd)
+			/* don't select if we know both pipes are closed */
+			if (rfd_count > 0)
 			{
-				if (rfds[fd])
+				FD_ZERO(&read_fds);
+
+				for (fd = 0; fd < 2; ++fd)
 				{
-					if (rfds[fd] > max_fd)
-						max_fd = rfds[fd];
-					FD_SET(rfds[fd], &read_fds);
-				}
-			}
-
-			++max_fd;
-			
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 500000;
-
-			count = select(max_fd, &read_fds, NULL, NULL, &timeout);
-
-			if (-1 == count) // happens in gdb due to syscall interruption
-				continue;
-
-			for (fd = 0; fd < 2; ++fd)
-			{
-				if (0 != rfds[fd] && FD_ISSET(rfds[fd], &read_fds))
-				{
-					if (0 != emit_data(job_id, /*is_stderr:*/ 1 == fd, sort_key++, rfds[fd]))
+					if (rfds[fd])
 					{
-						/* Done with this FD. */
-						rfds[fd] = 0;
-						--rfd_count;
+						if (rfds[fd] > max_fd)
+							max_fd = rfds[fd];
+						FD_SET(rfds[fd], &read_fds);
+					}
+				}
+
+				++max_fd;
+
+				timeout.tv_sec = 0;
+				timeout.tv_usec = 500000;
+
+				count = select(max_fd, &read_fds, NULL, NULL, &timeout);
+
+				if (-1 == count) // happens in gdb due to syscall interruption
+					continue;
+
+				for (fd = 0; fd < 2; ++fd)
+				{
+					if (0 != rfds[fd] && FD_ISSET(rfds[fd], &read_fds))
+					{
+						if (0 != emit_data(job_id, /*is_stderr:*/ 1 == fd, sort_key++, rfds[fd]))
+						{
+							/* Done with this FD. */
+							rfds[fd] = 0;
+							--rfd_count;
+						}
 					}
 				}
 			}
