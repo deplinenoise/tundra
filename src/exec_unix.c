@@ -196,7 +196,8 @@ int td_exec(
 			tty_printf(job_id, -199, "%s\n", cmd_line);
 
 		/* Sit in a select loop over the two fds */
-		while (rfd_count > 0)
+		
+		for (;;)
 		{
 			int fd;
 			int count;
@@ -238,7 +239,8 @@ int td_exec(
 				}
 			}
 
-			p = waitpid(child, &return_code, WNOHANG);
+			return_code = 0;
+			p = waitpid(child, &return_code, rfd_count > 0 ? WNOHANG : 0);
 
 			if (0 == p)
 			{
@@ -252,7 +254,14 @@ int td_exec(
 				break;
 			}
 			else
+			{
+				/* fall out of the loop here - process has exited. */
+				/* FIXME - is there a race between getting the last data out of
+				 * the pipes vs quitting here? Probably there is. But it seems
+				 * to work well in practice. If I put a blocking waitpid()
+				 * after the loop I got deadlocks on Mac OS X in select. */
 				break;
+			}
 		}
 
 		close(stdout_pipe[pipe_read]);
@@ -260,7 +269,12 @@ int td_exec(
 
 		tty_job_exit(job_id);
 	
-		*was_signalled_out = WIFSIGNALED(return_code);
+		if (WIFSIGNALED(return_code)) {
+			return_code = 1;
+			*was_signalled_out = WSTOPSIG(return_code);
+		}
+		else
+			return_code = WEXITSTATUS(return_code);
 		return return_code;
 	}
 }
