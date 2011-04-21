@@ -45,7 +45,7 @@ Build {
 
 		Default "a.out"
 	end,
-	SyntaxExtensions = { "glob" },
+	SyntaxExtensions = { "tundra.syntax.glob" },
 }
 ]====]
 
