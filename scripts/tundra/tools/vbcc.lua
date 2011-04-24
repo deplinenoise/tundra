@@ -22,11 +22,13 @@ local native = require "tundra.native"
 function apply(env, options)
 	-- load the generic C toolset first
 	tundra.boot.load_toolset("generic-cpp", env)
+	-- Also add assembly support.
+	tundra.boot.load_toolset("generic-asm", env)
 
 	local vbcc_root = assert(native.getenv("VBCC"), "VBCC environment variable must be set")
 
 	env:set_many {
-		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".a", ".o" },
+		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".s", ".asm", ".a", ".o" },
 		["OBJECTSUFFIX"] = ".o",
 		["LIBPREFIX"] = "",
 		["LIBSUFFIX"] = ".a",
@@ -38,6 +40,7 @@ function apply(env, options)
 		["CCOPTS"] = "",
 		["CXXOPTS"] = "",
 		["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
+		["ASMCOM"] = "$(CC) $(_OS_CCOPTS) -c $(ASMDEFS:p-D) $(CPPPATH:f:p-I) $(ASMOPTS) $(ASMOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
 		["PROGOPTS"] = "",
 		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) $(LIBS:p-l) -o $(@) $(<)",
 		["PROGPREFIX"] = "",
