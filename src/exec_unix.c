@@ -154,8 +154,6 @@ int td_exec(
 			setenv(name_block, equals + 1, 1);
 		}
 
-		fflush(stdout);
-
 		if (-1 == execv("/bin/sh", (char **) args))
 			exit(1);
 		/* we never get here */
