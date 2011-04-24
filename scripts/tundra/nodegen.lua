@@ -40,7 +40,10 @@ local function create_unit_map(state, raw_nodes)
 	-- Build name=>decl mapping
 	for _, unit in ipairs(raw_nodes) do
 		assert(unit.Decl)
-		local name = assert(unit.Decl.Name)
+		local name = unit.Decl.Name
+		if not name then
+			errorf("Unit declaration has no name")
+		end
 		if state.units[name] then
 			errorf("duplicate unit name: %s", name)
 		end
