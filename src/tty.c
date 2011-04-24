@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 /* tty.c - line buffer handling to linearize output from overlapped command
  * execution
@@ -210,7 +211,7 @@ flush_output_queue(int job_id)
 	for (i = 0; i < count; ++i)
 	{
 		line_buffer *b = buffers[i];
-		fputs(b->data, b->is_stderr ? stderr : stdout);
+		write(b->is_stderr ? STDERR_FILENO : STDOUT_FILENO, b->data, strlen(b->data));
 	}
 
 	/* Compact the queue, removing the buffers from this job. */
@@ -304,17 +305,17 @@ tty_emit(int job_id, int is_stderr, int sort_key, const char *data, int len)
 
 			td_mutex_unlock_or_die(&linelock);
 
-			TTY_PRINTF(("copying %d bytes of data from job_id %d, fd %d, sort_key %d\n",
-						(int) count, job_id, fd, sort_key));
+			TTY_PRINTF(("copying %d bytes of data from job_id %d, stderr=%d, sort_key %d\n",
+						len, job_id, is_stderr, sort_key));
 
-			fputs(data, is_stderr ? stderr : stdout);
+			write(is_stderr ? STDERR_FILENO : STDOUT_FILENO, data, strlen(data));
 			return; /* finish the loop immediately */
 		}
 		else
 		{
 			/* We can't print this data as we don't own the TTY so we buffer it. */
-			TTY_PRINTF(("buffering %d bytes of data from job_id %d, fd %d, sort_key %d\n",
-						(int) count, job_id, fd, sort_key));
+			TTY_PRINTF(("buffering %d bytes of data from job_id %d, stderr=%d, sort_key %d\n",
+						len, job_id, is_stderr, sort_key));
 
 			/* PERF: Could release mutex around this memcpy, not sure if it's a win. */
 			buf->job_id = job_id;
