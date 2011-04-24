@@ -32,6 +32,7 @@ function apply(env, options)
 		["OBJECTSUFFIX"] = ".o",
 		["LIBPREFIX"] = "",
 		["LIBSUFFIX"] = ".a",
+		["VBCC_ROOT"] = vbcc_root,
 		["CC"] = vbcc_root .. "/bin/vc",
 		["LIB"] = vbcc_root .. "/bin/vlink",
 		["LD"] = vbcc_root .. "/bin/vc",
