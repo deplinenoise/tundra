@@ -67,8 +67,6 @@ Program {
 	 	"src/cpp_scanner.c",
 	 	"src/debug.c",
 	 	"src/engine.c",
-	 	"src/exec_unix.c",
-	 	"src/exec_win32.c",
 	 	"src/files.c",
 		"src/luafs.c",
 		"src/md5.c",
@@ -78,7 +76,14 @@ Program {
 		"src/portable.c",
 		"src/relcache.c",
 		"src/luaprof.c",
-		"src/tty.c",
+
+		{
+			"src/tty.c",
+			"src/exec_unix.c"
+			;Config = { "linux-*-*", "freebsd-*-*", "macosx-*-*" }
+		},
+
+		{ "src/exec_win32.c"; Config = { "win32-*-*", "win64-*-*" } },
 
 		{
 			EmbedLuaSources {
