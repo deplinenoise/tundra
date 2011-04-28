@@ -31,6 +31,9 @@
 #elif defined(__FreeBSD__)
 #define TUNDRA_UNIX 1
 #define TUNDRA_FREEBSD 1
+#elif defined(__OpenBSD__)
+#define TUNDRA_UNIX 1
+#define TUNDRA_OPENBSD 1
 #else
 #error Unsupported OS
 #endif
