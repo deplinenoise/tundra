@@ -19,6 +19,9 @@
 
 #include "portable.h"
 #include "config.h"
+
+#ifndef TUNDRA_WIN32
+
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
@@ -374,3 +377,5 @@ void tty_printf(int job_id, int sort_key, const char *format, ...)
 	tty_emit(job_id, 0, sort_key, buffer, (int) strlen(buffer));
 	va_end(a);
 }
+
+#endif
