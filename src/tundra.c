@@ -251,8 +251,12 @@ int main(int argc, char** argv)
 
 	td_init_portable();
 
+#if !defined(TD_STANDALONE)
 	if (NULL == (homedir = td_init_homedir()))
 		return 1;
+#else
+	homedir = "";
+#endif
 
 	td_bin_allocator_init(&bin_alloc);
 
