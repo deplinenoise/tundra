@@ -87,6 +87,8 @@ const char * const td_platform_string =
 	"windows";
 #elif defined(TUNDRA_FREEBSD)
 	"freebsd";
+#elif defined(TUNDRA_OPENBSD)
+	"openbsd";
 #else
 #error implement me
 #endif
@@ -620,6 +622,9 @@ td_init_homedir()
 	if ((tmp = strrchr(homedir, '/')))
 		*tmp = 0;
 	return homedir;
+#elif defined(TUNDRA_OPENBSD)
+	/* Not supporting homedir on OpenBSD right now ... */
+	return NULL;
 #else
 #error "unsupported platform"
 #endif
