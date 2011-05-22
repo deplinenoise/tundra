@@ -352,7 +352,7 @@ local function setup_env(env, tuple, build_id)
 				if Options.VeryVerbose then
 					printf("Env Replace %s => %s", util.tostring(val), util.tostring(list))
 				end
-				env:replace(key, subvalue)
+				env:replace(key, list)
 			else
 				env:replace(key, val)
 			end
