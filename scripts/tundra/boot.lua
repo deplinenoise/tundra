@@ -317,15 +317,20 @@ local function setup_env(env, tuple, build_id)
 	for tools in iter_inherits(config, "Tools") do
 		for _, data in ipairs(tools) do
 			local id, options
-			if type(data) == "string" then
-				id = data
-			elseif type(data) == "table" then
+
+			if type(data) == "table" then
 				id = assert(data[1])
 				options = data
+				data = id
+			end
+
+			if type(data) == "string" then
+				load_toolset(data, env, options)
+			elseif type(data) == "function" then
+				data(env, options)
 			else
 				error("bad parameters")
 			end
-			load_toolset(id, env, options)
 		end
 	end
 
