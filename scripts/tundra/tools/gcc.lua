@@ -44,5 +44,8 @@ function apply(env, options)
 		["PROGPREFIX"] = "",
 		["LIBOPTS"] = "",
 		["LIBCOM"] = "$(LIB) -rs $(LIBOPTS) $(@) $(<)",
+		["SHLIBPREFIX"] = "lib",
+		["SHLIBOPTS"] = "-shared",
+		["SHLIBCOM"] = "$(LD) $(SHLIBOPTS) $(LIBPATH:p-L) $(LIBS:p-l) -o $(@) $(<)",
 	}
 end
