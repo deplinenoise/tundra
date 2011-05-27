@@ -83,7 +83,7 @@ Program {
 			;Config = { "linux-*-*", "freebsd-*-*", "macosx-*-*", "openbsd-*-*" }
 		},
 
-		{ "src/exec_win32.c"; Config = { "win32-*-*", "win64-*-*" } },
+		{ "src/exec_win32.c"; Config = { "win32-*-*", "win64-*-*", "*-crosswin32" } },
 
 		{
 			EmbedLuaSources {

@@ -88,7 +88,7 @@ static HANDLE alloc_fd(int job_id)
 		result = CreateFileA(filename, access, sharemode, NULL, disp, flags, NULL);
 		if (INVALID_HANDLE_VALUE == result)
 		{
-			fprintf(stderr, "couldn't create temporary file %s: %u\n", filename, GetLastError());
+			fprintf(stderr, "couldn't create temporary file %s: %u\n", filename, (unsigned int)GetLastError());
 			return NULL;
 		}
 

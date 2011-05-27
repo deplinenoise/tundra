@@ -52,7 +52,11 @@ function apply(decl_parser, passes)
 					local rel_name = filename:sub(dir_len+2)
 					local pkg_name = rel_name:gsub("[/\\]", "."):gsub("%.lua$", "")
 					inputs[#inputs + 1] = filename
-					files[#files + 1], deps[#deps + 1] = luac(env, filename)
+					if env:get("LUA_EMBED_ASCII", "no") == "no" then
+						files[#files + 1], deps[#deps + 1] = luac(env, filename)
+					else
+						files[#files + 1] = filename
+					end
 					action_fragments[#action_fragments + 1] = pkg_name
 					action_fragments[#action_fragments + 1] = files[#files]
 				end
