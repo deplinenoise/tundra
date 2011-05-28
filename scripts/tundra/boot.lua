@@ -682,6 +682,14 @@ function _G.Build(args)
 		native.exit(0)
 	end
 
+	-- Add user-defined units
+	for name, func in util.nil_pairs(args.UnitEval) do
+		if type(func) ~= "function" then
+			errorf("user unit %s must be of type function, not %s", name, type(func))
+		end
+		nodegen.add_evaluator(name, func)
+	end
+
 	if not Options.IdeGeneration then
 		GlobalEngine = create_build_engine(args.EngineOptions)
 
