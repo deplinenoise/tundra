@@ -8,7 +8,7 @@ Build {
 		},
 	},
 
-	SyntaxExtensions = { "osx-bundle" },
+	SyntaxExtensions = { "tundra.syntax.osx-bundle" },
 
 	Units = "units.lua",
 }
