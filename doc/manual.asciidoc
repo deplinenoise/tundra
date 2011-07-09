@@ -779,6 +779,7 @@ from a environment variable +CPPPATH+, you can say +$(CPPPATH:p-I)+.
 |+$(VAR:b)+             |Convert to backward slashes (+\+)
 |+$(VAR:u)+             |Convert to upper case
 |+$(VAR:l)+             |Convert to lower case
+|+$(VAR:B)+     	|*filenames*: Only keep the base part of a filename (w/o extension)
 |+$(VAR:p<prefix>)+     |Prefix all values with the string +<prefix>+
 |+$(VAR:s<suffix>)+     |Suffix all values with the string +<suffix>+
 |+$(VAR:[<index>])+     |Select the item at the (one-based) +index+
