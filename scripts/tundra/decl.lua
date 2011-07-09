@@ -92,19 +92,31 @@ function decl_meta:add_source_generator(name, fn)
 	self.SourceGen[name] = fn
 end
 
-function decl_meta:parse(file)
+local function parse_rec(self, unit_generators)
 	local chunk
-	if type(file) == "function" then
-		chunk = file
+	if type(unit_generators) == "table" then
+		for _, gen in ipairs(unit_generators) do
+		   parse_rec(self, gen)
+		end
+		return
+	elseif type(unit_generators) == "function" then
+		chunk = unit_generators
+	elseif type(unit_generators) == "string" then
+		chunk = assert(loadfile(unit_generators))
 	else
-		chunk =assert(loadfile(file))
-	end
-
-	for name, _ in pairs(nodegen._generator.evaluators) do
-		self.ProjectTypes[name] = true
+		croak("unknown type %s for unit_generator %q", type(unit_generators), tostring(unit_generators))
 	end
 
 	setfenv(chunk, self.FunctionEnv)
 	chunk()
+end
+
+function decl_meta:parse(unit_generators)
+	for name, _ in pairs(nodegen._generator.evaluators) do
+		self.ProjectTypes[name] = true
+	end
+
+	parse_rec(self, unit_generators)
+	
 	return self.Results, self.DefaultNames, self.AlwaysNames
 end

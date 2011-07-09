@@ -253,11 +253,16 @@ Build {
 
 === Units (required) ===
 
-The build block must be either a function or the (string) filename of a
-secondary file containing unit declarations. This file/function is separate
-because it uses a custom, extensible syntax set which is suitable to define
-build system input. A common name for external unit files is +"units.lua"+, but
-any valid filename is OK.
+The build block must be either a function, the (string) filename of a
+secondary file containing unit declarations, or a table of
+file/functions.
+
+Each file/function is separate because it uses a custom, extensible
+syntax set which is suitable to define build system input. A common
+name for external unit files is +"units.lua"+, but any valid filename
+is OK.
+
+If not specified, unit definitions will be loaded from a +"units.lua"+ file.
 
 === Configs (required) ===
 
