@@ -35,6 +35,10 @@ function join(dir, fn)
 end
 
 function get_filename_dir(fn)
+	return select(1, split(fn))
+end
+
+function get_filename(fn)
 	return select(2, split(fn))
 end
 
@@ -54,4 +58,3 @@ function get_filename_base(fn)
 	_,_,stem = fn:find("([^/\\]+)$")
 	return stem
 end
-
