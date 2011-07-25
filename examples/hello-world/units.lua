@@ -5,3 +5,13 @@ Program {
 }
 
 Default "HelloWorld"
+
+Program {
+   Name = "CXXHelloWorld",
+   Sources = { "hello.cc" },
+   ReplaceEnv = {
+      LD = { "$(C++)" ; Config = { "*-gcc-*" } },
+   },
+}
+
+Default "CXXHelloWorld"
