@@ -741,7 +741,7 @@ Program {
 ==== Parser Generation (Bison & Flex) ====
 
 To run `bison` and `flex` to generate parsers and lexers, import the
-`tundra.syntax.glob` syntax extension. The extension doesn't assume any
+`tundra.syntax.bison` syntax extension. The extension doesn't assume any
 particular name or path to either `bison` or `flex` so you must define them
 through the environment:
 
