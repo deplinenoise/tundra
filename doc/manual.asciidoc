@@ -738,6 +738,40 @@ Program {
 }
 -------------------------------------------------------------------------------
 
+==== Parser Generation (Bison & Flex) ====
+
+To run `bison` and `flex` to generate parsers and lexers, import the
+`tundra.syntax.glob` syntax extension. The extension doesn't assume any
+particular name or path to either `bison` or `flex` so you must define them
+through the environment:
+
+.Bison/Flex Example
+-------------------------------------------------------------------------------
+...
+Env = {
+    BISON = "bison", -- specify your own path if needed
+    BISONOPT = "", -- specify addtional options if needed
+    FLEX = "flex", -- specify your own path if needed
+    FLEXOPT = "", -- specify addtional options if needed
+},
+
+...
+
+Program {
+    ...
+    Sources = {
+		Bison { Source="grammar.y", TokenDefines = true, Pass = "SomePass" },
+		Flex { Source="lexer.l", Pass = "SomePass" },
+    },
+    ...
+}
+-------------------------------------------------------------------------------
+
+Both generators take `Source` and `Pass` arguments which are self-explanatory.
+The `TokenDefines` option controls whether bison should generate an additonal
+header with token defines. This must be controlled by the generator so that
+Tundra knows about this additional output file.
+
 <<<
 
 == The Environment ==
