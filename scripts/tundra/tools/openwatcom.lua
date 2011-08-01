@@ -55,7 +55,7 @@ function apply(env, options)
 		["OBJECTSUFFIX"] = ".obj",
 		["LIBSUFFIX"] = ".lib",
 		["CC"] = "wcl386.exe",
-		["C++"] = "wcl386.exe",
+		["CXX"] = "wcl386.exe",
 		["LIB"] = "wlib.exe",
 		["LD"] = "wlink.exe",
 		["CPPDEFS"] = "_WIN32",

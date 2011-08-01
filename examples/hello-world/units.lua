@@ -10,7 +10,7 @@ Program {
    Name = "CXXHelloWorld",
    Sources = { "hello.cc" },
    ReplaceEnv = {
-      LD = { "$(C++)" ; Config = { "*-gcc-*" } },
+      LD = { "$(CXX)" ; Config = { "*-gcc-*" } },
    },
 }
 

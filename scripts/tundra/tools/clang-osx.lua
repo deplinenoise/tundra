@@ -22,7 +22,7 @@ function apply(env, options)
 
 	env:set_many {
 		["CC"] = "clang",
-		["C++"] = "clang++",
+		["CXX"] = "clang++",
 		["LD"] = "clang",
 	}
 end

@@ -38,8 +38,6 @@ function apply(env, options)
 		["LD"] = vbcc_root .. "/bin/vc",
 		["_OS_CCOPTS"] = "",
 		["_OS_CXXOPTS"] = "",
-		["CCOPTS"] = "",
-		["CXXOPTS"] = "",
 		["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
 		["ASMCOM"] = "$(CC) $(_OS_CCOPTS) -c $(ASMDEFS:p-D) $(CPPPATH:f:p-I) $(ASMOPTS) $(ASMOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
 		["PROGOPTS"] = "",

@@ -79,7 +79,7 @@ local function setup(env, options)
 	local link_exe = '"' .. rootDir .. binDir .. "link.exe" ..'"'
 
 	env:set('CC', cl_exe)
-	env:set('C++', cl_exe)
+	env:set('CXX', cl_exe)
 	env:set('LIB', lib_exe)
 	env:set('LD', link_exe)
 

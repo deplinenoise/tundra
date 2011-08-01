@@ -882,11 +882,13 @@ These environment variables apply to C-based toolsets:
 - `LIBS` - A list of libraries to link with
 - `LIBPATH` -  A list of search directories for library files
 - `CC` - The C compiler
-- `C++` - The C++ compiler
+- `CXX` - The C++ compiler
 - `LIB` - The program that makes static libraries (archives)
 - `LD` - The linker
-- `CCOPTS` - Common compiler options for all configurations
-- `CCOPTS_<config>` - Compiler options for variant `<config>`, such as `CCOPTS_DEBUG`, `CCOPTS_RELEASE`.
+- `CCOPTS` - Common C compiler options for all configurations
+- `CCOPTS_<config>` - Compiler C options for variant `<config>`, such as `CCOPTS_DEBUG`, `CCOPTS_RELEASE`.
+- `CXXOPTS` - Common C++ compiler options for all configurations
+- `CXXOPTS_<config>` - Compiler C++ options for variant `<config>`, such as `CXXOPTS_DEBUG`, `CXXOPTS_RELEASE`.
 - `CCCOM` - Command line for C compilation
 - `CXXCOM` - Command line for C++ compilation
 - `PCHCOMPILE` - Command line for precompiled header compilation

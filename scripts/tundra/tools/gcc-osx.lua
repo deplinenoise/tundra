@@ -23,7 +23,7 @@ function apply(env, options)
 
 	env:set_many {
 		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".m", ".mm", ".a", ".o" },
-		["C++EXTS"] = { "cpp", "cxx", "cc", "mm" },
+		["CXXEXTS"] = { "cpp", "cxx", "cc", "mm" },
 		["FRAMEWORKS"] = "",
 		["SHLIBPREFIX"] = "lib",
 		["SHLIBOPTS"] = "-shared",

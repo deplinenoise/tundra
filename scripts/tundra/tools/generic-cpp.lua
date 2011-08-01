@@ -78,7 +78,7 @@ local function generic_cpp_setup(env)
 
 	local mappings = {
 		["CCEXTS"] = { Label="Cc", Action="$(CCCOM)" },
-		["C++EXTS"] = { Label="C++", Action="$(CXXCOM)" },
+		["CXXEXTS"] = { Label="C++", Action="$(CXXCOM)" },
 		["OBJCEXTS"] = { Label="ObjC", Action="$(OBJCCOM)" },
 	}
 
@@ -98,7 +98,7 @@ function apply(_outer_env, options)
 	_outer_env:set_many {
 		["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
 		["CCEXTS"] = { "c" },
-		["C++EXTS"] = { "cpp", "cxx", "cc" },
+		["CXXEXTS"] = { "cpp", "cxx", "cc" },
 		["OBJCEXTS"] = { "m" },
 		["PROGSUFFIX"] = "$(HOSTPROGSUFFIX)",
 		["SHLIBSUFFIX"] = "$(HOSTSHLIBSUFFIX)",
@@ -106,6 +106,8 @@ function apply(_outer_env, options)
 		["CPPDEFS"] = "",
 		["LIBS"] = "",
 		["LIBPATH"] = "$(OBJECTDIR)",
+		["CCOPTS"] = "",
+		["CXXOPTS"] = "",
 		["CPPDEFS_DEBUG"] = "",
 		["CPPDEFS_PRODUCTION"] = "",
 		["CPPDEFS_RELEASE"] = "",
