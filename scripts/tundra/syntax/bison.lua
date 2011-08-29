@@ -29,7 +29,7 @@ function apply(decl_parser, passes)
 	decl_parser:add_source_generator("Bison", function (args)
 		return function (env)
 			local src = assert(args.Source, "Must specify a Source for Bison")
-			local targetbase = "$(OBJECTDIR)/bisongen_" .. path.get_filename_base(src)
+			local targetbase = "$(OBJECTDIR)$(SEP)bisongen_" .. path.get_filename_base(src)
 			local out_src = targetbase .. ".c"
 			local defopt = ""
 			local outputs = { out_src }
@@ -51,7 +51,7 @@ function apply(decl_parser, passes)
 	decl_parser:add_source_generator("Flex", function (args)
 		return function (env)
 			local input = assert(args.Source, "Must specify a Source for Flex")
-			local out_src = "$(OBJECTDIR)/flexgen_" .. path.get_filename_base(input) .. ".c"
+			local out_src = "$(OBJECTDIR)$(SEP)flexgen_" .. path.get_filename_base(input) .. ".c"
 			return env:make_node {
 				Pass = assert(passes[args.Pass], "Must specify a Pass for Flex"),
 				Label = "Flex $(@)",
