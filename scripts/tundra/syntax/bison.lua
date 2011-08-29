@@ -41,7 +41,7 @@ function apply(decl_parser, passes)
 			return env:make_node {
 				Pass = assert(passes[args.Pass], "Must specify a Pass for Bison"),
 				Label = "Bison $(@)",
-				Action = "$(BISON) $(BISONOPT)" .. defopt .. " --output-file=$(@:[1]) $(<)",
+				Action = "$(BISON) $(BISONOPT) " .. defopt .. " --output-file=$(@:[1]) $(<)",
 				InputFiles = { src },
 				OutputFiles = outputs,
 			}
