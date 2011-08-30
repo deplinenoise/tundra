@@ -291,7 +291,7 @@ int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_coun
 		return 1;
 	}
 
-	_snprintf(buffer, sizeof(buffer), "cmd.exe /c %s", cmd_line);
+	_snprintf(buffer, sizeof(buffer), "cmd.exe /c \"%s\"", cmd_line);
 
 	output_handle = alloc_fd(job_id);
 
