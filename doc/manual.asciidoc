@@ -731,7 +731,7 @@ Program {
             Filters = {
                 { Pattern = "/debug/"; Config = "*-*-debug" },
                 { Pattern = "win32"; Config = "win32-*-*" },
-				{ Pattern = "/_[^$]$"; Config = "ignore" },
+                { Pattern = "/_[^$]$"; Config = "ignore" },
             }
         }
     },
