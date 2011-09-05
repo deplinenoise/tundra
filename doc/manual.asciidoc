@@ -731,7 +731,7 @@ Program {
             Filters = {
                 { Pattern = "/debug/"; Config = "*-*-debug" },
                 { Pattern = "win32"; Config = "win32-*-*" },
-                { Pattern = "/_[^/]*$"; Config = "ignore" },
+                { Pattern = "_[^/]*$"; Config = "ignore" },
             }
         }
     },
@@ -740,7 +740,7 @@ Program {
 -------------------------------------------------------------------------------
 
 If you wish to exclude files based on a pattern you can specify a configuration
-that doesn't exist. In the above example the pattern `/_[^/]*$` will ignore all 
+that doesn't exist. In the above example the pattern `_[^/]*$` will ignore all 
 files where the file name starts with `_`.
 
 Lua patterns are not regular expressions but they are closely related. Instead 
