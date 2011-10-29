@@ -49,9 +49,11 @@ rm -rf $DISTOSX $DISTWIN
 make -C doc
 cp doc/manual.pdf dists/$DISTMAN.pdf
 
-support/github-upload.rb dists/$DISTOSX.tar.bz2 || exit 1
-support/github-upload.rb dists/$DISTWIN.zip || exit 1
-support/github-upload.rb dists/$DISTMAN.pdf || exit 1
+REPO=deplinenoise/tundra
+
+support/github-upload.rb dists/$DISTOSX.tar.bz2 $REPO || exit 1
+support/github-upload.rb dists/$DISTWIN.zip $REPO || exit 1
+support/github-upload.rb dists/$DISTMAN.pdf $REPO || exit 1
 
 echo
 echo "All done, tundra $MONIKER uploaded successfully"
