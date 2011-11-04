@@ -58,3 +58,27 @@ function get_filename_base(fn)
 	_,_,stem = fn:find("([^/\\]+)$")
 	return stem
 end
+
+function make_object_filename(env, src_fn, suffix)
+	local object_fn
+
+	-- Drop leading $(OBJECTDIR)[/\\] in the input filename.
+	do
+		local pname = src_fn:match("^%$%(OBJECTDIR%)[/\\](.*)$")
+		if pname then
+			object_fn = pname
+		else
+			object_fn = src_fn
+		end
+	end
+
+	-- Compute path under OBJECTDIR we want for the resulting object file.
+	-- Replace ".." with "dotdot" to avoid creating files outside the
+	-- object directory.
+	do
+		local relative_name = drop_suffix(object_fn:gsub("%.%.", "dotdot"))
+		object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. relative_name .. suffix
+	end
+
+	return object_fn
+end

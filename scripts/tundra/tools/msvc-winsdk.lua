@@ -88,6 +88,9 @@ local function setup(env, options)
 	env:set_external_env_var("WindowsSdkDir", sdkDir)
 	env:set_external_env_var("INCLUDE", sdkDir .. "\\INCLUDE;" .. vc_dir .. "\\INCLUDE")
 
+	local rc_exe = '"' .. sdkDir .. "\\bin\\rc.exe" ..'"'
+	env:set('RC', rc_exe)
+
 	local sdkLibDir = "LIB"
 	local vcLibDir = "LIB"
 

@@ -146,7 +146,7 @@ variable if you use Tundra a lot.
 === Installing from source ===
 
 Tundra can be obtained from the official GIT repository:
-`git://git@github.com:deplinenoise/tundra.git`.
+`git://github.com:deplinenoise/tundra.git`.
 
 To build tundra, you can either use tundra itself, or CMake.
 

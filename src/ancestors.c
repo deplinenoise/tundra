@@ -126,6 +126,7 @@ update_ancestors(
 		unsigned char *visited)
 {
 	int i, count, output_index;
+	const td_ancestor_data *ancestor_data;
 
 	if (node->job.flags & TD_JOBF_ANCESTOR_UPDATED)
 		return;
@@ -135,15 +136,12 @@ update_ancestors(
 	/* If this node had an ancestor record, flag it as visited. This way it
 	 * will be disregarded when writing out all the other ancestors that
 	 * weren't used this build session. */
+	if (NULL != (ancestor_data = node->ancestor_data))
 	{
-		const td_ancestor_data *data;
-		if (NULL != (data = node->ancestor_data))
-		{
-			int index = (int) (data - engine->ancestors);
-			assert(index < engine->ancestor_count);
-			assert(0 == visited[index]);
-			visited[index] = 1;
-		}
+		int index = (int) (ancestor_data - engine->ancestors);
+		assert(index < engine->ancestor_count);
+		assert(0 == visited[index]);
+		visited[index] = 1;
 	}
 
 	output_index = *cursor;
@@ -151,7 +149,24 @@ update_ancestors(
 	memset(&output[output_index], 0, sizeof(td_ancestor_data));
 
 	memcpy(&output[output_index].guid, &node->guid, sizeof(td_digest));
-	memcpy(&output[output_index].input_signature, &node->job.input_signature, sizeof(td_digest));
+
+	/* Decide what input signature to save. If the job reached the scanning
+	 * state, that means the input signature was updated, so save that for
+	 * the next run.
+	 *
+	 * Otherwise if these is ancestor information for this node, save the old
+	 * input signature again. If this isn't done it will trigger future
+	 * sporadic rebuilds on nodes that are up-to-date but are never visited in
+	 * the DAG before a build failure.
+	 *
+	 * Otherwise nothing is known about this node, so leaving the input
+	 * signature cleared is the right thing to do.
+	 */
+	if (node->job.state > TD_JOB_SCANNING)
+		memcpy(&output[output_index].input_signature, &node->job.input_signature, sizeof(td_digest));
+	else if (ancestor_data)
+		memcpy(&output[output_index].input_signature, &ancestor_data->input_signature, sizeof(td_digest));
+
 	output[output_index].access_time = now;
 	output[output_index].job_result = node->job.state;
 

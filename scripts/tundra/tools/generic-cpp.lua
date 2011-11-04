@@ -24,7 +24,7 @@ local boot = require "tundra.boot"
 local util = require "tundra.util"
 local path = require "tundra.path"
 
-local function get_cpp_scanner(env, fn)
+function get_cpp_scanner(env, fn)
 	local function new_scanner()
 		local paths = util.map(env:get_list("CPPPATH"), function (v) return env:interpolate(v) end)
 		return boot.GlobalEngine:make_cpp_scanner(paths)
@@ -39,28 +39,10 @@ end
 -- processed. This way users can override the extension lists.
 local function generic_cpp_setup(env)
 	local _anyc_compile = function(env, pass, fn, label, action)
-		local object_fn
-		local pch_input = env:get('_PCH_FILE', '')
-
-		-- Drop leading $(OBJECTDIR)[/\\] in the input filename.
-		do
-			local pname = fn:match("^%$%(OBJECTDIR%)[/\\](.*)$")
-			if pname then
-				object_fn = pname
-			else
-				object_fn = fn
-			end
-		end
-
-		-- Compute path under OBJECTDIR we want for the resulting object file.
-		-- Replace ".." with "dotdot" to avoid creating files outside the
-		-- object directory.
-		do
-			local relative_name = path.drop_suffix(object_fn:gsub("%.%.", "dotdot"))
-			object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. relative_name .. '$(OBJECTSUFFIX)'
-		end
+		local object_fn = path.make_object_filename(env, fn, '$(OBJECTSUFFIX)')
 
 		local implicit_inputs = nil
+		local pch_input = env:get('_PCH_FILE', '')
 		if pch_input ~= '' then
 			implicit_inputs = { pch_input }
 		end
