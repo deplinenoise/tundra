@@ -66,13 +66,10 @@ sub run_test($) {
 	});
 }
 
-sub test_timestamp { run_test(0); }
-sub test_digest { run_test(1); }
-
 deftest {
     name => "Basic",
     procs => [
-		"Basic timestamp signing" => \&test_timestamp,
-		"Basic digest signing" => \&test_digest,
+		"Basic timestamp signing" => sub { run_test(0); },
+		"Basic digest signing" => sub { run_test(1); },
 	]
 };

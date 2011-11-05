@@ -81,12 +81,11 @@ sub run_tundra($) {
 
 	my $rc = $?;
 	unless ($rc == 0) {
-		print "\n** TEST FAILED **\n\n";
-		print "Output\n";
-		print "=" x 79, "\n";
-		print STDERR @output;
-		print "=" x 79, "\n";
-		fail "tundra failed with result code $rc.";
+		my $separator = ("=" x 79) . "\n";
+		push @output, $separator;
+		unshift @output, $separator;
+		unshift @output, "\ntundra failed with result code $rc\n";
+		fail (join("", @output) . "\n");
 	}
 
 	# Store away config & output dir for convenience later when checking results.
