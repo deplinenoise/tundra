@@ -39,19 +39,22 @@ clean_file(td_engine *engine, td_node *node, td_file **dirs, int *dir_count, td_
 	td_file *dir = td_parent_dir(engine, file);
 
 	/* scan for this directory */
-	for (k = *dir_count - 1; k >= 0; --k)
+	if (dir)
 	{
-		if (dirs[k] == dir)
-			break;
-	}
+		for (k = *dir_count - 1; k >= 0; --k)
+		{
+			if (dirs[k] == dir)
+				break;
+		}
 
-	if (k < 0)
-	{
-		int index = *dir_count;
-		if (index >= TD_MAX_CLEAN_DIRS)
-			td_croak("too many dirs to clean! limit is %d", TD_MAX_CLEAN_DIRS);
-		*dir_count = index + 1;
-		dirs[index] = dir;
+		if (k < 0)
+		{
+			int index = *dir_count;
+			if (index >= TD_MAX_CLEAN_DIRS)
+				td_croak("too many dirs to clean! limit is %d", TD_MAX_CLEAN_DIRS);
+			*dir_count = index + 1;
+			dirs[index] = dir;
+		}
 	}
 
 	/* Don't delete the output of precious nodes. */

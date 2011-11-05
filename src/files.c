@@ -150,14 +150,36 @@ td_file *td_parent_dir(td_engine *engine, td_file *f)
 	if (f->path_len >= sizeof(path_buf) - 1)
 		td_croak("path too long: %s", f->path);
 
+	/* root directory has no parent */
+	if (f->path_len == 1 && f->path[0] == TD_PATHSEP)
+		return NULL;
+
+#if defined(TUNDRA_WIN32)
+	/* device root directory has no parent */
+	if (f->path_len == 3 &&
+		f->path[1] == ':' &&
+		f->path[2] == TD_PATHSEP)
+		return NULL;
+#endif
+
 	strncpy(path_buf, f->path, sizeof(path_buf));
 
 	for (i = f->path_len - 1; i >= 0; --i)
 	{
 		char ch = path_buf[i];
+
 		if (TD_PATHSEP == ch)
 		{
-			path_buf[i] = '\0';
+			if (i > 0)
+				path_buf[i] = '\0';
+			else
+			{
+				/* if we get here the path looks like /foo or \foo which means
+				 * we have to return the root directory as the parent */
+				path_buf[0] = TD_PATHSEP;
+				path_buf[1] = '\0';
+			}
+
 			return td_engine_get_file(engine, path_buf, TD_COPY_STRING);
 		}
 	}

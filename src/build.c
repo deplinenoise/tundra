@@ -190,6 +190,10 @@ run_job(td_job_queue *queue, td_node *node, int job_id)
 	for (i = 0, count = node->output_count; i < count; ++i)
 	{
 		td_file *dir = td_parent_dir(engine, node->outputs[i]);
+
+		if (!dir)
+			continue;
+
 		if (0 != (result = ensure_dir_exists(engine, dir)))
 			goto leave;
 	}
