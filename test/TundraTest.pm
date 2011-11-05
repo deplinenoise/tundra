@@ -184,24 +184,38 @@ sub load_tests($) {
 }
 
 sub run_tests() {
-	my $count = scalar(@tests);
-	printf "Running %d test%s\n", $count, $count == 1 ? "" : "s";
+	my $group_count = scalar(@tests);
+	my ($test_count, $pass_count) = (0, 0);
+	printf "Running %d test group%s\n", $group_count, $group_count == 1 ? "" : "s";
+
 	foreach my $t (@tests) {
-		print "$t->{name}\n";
+		my ($gtest_count, $gpass_count) = (0, 0);
+		print "\nGroup: $t->{name}\n";
 		my $procs = $t->{procs};
 		my $elem_count = scalar(@$procs);
 		for (my $i = 0; $i < $elem_count; $i += 2) {
+			++$gtest_count;
 			my ($name, $function) = ($procs->[$i], $procs->[$i+1]);
-			print "  $name... ";
+			print "- $name... ";
 			eval { &$function(); };
 			if ($@) {
 				print "FAILED\n";
 				print $@;
 			} else {
+				++$gpass_count;
 				print "OK\n";
 			}
 		}
+
+		$test_count += $gtest_count;
+		$pass_count += $gpass_count;
+
+		printf "Group summary: %d of %d passed (%.2f%%)\n",
+			$gpass_count, $gtest_count, 100.0 * $gpass_count / $gtest_count;
 	}
+
+	printf "\nSummary: %d of %d tests passed (%.2f%%)\n",
+		$pass_count, $test_count, 100.0 * $pass_count / $test_count;
 }
 
 1;
