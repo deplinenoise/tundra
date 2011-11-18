@@ -1,9 +1,27 @@
 #! /bin/sh
 
+# Utility script to bootstrap, build and upload a full binary distribution of
+# Tundra to github for downloading.
+#
+# Usage: support/mkdist-osx.sh <tag> [upload]
+#
+# Tag should be a version number, e.g. 0.99f
+# Upload is the optional literal "upload", if not specified the build is local.
+
 MONIKER=$1
+UPLOAD=$2
 
 if [ x$MONIKER = x ]; then
 	echo "error: specify a moniker"
+	exit 1
+fi
+
+if [ x$UPLOAD = x ]; then
+    UPLOAD=no
+elif [ x$UPLOAD = xupload ]; then
+    UPLOAD=yes
+else
+    echo "error: specify 'upload' for the second arg if desired"
 	exit 1
 fi
 
@@ -49,9 +67,14 @@ rm -rf $DISTOSX $DISTWIN
 make -C doc
 cp doc/manual.pdf dists/$DISTMAN.pdf
 
-support/github-upload.rb dists/$DISTOSX.tar.bz2 || exit 1
-support/github-upload.rb dists/$DISTWIN.zip || exit 1
-support/github-upload.rb dists/$DISTMAN.pdf || exit 1
+REPO=deplinenoise/tundra
+
+if [ x$UPLOAD = xyes ]; then
+    echo "uploading files to $REPO..."
+    support/github-upload.rb dists/$DISTOSX.tar.bz2 $REPO || exit 1
+    support/github-upload.rb dists/$DISTWIN.zip $REPO || exit 1
+    support/github-upload.rb dists/$DISTMAN.pdf $REPO || exit 1
+fi
 
 echo
-echo "All done, tundra $MONIKER uploaded successfully"
+echo "All done, tundra $MONIKER ready"

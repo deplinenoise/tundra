@@ -178,8 +178,8 @@ sanitize_path(char *buffer, size_t buffer_size, size_t input_length)
 
 		if (segments[i].dotdot)
 		{
-			segments[i].drop = 1;
 			++dotdot_drops;
+			segments[i].drop = 1;
 		}
 		else if (dotdot_drops > 0)
 		{
@@ -191,7 +191,7 @@ sanitize_path(char *buffer, size_t buffer_size, size_t input_length)
 	/* Format the resulting path. It can never get longer by this operation, so
 	 * there's no need to check the buffer size. */
 	{
-		int first = 1;
+		int emit_slash = 0;
 		char *cursor = buffer;
 
 		/* Emit all leading ".." tokens we've got left */
@@ -210,9 +210,10 @@ sanitize_path(char *buffer, size_t buffer_size, size_t input_length)
 			if (segments[i].drop)
 				continue;
 
-			if (!first)
+			if (emit_slash)
 				*cursor++ = TD_PATHSEP;
-			first = 0;
+			emit_slash = 1;
+
 			memcpy(cursor, seg, len);
 			cursor += len;
 		}
