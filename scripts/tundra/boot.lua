@@ -227,7 +227,14 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 		if #build_configs == 0 and #build_tuples == 0 then
 			local host_os = native.host_platform
 			for name, config in pairs(configs) do
-				if config.DefaultOnHost == host_os then
+				local def_pats = config.DefaultOnHost
+
+				-- handle string or table of strings
+				if type(def_pats) ~= "table" then
+					def_pats = { def_pats }
+				end
+
+				if util.matches_any(host_os, def_pats) then
 					if Options.VeryVerbose then
 						if Options.VeryVerbose then
 							printf("defaulted to %s based on host platform %s..", name, host_os)
