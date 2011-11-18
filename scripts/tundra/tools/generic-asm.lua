@@ -28,25 +28,7 @@ local path = require "tundra.path"
 -- processed. This way users can override the extension lists.
 local function generic_asm_setup(env)
 	local _assemble = function(env, pass, fn)
-		local object_fn
-
-		-- Drop leading $(OBJECTDIR)[/\\] in the input filename.
-		do
-			local pname = fn:match("^%$%(OBJECTDIR%)[/\\](.*)$")
-			if pname then
-				object_fn = pname
-			else
-				object_fn = fn
-			end
-		end
-
-		-- Compute path under OBJECTDIR we want for the resulting object file.
-		-- Replace ".." with "dotdot" to avoid creating files outside the
-		-- object directory.
-		do
-			local relative_name = path.drop_suffix(object_fn:gsub("%.%.", "dotdot"))
-			object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. relative_name .. '$(OBJECTSUFFIX)'
-		end
+		local object_fn = path.make_object_filename(env, fn, '$(OBJECTSUFFIX)')
 
 		return env:make_node {
 			Label = 'Asm $(@)',
