@@ -38,12 +38,12 @@ function apply(env, options)
 		["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
 		["CXXCOM"] = "$(CXX) $(_OS_CXXOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CXXOPTS) $(CXXOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
 		["PROGOPTS"] = "",
-		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) $(LIBS:p-l) -o $(@) $(<)",
+		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) -o $(@) $(<) $(LIBS:p-l)",
 		["PROGPREFIX"] = "",
 		["LIBOPTS"] = "",
 		["LIBCOM"] = "$(LIB) -rs $(LIBOPTS) $(@) $(<)",
 		["SHLIBPREFIX"] = "lib",
 		["SHLIBOPTS"] = "-shared",
-		["SHLIBCOM"] = "$(LD) $(SHLIBOPTS) $(LIBPATH:p-L) $(LIBS:p-l) -o $(@) $(<)",
+		["SHLIBCOM"] = "$(LD) $(SHLIBOPTS) $(LIBPATH:p-L) -o $(@) $(<) $(LIBS:p-l)",
 	}
 end
