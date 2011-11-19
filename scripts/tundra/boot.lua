@@ -859,6 +859,7 @@ function main(cmdline_args)
 			if f then
 				f:write(tundra.init.init_tundra_lua)
 				f:close()
+				native.exit(0)
 			else
 				croak("could not write default tundra.lua to disk.")
 			end
