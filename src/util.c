@@ -226,6 +226,9 @@ td_page_alloc(td_alloc *alloc, size_t size)
 	int page = alloc->page_index;
 	char *addr;
 
+	/* Round to 16 bytes */
+	size = (size + 15) & ~15;
+
 	if (left < (int) size)
 	{
 		if (page == alloc->total_page_count)
