@@ -41,11 +41,13 @@ function apply(env, options)
 		["_OS_CCOPTS"] = "",
 		["_OS_CXXOPTS"] = "",
 		["CCCOM"] = "$(CC) $(_OS_CCOPTS) -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
-		["ASMCOM"] = "$(ASM) -quiet -Fhunk -phxass $(ASMOPTS) $(ASMOPTS_$(CURRENT_VARIANT:u)) $(ASMDEFS:p-D) $(CPPPATH:f:p-I) -I$(VBCC_SDK_INC) -o $(@) $(<)",
+		["ASMCOM"] = "$(ASM) -quiet -Fhunk -phxass $(ASMOPTS) $(ASMOPTS_$(CURRENT_VARIANT:u)) $(ASMDEFS:p-D) $(ASMINCPATH:f:p-I) -I$(VBCC_SDK_INC) -o $(@) $(<)",
 		["PROGOPTS"] = "",
 		["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) $(LIBS:p-l) -o $(@) $(<)",
 		["PROGPREFIX"] = "",
 		["LIBOPTS"] = "",
 		["LIBCOM"] = "$(LIB) -r $(LIBOPTS) -o $(@) $(<)",
+		["ASMINC_KEYWORDS"] = { "INCLUDE", "include" },
+		["ASMINC_BINARY_KEYWORDS"] = { "INCBIN", "incbin" },
 	}
 end

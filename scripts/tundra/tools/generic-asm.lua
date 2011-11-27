@@ -20,6 +20,34 @@
 module(..., package.seeall)
 
 local path = require "tundra.path"
+local util = require "tundra.util"
+local boot = require "tundra.boot"
+
+local default_keywords = { "include" }
+local default_bin_keywords = { "incbin" }
+
+local function get_asm_scanner(env, fn)
+	local function test_bool(name, default)
+		val = env:get(name, default)
+		if val == "yes" or val == "true" or val == "1" then
+			return 1
+		else
+			return 0
+		end
+	end
+	local function new_scanner()
+		local paths = util.map(env:get_list("ASMINCPATH"), function (v) return env:interpolate(v) end)
+		local args = {
+			Keywords = env:get_list("ASMINC_KEYWORDS", default_keywords),
+			KeywordsNoFollow = env:get_list("ASMINC_BINARY_KEYWORDS", default_bin_keywords),
+			RequireWhitespace = test_bool("ASMINC_REQUIRE_WHITESPACE", "yes"),
+			UseSeparators = test_bool("ASMINC_USE_SEPARATORS", "yes"),
+			BareMeansSystem = test_bool("ASMINC_BARE_MEANS_SYSTEM", "no"),
+		}
+		return boot.GlobalEngine:make_generic_scanner(paths, args)
+	end
+	return env:memoize("ASMINCPATH", "_asm_scanner", new_scanner)
+end
 
 -- Register implicit make functions for assembly files.
 -- These functions are called to transform source files in unit lists into
@@ -36,6 +64,7 @@ local function generic_asm_setup(env)
 			Action = "$(ASMCOM)",
 			InputFiles = { fn },
 			OutputFiles = { object_fn },
+			Scanner = get_asm_scanner(env, fn),
 		}
 	end
 
@@ -50,7 +79,7 @@ function apply(_outer_env, options)
 
 	_outer_env:set_many {
 		["ASM_EXTS"] = { ".s", ".asm" },
-		["CPPPATH"] = "",
+		["ASMINCPATH"] = {},
 		["ASMDEFS"] = "",
 		["ASMDEFS_DEBUG"] = "",
 		["ASMDEFS_PRODUCTION"] = "",
