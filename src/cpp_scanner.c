@@ -34,7 +34,7 @@
 /* a simple c preprocessor #include scanner */
 
 static int
-scan_line(td_alloc *scratch, const char *start, td_include_data *dest)
+cpp_scan_line(td_alloc *scratch, const char *start, td_include_data *dest, td_scanner *scanner)
 {
 	char separator;
 	const char *str_start;
@@ -67,6 +67,8 @@ scan_line(td_alloc *scratch, const char *start, td_include_data *dest)
 	}
 	else
 		dest->is_system_include = 0;
+
+	dest->should_follow = 1;
 	
 	str_start = start;
 	for (;;)
@@ -89,7 +91,7 @@ static int make_cpp_scanner(lua_State *L)
 	td_scanner *self = (td_scanner *) td_alloc_scanner(engine, L, sizeof(td_scanner));
 
 	self->ident = "cpp";
-	self->scan_fn = &scan_line;
+	self->scan_fn = &cpp_scan_line;
 	self->include_paths = td_build_file_array(L, engine, 2, &self->path_count);
 
 	td_call_cache_hook(L, &td_scanner_hook_key, 2, lua_gettop(L));

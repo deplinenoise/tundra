@@ -117,7 +117,7 @@ find_file(td_file *base_file, td_engine *engine, const td_include_data *inc, con
 }
 
 static int
-scan_file_data(td_alloc *scratch, td_file *file, td_include_data *out, int max_count, td_scan_fn *line_scanner)
+scan_file_data(td_alloc *scratch, td_file *file, td_include_data *out, int max_count, td_scanner *scanner)
 {
 	FILE *f;
 	int file_count = 0;
@@ -126,6 +126,7 @@ scan_file_data(td_alloc *scratch, td_file *file, td_include_data *out, int max_c
 	char *buffer_start = line_buffer;
 	int buffer_size = sizeof(line_buffer);
 	static const unsigned char utf8_mark[] = { 0xef, 0xbb, 0xbf };
+	td_scan_fn *line_scanner = scanner->scan_fn;
 
 	if (NULL == (f = fopen(file->path, "r")))
 		return 0;
@@ -157,7 +158,7 @@ scan_file_data(td_alloc *scratch, td_file *file, td_include_data *out, int max_c
 				*p = 0;
 				if (file_count == max_count)
 					td_croak("%s: too many includes", file->path);
-				file_count += (*line_scanner)(scratch, line, &out[file_count]);
+				file_count += (*line_scanner)(scratch, line, &out[file_count], scanner);
 				line = p+1;
 			}
 		}
@@ -206,7 +207,7 @@ scan_file(
 	if (td_debug_check(engine, TD_DEBUG_SCAN))
 		printf("%s: scanning\n", file->path);
 
-	count = scan_file_data(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]), scanner->scan_fn);
+	count = scan_file_data(scratch, file, &includes[0], sizeof(includes)/sizeof(includes[0]), scanner);
 
 	for (i = 0; i < count; ++i)
 	{

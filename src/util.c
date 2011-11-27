@@ -281,3 +281,32 @@ td_sort_file_array(td_file **files, int count)
 	qsort(files, (size_t) count, sizeof(td_file *), compare_file_paths);
 }
 
+int td_get_int_override(lua_State *L, int index, const char *field_name, int default_value)
+{
+	int val = default_value;
+	lua_getfield(L, index, field_name);
+	if (!lua_isnil(L, -1))
+	{
+		if (lua_isnumber(L, -1))
+			val = (int) lua_tointeger(L, -1);
+		else
+			luaL_error(L, "%s: expected an integer, found %s", field_name, lua_typename(L, lua_type(L, -1)));
+	}
+	lua_pop(L, 1);
+	return val;
+}
+
+const char *td_get_string_override(lua_State *L, int index, const char *field_name, const char *default_value)
+{
+	const char *val = default_value;
+	lua_getfield(L, index, field_name);
+	if (!lua_isnil(L, -1))
+	{
+		if (lua_isstring(L, -1))
+			val = lua_tostring(L, -1);
+		else
+			luaL_error(L, "%s: expected a string, found %s", field_name, lua_typename(L, lua_type(L, -1)));
+	}
+	lua_pop(L, 1);
+	return val;
+}

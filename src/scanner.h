@@ -33,9 +33,17 @@ typedef struct td_include_data_tag {
 	const char *string;
 	unsigned short string_len;
 	unsigned char is_system_include;
+	unsigned char should_follow;
 } td_include_data;
 
-typedef int (td_scan_fn)(struct td_alloc *scratch, const char *start, td_include_data *dest);
+struct td_scanner;
+
+/* Callback to scan each line of the file. */
+typedef int (td_scan_fn)(
+		struct td_alloc *scratch,
+		const char *start,
+		td_include_data *dest,
+		struct td_scanner *scanner);
 
 typedef struct td_scanner {
 	const char *ident;

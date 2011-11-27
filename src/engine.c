@@ -299,21 +299,6 @@ td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode m
 	return f;
 }
 
-static int get_int_override(lua_State *L, int index, const char *field_name, int default_value)
-{
-	int val = default_value;
-	lua_getfield(L, index, field_name);
-	if (!lua_isnil(L, -1))
-	{
-		if (lua_isnumber(L, -1))
-			val = (int) lua_tointeger(L, -1);
-		else
-			luaL_error(L, "%s: expected an integer, found %s", field_name, lua_typename(L, lua_type(L, -1)));
-	}
-	lua_pop(L, 1);
-	return val;
-}
-
 static void configure_from_env(td_engine *engine)
 {
 	const char *tmp;
@@ -367,15 +352,15 @@ static int make_engine(lua_State *L)
 	/* apply optional overrides */
 	if (1 <= lua_gettop(L) && lua_istable(L, 1))
 	{
-		self->file_hash_size = get_int_override(L, 1, "FileHashSize", self->file_hash_size);
-		self->relhash_size = get_int_override(L, 1, "RelationHashSize", self->relhash_size);
-		self->settings.debug_flags = get_int_override(L, 1, "DebugFlags", 0);
-		self->settings.verbosity = get_int_override(L, 1, "Verbosity", 0);
-		self->settings.thread_count = get_int_override(L, 1, "ThreadCount", self->settings.thread_count);
-		self->settings.dry_run = get_int_override(L, 1, "DryRun", 0);
-		self->settings.continue_on_error = get_int_override(L, 1, "ContinueOnError", 0);
-		use_digest_signing = get_int_override(L, 1, "UseDigestSigning", 0);
-		debug_signing = get_int_override(L, 1, "DebugSigning", 0);
+		self->file_hash_size = td_get_int_override(L, 1, "FileHashSize", self->file_hash_size);
+		self->relhash_size = td_get_int_override(L, 1, "RelationHashSize", self->relhash_size);
+		self->settings.debug_flags = td_get_int_override(L, 1, "DebugFlags", 0);
+		self->settings.verbosity = td_get_int_override(L, 1, "Verbosity", 0);
+		self->settings.thread_count = td_get_int_override(L, 1, "ThreadCount", self->settings.thread_count);
+		self->settings.dry_run = td_get_int_override(L, 1, "DryRun", 0);
+		self->settings.continue_on_error = td_get_int_override(L, 1, "ContinueOnError", 0);
+		use_digest_signing = td_get_int_override(L, 1, "UseDigestSigning", 0);
+		debug_signing = td_get_int_override(L, 1, "DebugSigning", 0);
 	}
 
 	self->file_hash = (td_file **) calloc(sizeof(td_file*), self->file_hash_size);

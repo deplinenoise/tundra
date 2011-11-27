@@ -144,6 +144,7 @@ extern int tundra_walk_path(lua_State*);
 extern void td_engine_open(lua_State*);
 extern int td_scanner_open(lua_State*);
 extern int td_cpp_scanner_open(lua_State*);
+extern int td_generic_scanner_open(lua_State*);
 extern int td_get_cwd(lua_State*);
 extern int td_set_cwd(lua_State*);
 extern int td_sanitize_lua_path(lua_State*);
@@ -182,6 +183,7 @@ static int tundra_open(lua_State *L)
 	td_engine_open(L);
 	td_scanner_open(L);
 	td_cpp_scanner_open(L);
+	td_generic_scanner_open(L);
 	lua_pop(L, 1);
 	return 0;
 }
