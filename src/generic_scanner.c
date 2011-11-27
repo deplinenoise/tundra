@@ -143,7 +143,7 @@ static void setup_kwset(lua_State *L, td_engine *engine, const char *key, keywor
 
 	lua_getfield(L, 3, key);
 	if (lua_isnil(L, -1))
-		luaL_error(L, "expected %s parameter");
+		return;
 	
 	numkw = (int) lua_objlen(L, -1);
 
