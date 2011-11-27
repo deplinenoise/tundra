@@ -106,30 +106,31 @@ function msvc_generator:generate_project(project)
 
 	p:write('\t<Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />', LF)
 
-	if project.IsMeta then
-		-- Only generate build commands for the meta project
+	for _, tuple in ipairs(self.config_tuples) do
+		p:write('\t<PropertyGroup Condition="\'$(Configuration)|$(Platform)\'==\'', tuple.MsvcName, '\'">', LF)
 
-		for _, tuple in ipairs(self.config_tuples) do
-			p:write('\t<PropertyGroup Condition="\'$(Configuration)|$(Platform)\'==\'', tuple.MsvcName, '\'">', LF)
+		local build_cmd = ""
+		local clean_cmd = ""
 
-			local build_cmd = ""
-			local clean_cmd = ""
+		local root_dir = ".." -- FIXME
+		local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
+		local base = "tundra -C " .. root_dir .. " "
+		build_cmd = base .. build_id
+		clean_cmd = base .. "-c " .. build_id
 
-			local root_dir = ".." -- FIXME
-			local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
-			local base = "tundra -C " .. root_dir .. " "
-			build_cmd = base .. build_id
-			clean_cmd = base .. "-c " .. build_id
-
-			p:write('\t\t<NMakeBuildCommandLine>', build_cmd, '</NMakeBuildCommandLine>', LF)
-			p:write('\t\t<NMakeOutput>output_file_name</NMakeOutput>', LF)
-			p:write('\t\t<NMakeCleanCommandLine>', clean_cmd, '</NMakeCleanCommandLine>', LF)
-			p:write('\t\t<NMakeReBuildCommandLine>rebuild_command_line</NMakeReBuildCommandLine>', LF)
-			p:write('\t\t<NMakePreprocessorDefinitions>preprocessor_definitions;WIN32;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>', LF)
-			p:write('\t\t<NMakeIncludeSearchPath>include_search_path;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>', LF)
-			p:write('\t\t<NMakeForcedIncludes>forced_included_files;$(NMakeForcedIncludes)</NMakeForcedIncludes>', LF)
-			p:write('\t</PropertyGroup>', LF)
+		if not project.IsMeta then
+			build_cmd = build_cmd .. " " .. project.Decl.Name
+			clean_cmd = clean_cmd .. " " .. project.Decl.Name
 		end
+
+		p:write('\t\t<NMakeBuildCommandLine>', build_cmd, '</NMakeBuildCommandLine>', LF)
+		p:write('\t\t<NMakeOutput>output_file_name</NMakeOutput>', LF)
+		p:write('\t\t<NMakeCleanCommandLine>', clean_cmd, '</NMakeCleanCommandLine>', LF)
+		p:write('\t\t<NMakeReBuildCommandLine>rebuild_command_line</NMakeReBuildCommandLine>', LF)
+		p:write('\t\t<NMakePreprocessorDefinitions>preprocessor_definitions;WIN32;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>', LF)
+		p:write('\t\t<NMakeIncludeSearchPath>include_search_path;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>', LF)
+		p:write('\t\t<NMakeForcedIncludes>forced_included_files;$(NMakeForcedIncludes)</NMakeForcedIncludes>', LF)
+		p:write('\t</PropertyGroup>', LF)
 	end
 
 	-- Emit list of source files
