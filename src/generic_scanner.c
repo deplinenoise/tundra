@@ -119,13 +119,13 @@ generic_scan_line(td_alloc *scratch, const char *start_in, td_include_data *dest
 	}
 	else
 	{
-		const char *p = start;
+		str_start = start;
 
 		/* just grab the next token */
 		while (*start && !isspace(*start))
 			++start;
 
-		if (p == start)
+		if (str_start == start)
 			return 0;
 
 		dest->is_system_include = scanner->bare_means_system;
