@@ -142,13 +142,15 @@ static void setup_kwset(lua_State *L, td_engine *engine, const char *key, keywor
 	int i, numkw;
 
 	lua_getfield(L, 3, key);
-	if (lua_isnil(L, -1))
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);
 		return;
+	}
 	
 	numkw = (int) lua_objlen(L, -1);
 
-	if (numkw <= 0 || numkw > MAX_KEYWORDS)
-		luaL_error(L, "%s: need between 1 and %d keywords, got %d", key, MAX_KEYWORDS, numkw);
+	if (numkw > MAX_KEYWORDS)
+		luaL_error(L, "%s: max is %d keywords, got %d", key, MAX_KEYWORDS, numkw);
 
 	dest->keyword_count = numkw;
 
