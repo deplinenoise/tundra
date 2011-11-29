@@ -62,6 +62,8 @@ end
 function make_object_filename(env, src_fn, suffix)
 	local object_fn
 
+	local src_suffix = get_extension(src_fn):sub(2)
+
 	-- Drop leading $(OBJECTDIR)[/\\] in the input filename.
 	do
 		local pname = src_fn:match("^%$%(OBJECTDIR%)[/\\](.*)$")
@@ -74,10 +76,13 @@ function make_object_filename(env, src_fn, suffix)
 
 	-- Compute path under OBJECTDIR we want for the resulting object file.
 	-- Replace ".." with "dotdot" to avoid creating files outside the
-	-- object directory.
+	-- object directory. Also salt the generated object name with the source
+	-- suffix, so that multiple source files with the same base name don't end
+	-- up clobbering each other (Tundra emits an error for this when checking
+	-- the DAG)
 	do
 		local relative_name = drop_suffix(object_fn:gsub("%.%.", "dotdot"))
-		object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. relative_name .. suffix
+		object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. relative_name .. "__" .. src_suffix .. suffix
 	end
 
 	return object_fn

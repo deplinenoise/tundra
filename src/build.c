@@ -96,7 +96,7 @@ scan_implicit_deps(td_job_queue *queue, td_node *node)
 		t1 = td_timestamp();
 
 	if (!queue->engine->settings.dry_run)
-		result = (*scanner->scan_fn)(queue->engine, node, scanner);
+		result = td_scan_includes(queue->engine, node, scanner);
 	else
 		result = 0;
 

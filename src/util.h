@@ -56,6 +56,10 @@ struct td_file **td_build_file_array(struct lua_State* L, struct td_engine *allo
 const char *td_spaces(int count);
 const char *td_indent(int level);
 
+/* Get a value called "field_name" from the table at index "index", returning that or the default value. */
+int td_get_int_override(struct lua_State *L, int index, const char *field_name, int default_value);
+const char *td_get_string_override(struct lua_State *L, int index, const char *field_name, const char *default_value);
+
 typedef enum {
 	TD_BUILD_REPLACE_NAME,
 	TD_BUILD_CONCAT,

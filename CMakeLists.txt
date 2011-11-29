@@ -85,6 +85,7 @@ src/exec_unix.c
 src/exec_win32.c
 src/files.c
 src/files.h
+src/generic_scanner.c
 src/luafs.c
 src/md5.h
 src/md5.c

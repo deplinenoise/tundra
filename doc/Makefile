@@ -1,4 +1,4 @@
-DOCBOOK ?= /usr/local/Cellar/docbook/5.0/docbook/xsl/1.75.2
+DOCBOOK ?= /usr/local/Cellar/docbook/5.0/docbook/xsl/1.76.1
 
 all: manual.html manual.pdf
 

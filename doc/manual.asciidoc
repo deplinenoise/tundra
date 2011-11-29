@@ -320,8 +320,12 @@ Tools = {
 ==== Config DefaultOnHost property (optional) ====
 
 If present, this config will be built by default when the host platform matches
-the string. This is convenient to have the host's native configuration build
-in the default variant when you just type `tundra` in the shell.
+the pattern. This is convenient to have the host's native configuration build
+in the default variant when you just type `tundra` in the shell. This property
+can also be a table of patterns to match multiple host operating systems,
+useful for example if multiple host operating systems can build a common
+cross compilation config and you want that configuration to be the default
+across all hosts.
 
 ==== Config Env property (optional) ====
 

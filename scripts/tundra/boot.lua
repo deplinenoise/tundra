@@ -227,7 +227,14 @@ local function analyze_targets(targets, configs, variants, subvariants, default_
 		if #build_configs == 0 and #build_tuples == 0 then
 			local host_os = native.host_platform
 			for name, config in pairs(configs) do
-				if config.DefaultOnHost == host_os then
+				local def_pats = config.DefaultOnHost
+
+				-- handle string or table of strings
+				if type(def_pats) ~= "table" then
+					def_pats = { def_pats }
+				end
+
+				if util.matches_any(host_os, def_pats) then
 					if Options.VeryVerbose then
 						if Options.VeryVerbose then
 							printf("defaulted to %s based on host platform %s..", name, host_os)
@@ -792,7 +799,7 @@ function main(cmdline_args)
 	end
 
 	if Options.Version or Options.Help then
-		io.write("Tundra Build Processor v0.99f\n")
+		io.write("Tundra Build Processor v0.99h\n")
 		io.write("Copyright (C) 2010-2011 Andreas Fredriksson\n\n")
 		io.write("This program comes with ABSOLUTELY NO WARRANTY.\n")
 		io.write("This is free software, and you are welcome to redistribute it\n")
@@ -852,6 +859,7 @@ function main(cmdline_args)
 			if f then
 				f:write(tundra.init.init_tundra_lua)
 				f:close()
+				native.exit(0)
 			else
 				croak("could not write default tundra.lua to disk.")
 			end

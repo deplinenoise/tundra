@@ -68,6 +68,7 @@ Program {
 	 	"src/debug.c",
 	 	"src/engine.c",
 	 	"src/files.c",
+		"src/generic_scanner.c",
 		"src/luafs.c",
 		"src/md5.c",
 		"src/scanner.c",
