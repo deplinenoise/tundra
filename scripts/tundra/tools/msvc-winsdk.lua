@@ -90,6 +90,7 @@ local function setup(env, options)
 
 	local rc_exe = '"' .. sdkDir .. "\\bin\\rc.exe" ..'"'
 	env:set('RC', rc_exe)
+	env:set('RCOPTS', '/nologo')
 
 	local sdkLibDir = "LIB"
 	local vcLibDir = "LIB"
