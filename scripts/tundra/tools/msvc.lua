@@ -37,7 +37,7 @@ function apply(env, options)
 	tundra.boot.load_toolset("generic-cpp", env)
 
 	env:set_many {
-		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj", ".res" },
+		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj", ".res", ".rc" },
 		["OBJECTSUFFIX"] = ".obj",
 		["LIBPREFIX"] = "",
 		["LIBSUFFIX"] = ".lib",
