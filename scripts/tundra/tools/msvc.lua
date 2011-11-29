@@ -37,7 +37,7 @@ function apply(env, options)
 	tundra.boot.load_toolset("generic-cpp", env)
 
 	env:set_many {
-		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj", ".res" },
+		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj", ".res", ".rc" },
 		["OBJECTSUFFIX"] = ".obj",
 		["LIBPREFIX"] = "",
 		["LIBSUFFIX"] = ".lib",
@@ -53,9 +53,9 @@ function apply(env, options)
 		["_USE_PDB_LINK_OPT"] = "/DEBUG /PDB:$(_PDB_FILE)",
 		["_USE_PDB_CC"] = "",
 		["_USE_PDB_LINK"] = "",
-		["RC"] = "rc.exe",
-		["RCOPTS"] = "",
-		["RCCOM"] = "$(RC) /nologo $(RCOPTS) /fo$(@:b) $(CPPPATH:b:p/i) $(<:b)",
+		["RC"] = "rc",
+		["RCOPTS"] = "/nologo",
+		["RCCOM"] = "$(RC) $(RCOPTS) /fo$(@:b) $(CPPPATH:b:p/i) $(<:b)",
 		["CCCOM"] = "$(CC) /c @RESPONSE|@|$(_CPPDEFS) $(CPPPATH:b:p/I) /nologo $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) $(_USE_PCH) $(_USE_PDB_CC) /Fo$(@:b) $(<:b)",
 		["CXXCOM"] = "$(CC) /c @RESPONSE|@|$(_CPPDEFS) $(CPPPATH:b:p/I) /nologo $(CXXOPTS) $(CXXOPTS_$(CURRENT_VARIANT:u)) $(_USE_PCH) $(_USE_PDB_CC) /Fo$(@:b) $(<:b)",
 		["PCHCOMPILE"] = "$(CC) /c $(_CPPDEFS) $(CPPPATH:b:p/I) /nologo $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) /Yc$(_PCH_HEADER) /Fp$(@:b) $(<:[1]:b)",

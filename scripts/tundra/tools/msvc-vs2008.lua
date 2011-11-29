@@ -83,6 +83,11 @@ local function setup(env, options)
 	env:set('LIB', lib_exe)
 	env:set('LD', link_exe)
 
+	-- Pickup the Resource Compiler from the current SDK path
+	-- (otherwise tundra has to be run from within an environment where 'RC' already is in the path)
+	local rc_exe = '"' .. sdkDir .. "bin\\rc.exe" .. '"'
+	env:set('RC', rc_exe)
+
 	-- Expose the required variables to the external environment
 	env:set_external_env_var('VSINSTALLDIR', rootDir)
 	env:set_external_env_var('VCINSTALLDIR', rootDir .. '\\vc')
