@@ -183,7 +183,8 @@ sub load_tests($) {
 	File::Find::find($visit_test, "test");
 }
 
-sub run_tests() {
+sub run_tests($) {
+	local $tundra_path = shift;
 	my $group_count = scalar(@tests);
 	my ($test_count, $pass_count) = (0, 0);
 	printf "Running %d test group%s\n", $group_count, $group_count == 1 ? "" : "s";
