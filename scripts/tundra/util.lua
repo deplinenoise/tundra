@@ -18,16 +18,20 @@
 local _tostring = tostring
 module(..., package.seeall)
 
-function tostring(value)
+function tostring(value, stack)
 	local str = ''
+	stack = stack or {}
 
-	if (type(value) ~= 'table') then
-		if (type(value) == 'string') then
+	if type(value) ~= 'table' then
+		if type(value) == 'string' then
 			str = string.format("%q", value)
 		else
 			str = _tostring(value)
 		end
+	elseif stack[value] then
+		return '<recursion>'
 	else
+		stack[value] = true
 		local auxTable = {}
 		for k, v in pairs(value) do
 			auxTable[#auxTable + 1] = k
@@ -39,14 +43,19 @@ function tostring(value)
 		local entry = ""
 		for index, fieldName in ipairs(auxTable) do
 			if ((tonumber(fieldName)) and (tonumber(fieldName) > 0)) then
-				entry = tostring(value[tonumber(fieldName)])
+				entry = tostring(value[tonumber(fieldName)], stack)
 			else
-				entry = tostring(fieldName) .. " = " .. tostring(rawget(value, fieldName))
+				entry = tostring(fieldName) .. " = " .. tostring(rawget(value, fieldName), stack)
 			end
 			str = str..separator..entry
 			separator = ", "
 		end
 		str = str..'}'
+
+		local mt = getmetatable(value)
+		if mt then
+			str = str .. ' @meta = ' .. tostring(mt, stack)
+		end
 	end
 	return str
 end
@@ -55,6 +64,7 @@ function map_in_place(t, fn)
 	for x = 1, #t do
 		t[x] = fn(t[x])
 	end
+	return t
 end
 
 function map(t, fn)
@@ -229,6 +239,17 @@ function clear_table(tab)
 end
 
 function filter(tab, predicate)
+	local result = {}
+	for _, x in ipairs(tab) do
+		if predicate(x) then
+			result[#result + 1] = x
+		end
+	end
+	return result
+end
+
+function filter_nil(tab, predicate)
+	if not predicate then return nil end
 	local result = {}
 	for _, x in ipairs(tab) do
 		if predicate(x) then

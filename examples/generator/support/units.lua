@@ -1,4 +1,6 @@
 
+require "support.example-syntax"
+
 Program {
 	Name = "generator",
 	Pass = "CompileGenerator",
@@ -12,7 +14,10 @@ Program {
 	Name = "program",
 	Sources = {
 		"program.c",
-		ExampleGenerator { Source = "hello.txt", OutName = "hello-generated.c" },
+		ExampleGenerator {
+			Source = "hello.txt",
+			OutName = "hello-generated.c"
+		},
 	},
 }
 

@@ -22,55 +22,60 @@ module(..., package.seeall)
 local util = require "tundra.util"
 local path = require "tundra.path"
 local glob = require "tundra.syntax.glob"
+local nodegen = require "tundra.nodegen"
 
 local lua_exts = { ".lua" }
+local luac_mt_ = nodegen.create_eval_subclass {}
 
-function apply(decl_parser, passes)
-	local function luac(env, src)
-		local target = "$(OBJECTDIR)/" .. path.drop_suffix(src) .. ".luac" 
-		return target, env:make_node {
-			Pass = passes.LuaCompile,
-			Label = "LuaC $(@)",
-			Action = "$(LUAC) -o $(@) -- $(<)",
-			InputFiles = { src },
-			OutputFiles = { target },
-			ImplicitInputs = { "$(LUAC)" },
-		}
+local function luac(env, src, pass)
+	local target = "$(OBJECTDIR)/" .. path.drop_suffix(src) .. ".luac" 
+	return target, env:make_node {
+		Pass = pass,
+		Label = "LuaC $(@)",
+		Action = "$(LUAC) -o $(@) -- $(<)",
+		InputFiles = { src },
+		OutputFiles = { target },
+		ImplicitInputs = { "$(LUAC)" },
+	}
+end
+
+function luac_mt_:create_dag(env, data, deps)
+	local files = {}
+	local deps = {}
+	local inputs = {}
+	local action_fragments = {}
+
+	for _, base_dir in ipairs(data.Dirs) do
+		local lua_files = glob.Glob { Dir = base_dir, Extensions = lua_exts }
+		local dir_len = base_dir:len()
+		for _, filename in pairs(lua_files) do
+			local rel_name = filename:sub(dir_len+2)
+			local pkg_name = rel_name:gsub("[/\\]", "."):gsub("%.lua$", "")
+			inputs[#inputs + 1] = filename
+			if env:get("LUA_EMBED_ASCII", "no") == "no" then
+				files[#files + 1], deps[#deps + 1] = luac(env, filename, data.Pass)
+			else
+				files[#files + 1] = filename
+			end
+			action_fragments[#action_fragments + 1] = pkg_name
+			action_fragments[#action_fragments + 1] = files[#files]
+		end
 	end
 
-	decl_parser:add_source_generator("EmbedLuaSources", function (args)
-		return function (env)
-			local files = {}
-			local deps = {}
-			local inputs = {}
-			local action_fragments = {}
-
-			for _, base_dir in ipairs(args.Dirs) do
-				local lua_files = glob.Glob { Dir = base_dir, Extensions = lua_exts }
-				local dir_len = base_dir:len()
-				for _, filename in pairs(lua_files) do
-					local rel_name = filename:sub(dir_len+2)
-					local pkg_name = rel_name:gsub("[/\\]", "."):gsub("%.lua$", "")
-					inputs[#inputs + 1] = filename
-					if env:get("LUA_EMBED_ASCII", "no") == "no" then
-						files[#files + 1], deps[#deps + 1] = luac(env, filename)
-					else
-						files[#files + 1] = filename
-					end
-					action_fragments[#action_fragments + 1] = pkg_name
-					action_fragments[#action_fragments + 1] = files[#files]
-				end
-			end
-
-			return env:make_node {
-				Label = "EmbedLuaSources $(@)",
-				Pass = passes.Tundra,
-				Action = "$(GEN_LUA_DATA) " .. table.concat(action_fragments, " ") .. " > $(@)",
-				InputFiles = inputs,
-				OutputFiles = { "$(OBJECTDIR)/" .. args.OutputFile },
-				Dependencies = deps,
-				ImplicitInputs = { "$(GEN_LUA_DATA)" },
-			}
-		end
-	end)
+	return env:make_node {
+		Label = "EmbedLuaSources $(@)",
+		Pass = data.Pass,
+		Action = "$(GEN_LUA_DATA) " .. table.concat(action_fragments, " ") .. " > $(@)",
+		InputFiles = inputs,
+		OutputFiles = { "$(OBJECTDIR)/" .. data.OutputFile },
+		Dependencies = deps,
+		ImplicitInputs = { "$(GEN_LUA_DATA)" },
+	}
 end
+
+local blueprint = {
+	Dirs = { Type = "table", Required = "true" },
+	OutputFile = { Type = "string", Required = "true" },
+}
+
+nodegen.add_evaluator("EmbedLuaSources", luac_mt_, blueprint)

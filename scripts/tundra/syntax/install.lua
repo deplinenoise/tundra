@@ -24,20 +24,25 @@ local files = require "tundra.syntax.files"
 local path = require "tundra.path"
 local util = require "tundra.util"
 
-local function eval_install(generator, env, decl, passes)
-	local build_id = env:get("BUILD_ID")
-	local my_pass = generator:resolve_pass(decl.Pass)
-	local sources = nodegen.flatten_list(build_id, decl.Sources)
-	local target_dir = decl.TargetDir
+local _mt = nodegen.create_eval_subclass {}
 
-	assert(type(target_dir) == "string")
+local blueprint = {
+	Sources = { Type = "source_list", Required = true },
+	TargetDir = { Type = "string", Required = true },
+}
+
+function _mt:create_dag(env, data, deps)
+	local my_pass = data.Pass
+	local sources = data.Sources
+	local target_dir = data.TargetDir
 
 	local copies = {}
 
+	-- all the copy operations will depend on all the incoming deps
 	for _, src in util.nil_ipairs(sources) do
 		local base_fn = select(2, path.split(src))
 		local target = target_dir .. '/' .. base_fn
-		copies[#copies + 1] = files.copy_file(env, src, target, my_pass)
+		copies[#copies + 1] = files.copy_file(env, src, target, my_pass, deps)
 	end
 
 	return env:make_node {
@@ -47,8 +52,4 @@ local function eval_install(generator, env, decl, passes)
 	}
 end
 
-function apply(decl_parser, passes)
-	nodegen.add_evaluator("Install", function(generator, env, decl)
-		return eval_install(generator, env, decl, passes)
-	end)
-end
+nodegen.add_evaluator("Install", _mt, blueprint)

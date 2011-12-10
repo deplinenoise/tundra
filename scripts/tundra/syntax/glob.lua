@@ -22,6 +22,7 @@ module(..., package.seeall)
 local native = require "tundra.native"
 local util = require "tundra.util"
 local path = require "tundra.path"
+local decl = require "tundra.decl"
 
 local ignored_dirs = util.make_lookup_table { ".git", ".svn", "CVS" }
 
@@ -125,8 +126,6 @@ local function FGlob(args)
 	return result
 end
 
-function apply(decl_parser)
-	decl_parser:add_source_generator("Glob", Glob)
-	decl_parser:add_source_generator("FGlob", FGlob)
-end
+decl.add_function("Glob", Glob)
+decl.add_function("FGlob", FGlob)
 

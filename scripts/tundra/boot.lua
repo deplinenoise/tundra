@@ -94,6 +94,35 @@ function match_build_id(id, default)
 	return platform_name, toolset, variant, subvariant
 end
 
+-- Custom pcall error handler to scan for syntax errors (thrown as tables) and
+-- report them without a backtrace, trying to get the filename and line number
+-- right so the user can fix their build file.
+local function syntax_error_catcher(err_obj)
+	if type(err_obj) == "table" then
+		local i = 1
+		-- Walk down the stack until we find a function that isn't sourced from
+		-- a file. These have 'source' names that don't start with an @ sign.
+		-- Because we read all files into memory before executing them, this
+		-- will give us the source filename of the user script.
+		while true do
+			info = debug.getinfo(i, 'Sl')
+			if not info then
+				break
+			end
+			if info.what ~= "Lua" or info.source:sub(1, 1) == "@" then
+				i = i + 1
+			else
+				return string.format("%s(%d): %s: %s",
+					info.source, info.currentline, err_obj.Class, err_obj.Message)
+			end
+		end
+		return 'undefined'
+	else
+		return debug.traceback(err_obj, 2)
+	end
+end
+
+
 local function run_build_script(text, fn)
 	local script_globals, script_globals_mt = {}, {}
 	script_globals_mt.__index = _G
@@ -107,27 +136,20 @@ local function run_build_script(text, fn)
 	end
 	setfenv(chunk, script_globals)
 
-	local function stack_dumper(err_obj)
-		return debug.traceback(err_obj, 2)
-	end
-
-	local function args_stub()
-		return chunk()
-	end
-
-	local success, result = xpcall(args_stub, stack_dumper)
+	local success, result = xpcall(chunk, syntax_error_catcher)
 
 	if not success then
-		croak("%s", result)
+		print("Build script execution failed")
+		croak("%s", result or "")
 	else
 		return result
 	end
 end
 
-local function apply_extension_module(id, default_package, ...)
+function load_toolset(id, ...)
 	-- For non-qualified packages, use a default package
 	if not id:find("%.") then
-		id = default_package .. id
+		id = "tundra.tools." .. id
 	end
 
 	local pkg, err = require(id)
@@ -135,16 +157,8 @@ local function apply_extension_module(id, default_package, ...)
 	if err then
 		errorf("couldn't load extension module %s: %s", id, err)
 	end
-
+	
 	pkg.apply(...)
-end
-
-function load_toolset(id, ...)
-	apply_extension_module(id, "tundra.tools.", ...)
-end
-
-function load_syntax(id, decl, passes)
-	apply_extension_module(id, "", decl, passes)
 end
 
 local function member(list, item)
@@ -405,31 +419,30 @@ local function setup_envs(tuple, configs)
 end
 
 local function parse_units(build_tuples, args, passes)
-	local d = decl.make_decl_env()
-	do
-		local platforms = {}
-		for _, tuple in ipairs(build_tuples) do
-			local platform_name, tools = match_build_id(tuple.Config.Name)
-			if not member(platforms, platform_name) then
-				platforms[#platforms + 1] = platform_name
-			end
-		end
-		if Options.Verbose then
-			printf("adding platforms: %s", table.concat(platforms, ", "))
-		end
-		d:add_platforms(platforms)
+	if args.SyntaxExtensions then
+		print("*WARNING* SyntaxExtensions has been deprecated. Use require instead.")
 	end
-
 	for _, id in util.nil_ipairs(args.SyntaxExtensions) do
 		if Options.Verbose then
 			printf("parsing user-defined declaration parsers from %s", id)
 		end
-		load_syntax(id, d, passes)
+		require(id)
 	end
 
-	local raw_nodes, default_names, always_names = d:parse(args.Units or "units.lua")
-	assert(#default_names > 0 or #always_names > 0, "no default unit name to build was set")
-	return raw_nodes, default_names, always_names
+	local function chunk ()
+		local raw_nodes, default_names, always_names = decl.parse(args.Units or "units.lua")
+		assert(#default_names > 0 or #always_names > 0, "no default unit name to build was set")
+		return { raw_nodes, default_names, always_names }
+	end
+
+	local success, result = xpcall(chunk, syntax_error_catcher)
+
+	if success then
+		return result[1], result[2], result[3]
+	else
+		print("Build script execution failed")
+		croak("%s", result or "")
+	end
 end
 
 
@@ -551,8 +564,8 @@ local function generate_dag(build_tuples, args, passes, configs, named_targets)
 	-- This is a regular build. Assume these generator sets are always
 	-- needed for now. Could possible make an option for which generator
 	-- sets to load in the future.
-	nodegen.add_generator_set("nodegen", "native")
-	nodegen.add_generator_set("nodegen", "dotnet")
+	require "tundra.nodegen.native"
+	require "tundra.nodegen.dotnet"
 
 	local everything = {}
 
@@ -566,7 +579,7 @@ local function generate_dag(build_tuples, args, passes, configs, named_targets)
 	-- configurations/variants.
 	for _, tuple in pairs(build_tuples) do
 		local envs = setup_envs(tuple, configs)
-		everything[#everything + 1] = nodegen.generate {
+		everything[#everything + 1] = nodegen.generate_dag {
 			Engine = GlobalEngine,
 			Envs = envs,
 			Config = tuple.Config,
@@ -673,7 +686,7 @@ function _G.Build(args)
 
 	local default_subvariant = args.DefaultSubVariant or subvariant_array[1]
 	local named_targets, build_tuples = analyze_targets(Targets, configs, variants, subvariants, default_variant, default_subvariant)
-	local passes = args.Passes or { { Name = "Default", BuildOrder = 1 } }
+	local passes = args.Passes or { Default = { Name = "Default", BuildOrder = 1 } }
 
 	-- Validate pass data
 	for id, data in pairs(passes) do
@@ -687,14 +700,6 @@ function _G.Build(args)
 	if Options.ShowConfigs then
 		show_configs(configs, variants, subvariants, io.stdout)
 		native.exit(0)
-	end
-
-	-- Add user-defined units
-	for name, func in util.nil_pairs(args.UnitEval) do
-		if type(func) ~= "function" then
-			errorf("user unit %s must be of type function, not %s", name, type(func))
-		end
-		nodegen.add_evaluator(name, func)
 	end
 
 	if not Options.IdeGeneration then

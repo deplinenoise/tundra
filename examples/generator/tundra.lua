@@ -9,7 +9,6 @@ Build {
 	Units = "support/units.lua",
 
 	ScriptDirs = { "." },
-	SyntaxExtensions = { "support.example-syntax" },
 
 	Passes = {
 		CompileGenerator = { Name="Compile generator", BuildOrder = 1 },

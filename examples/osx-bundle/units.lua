@@ -1,3 +1,4 @@
+require "tundra.syntax.osx-bundle"
 
 Program {
 	Name = "foo",
@@ -5,8 +6,7 @@ Program {
 	Frameworks = { "Cocoa" },
 }
 
-OsxBundle {
-	Name = "mybundle",
+local mybundle = OsxBundle {
 	Depends = { "foo" },
 	Target = "$(OBJECTDIR)/MyApp.app",
 	InfoPList = "Info.plist",
@@ -17,4 +17,4 @@ OsxBundle {
 	},
 }
 
-Default "mybundle"
+Default(mybundle)

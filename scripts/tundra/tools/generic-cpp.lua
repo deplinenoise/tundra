@@ -78,7 +78,7 @@ function apply(_outer_env, options)
 	_outer_env:add_setup_function(generic_cpp_setup)
 
 	_outer_env:set_many {
-		["HEADERS_EXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
+		["IGNORED_AUTOEXTS"] = { ".h", ".hpp", ".hh", ".hxx", ".inl" },
 		["CCEXTS"] = { "c" },
 		["CXXEXTS"] = { "cpp", "cxx", "cc" },
 		["OBJCEXTS"] = { "m" },

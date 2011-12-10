@@ -1,4 +1,6 @@
 
+require "support.syntax"
+
 Program {
 	Name = "generator",
 	Pass = "CompileGenerator",

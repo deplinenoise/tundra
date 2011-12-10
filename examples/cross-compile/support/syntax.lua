@@ -1,21 +1,23 @@
 
 module(..., package.seeall)
 
-local environment = require "tundra.environment"
+local nodegen = require "tundra.nodegen"
 
-function apply(decl_parser, passes)
-	decl_parser:add_source_generator("MyGenerator", function (args)
-		local outname = assert(args.OutName, "no output name specified!")
-		local full_fn = "$(OBJECTDIR)/_generated/" .. outname
-		return function (env)
-			return env:make_node {
-				Label = "MyGenerator $(@)",
-				Action = "$(MYGENERATOR) $(@)",
-				Pass = passes.CodeGeneration,
-				OutputFiles = { full_fn },
-				ImplicitInputs = { "$(MYGENERATOR)" },
-			}
-		end
-	end)
+local _generator_mt = nodegen.create_eval_subclass { }
+
+function _generator_mt:create_dag(env, data, deps)
+		return env:make_node {
+			Label = "MyGenerator $(@)",
+			Action = "$(MYGENERATOR) $(@)",
+			Pass = data.Pass,
+			OutputFiles = { "$(OBJECTDIR)/_generated/" .. data.OutName },
+			ImplicitInputs = { "$(MYGENERATOR)" },
+			Dependencies = deps,
+		}
 end
 
+local blueprint = {
+	OutName = { Type = "string", Required = true },
+}
+
+nodegen.add_evaluator("MyGenerator", _generator_mt, blueprint)

@@ -17,102 +17,79 @@
 
 module(..., package.seeall)
 
-local util = require("tundra.util")
-local nodegen = require("tundra.nodegen")
-local path = require("tundra.path")
+local util = require "tundra.util"
+local nodegen = require "tundra.nodegen"
+local path = require "tundra.path"
 
-local decl_to_env_mappings = {
-	Libs = "LIBS",
-	Defines = "CPPDEFS",
-	Includes = "CPPPATH",
-	Frameworks = "FRAMEWORKS",
-	LibPaths = "LIBPATH",
-}
+local _native_mt = nodegen.create_eval_subclass {
+	DeclToEnvMappings = {
+		Libs = "LIBS",
+		Defines = "CPPDEFS",
+		Includes = "CPPPATH",
+		Frameworks = "FRAMEWORKS",
+		LibPaths = "LIBPATH",
+	},
+} 
 
-local function eval_native_unit(generator, env, label, prefix, suffix, command, decl)
+local _object_mt = nodegen.create_eval_subclass({
+	Suffix = "$(OBJSUFFIX)",
+	Prefix = "",
+	Action = "$(OBJCOM)",
+	Label = "Object $(@)",
+}, _native_mt)
+
+local _program_mt = nodegen.create_eval_subclass({
+	Suffix = "$(PROGSUFFIX)",
+	Prefix = "$(PROGPREFIX)",
+	Action = "$(PROGCOM)",
+	Label = "Program $(@)",
+}, _native_mt)
+
+local _staticlib_mt = nodegen.create_eval_subclass({
+	Suffix = "$(LIBSUFFIX)",
+	Prefix = "$(LIBPREFIX)",
+	Action = "$(LIBCOM)",
+	Label = "StaticLibrary $(@)",
+}, _native_mt)
+
+local _shlib_mt = nodegen.create_eval_subclass({
+	Suffix = "$(SHLIBSUFFIX)",
+	Prefix = "$(SHLIBPREFIX)",
+	Action = "$(SHLIBCOM)",
+	Label = "SharedLibrary $(@)",
+}, _native_mt)
+
+local _extlib_mt = nodegen.create_eval_subclass({
+	Suffix = "",
+	Prefix = "",
+	Label = "",
+}, _native_mt)
+
+local _is_native_mt = util.make_lookup_table { _object_mt, _program_mt, _staticlib_mt, _shlib_mt, _extlib_mt }
+
+function _native_mt:create_dag(env, data, input_deps)
 	local build_id = env:get("BUILD_ID")
-	local pch = decl.PrecompiledHeader
-	local my_pass = generator:resolve_pass(decl.Pass)
-	local dep_names = nodegen.flatten_list(build_id, decl.Depends)
-	local deps = util.mapnil(dep_names, function(x) return generator:get_node_of(x) end)
+	local my_pass = data.Pass
+	local pch = data.PrecompiledHeader
 	local pch_output
 	local gen_pch_node
+	local sources = data.Sources
+	local libsuffix = { env:get("LIBSUFFIX") }
 
-	do
-		local propagate_blocks = nil
-
-		for _, dep_name in util.nil_ipairs(dep_names) do
-			local dep_decl = generator.units[dep_name]
-			local data = dep_decl.Decl.Propagate
-			if data then
-				propagate_blocks = propagate_blocks or {}
-				propagate_blocks[#propagate_blocks + 1] = data
-			end
-		end
-
-		local function push_bindings(env_key, data)
-			if data then
-				for _, item in util.nil_ipairs(nodegen.flatten_list(build_id, data)) do
-					env:append(env_key, item)
-				end
-			end
-		end
-
-		local function replace_bindings(env_key, data)
-			if data then
-				local first = true
-				for _, item in util.nil_ipairs(nodegen.flatten_list(build_id, data)) do
-					if first then
-						env:replace(env_key, item)
-						first = false
-					else
-						env:append(env_key, item)
-					end
-				end
-			end
-		end
-
-		-- Push Libs, Defines and so in into the environment of this unit.
-		-- These are named for convenience but are aliases for syntax niceness.
-		for decl_key, env_key in pairs(decl_to_env_mappings) do
-			-- First pick settings from our own unit.
-			push_bindings(env_key, decl[decl_key])
-
-			for _, data in util.nil_ipairs(propagate_blocks) do
-				push_bindings(env_key, data[decl_key])
-			end
-		end
-
-		-- Push Env blocks as is
-		for k, v in util.nil_pairs(decl.Env) do
-			push_bindings(k, v)
-		end
-
-		for k, v in util.nil_pairs(decl.ReplaceEnv) do
-			replace_bindings(k, v)
-		end
-
-		for _, block in util.nil_ipairs(propagate_blocks) do
-			for k, v in util.nil_pairs(block.Env) do
-				push_bindings(k, v)
-			end
-
-			for k, v in util.nil_pairs(block.ReplaceEnv) do
-				replace_bindings(k, v)
-			end
-		end
-	end
-
-	-- Link with shared libraries in dependencies.
-	for _, dep_name in util.nil_ipairs(dep_names) do
-		local dep_type, dep_decl = generator:get_type_and_decl_of(dep_name)
-		if dep_type == "SharedLibrary" then
+	-- Link with libraries in dependencies.
+	for _, dep in util.nil_ipairs(data.Depends) do
+		if dep.Keyword == "SharedLibrary" then
 
 			-- On Win32 toolsets, we need foo.lib
 			-- On UNIX toolsets, we need -lfoo
-			local target = dep_decl.Target or dep_decl.Name
+			local target = dep.Decl.Target or dep.Decl.Name
 			target = target .. "$(SHLIBLINKSUFFIX)"
 			env:append('LIBS', target)
+
+		elseif dep.Keyword == "StaticLibrary" then
+			local node = dep:get_dag(env:get_parent())
+			node:insert_output_files(sources, libsuffix)
+		else
 
 			--[[
 
@@ -150,7 +127,9 @@ local function eval_native_unit(generator, env, label, prefix, suffix, command, 
 	end
 
 	if pch then
-		pch_output = "$(OBJECTDIR)/" .. decl.Name .. ".pch"
+		assert(pch.Source)
+		assert(pch.Header)
+		pch_output = "$(OBJECTDIR)/" .. data.Name .. ".pch"
 		env:set('_PCH_FILE', pch_output)
 		env:set('_USE_PCH', '$(_USE_PCH_OPT)')
 		env:set('_PCH_HEADER', pch.Header)
@@ -163,71 +142,36 @@ local function eval_native_unit(generator, env, label, prefix, suffix, command, 
 		}
 	end
 
-	local aux_outputs = env:get_list("AUX_FILES_" .. label:upper(), {})
+	local aux_outputs = env:get_list("AUX_FILES_" .. self.Label:upper(), {})
 
-	if generator.variant.Options.GeneratePdb then
-		local pdb_output = "$(OBJECTDIR)/" .. decl.Name .. ".pdb"
+	if env:get('GENERATE_PDB', '0') ~= '0' then
+		local pdb_output = "$(OBJECTDIR)/" .. data.Name .. ".pdb"
 		env:set('_PDB_FILE', pdb_output)
 		env:set('_USE_PDB_CC', '$(_USE_PDB_CC_OPT)')
 		env:set('_USE_PDB_LINK', '$(_USE_PDB_LINK_OPT)')
 		aux_outputs[#aux_outputs + 1] = pdb_output
 	end
 
-	local function implicit_make(source_file)
-		local t = type(source_file)
-		if t == "table" then
-			return source_file
-		end
-		assert(t == "string")
-
-		local my_env = env
-		
-		if pch then
-			for _, except in util.nil_ipairs(pch.Exclude) do
-				if source_file == except then
-					my_env = env:clone()
-					my_env:set('_PCH_FILE', '')
-					my_env:set('_USE_PCH', '')
-					my_env:set('_PCH_HEADER', '')
-					break
-				end
-			end
-
-		end
-
-		local make = my_env:get_implicit_make_fn(source_file)
-		if make then
-			return make(my_env, my_pass, source_file)
-		else
-			return nil
-		end
-	end
-
-	local exts = env:get_list("NATIVE_SUFFIXES")
-	local source_files = nodegen.flatten_list(build_id, decl.Sources)
-	local sources = generator:resolve_sources(env, { source_files, deps }, {}, decl.SourceDir)
-	local inputs, ideps = generator:analyze_sources(sources, exts, implicit_make)
-
-	if not command and #inputs > 0 then
-		errorf("unit %s has sources even though it is marked external", decl.Name)
-	end
-
 	local targets = nil
-	if suffix then
-		targets = { generator:get_target(decl, suffix, prefix) }
+
+	if self.Action then
+		targets = { nodegen.get_target(data, self.Suffix, self.Prefix) }
 	end
+
+	local deps = {}
 
 	if gen_pch_node then
 		deps = util.merge_arrays_2(deps, { gen_pch_node })
 	end
 
-	deps = util.merge_arrays_2(deps, ideps)
+	deps = util.merge_arrays_2(deps, input_deps)
 	deps = util.uniq(deps)
-	local libnode = env:make_node {
-		Label = label,
-		Pass = my_pass,
-		Action = command,
-		InputFiles = inputs,
+
+	return env:make_node {
+		Label = self.Label,
+		Pass = data.Pass,
+		Action = self.Action,
+		InputFiles = data.Sources,
 		OutputFiles = targets,
 		AuxOutputFiles = aux_outputs,
 		Dependencies = deps,
@@ -235,23 +179,48 @@ local function eval_native_unit(generator, env, label, prefix, suffix, command, 
 		-- Solves iterative issues with e.g. AR
 		OverwriteOutputs = false,
 	}
-	return libnode
 end
 
-function apply_nodegen()
-	nodegen.add_evaluator("Program", function (generator, env, decl)
-		return eval_native_unit(generator, env, "Program $(@)", "$(PROGPREFIX)", "$(PROGSUFFIX)", "$(PROGCOM)", decl)
-	end)
+local native_blueprint = {
+	Name = {
+		Required = true,
+		Help = "Set output (base) filename",
+		Type = "string",
+	},
+	Sources = {
+		Required = true,
+		Help = "List of source files",
+		Type = "source_list",
+		ExtensionKey = "NATIVE_SUFFIXES",
+	},
+	Target = {
+		Help = "Override target location",
+		Type = "string",
+	},
+	PrecompiledHeader = {
+		Help = "Enable precompiled header (if supported)",
+		Type = "table",
+	},
+}
 
-	nodegen.add_evaluator("StaticLibrary", function (generator, env, decl)
-		return eval_native_unit(generator, env, "StaticLib $(@)", "$(LIBPREFIX)", "$(LIBSUFFIX)", "$(LIBCOM)", decl)
-	end)
+local external_blueprint = {
+	Name = {
+		Required = true,
+		Help = "Set name of the external library",
+		Type = "string",
+	},
+}
 
-	nodegen.add_evaluator("SharedLibrary", function (generator, env, decl)
-		return eval_native_unit(generator, env, "SharedLib $(@)", "$(SHLIBPREFIX)", "$(SHLIBSUFFIX)", "$(SHLIBCOM)", decl)
-	end)
-
-	nodegen.add_evaluator("ExternalLibrary", function (generator, env, decl)
-		return eval_native_unit(generator, env, "ExternalLibrary " .. decl.Name, nil, nil, nil, decl)
-	end)
+function _extlib_mt:create_dag(env, data, input_deps)
+	return env:make_node {
+		Label = "Dummy node for " .. data.Name,
+		Pass = data.Pass,
+		Dependencies = input_deps,
+	}
 end
+
+nodegen.add_evaluator("Object", _object_mt, native_blueprint)
+nodegen.add_evaluator("Program", _program_mt, native_blueprint)
+nodegen.add_evaluator("StaticLibrary", _staticlib_mt, native_blueprint)
+nodegen.add_evaluator("SharedLibrary", _shlib_mt, native_blueprint)
+nodegen.add_evaluator("ExternalLibrary", _extlib_mt, external_blueprint)

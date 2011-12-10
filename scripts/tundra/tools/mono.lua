@@ -21,6 +21,8 @@ function apply(env, options)
 	tundra.boot.load_toolset("generic-dotnet", env)
 
 	env:set_many {
+		["DOTNET_SUFFIXES"] = { ".cs" },
+		["DOTNET_SUFFIXES_RESOURCE"] = { ".resource" },
 		["CSC"] = "gmcs",
 		["CSPROGSUFFIX"] = ".exe",
 		["CSLIBSUFFIX"] = ".dll",

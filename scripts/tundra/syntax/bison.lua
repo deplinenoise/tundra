@@ -22,55 +22,66 @@
 
 module(..., package.seeall)
 
-local util = require "tundra.util"
+local nodegen = require "tundra.nodegen"
 local path = require "tundra.path"
 
-function apply(decl_parser, passes)
-	decl_parser:add_source_generator("Bison", function (args)
-		return function (env)
-			local src = assert(args.Source, "Must specify a Source for Bison")
-			local out_src
-			if args.OutputFile then
-				out_src = "$(OBJECTDIR)$(SEP)" .. args.OutputFile
-			else
-				local targetbase = "$(OBJECTDIR)$(SEP)bisongen_" .. path.get_filename_base(src)
-				out_src = targetbase .. ".c"
-			end
-			local defopt = ""
-			local outputs = { out_src }
-			if args.TokenDefines then
-				local out_hdr = path.drop_suffix(out_src) .. ".h"
-				defopt = "--defines=" .. out_hdr
-				outputs[#outputs + 1] = out_hdr
-			end
-			return env:make_node {
-				Pass = assert(passes[args.Pass], "Must specify a Pass for Bison"),
-				Label = "Bison $(@)",
-				Action = "$(BISON) $(BISONOPT) " .. defopt .. " --output-file=$(@:[1]) $(<)",
-				InputFiles = { src },
-				OutputFiles = outputs,
-			}
-		end
-	end)
+local _bison_mt = nodegen.create_eval_subclass {}
+local _flex_mt = nodegen.create_eval_subclass {}
 
-	decl_parser:add_source_generator("Flex", function (args)
-		return function (env)
-			local input = assert(args.Source, "Must specify a Source for Flex")
-			local out_src
-			if args.OutputFile then
-				out_src = "$(OBJECTDIR)$(SEP)" .. args.OutputFile
-			else
-				local targetbase = "$(OBJECTDIR)$(SEP)flexgen_" .. path.get_filename_base(input)
-				out_src = targetbase .. ".c"
-			end
-			return env:make_node {
-				Pass = assert(passes[args.Pass], "Must specify a Pass for Flex"),
-				Label = "Flex $(@)",
-				Action = "$(FLEX) $(FLEXOPT) --outfile=$(@) $(<)",
-				InputFiles = { input },
-				OutputFiles = { out_src },
-			}
-		end
-	end)
+local bison_blueprint = {
+	Source = { Required = true, Type = "string" },
+	OutputFile = { Required = false, Type = "string" },
+	TokenDefines = { Required = false, Type = "boolean" },
+}
+
+function _bison_mt:create_dag(env, data, deps)
+	local src = data.Source
+	local out_src
+	if data.OutputFile then
+		out_src = "$(OBJECTDIR)$(SEP)" .. data.OutputFile
+	else
+		local targetbase = "$(OBJECTDIR)$(SEP)bisongen_" .. path.get_filename_base(src)
+		out_src = targetbase .. ".c"
+	end
+	local defopt = ""
+	local outputs = { out_src }
+	if data.TokenDefines then
+		local out_hdr = path.drop_suffix(out_src) .. ".h"
+		defopt = "--defines=" .. out_hdr
+		outputs[#outputs + 1] = out_hdr
+	end
+	return env:make_node {
+		Pass = data.Pass,
+		Label = "Bison $(@)",
+		Action = "$(BISON) $(BISONOPT) " .. defopt .. " --output-file=$(@:[1]) $(<)",
+		InputFiles = { src },
+		OutputFiles = outputs,
+		Dependencies = deps,
+	}
 end
 
+local flex_blueprint = {
+	Source = { Required = true, Type = "string" },
+	OutputFile = { Required = false, Type = "string" },
+}
+
+function _flex_mt:create_dag(env, data, deps)
+	local input = data.Source
+	local out_src
+	if data.OutputFile then
+		out_src = "$(OBJECTDIR)$(SEP)" .. data.OutputFile
+	else
+		local targetbase = "$(OBJECTDIR)$(SEP)flexgen_" .. path.get_filename_base(input)
+		out_src = targetbase .. ".c"
+	end
+	return env:make_node {
+		Pass = data.Pass,
+		Label = "Flex $(@)",
+		Action = "$(FLEX) $(FLEXOPT) --outfile=$(@) $(<)",
+		InputFiles = { input },
+		OutputFiles = { out_src },
+	}
+end
+
+nodegen.add_evaluator("Flex", _flex_mt, flex_blueprint)
+nodegen.add_evaluator("Bison", _bison_mt, bison_blueprint)

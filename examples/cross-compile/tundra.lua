@@ -11,7 +11,6 @@ Build {
 		CodeGeneration = { Name = "Code Generation", BuildOrder = 2 },
 	},
 	ScriptDirs = { "." },
-	SyntaxExtensions = { "support.syntax" },
 	Configs = {
 		Config {
 			Name = "macosx-gcc",

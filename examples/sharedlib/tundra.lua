@@ -15,7 +15,7 @@ Build {
 	Units = function()
 		SharedLibrary {
 			Name = "slib",
-			Defines = "SLIB_BUILDING",
+			Defines = { "SLIB_BUILDING", },
 			Sources = { "slib.c" },
 		}
 

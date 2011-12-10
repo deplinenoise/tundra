@@ -19,44 +19,57 @@
 
 module(..., package.seeall)
 
-function copy_file(env, src, target, pass, extra_deps)
+local decl = require "tundra.decl"
+local nodegen = require "tundra.nodegen"
+
+function copy_file(env, source, target, pass, deps)
 	return env:make_node {
-		Pass = pass,
 		Label = "CopyFile $(@)",
 		Action = "$(_COPY_FILE)",
-		InputFiles = { src },
-		OutputFiles = { target },
-		Dependencies = extra_deps,
-	}
-end
-
-function hardlink_file(env, src, target, pass, extra_deps)
-	return env:make_node {
 		Pass = pass,
-		Label = "Hardlink $(@)",
-		Action = "$(_HARDLINK_FILE)",
-		InputFiles = { src },
+		InputFiles = { source },
 		OutputFiles = { target },
-		Dependencies = extra_deps,
+		Dependencies = deps,
 	}
 end
 
--- CopyFile syntax - Copy a source file to a destination file.
---
--- Synopsis:
--- CopyFile { Source = "...", Target = "..." }
-
-function apply(decl_parser, passes)
-	decl_parser:add_source_generator("CopyFile", function (args)
-		return function (env)
-			local src = args.Source
-			local target = args.Target
-			local pass = args.Pass and passes[args.Pass] or nil
-			assert(src and type(src) == "string")
-			assert(src and type(src) == "string")
-			return copy_file(env, src, target, pass)
-		end
-	end)
+function hardlink_file(env, source, target, pass, deps)
+	return env:make_node {
+		Label = "HardLink $(@)",
+		Action = "$(_HARDLINK_FILE)",
+		Pass = pass,
+		InputFiles = { source },
+		OutputFiles = { target },
+		Dependencies = deps,
+	}
 end
+
+local _copy_meta = { }
+
+function _copy_meta:create_dag(env, data, deps)
+	return copy_file(env, data.Source, data.Target, data.Pass, deps)
+end
+
+local _hardlink_meta = { }
+
+function _hardlink_meta:create_dag(env, data, deps)
+	return hardlink_file(env, data.Source, data.Target, data.Pass, deps)
+end
+
+local blueprint = {
+	Source = {
+		Importance = "required",
+		Help = "Specify source filename",
+		Type = "string",
+	},
+	Target = {
+		Importance = "required",
+		Help = "Specify target filename",
+		Type = "string",
+	},
+}
+
+nodegen.add_evaluator("CopyFile", _copy_meta, blueprint)
+nodegen.add_evaluator("HardLinkFile", _hardlink_meta, blueprint)
 
 

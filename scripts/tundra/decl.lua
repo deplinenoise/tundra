@@ -19,104 +19,85 @@ module(..., package.seeall)
 
 local nodegen = require "tundra.nodegen"
 
-local decl_meta = {}
-decl_meta.__index = decl_meta
+local functions = {}
+local _decl_meta = {}
+_decl_meta.__index = _decl_meta
 
-function make_decl_env()
+local current = nil
+
+local function new_parser()
 	local obj = {
-		Platforms = {},
-		Projects = {},
-		ProjectTypes = {},
-		SourceGen = {},
+		Functions = {},
 		Results = {},
-		DefaultNames = {},
-		AlwaysNames = {},
+		DefaultTargets = {},
+		AlwaysTargets = {},
 	}
 
 	local outer_env = _G
+	local iseval = nodegen.is_evaluator
 	local function indexfunc(tab, var)
-		-- Project types evaluate to functions that just store results
-		local p
-		p = obj.ProjectTypes[var]
-		if p then
-			if type(p) == "function" then
-				return p
-			else
-				return function (data)
-					obj.Results[#obj.Results + 1] = { Type = var, Decl = data }
-				end
+		if iseval(var) then
+			-- Return an anonymous function such that
+			-- the code "Foo { ... }" will result in a call to
+			-- "nodegen.evaluate('Foo', { ... })"
+			return function (data)
+				local result = nodegen.evaluate(var, data)
+				obj.Results[#obj.Results + 1] = result
+				return result
 			end
 		end
-
-		-- Platform names evaluate to themselves
-		if obj.Platforms[var] then return var end
-
-		local fn = obj.SourceGen[var]
-		if fn then return fn end
-
-		if var == "Default" then
-			return function(default_name)
-				obj.DefaultNames[#obj.DefaultNames + 1] = default_name
-			end
-		end
-
-		if var == "Always" then
-			return function(always_name)
-				obj.AlwaysNames[#obj.AlwaysNames + 1] = always_name
-			end
-		end
-
+		local p = obj.Functions[var]
+		if p then return p end
 		return outer_env[var]
 	end
 
 	obj.FunctionMeta = { __index = indexfunc, __newindex = error }
 	obj.FunctionEnv = setmetatable({}, obj.FunctionMeta)
 
-	return setmetatable(obj, decl_meta)
-end
-
-function decl_meta:add_platforms(list)
-	for i = 1, #list do
-		local name = list[i]
-		assert(name and type(name) == "string")
-		self.Platforms[name] = true
+	for name, fn in pairs(functions) do
+		obj.Functions[name] = setfenv(fn, obj.FunctionEnv)
 	end
+
+	obj.Functions["Default"] = function(default_obj)
+		obj.DefaultTargets[#obj.DefaultTargets + 1] = default_obj
+	end
+
+	obj.Functions["Always"] = function(always_obj)
+		obj.AlwaysTargets[#obj.AlwaysTargets + 1] = always_obj
+	end
+
+	current = setmetatable(obj, _decl_meta)
+	return current
 end
 
-function decl_meta:add_project_type(name, fn)
+function add_function(name, fn)
 	assert(name and fn)
-	self.ProjectTypes[name] = setfenv(fn, self.FunctionEnv)
+	functions[name] = fn
 end
 
-function decl_meta:add_source_generator(name, fn)
-	self.SourceGen[name] = fn
-end
-
-local function parse_rec(self, unit_generators)
+function _decl_meta:parse_rec(data)
 	local chunk
-	if type(unit_generators) == "table" then
-		for _, gen in ipairs(unit_generators) do
+	if type(data) == "table" then
+		for _, gen in ipairs(data) do
 		   parse_rec(self, gen)
 		end
 		return
-	elseif type(unit_generators) == "function" then
-		chunk = unit_generators
-	elseif type(unit_generators) == "string" then
-		chunk = assert(loadfile(unit_generators))
+	elseif type(data) == "function" then
+		chunk = data
+	elseif type(data) == "string" then
+		chunk = assert(loadfile(data))
 	else
-		croak("unknown type %s for unit_generator %q", type(unit_generators), tostring(unit_generators))
+		croak("unknown type %s for unit_generator %q", type(data), tostring(data))
 	end
 
 	setfenv(chunk, self.FunctionEnv)
 	chunk()
 end
 
-function decl_meta:parse(unit_generators)
-	for name, _ in pairs(nodegen._generator.evaluators) do
-		self.ProjectTypes[name] = true
-	end
-
-	parse_rec(self, unit_generators)
-	
-	return self.Results, self.DefaultNames, self.AlwaysNames
+function parse(data)
+	p = new_parser()
+	current = p
+	p:parse_rec(data)
+	current = nil
+	return p.Results, p.DefaultTargets, p.AlwaysTargets
 end

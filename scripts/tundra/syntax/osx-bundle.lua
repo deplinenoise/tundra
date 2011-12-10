@@ -24,27 +24,25 @@ local files = require "tundra.syntax.files"
 local path = require "tundra.path"
 local util = require "tundra.util"
 
-local function eval_osx_bundle(generator, env, decl, passes)
-	local bundle_dir = assert(decl.Target)
+_osx_bundle_mt = nodegen.create_eval_subclass { }
+_compile_nib_mt = nodegen.create_eval_subclass { }
+
+function _osx_bundle_mt:create_dag(env, data, deps)
+	local bundle_dir = data.Target
+	local pass = data.Pass
 	local contents = bundle_dir .. "/Contents"
-	local pass = passes[decl.Pass]
-	local deps = {}
 	local copy_deps = {}
 
-	for _, dep in util.nil_ipairs(decl.Depends) do
-		deps[#deps+1] = generator:get_node_of(dep)
+	local infoplist = data.InfoPList
+	copy_deps[#copy_deps+1] = files.hardlink_file(env, data.InfoPList, contents .. "/Info.plist", pass, deps)
+
+	if data.PkgInfo then
+		copy_deps[#copy_deps+1] = files.hardlink_file(env, data.PkgInfo, contents .. "/PkgInfo", pass, deps)
 	end
 
-	local infoplist = assert(decl.InfoPList)
-	copy_deps[#copy_deps+1] = files.hardlink_file(env, decl.InfoPList, contents .. "/Info.plist", pass, deps)
-
-	if decl.PkgInfo then
-		copy_deps[#copy_deps+1] = files.hardlink_file(env, decl.PkgInfo, contents .. "/PkgInfo", pass, deps)
-	end
-
-	if decl.Executable then
-		local basename = select(2, path.split(decl.Executable))
-		copy_deps[#copy_deps+1] = files.hardlink_file(env, decl.Executable, contents .. "/MacOS/" .. basename, pass, deps)
+	if data.Executable then
+		local basename = select(2, path.split(data.Executable))
+		copy_deps[#copy_deps+1] = files.hardlink_file(env, data.Executable, contents .. "/MacOS/" .. basename, pass, deps)
 	end
 
 	local dirs = {
@@ -58,12 +56,13 @@ local function eval_osx_bundle(generator, env, decl, passes)
 			copy_deps[#copy_deps+1] = files.hardlink_file(env, fn, params.Dir .. basename, pass, deps)
 		end
 
-		local items = decl[params.Tag]
-		for _, fn in util.nil_ipairs(nodegen.flatten_list(env:get('BUILD_ID'), items)) do
-			if type(fn) == "string" then
-				do_copy(fn)
+		local items = data[params.Tag]
+		for _, dep in util.nil_ipairs(nodegen.flatten_list(env:get('BUILD_ID'), items)) do
+			if type(dep) == "string" then
+				do_copy(dep)
 			else
-				local node = fn(env)
+				local node = dep:get_dag(env)
+				print(node)
 				deps[#deps+1] = node
 				local files = {}
 				node:insert_output_files(files)
@@ -76,33 +75,33 @@ local function eval_osx_bundle(generator, env, decl, passes)
 
 	return env:make_node {
 		Pass = pass,
-		Label = "OsxBundle " .. decl.Target,
+		Label = "OsxBundle " .. data.Target,
 		Dependencies = util.merge_arrays_2(deps, copy_deps),
 	}
 end
 
-local function compile_nib(args, passes)
-	local pass = passes[args.Pass]
-	local src = assert(args.Source)
-	local dst = assert(args.Target)
-
-	return function (env)
-		return env:make_node {
-			Pass = pass,
-			Label = "CompileNib $(@)",
-			Action = "$(NIBCC)",
-			InputFiles = { src },
-			OutputFiles = { "$(OBJECTDIR)/" .. dst },
-		}
-	end
+function _compile_nib_mt:create_dag(env, data, deps)
+	return env:make_node {
+		Pass = data.Pass,
+		Label = "CompileNib $(@)",
+		Action = "$(NIBCC)",
+		Dependencies = deps,
+		InputFiles = { data.Source },
+		OutputFiles = { "$(OBJECTDIR)/" .. data.Target },
+	}
 end
 
-function apply(decl_parser, passes)
-	nodegen.add_evaluator("OsxBundle", function(generator, env, decl)
-		return eval_osx_bundle(generator, env, decl, passes)
-	end)
+nodegen.add_evaluator("OsxBundle", _osx_bundle_mt, {
+	Target = { Type = "string", Required = true, Help = "Target .app directory name" },
+	Executable = { Type = "string", Help = "Executable to embed" },
+	InfoPList = { Type = "string", Required = true, Help = "Info.plist file" },
+	PkgInfo = { Type = "string", Help = "PkgInfo file" },
+	Resources = { Type = "filter_table", Help = "Files to copy to 'Resources'" },
+	MacOSFiles = { Type = "filter_table", Help = "Files to copy to 'MacOS'" },
+})
 
-	decl_parser:add_source_generator("CompileNib", function (args)
-		return compile_nib(args, passes)
-	end)
-end
+nodegen.add_evaluator("CompileNib", _compile_nib_mt, {
+	Source = { Type = "string", Required = true },
+	Target = { Type = "string", Required = true },
+})
+

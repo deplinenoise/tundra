@@ -5,19 +5,25 @@ sub make_build_file($) {
 local util = require 'tundra.util'
 local nodegen = require 'tundra.nodegen'
 
-local function test_unit(generator, env, decl)
+local mt = nodegen.create_eval_subclass {}
+
+function mt:create_dag(env, data, deps)
 	return env:make_node {
 		Label = "TestAction \$(@)",
 		Action = "tr a-z A-Z < \$(<) > \$(@)",
-		InputFiles = { decl.InputFile },
-		OutputFiles = { decl.OutputFile },
+		InputFiles = { data.InputFile },
+		OutputFiles = { data.OutputFile },
+		Dependencies = deps,
 	}
 end
 
+nodegen.add_evaluator("TestUnit", mt, {
+	Name = { Type = "string", Required = "true" },
+	InputFile = { Type = "string", Required = "true" },
+	OutputFile = { Type = "string", Required = "true" },
+})
+
 Build {
-	UnitEval = {
-		TestUnit = test_unit,
-	},
 	Configs = {
 		Config {
 			Name = "foo-bar",
