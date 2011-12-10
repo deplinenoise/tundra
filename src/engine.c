@@ -775,6 +775,9 @@ make_node(lua_State *L)
 	td_noderef *noderef;
 
 	node->annotation = copy_string_field(L, self, 2, "annotation");
+	if (strlen(node->annotation) ==0)
+		luaL_error(L, "annotation must not be empty");
+
 	node->action = copy_string_field(L, self, 2, "action");
 	node->salt = copy_string_field(L, self, 2, "salt");
 	node->pass_index = setup_pass(L, self, 2, node);
@@ -879,8 +882,13 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 	/* construct a lookup table of all extensions on the stack for speedy access */
 	for (i = 0; i < ext_count; ++i)
 	{
+		const char *str;
+		size_t len;
 		lua_rawgeti(L, 3, i+1);
-		strncpy(exts[i], lua_tostring(L, -1), TD_EXTLEN);
+		str = lua_tolstring(L, -1, &len);
+		if (0 == len)
+			luaL_error(L, "extensions can't be empty");
+		strncpy(exts[i], str, TD_EXTLEN);
 		exts[i][TD_EXTLEN-1] = '\0';
 	}
 
