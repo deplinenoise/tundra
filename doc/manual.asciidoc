@@ -86,14 +86,15 @@ Here is a sample minimal +tundra.lua+ file that creates a configuration
 configuration is to be the default if nothing is specified when Tundra is run
 on Mac OS X:
 
+[source,lua]
 -------------------------------------------------------------------------------
 Build {
     Units = function()
-        Program {
+        local hello = Program {
             Name = "HelloWorld",
             Sources = { "hello.c" },
         }
-        Default "HelloWorld"
+        Default(hello)
     end,
     Configs = {
         Config {
@@ -199,8 +200,9 @@ Here are some terms and definitions used in Tundra and elsewhere in this documen
 
 - *unit* - A high-level declaration of a piece of software. Unit declarations
   appear as a syntactic elements in unit input files. Static and dynamic
-  libraries, programs and .NET assemblies are examples of units. Units are passed
-  through the `nodegen` layer to produce dependency graphs from the declarations.
+  libraries, programs and .NET assemblies are examples of units. Unit
+  declarations are passed through the `nodegen` layer to produce dependency
+  graphs from the declarations.
 
 - *environment* - A data structure with key-value mappings used to track
   configuration data inside Tundra. Sometimes refers to the OS environment.
@@ -221,7 +223,7 @@ A Tundra build can divided into a few distinct phases:
 - Run the project's +tundra.lua+ script to set options
 - Load toolsets, syntax files and other information as required by the configuration script
 - Run the referred +Units+ file (or function) in syntax mode to define the project's build units
-- Parse the resulting declarations and generate DAG nodes
+- Evaluate the unit declarations and generate DAG nodes
 - Pass the DAG to the native build engine for building
 
 == The tundra.lua file ==
@@ -233,6 +235,7 @@ sections are a reference of what you can place in the +Build+ block.
 Declarations within the block can appear in any order.
 
 .Build block synopsis
+[source,lua]
 ---------------------------------------------------
 Build {
     -- Required
@@ -275,6 +278,7 @@ Config blocks describe configuration parameters that apply to all units in the
 build for that configuration, such as include paths, libraries and so on.
 
 .Config Synopsis
+[source,lua]
 -------------------------------------------------------------------------------
 Config {
     -- Required
@@ -308,6 +312,7 @@ Projects can add their own tool script directories via a +ScriptDirs+ array
 property in the +Build+ block.
 
 .Config Tools Synopsis
+[source,lua]
 -------------------------------------------------------------------------------
 Tools = {
     "foo",
@@ -335,6 +340,7 @@ include paths (`CPPPATH`), C preprocessor defines (`CPPDEFS`) and C compiler
 options (`CCOPTS`).
 
 .Config Env Synopsis
+[source,lua]
 -----------------------------------------------------------------------------
 Config {
     Name = "foo-bar",
@@ -352,6 +358,7 @@ Just like the Env block describe above, but replaces the settings rather than
 appending them to the environment.
 
 .Config ReplaceEnv Synopsis
+[source,lua]
 -----------------------------------------------------------------------------
 Config {
     Name = "foo-bar",
@@ -371,6 +378,7 @@ settings between configs in external tables. These external tables can also
 inherit settings further by applying a new `Inherit` property.
 
 .Inherit Synopsis
+[source,lua]
 -----------------------------------------------------------------------------
 local foo_common = { ... }
 local bar_common = { ..., Inherit = foo_common, }
@@ -401,6 +409,7 @@ cross-compilation where some parts of the build must be built with the target
 compiler and some with the host compiler.
 
 .Config SubConfigs Synopsis
+[source,lua]
 -----------------------------------------------------------------------------
 Configs = {
     Config {
@@ -432,6 +441,7 @@ variant. A variant consists of a required `Name` property and an optional
 `Options` table.
 
 .Variants synopsis
+[source,lua]
 ---------------------------------------------------
 Variants = {
     { Name = "...", Options = { ... } }
@@ -452,6 +462,7 @@ properties, `Name` and `BuildOrder`, both of which are required. Passes are
 ordered with the lowest `BuildOrder` first.
 
 .Passes Synopsis
+[source,lua]
 -------------------------------------------------------------------------------
 Build {
     ...
@@ -469,8 +480,7 @@ Build {
 == Unit Syntax ==
 
 This section describes the default syntax elements that are available for use
-in the units file. You can add your own syntax extensions and source generators
-via `Build` properties.
+in the units file. You can add your own unit syntax via extension.
 
 === Configuration Filtering ===
 
@@ -486,6 +496,7 @@ string or a list of patters. The items in the list will then be included only
 when one of the config patterns match:
 
 .Configuration Filtering
+[source,lua]
 -------------------------------------------------------------------------------
 ... { "foo.c"; Config = "*-*-debug" } ...
 ... { "bar.c", "qux.c"; Config = { "*-foo-*", "*-bar-*" } ...
@@ -499,6 +510,7 @@ debug builds, and `foo-gcc.c` is included if the toolset matches `gcc` or
 included.
 
 .Configuration Filtering Flattening
+[source,lua]
 -------------------------------------------------------------------------------
 { "foo.c",
     { "bar.c"; Config = "*-*-debug" },
@@ -508,10 +520,11 @@ included.
 
 === Native Units ===
 
-Native units are implemented by the tundra.nodegen.native module and provide
-support for building shared and static libraries as well as executables with C,
-C++ and Objective-C tools. These unit types are selected through the following
-keywords:
+Native units are implemented by the `tundra.nodegen.native` module in
+conjunction with a toolset script (such as `gcc`, `msvc`, and others) and
+provide support for building shared and static libraries as well as executables
+with C, C++ and Objective-C tools. These unit types are selected through the
+following keywords:
 
 - `Program` - specifies a program
 - `StaticLibrary` - specifies a static library (archive)
@@ -521,6 +534,7 @@ keywords:
 All these follow the same synopsis:
 
 .Native Unit Synopsis
+[source,lua]
 -------------------------------------------------------------------------------
 <unit type> {
     -- required
@@ -528,6 +542,7 @@ All these follow the same synopsis:
 
     -- optional
     Config = ...,
+    Target = ...,
     Propagate = { ... },
     SourceDir = "...",
     Sources = { ... },      -- config filtered
@@ -568,6 +583,7 @@ of everyone who links to this library. The propagate block can contain `Libs`,
 `Defines`, and so on.
 
 .Native Unit Propagate synopsis
+[source,lua]
 ---------------------------------------------------
 <unit type> {
     ...
@@ -581,6 +597,7 @@ of everyone who links to this library. The propagate block can contain `Libs`,
 For example, to push a define `ZLIB_DLL` onto users of a library, one might use
 the following:
 
+[source,lua]
 ---------------------------------------------------
 SharedLibrary {
     Name = "zlib",
@@ -619,6 +636,7 @@ A list of external libraries to be fed to the linker. Typically very platform
 specific and thus it is common that every lib is wrapped in a configuration
 block, like this:
 
+[source,lua]
 -------------------------------------------------------------------------------
 Libs = {
     { "kernel32.lib"; Config = { "win32-*-*", "win64-*-*" } },
@@ -641,6 +659,7 @@ are supported:
 - `CSharpLib` - Builds a C# library (dll)
 
 .C# Unit Synopsis
+[source,lua]
 -------------------------------------------------------------------------------
 <unit type> {
     -- required
@@ -658,8 +677,9 @@ are supported:
 === Syntax Extensions ===
 
 Tundra provides a small set of syntax extensions by default. To use syntax
-extensions, add a SyntaxExtensions list to the `tundra.lua` file specifying the
-extensions you want to enable. These are Lua package names.
+extensions, simply `require` their Lua package names in your `units.lua` or
+`tundra.lua` file. To add your own directories to the `require` search path,
+refer to the `ScriptDirs` option.
 
 ==== File Globbing ====
 
@@ -672,6 +692,7 @@ globs and filenames.
 Globs come in two versions, `Glob` and `FGlob`.
 
 .Glob Synopsis
+[source,lua]
 -------------------------------------------------------------------------------
 Glob {
     -- required
@@ -688,6 +709,7 @@ you can disable this behaviour by passing +Recursive = false+. In this example
 we're getting all `.c` and `.cpp` files from `my_dir`.
 
 .Glob Example
+[source,lua]
 -------------------------------------------------------------------------------
 Program {
     ...
@@ -703,6 +725,7 @@ only. `FGlob` extends `Glob` and adds a list of filters to apply after the file
 list has been retrieved:
 
 .FGlob Synopsis
+[source,lua]
 -------------------------------------------------------------------------------
 FGlob {
     -- required
@@ -725,6 +748,7 @@ configuration only, and we're tagging files with `win32` anywhere in the
 filename for that platform:
 
 .FGlob Example
+[source,lua]
 -------------------------------------------------------------------------------
 Program {
     ...
@@ -760,6 +784,7 @@ particular name or path to either `bison` or `flex` so you must define them
 through the environment:
 
 .Bison/Flex Example
+[source,lua]
 -------------------------------------------------------------------------------
 ...
 Env = {
@@ -787,6 +812,61 @@ header with token defines. This must be controlled by the generator so that
 Tundra knows about this additional output file.
 
 <<<
+
+=== Functional Composition ===
+
+Because unit keywords map to Lua functions, you can easily create
+convenience functions on top of them. For example, say that you have many
+different static libraries, each following the exact same pattern. Rather than
+repeating all those declarations, use a function to remove the duplication:
+
+.Unit Function Wrapper Example
+[source,lua]
+-------------------------------------------------------------------------------
+
+local function dolib(name)
+    return StaticLibrary {
+        Name = name,
+        Sources = { Glob { Dir = name, Extensions = { ".c" } } },
+    }
+end
+
+-- we can now say:
+
+dolib "foo"
+dolib "bar"
+dolib "baz"
+
+-- or even:
+
+for _, name in ipairs { "foo", "bar", "baz" } do
+    dolib(name)
+end
+
+-------------------------------------------------------------------------------
+
+=== Unit Return Values ===
+
+Whenever you invoke a unit function such as `StaticLibrary`, the return value
+is a data structure that can be used wherever a name or reference to that
+library is required. This removes the need to use strings. You should prefer
+this style as it is less error prone and slightly faster.
+
+.Unit Return Value Example
+[source,lua]
+-------------------------------------------------------------------------------
+
+local mylib = StaticLibrary { ... }
+local otherlib = StaticLibrary { ... }
+
+Program {
+    Name = "main",
+    -- ...
+    Depends = { mylib, otherlib },
+}
+
+-------------------------------------------------------------------------------
+
 
 == The Environment ==
 
@@ -982,8 +1062,231 @@ This toolset supports two options:
 Here's an example of how this toolset can be configured for an explicit target
 architecture:
 
+[source,lua]
 -------------------------------------------------------------------------------
-    Tools = { { "msvc-vs2008"; TargetArch = "itanium", HostArch = "x86" }, ... }
+    Tools = {
+        { "msvc-vs2008"; TargetArch = "itanium", HostArch = "x86" },
+        -- ...
+    }
+-------------------------------------------------------------------------------
+
+== Extending Tundra ==
+
+Tundra can be extended in three ways:
+
+- By adding a toolset, you can teach Tundra how to invoke a variation of a
+  standard toolchain, such as C/C++ or .NET. A toolset configures the
+  environment for building.
+
+- By adding syntactic extensions that aid in writing `units.lua` input. A good
+  example of this is the `Glob` helper which transforms a directory and a set
+  of file extensions into a list of source files. Syntactic helpers like `Glob`
+  operate transparently and you can always get the same results by hand.
+
+- By adding unit extensions that implement build actions. Unit extensions can
+  range from simple (running a single custom action) to complex (multiple
+  nested steps that pipe build results between each other).
+
+=== Adding toolsets ===
+
+Toolsets configure a variation of an existing toolset implementation. Currently
+the following toolset types can be created:
+
+[width="90%",cols="2,4,5,3",options="header"]
+|================================================================================
+|Language     |Base toolset         |Unit driver                | Examples     
+|Assembly     |`generic-asm.lua`    |`tundra.nodegen.native`    | `yasm`
+|C and C++    |`generic-cpp.lua`    |`tundra.nodegen.native`    | `gcc`, `msvc`
+|.NET         |`generic-dotnet.lua` |`tundra.nodegen.dotnet`    | `mono`, `dotnet`
+|=============================================================================
+
+Toolset creation typically involves deriving from a base toolset script that
+provides you with the common glue for that toolchain type. For example, the
+`generic-cpp.lua` script sets up the implicit build actions for C and C++
+files, knows how to configure header scanning and so on. The derived toolset in
+the C family mostly configure the environment and possibly query the machine
+for compiler/tool locations.
+
+Assembly language is currently implemented as an implicit make action that can
+convert assembly files to object files, and this needs a C toolset for linking
+as well. It is typically the case that you combine C and Assembly anyway, so
+this is rarely a problem. If you new toolset is designed to interop with other
+native tools, this might be one way to do it.
+
+If you are trying to add a completely new language toolchain, you will probably
+have to implement a new unit extension set for that toolchain too. This
+extension would provide the right primitives to work with your toolset, much
+like `StaticLibrary` and `Program` are appropriate for the native toolchain.
+
+=== Adding syntax extensions ===
+
+Syntax extensions are a convenience to the build file writer.
+
+Here is a skeleton syntax extension module to start from:
+
+.Syntax Script Template
+[source,lua]
+-------------------------------------------------------------------------------
+module(..., package.seeall)
+
+local decl = require "tundra.decl"
+
+local function foo(args)
+    return {
+        -- Replacement data goes here
+        C = args.A + args.B
+    }
+end
+
+-- Add functions to the parser, you can add more than one here
+decl.add_function("Foo", foo)
+-------------------------------------------------------------------------------
+
+Basically the functions you add work as macro transformers. After loading the
+syntax extension above, `Foo` is exposed as a call to your function. The
+parsing frontend will substitute whatever you return from `foo` for the call's
+body. Using the above example `Foo { A = 1, B = 2 }` will be replaced by
+`{ C = 3 }`.
+
+=== Adding unit extensions ===
+
+Unit extensions hook capture data during parsing which can later be transformed
+into DAG nodes for building. To create one, start with this template script:
+
+.Unit Script Template
+[source,lua]
+-------------------------------------------------------------------------------
+module(..., package.seeall)
+
+local nodegen = require "tundra.nodegen"
+
+local _mt = nodegen.create_eval_subclass {}
+
+-- Describe the syntactic form of the unit. This describes the data that is
+-- passed into create_dag below after checking.
+local blueprint = {
+    Bar = {
+        Type = "string",
+        Help = "The all-important Bar string",
+        Required = true
+    },
+    Sources = {
+        Type = "source_list",
+        Help = "List of sources",
+        Required = true
+    },
+    Frob = {
+        Type = "filter_table",
+        Help = "Optional bag of data"
+    },
+    -- ...
+}
+
+-- This function will be called once for every active configuration in the
+-- build, before the build starts.
+--
+-- env - The unit's private environment
+-- data - Transformed invocation data according to blueprint
+-- deps - Dependencies picked up through invocation
+--        (e.g. nested build jobs from sources and such)
+function _mt:create_dag(env, data, deps)
+    return env:make_node {
+        Label = "Foo $(@)",
+        Action = "$(MYACTION)",
+        Inputs = ...,
+        Outputs = ...,
+        ImplicitInputs = ...,
+        Dependencies = deps,
+    }
+end
+
+-- Add evaluator
+nodegen.add_evaluator("Foo", _mt, blueprint)
+-------------------------------------------------------------------------------
+
+In the metatable passed to `nodegen.create_eval_subclass` you can tag on a few
+additional parameter that control the data transformation functionality in the
+underlying layer.
+
+If you include a key `DeclToEnvMappings`, the nodegen will accept shortcut
+mappings directly to environment data. This is how `Defines` maps to `CPPDEFS`
+in the native toolset, for example.
+
+[source,lua]
+-------------------------------------------------------------------------------
+local _native_mt = nodegen.create_eval_subclass {
+	DeclToEnvMappings = {
+		Libs = "LIBS",
+		Defines = "CPPDEFS",
+		Includes = "CPPPATH",
+		Frameworks = "FRAMEWORKS",
+		LibPaths = "LIBPATH",
+	},
+} 
+-------------------------------------------------------------------------------
+
+The blueprint mechanism saves you from having to validate user input in your
+build function. In addition to the keys you list for your unit, the following
+keys are always added for consistency:
+
+[width="90%",cols="4,9",options="header"]
+|================================================================================
+|Key            |Description
+|`Propagate`    |Implements environment/keyword propagation to dependencies
+|`Env`          |Environment data to append
+|`ReplaceEnv`   |Environment data to replace
+|`Depends`      |List of unit dependencies
+|`Pass`         |The pass the unit should build in
+|`SourceDir`    |An alternate source directory, used for all `source_list` data
+|`Config`       |Configuration filter
+|`SubConfigs`   |Sub-configuration filter
+|=============================================================================
+
+This means you should never list them in your blueprint as they are always
+added to all units. They are handled internally in the `nodegen` layer but you
+are welcome to reading the data in your `create_dag` implementation, especially
+`Pass` and `Depends` are often useful.
+
+When filling in your data blueprint, the following types are supported:
+
+[width="90%",cols="4,9",options="header"]
+|================================================================================
+|Type name      |Accepted values
+|`string`       |Any string value
+|`boolean`      |Boolean `true` or `false`
+|`table`        |Any table value, or single string which will be wrapped in table
+|`filter_table` |Table which will be configuration filtered
+|`source_list`  |Table which is taken to contain source files (implicit actions will be run).
+                 Pass in the name of an environment variable in `ExtensionKey` to control which
+                 source extensions are accepted. Other source files will be discarded.
+|`pass`         |A valid pass name string
+|`depends`      |A list of names or unit references
+|=============================================================================
+
+Data is transformed before being passed to the `create_dag` function:
+
+- `filter_table` data is filtered for the current build id (`BUILD_ID` in the env).
+- `source_list` data becomes a list of filenames that might have been derived through
+  multiple steps of implicit compilation steps. If other nodes are involved in
+  producing these files, they will appear in the `deps` parameter.
+- `pass` data becomes a guaranteed valid pass object, or `nil` meaning the
+  default pass. This is intended so you can just send it straight through to
+  `env:make_node`.
+- `depends` data is transformed into a list of unit data references.
+
+The new unit we have defined above can now be used like this wherever a unit is
+called for:
+
+.Unit Usage Example
+[source,lua]
+-------------------------------------------------------------------------------
+
+local f = Foo {
+    Bar = "meh",
+    Sources = { ... },
+    -- ...
+}
+
 -------------------------------------------------------------------------------
 
 // vim: set syntax=asciidoc
