@@ -34,6 +34,7 @@ test -f tundra.lua || exit 1
 
 find examples -name tundra-output -exec rm -rf {} \;
 find . -name .tundra-\* -exec rm -f {} \;
+find . -name .\*DS_Store\* -exec rm -f {} \;
 
 rm -rf build $DISTOSX $DISTWIN tundra-output
 
