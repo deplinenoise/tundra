@@ -6,4 +6,5 @@ tundra-output
 tundra-sigdebug.txt
 tags
 build
+dists
 .DS_Store
