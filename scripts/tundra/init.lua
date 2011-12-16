@@ -38,6 +38,7 @@ Build {
 		},
 	},
 	Units = function()
+		require "tundra.syntax.glob"
 		Program {
 			Name = "a.out",
 			Sources = { Glob { Dir = ".", Extensions = CFiles } },
@@ -45,7 +46,6 @@ Build {
 
 		Default "a.out"
 	end,
-	SyntaxExtensions = { "tundra.syntax.glob" },
 }
 ]====]
 
