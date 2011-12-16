@@ -73,6 +73,11 @@ end
 function add_function(name, fn)
 	assert(name and fn)
 	functions[name] = fn
+
+	if current then
+		-- require called from within unit script
+		current.Functions[name] = setfenv(fn, current.FunctionEnv)
+	end
 end
 
 function _decl_meta:parse_rec(data)
