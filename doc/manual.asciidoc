@@ -153,12 +153,33 @@ To build tundra, you can either use tundra itself, or CMake.
 
 To build with tundra, first install a binary package and then run:
 -------------------------------------------------------------------------------
-$ tundra release
-$ cp tundra-output/macosx-clang-release-default/tundra .
+$ tundra release-standalone
+$ cp tundra-output/macosx-clang-release-standalone/tundra .
 -------------------------------------------------------------------------------
 
 Obviously your output directory must be adjusted to whatever platform you are
-actually building on. This example used the `macosx-clang` toolset.
+actually building on. This example used the `macosx-clang` toolset. The
+`release-standalone` version of Tundra embeds all the Lua script and all you
+need to install on your system is the executable. If you want to hack on
+Tundra's scripts, you can build a development version:
+-------------------------------------------------------------------------------
+$ tundra release # or debug, if you want to debug the C code
+-------------------------------------------------------------------------------
+
+To use the development version, you need to export an environment variable
+`TUNDRA_HOME` to your root directory so Tundra will know where to look for its
+scripts:
+-------------------------------------------------------------------------------
+# setup
+$ export TUNDRA_HOME=/path/to/tundra-repo
+$ cd /path/to/build-project
+
+# run tundra..
+$ $TUNDRA_HOME/macosx-clang-release-dev/tundra
+
+# debug using gdb..
+$ gdb --args $TUNDRA_HOME/macosx-clang-debug-dev/tundra foo bar
+-------------------------------------------------------------------------------
 
 To build with CMake:
 -------------------------------------------------------------------------------
@@ -169,11 +190,9 @@ $ make
 $ cp tundra ..
 -------------------------------------------------------------------------------
 
-The last line of both examples copies the resulting binary into the tundra root
-dir (where it should live to be executed). If you prefer to run the executable
-from the build directory (because you're hacking on some feature) you can set
-the `TUNDRA_HOME` environment variable to the root directory of the tundra
-source distribution instead.
+This will give you a development version, like in the above Tundra self-build
+example. You can then use that version to build a standalone `tundra`
+executable.
 
 <<<
 
