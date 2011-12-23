@@ -117,7 +117,11 @@ local function syntax_error_catcher(err_obj)
                 if info.source:sub(1, 1) == "@" then
                     fn = info.source:sub(2)
                 end
-				return string.format("%s(%d): %s: %s", fn, info.currentline, err_obj.Class, err_obj.Message)
+                if info.currentline == -1 then
+                    return string.format("%s: %s", err_obj.Class, err_obj.Message)
+                else
+                    return string.format("%s(%d): %s: %s", fn, info.currentline, err_obj.Class, err_obj.Message)
+                end
 			end
 		end
         return string.format("%s: %s", err_obj.Class, err_obj.Message)
