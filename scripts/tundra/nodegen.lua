@@ -49,9 +49,10 @@ end
 
 local function validate_pass(name, value)
 	if type(value) == "string" then
-		return value
+        return value
+    else
+        syntax_error("%s: expected pass name, got %q", name, type(value))
 	end
-	syntax_error("%s: expected pass name, got %q", name, type(value))
 end
 
 local function validate_table(name, value)
@@ -340,7 +341,7 @@ local function x_depends(self, name, info, value, env, out_deps)
 end
 
 local function x_pass(self, name, info, value, env, out_deps)
-	return resolve_pass(value)
+    return resolve_pass(value)
 end
 
 local decl_transformers = {
@@ -567,12 +568,13 @@ end
 function resolve_pass(name)
 	assert(current)
 	if name then
-		p = current.passes[name]
-		if not p then
-			error("unknown pass: %s", name)
-		end
-		return p
-	end
+		local p = current.passes[name]
+        if not p then
+            syntax_error("%q is not a valid pass name", name)
+        end
+    else
+        return nil
+    end
 end
 
 function get_target(data, suffix, prefix)
