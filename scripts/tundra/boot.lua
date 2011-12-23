@@ -105,18 +105,22 @@ local function syntax_error_catcher(err_obj)
 		-- Because we read all files into memory before executing them, this
 		-- will give us the source filename of the user script.
 		while true do
-			info = debug.getinfo(i, 'Sl')
+			local info = debug.getinfo(i, 'Sl')
+            --print(util.tostring(info))
 			if not info then
 				break
 			end
-			if info.what ~= "Lua" or info.source:sub(1, 1) == "@" then
+			if info.what == "C" or (info.source:sub(1, 1) == "@" and info.source ~= "@units.lua") then
 				i = i + 1
 			else
-				return string.format("%s(%d): %s: %s",
-					info.source, info.currentline, err_obj.Class, err_obj.Message)
+                local fn = info.source
+                if info.source:sub(1, 1) == "@" then
+                    fn = info.source:sub(2)
+                end
+				return string.format("%s(%d): %s: %s", fn, info.currentline, err_obj.Class, err_obj.Message)
 			end
 		end
-		return 'undefined'
+        return string.format("%s: %s", err_obj.Class, err_obj.Message)
 	else
 		return debug.traceback(err_obj, 2)
 	end
