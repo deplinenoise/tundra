@@ -22,6 +22,8 @@ local path = require('tundra.path')
 local depgraph = require('tundra.depgraph')
 local native = require('tundra.native')
 
+local global_setup = {}
+
 --[==[
 
 The environment is a holder for variables and their associated values. Values
@@ -160,6 +162,12 @@ function envclass:invalidate_memos(key)
 	end
 end
 
+function envclass:set_default(key, value)
+    if not self:has_key(key) then
+        self:set(key, value)
+    end
+end
+
 function envclass:set(key, value)
 	self:invalidate_memos(key)
 	assert(key:len() > 0, "key must not be empty")
@@ -209,6 +217,8 @@ function envclass:get_list(key, default)
 		return self.parent:get_list(key, default)
 	elseif default then
 		return default
+    elseif not key then
+		error("nil key is not allowed")
 	else
 		error(string.format("key '%s' not present in environment", key))
 	end
@@ -402,6 +412,9 @@ function envclass:add_setup_function(fn)
 end
 
 function envclass:run_setup_functions(fn)
+    for _, func in ipairs(global_setup) do
+        func(self)
+    end
 	t = self.setup_funcs
 	local chain = self
 	while chain do
@@ -410,6 +423,10 @@ function envclass:run_setup_functions(fn)
 		end
 		chain = chain.parent
 	end
+end
+
+function add_global_setup(fn)
+    global_setup[#global_setup + 1] = fn
 end
 
 function is_environment(datum)
