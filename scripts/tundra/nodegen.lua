@@ -572,6 +572,7 @@ function resolve_pass(name)
         if not p then
             syntax_error("%q is not a valid pass name", name)
         end
+        return p
     else
         return nil
     end
@@ -664,6 +665,10 @@ function add_evaluator(name, meta_tbl, blueprint)
 		if not validators[type_] then
 			errorf("unsupported blueprint type %q", type_)
 		end
+
+        if val.Type == "source_list" and not val.ExtensionKey then
+			errorf("%s: source_list must provide ExtensionKey", name)
+        end
 	end
 
 	-- Record blueprint for use when validating user constructs.
