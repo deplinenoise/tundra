@@ -469,8 +469,12 @@ Variants = {
 
 ==== Variant Options ====
 
-The only currently recognized option is `GeneratePdb', which causes the MSVC
-toolset to generate debugging files in pdb format.
+Previously, the only currently recognized option was `GeneratePdb', 
+which caused the MSVC toolset to generate debugging files in PDB format.
+
+This option has however been superseded by the environment variable GENERATE_PDB.
+If you wish to generate PDB files for all your targets, set the GENERATE_PDB variable
+to anything but `0`.
 
 === Passes (optional) ===
 
