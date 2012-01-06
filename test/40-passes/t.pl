@@ -1,19 +1,27 @@
 
 sub make_build_file($) {
-	my $use_digest = shift;
+	my $use_caching = shift;
 	<<END;
 require 'tundra.syntax.testsupport'
-
 Build {
 	Configs = {
 		Config {
 			Name = "foo-bar",
 		}
 	},
+	Passes = {
+		MyPass = { Name = "Test", BuildOrder = 1 },
+	},
 	EngineOptions = {
-		UseDigestSigning = $use_digest,
+		UseDagCaching = $use_caching,
 	},
 	Units = function()
+		UpperCaseFile {
+			Pass = "MyPass",
+			Name = "bar",
+			InputFile = "test2.input",
+			OutputFile = "\$(OBJECTDIR)/test2.output",
+		}
 		UpperCaseFile {
 			Name = "foo",
 			InputFile = "test.input",
@@ -35,28 +43,24 @@ sub uppercase {
 }
 
 sub run_test($) {
-	my $use_digest = shift;
-
+	my $use_caching = shift;
 	my $files = {
-		"tundra.lua" => make_build_file($use_digest),
+		"tundra.lua" => make_build_file($use_caching),
 		"test.input" => $test_input1,
+		"test2.input" => $test_input1,
 	};
 
 	with_sandbox($files, sub {
-		run_tundra 'foo-bar';
+		run_tundra 'foo-bar', 'foo';
 		expect_output_contents 'test.output', uppercase($test_input1);
-
-		update_file 'test.input', $test_input2;
-		bump_timestamp 'test.input';
-		run_tundra 'foo-bar';
-		expect_output_contents 'test.output', uppercase($test_input2);
+		fail "bar target was built" if output_file_exists 'test2.output';
 	});
 }
 
 deftest {
-    name => "Basic",
+    name => "Passes",
     procs => [
-		"Basic timestamp signing" => sub { run_test(0); },
-		"Basic digest signing" => sub { run_test(1); },
+		"Unselected early-pass nodes do not build" => sub { run_test(0); },
+		"Unselected early-pass nodes do not build (DAG cache)" => sub { run_test(1); },
 	]
 };

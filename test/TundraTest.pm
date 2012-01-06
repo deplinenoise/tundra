@@ -19,6 +19,7 @@ BEGIN {
     @ISA = qw(Exporter);
     @EXPORT = qw(
 		&deftest &run_tundra &expect_contents &expect_output_contents
+		&output_file_exists
 		&update_file &with_sandbox &bump_timestamp
 		&md5_output_file
 		&fail);
@@ -108,6 +109,11 @@ sub expect_contents($$) {
 sub expect_output_contents($$) {
     my ($fn, $expected_data) = @_;
 	return expect_contents(output_path($fn), $expected_data);
+}
+
+sub output_file_exists($) {
+	my $fn = shift;
+	return -f sandbox_path(output_path($fn));
 }
 
 sub md5_output_file($) {

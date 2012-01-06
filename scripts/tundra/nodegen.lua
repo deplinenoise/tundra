@@ -311,12 +311,11 @@ local function find_named_node(name_or_dag)
 	if type(name_or_dag) == "table" then
 		return name_or_dag:get_dag(current.default_env)
 	elseif type(name_or_dag) == "string" then
-		local n = current.cooked_nodes[name_or_dag]
-		if not n then
-			errorf("unknown node specified: %q - are they in the right order?", tostring(name_or_dag))
-		else
-			return n
+		local generator = current.units[name_or_dag]
+		if not generator then
+			errorf("unknown node specified: %q", tostring(name_or_dag))
 		end
+		return generator:get_dag(current.default_env)
 	else
 		errorf("illegal node specified: %q", tostring(name_or_dag))
 	end
@@ -477,7 +476,6 @@ _generator.__index = _generator
 local function new_generator(s)
 	s = s or {}
 	s.units = {}
-	s.unit_nodes = {}
 	return setmetatable(s, _generator)
 end
 
@@ -522,15 +520,6 @@ function generate_dag(args)
 		state.default_env = assert(envs[state.default_subconfig], "unknown DefaultSubConfig specified")
 	else
 		state.default_env = assert(envs["__default"])
-	end
-
-	state.cooked_nodes = {}
-	for _, generator in ipairs(raw_nodes) do
-		local dag = generator:get_dag(state.default_env)
-		local n = generator.Decl.Name
-		if n then
-			state.cooked_nodes[n] = dag
-		end
 	end
 
 	local nodes_to_build = {}
