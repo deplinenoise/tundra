@@ -84,7 +84,7 @@ function _decl_meta:parse_rec(data)
 	local chunk
 	if type(data) == "table" then
 		for _, gen in ipairs(data) do
-		   parse_rec(self, gen)
+		   self:parse_rec(gen)
 		end
 		return
 	elseif type(data) == "function" then
