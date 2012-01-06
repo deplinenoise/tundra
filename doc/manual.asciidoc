@@ -153,8 +153,9 @@ To build tundra, you can either use tundra itself, or CMake.
 
 To build with tundra, first install a binary package and then run:
 -------------------------------------------------------------------------------
-$ tundra release-standalone
-$ cp tundra-output/macosx-clang-release-standalone/tundra .
+$ tundra release standalone
+$ cp tundra-output/macosx-clang-release-standalone/tundra \
+     <your/local/bin/directory>
 -------------------------------------------------------------------------------
 
 Obviously your output directory must be adjusted to whatever platform you are
@@ -187,7 +188,6 @@ $ mkdir build-dir
 $ cd build-dir
 $ cmake ..
 $ make
-$ cp tundra ..
 -------------------------------------------------------------------------------
 
 This will give you a development version, like in the above Tundra self-build
