@@ -62,7 +62,7 @@ generic_scan_line(td_alloc *scratch, const char *start_in, td_include_data *dest
 {
 	generic_scanner *scanner = (generic_scanner*) scanner_;
 	char separator;
-	int kw, kwcount, kwset;
+	int kw = 0, kwcount, kwset;
 	const char *start = start_in;
 	const char *str_start;
 
@@ -128,7 +128,7 @@ generic_scan_line(td_alloc *scratch, const char *start_in, td_include_data *dest
 		if (str_start == start)
 			return 0;
 
-		dest->is_system_include = scanner->bare_means_system;
+		dest->is_system_include = (unsigned char) scanner->bare_means_system;
 	}
 
 	dest->string_len = (unsigned short) (start - str_start - 1);
