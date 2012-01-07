@@ -39,6 +39,16 @@ local common = {
 	}
 }
 
+local function genwincfg(name, arch, vcversion)
+	return Config {
+		Name = name,
+		Inherit = common,
+		Tools = {
+			{ "msvc-winsdk"; TargetArch = arch, VcVersion = vcversion }
+		}
+	}
+end
+
 Build {
 	Units = "units.lua",
 	Passes= {
@@ -50,11 +60,22 @@ Build {
 	Configs = {
 		Config { Name = "macosx-clang", Inherit = common, Tools = { "clang-osx" }, DefaultOnHost = "macosx" },
 		Config { Name = "macosx-gcc", Inherit = common, Tools = { "gcc-osx" } },
-		Config { Name = "win32-msvc", Inherit = common, Tools = { { "msvc-winsdk"; TargetArch = "x86" } } },
-		Config { Name = "win64-msvc", Inherit = common, Tools = { { "msvc-winsdk"; TargetArch = "x64" } } },
 		Config { Name = "linux-gcc", Inherit = common, Tools = { "gcc" }, DefaultOnHost = "linux" },
 		Config { Name = "freebsd-gcc", Inherit = common, Tools = { "gcc" }, DefaultOnHost = "freebsd" },
 		Config { Name = "openbsd-gcc", Inherit = common, Tools = { "gcc" }, DefaultOnHost = "openbsd" },
+
+		genwincfg("win32-winsdk6", "x86", "9.0"),
+		genwincfg("win64-winsdk6", "x86", "9.0"),
+		genwincfg("win32-winsdk7", "x86", "10.0"),
+		genwincfg("win64-winsdk7", "x86", "10.0"),
+
+		Config {
+			Name = "win64-winsdk7",
+			Inherit = common,
+			Tools = {
+				{ "msvc-winsdk"; TargetArch = "x64", VcVersion = "10.0" }
+			}
+		},
 
 		-- MingW32 cross compilation under OS X
 		Config {
