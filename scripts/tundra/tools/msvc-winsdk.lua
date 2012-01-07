@@ -25,14 +25,6 @@ local os = require "os"
 if native.host_platform ~= "windows" then
 	error("the msvc toolset only works on windows hosts")
 end
-local sdk_key = "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows"
-local sdkDir = assert(native.reg_query("HKLM", sdk_key, "CurrentInstallFolder"))
-
-local vc_key = "SOFTWARE\\Microsoft\\VisualStudio\\SxS\\VC7"
-local vc_dir = assert(native.reg_query("HKLM", vc_key, "10.0"))
-if vc_dir:sub(-1) ~= '\\' then
-	vc_dir = vc_dir .. '\\'
-end
 
 local function get_host_arch()
 	local snative = native.getenv("PROCESSOR_ARCHITECTURE")
@@ -67,11 +59,21 @@ local function setup(env, options)
 	options = options or {}
 	local target_arch = options.TargetArch or "x86"
 	local host_arch = options.HostArch or get_host_arch()
+	local vcversion = options.VcVersion or "10.0"
 
 	local binDir = compiler_dirs[host_arch][target_arch]
 
 	if not binDir then
 		errorf("can't build target arch %s on host arch %s", target_arch, host_arch)
+	end
+
+	local sdk_key = "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows"
+	local sdkDir = assert(native.reg_query("HKLM", sdk_key, "CurrentInstallFolder"))
+
+	local vc_key = "SOFTWARE\\Microsoft\\VisualStudio\\SxS\\VC7"
+	local vc_dir = assert(native.reg_query("HKLM", vc_key, vcversion))
+	if vc_dir:sub(-1) ~= '\\' then
+		vc_dir = vc_dir .. '\\'
 	end
 
 	local cl_exe = '"' .. vc_dir .. binDir .. "cl.exe" ..'"'
