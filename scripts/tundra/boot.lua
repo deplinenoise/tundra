@@ -182,10 +182,15 @@ end
 local function show_configs(configs, variants, subvariants, stream)
 	stream = stream or io.stderr
 	stream:write('Available configurations:\n')
+	local names = {}
 	for _, config in pairs(configs) do
 		if not config.Virtual then
-			stream:write("    ", config.Name, "\n")
+			names[#names + 1] = config.Name
 		end
+	end
+	table.sort(names)
+	for _, name in ipairs(names) do
+		stream:write("    ", name, "\n")
 	end
 
 	stream:write('Available variants:\n')
