@@ -106,6 +106,10 @@ function _nodegen:validate()
 	end
 end
 
+function _nodegen:customize_env(env, raw_data)
+	-- available for subclasses
+end
+
 function _nodegen:configure_env(env)
 	local build_id = env:get('BUILD_ID')
 	local propagate_blocks = {}
@@ -457,6 +461,7 @@ function _nodegen:get_dag(parent_env)
 				unit_env:set('UNIT_PREFIX', '__' .. self.Decl.Name)
 			end
 			self:configure_env(unit_env)
+			self:customize_env(unit_env, self.Decl)
 			local input_data, input_deps = self:create_input_data(unit_env, parent_env)
 			for _, dep in util.nil_ipairs(input_data.Depends) do
 				input_deps[#input_deps + 1] = dep:get_dag(parent_env)

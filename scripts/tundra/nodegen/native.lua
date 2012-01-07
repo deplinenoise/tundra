@@ -67,6 +67,14 @@ local _extlib_mt = nodegen.create_eval_subclass({
 
 local _is_native_mt = util.make_lookup_table { _object_mt, _program_mt, _staticlib_mt, _shlib_mt, _extlib_mt }
 
+function _native_mt:customize_env(env, raw_data)
+	if env:get('GENERATE_PDB', '0') ~= '0' then
+		env:set('_PDB_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pdb")
+		env:set('_USE_PDB_CC', '$(_USE_PDB_CC_OPT)')
+		env:set('_USE_PDB_LINK', '$(_USE_PDB_LINK_OPT)')
+	end
+end
+
 function _native_mt:create_dag(env, data, input_deps)
 	local build_id = env:get("BUILD_ID")
 	local my_pass = data.Pass
@@ -145,11 +153,7 @@ function _native_mt:create_dag(env, data, input_deps)
 	local aux_outputs = env:get_list("AUX_FILES_" .. self.Label:upper(), {})
 
 	if env:get('GENERATE_PDB', '0') ~= '0' then
-		local pdb_output = "$(OBJECTDIR)/" .. data.Name .. ".pdb"
-		env:set('_PDB_FILE', pdb_output)
-		env:set('_USE_PDB_CC', '$(_USE_PDB_CC_OPT)')
-		env:set('_USE_PDB_LINK', '$(_USE_PDB_LINK_OPT)')
-		aux_outputs[#aux_outputs + 1] = pdb_output
+		aux_outputs[#aux_outputs + 1] = "$(_PDB_FILE)"
 	end
 
 	local targets = nil
