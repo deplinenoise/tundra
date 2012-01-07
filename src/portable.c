@@ -25,6 +25,7 @@
 #include "config.h"
 
 #include <string.h>
+#include <ctype.h>
 
 #if defined(TUNDRA_UNIX)
 #include <sys/stat.h>
@@ -59,14 +60,18 @@
 #define snprintf _snprintf
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || WINVER < 0x0600
 /* mingw has very old windows headers; declare CONDITION VARIABLE here */
 typedef void* CONDITION_VARIABLE;
 typedef CONDITION_VARIABLE* PCONDITION_VARIABLE;
-static void WINAPI (*InitializeConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
-BOOL WINAPI (*SleepConditionVariableCS)(PCONDITION_VARIABLE ConditionVariable, PCRITICAL_SECTION CriticalSection, DWORD dwMilliseconds);
-static void WINAPI (*WakeConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
-static void WINAPI (*WakeAllConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+#endif
+
+/* Windows Vista condition variable interface. We use this if it is available. */
+static int use_vista_apis;
+static void (WINAPI *pf_InitializeConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+BOOL (WINAPI *pf_SleepConditionVariableCS)(PCONDITION_VARIABLE ConditionVariable, PCRITICAL_SECTION CriticalSection, DWORD dwMilliseconds);
+static void (WINAPI *pf_WakeConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+static void (WINAPI *pf_WakeAllConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
 
 #ifndef KEY_WOW64_64KEY
 #define KEY_WOW64_64KEY         (0x0100)
@@ -74,8 +79,6 @@ static void WINAPI (*WakeAllConditionVariable)(PCONDITION_VARIABLE ConditionVari
 #ifndef KEY_WOW64_32KEY
 #define KEY_WOW64_32KEY         (0x0200)
 #endif
-#endif
-
 #endif
 
 const char * const td_platform_string =
@@ -94,34 +97,81 @@ const char * const td_platform_string =
 #endif
 
 #if defined(TUNDRA_WIN32)
+
+/* See http://www.cse.wustl.edu/~schmidt/win32-cv-1.html */
+
+typedef struct
+{
+	int waiters_count_;
+	// Number of waiting threads.
+
+	CRITICAL_SECTION waiters_count_lock_;
+	// Serialize access to <waiters_count_>.
+
+	HANDLE sema_;
+	// Semaphore used to queue up threads waiting for the condition to
+	// become signaled. 
+
+	HANDLE waiters_done_;
+	// An auto-reset event used by the broadcast/signal thread to wait
+	// for all the waiting thread(s) to wake up and be released from the
+	// semaphore. 
+
+	size_t was_broadcast_;
+	// Keeps track of whether we were broadcasting or signaling.  This
+	// allows us to optimize the code if we're just signaling.
+} winxp_pthread_cond_t;
+
+
 int pthread_mutex_init(pthread_mutex_t *mutex, void *args)
 {
 	TD_UNUSED(args);
 
-	mutex->handle = (PCRITICAL_SECTION)malloc(sizeof(CRITICAL_SECTION));
-	if (!mutex->handle)
-		return ENOMEM;
-	InitializeCriticalSection((PCRITICAL_SECTION)mutex->handle);
+	if (use_vista_apis)
+	{
+		mutex->handle = (PCRITICAL_SECTION)malloc(sizeof(CRITICAL_SECTION));
+		if (!mutex->handle)
+			return ENOMEM;
+		InitializeCriticalSection((PCRITICAL_SECTION)mutex->handle);
+	}
+	else
+	{
+		if (NULL == (mutex->handle = CreateMutex(NULL, FALSE, NULL)))
+			return ENOMEM;
+	}
 	return 0;
 }
 
 int pthread_mutex_destroy(pthread_mutex_t *mutex)
 {
-	DeleteCriticalSection((PCRITICAL_SECTION)mutex->handle);
-	free(mutex->handle);
+	if (use_vista_apis)
+	{
+		DeleteCriticalSection((PCRITICAL_SECTION)mutex->handle);
+		free(mutex->handle);
+	}
+	else
+	{
+		CloseHandle(mutex->handle);
+	}
 	mutex->handle = 0;
 	return 0;
 }
 
 int pthread_mutex_lock(pthread_mutex_t *lock)
 {
-	EnterCriticalSection((PCRITICAL_SECTION)lock->handle);
+	if (use_vista_apis)
+		EnterCriticalSection((PCRITICAL_SECTION)lock->handle);
+	else
+		WaitForSingleObject(lock->handle, INFINITE);
 	return 0;
 }
 
 int pthread_mutex_unlock(pthread_mutex_t *lock)
 {
-	LeaveCriticalSection((PCRITICAL_SECTION)lock->handle);
+	if (use_vista_apis)
+		LeaveCriticalSection((PCRITICAL_SECTION)lock->handle);
+	else
+		ReleaseMutex(lock->handle);
 	return 0;
 }
 
@@ -130,34 +180,151 @@ int pthread_cond_init(pthread_cond_t *cond, void *args)
 	TD_UNUSED(args);
 	assert(args == NULL);
 
-	if (NULL == (cond->handle = malloc(sizeof(CONDITION_VARIABLE))))
-		return ENOMEM;
+	if (use_vista_apis)
+	{
+		if (NULL == (cond->handle = malloc(sizeof(CONDITION_VARIABLE))))
+			return ENOMEM;
 
-	InitializeConditionVariable((PCONDITION_VARIABLE) cond->handle);
+		pf_InitializeConditionVariable((PCONDITION_VARIABLE) cond->handle);
+	}
+	else
+	{
+		winxp_pthread_cond_t *cv = malloc(sizeof(winxp_pthread_cond_t));
+		if (!cv)
+			return ENOMEM;
+		cv->waiters_count_ = 0;
+		cv->was_broadcast_ = 0;
+		cv->sema_ = CreateSemaphore(NULL, 0, 0x7fffffff, NULL);
+		InitializeCriticalSection(&cv->waiters_count_lock_);
+		cv->waiters_done_ = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+		cond->handle = cv;
+	}
 	return 0;
 }
 
 int pthread_cond_destroy(pthread_cond_t *cond)
 {
-	free (cond->handle);
+	if (!use_vista_apis)
+	{
+		winxp_pthread_cond_t *cv = cond->handle;
+		DeleteCriticalSection(&cv->waiters_count_lock_);
+		CloseHandle(cv->sema_);
+		CloseHandle(cv->waiters_done_);
+	}
+	free(cond->handle);
 	return 0;
 }
 
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t* lock)
 {
-	BOOL result = SleepConditionVariableCS((PCONDITION_VARIABLE) cond->handle, (PCRITICAL_SECTION) lock->handle, INFINITE);
-	return !result;
+	if (use_vista_apis)
+	{
+		BOOL result = pf_SleepConditionVariableCS((PCONDITION_VARIABLE) cond->handle, (PCRITICAL_SECTION) lock->handle, INFINITE);
+		return !result;
+	}
+	else
+	{
+		int last_waiter;
+		winxp_pthread_cond_t *cv = cond->handle;
+		HANDLE external_mutex = lock->handle;
+
+		// Avoid race conditions.
+		EnterCriticalSection(&cv->waiters_count_lock_);
+		cv->waiters_count_++;
+		LeaveCriticalSection(&cv->waiters_count_lock_);
+
+		// This call atomically releases the mutex and waits on the
+		// semaphore until <pthread_cond_signal> or <pthread_cond_broadcast>
+		// are called by another thread.
+		SignalObjectAndWait(external_mutex, cv->sema_, INFINITE, FALSE);
+
+		// Reacquire lock to avoid race conditions.
+		EnterCriticalSection(&cv->waiters_count_lock_);
+
+		// We're no longer waiting...
+		cv->waiters_count_--;
+
+		// Check to see if we're the last waiter after <pthread_cond_broadcast>.
+		last_waiter = cv->was_broadcast_ && cv->waiters_count_ == 0;
+
+		LeaveCriticalSection(&cv->waiters_count_lock_);
+
+		// If we're the last waiter thread during this particular broadcast
+		// then let all the other threads proceed.
+		if (last_waiter)
+			// This call atomically signals the <waiters_done_> event and waits until
+			// it can acquire the <external_mutex>.  This is required to ensure fairness. 
+			SignalObjectAndWait(cv->waiters_done_, external_mutex, INFINITE, FALSE);
+		else
+			// Always regain the external mutex since that's the guarantee we
+			// give to our callers. 
+			WaitForSingleObject(external_mutex, INFINITE);
+
+		return 0;
+	}
 }
 
 int pthread_cond_broadcast(pthread_cond_t *cond)
 {
-	WakeAllConditionVariable((PCONDITION_VARIABLE) cond->handle);
+	if (use_vista_apis)
+		pf_WakeAllConditionVariable((PCONDITION_VARIABLE) cond->handle);
+	else
+	{
+		winxp_pthread_cond_t *cv = cond->handle;
+		int have_waiters = 0;
+
+		// This is needed to ensure that <waiters_count_> and <was_broadcast_> are
+		// consistent relative to each other.
+		EnterCriticalSection(&cv->waiters_count_lock_);
+
+		if (cv->waiters_count_ > 0)
+		{
+			// We are broadcasting, even if there is just one waiter...
+			// Record that we are broadcasting, which helps optimize
+			// <pthread_cond_wait> for the non-broadcast case.
+			cv->was_broadcast_ = 1;
+			have_waiters = 1;
+		}
+
+		if (have_waiters)
+		{
+			// Wake up all the waiters atomically.
+			ReleaseSemaphore(cv->sema_, cv->waiters_count_, 0);
+
+			LeaveCriticalSection(&cv->waiters_count_lock_);
+
+			// Wait for all the awakened threads to acquire the counting
+			// semaphore. 
+			WaitForSingleObject(cv->waiters_done_, INFINITE);
+
+			// This assignment is okay, even without the <waiters_count_lock_> held 
+			// because no other waiter threads can wake up to access it.
+			cv->was_broadcast_ = 0;
+		}
+		else
+			LeaveCriticalSection(&cv->waiters_count_lock_);
+	}
 	return 0;
 }
 
 int pthread_cond_signal(pthread_cond_t *cond)
 {
-	WakeConditionVariable((PCONDITION_VARIABLE) cond->handle);
+	if (use_vista_apis)
+		pf_WakeConditionVariable((PCONDITION_VARIABLE) cond->handle);
+	else
+	{
+		winxp_pthread_cond_t *cv = cond->handle;
+		int have_waiters;
+
+		EnterCriticalSection(&cv->waiters_count_lock_);
+		have_waiters = cv->waiters_count_ > 0;
+		LeaveCriticalSection(&cv->waiters_count_lock_);
+
+		// If there aren't any waiters, then this is a no-op.  
+		if (have_waiters)
+			ReleaseSemaphore(cv->sema_, 1, 0);
+	}
 	return 0;
 }
 
@@ -239,6 +406,10 @@ td_mkdir(const char *path)
 		return rc;
 	}
 #elif defined(TUNDRA_WIN32)
+	/* pretend we can always create device roots */
+	if (isalpha(path[0]) && 0 == memcmp(&path[1], ":\\\0", 3))
+		return 0;
+
 	if (!CreateDirectoryA(path, NULL))
 	{
 		switch (GetLastError())
@@ -359,29 +530,33 @@ void td_init_portable(void)
 	/* Grab the environment block once and just let it leak. */
 	win32_env_block = GetEnvironmentStringsA();
 
-#if defined(__GNUC__)
+	/* Try to locate Vista condition variable API. */
 	{
 		int i;
-		static struct { void **ptr; const char *symbol; } init_table[] = {
-			{ (void**) &InitializeConditionVariable, "InitializeConditionVariable" },
-			{ (void**) &SleepConditionVariableCS, "SleepConditionVariableCS" },
-			{ (void**) &WakeConditionVariable, "WakeConditionVariable" },
-			{ (void**) &WakeAllConditionVariable, "WakeAllConditionVariable" },
-		};
+		int api_count = 0;
 		HMODULE kernel32;
+
+		static const struct { FARPROC *ptr; const char *symbol; } init_table[] = {
+			{ (FARPROC*) &pf_InitializeConditionVariable, "InitializeConditionVariable" },
+			{ (FARPROC*) &pf_SleepConditionVariableCS, "SleepConditionVariableCS" },
+			{ (FARPROC*) &pf_WakeConditionVariable, "WakeConditionVariable" },
+			{ (FARPROC*) &pf_WakeAllConditionVariable, "WakeAllConditionVariable" },
+		};
 
 		kernel32 = GetModuleHandleA("kernel32.dll");
 
 		for (i = 0; i < (sizeof(init_table)/sizeof(init_table[0])); ++i)
 		{
 			const char *symbol = init_table[i].symbol;
-			if (NULL == (*init_table[i].ptr = GetProcAddress(kernel32, symbol)))
-			{
-				td_croak("couldn't resolve symbol %s in kernel32.dll; your windows version is not supported", symbol);
-			}
+			if (NULL != (*init_table[i].ptr = GetProcAddress(kernel32, symbol)))
+				++api_count;
+		}
+
+		if (api_count == (sizeof(init_table)/sizeof(init_table[0])))
+		{
+			use_vista_apis = 1;
 		}
 	}
-#endif
 
 #endif
 }

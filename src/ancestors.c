@@ -27,7 +27,7 @@
 #include <string.h>
 #include <assert.h>
 
-#define TD_ANCESTOR_MAGIC 0xf189affeu
+#define TD_ANCESTOR_MAGIC 0xf189bffeu
 #define TD_ANCESTOR_FILE ".tundra-ancestors"
 
 static void

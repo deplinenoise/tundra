@@ -156,14 +156,14 @@ typedef struct td_job
  */
 typedef struct td_ancestor_data
 {
+	uint64_t access_time;
+	int32_t job_result;
+	char padding_[4];
 	td_digest guid;
 	td_digest input_signature;
-	int32_t job_result;
-	uint64_t access_time;
-	char padding_[4];
 } td_ancestor_data;
 
-typedef char td_ancestor_data_size_check[sizeof(td_ancestor_data) == 48];
+typedef char td_ancestor_data_size_check[sizeof(td_ancestor_data) == 48 ? 1 : -1];
 
 enum {
 	/* Don't delete node outputs on build error or when cleaning. Useful for

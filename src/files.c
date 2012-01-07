@@ -19,6 +19,7 @@
 
 #include "files.h"
 #include "engine.h"
+#include "config.h"
 
 #include <assert.h>
 #include <string.h>
@@ -156,9 +157,9 @@ td_file *td_parent_dir(td_engine *engine, td_file *f)
 
 #if defined(TUNDRA_WIN32)
 	/* device root directory has no parent */
-	if (f->path_len == 3 &&
-		f->path[1] == ':' &&
-		f->path[2] == TD_PATHSEP)
+	if (f->path_len == 2 && f->path[1] == ':')
+		return NULL;
+	if (f->path_len == 3 && f->path[1] == ':' && f->path[2] == TD_PATHSEP)
 		return NULL;
 #endif
 
@@ -171,7 +172,18 @@ td_file *td_parent_dir(td_engine *engine, td_file *f)
 		if (TD_PATHSEP == ch)
 		{
 			if (i > 0)
+			{
 				path_buf[i] = '\0';
+
+#if defined(TUNDRA_WIN32)
+				/* return "x:\" instead of "x:" as the latter means something else */
+				if (i == 2 && path_buf[1] == ':')
+				{
+					path_buf[2] = '\\';
+					path_buf[3] = '\0';
+				}
+#endif
+			}
 			else
 			{
 				/* if we get here the path looks like /foo or \foo which means
