@@ -35,8 +35,7 @@ enum {
 	TD_RELCACHE_TTL_SECS = 60 * 60 * 24 * TD_RELCACHE_TTL_DAYS,
 };
 
-static const uint32_t td_relcache_magic =
-	0xffed0000u + (sizeof(void*) << 8) + (sizeof(long) << 4) + sizeof(time_t);
+static const uint32_t td_relcache_magic = 0x9fedbabeu;
 
 /*
  * Frozen file format for relation cache entries.
@@ -76,14 +75,18 @@ typedef struct td_frozen_rel_header {
 	uint32_t node_count;
 } td_frozen_rel_header;
 
+typedef char td_frozen_rel_header_size_check[sizeof(td_frozen_rel_header) == 16 ? 1 : -1];
+
 typedef struct td_frozen_relation {
 	uint32_t string_index;
 	uint32_t salt;
-	time_t access_time;
+	uint64_t access_time;
 	uint32_t first_relation_offset;
 	uint32_t relation_count;
 	td_digest signature;
 } td_frozen_relation;
+
+typedef char td_frozen_relation_size_check[sizeof(td_frozen_relation) == 40 ? 1 : -1];
 
 typedef struct td_frozen_reldata {
 	td_frozen_rel_header header;
@@ -107,7 +110,7 @@ typedef struct td_relcell
 	struct td_file **files;
 
 	/* a timestamp when this node was last touched, for gc */
-	time_t timestamp;
+	uint64_t timestamp;
 
 	uint32_t child_list_start;
 

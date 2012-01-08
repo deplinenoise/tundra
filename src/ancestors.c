@@ -27,6 +27,7 @@
 #include <string.h>
 #include <assert.h>
 
+#define TD_ANCESTOR_MAGIC 0xf189affeu
 #define TD_ANCESTOR_FILE ".tundra-ancestors"
 
 static void
@@ -65,6 +66,7 @@ td_load_ancestors(td_engine *engine)
 	int i, count;
 	long file_size;
 	size_t read_count;
+	uint32_t magic;
 
 	if (NULL == (f = fopen(TD_ANCESTOR_FILE, "rb")))
 	{
@@ -76,6 +78,14 @@ td_load_ancestors(td_engine *engine)
 	fseek(f, 0, SEEK_END);
 	file_size = ftell(f);
 	rewind(f);
+
+	fread(&magic, 1, sizeof magic, f);
+	if (magic != TD_ANCESTOR_MAGIC) {
+		fprintf(stderr, "warning: bad ancestor magic; discarding build history\n");
+		return;
+	}
+
+	file_size -= sizeof magic;
 
 	if (file_size % sizeof(td_ancestor_data) != 0)
 		td_croak("illegal ancestor file: %d not a multiple of %d bytes",
@@ -109,7 +119,8 @@ td_load_ancestors(td_engine *engine)
 			char guid[33], sig[33];
 			td_digest_to_string(&engine->ancestors[i].guid, guid);
 			td_digest_to_string(&engine->ancestors[i].input_signature, sig);
-			printf("%s %s %ld %d\n", guid, sig, (long) engine->ancestors[i].access_time, engine->ancestors[i].job_result);
+			printf("%s %s %ld %d\n", guid, sig,
+					(long) engine->ancestors[i].access_time, engine->ancestors[i].job_result);
 		}
 	}
 
@@ -167,7 +178,7 @@ update_ancestors(
 	else if (ancestor_data)
 		memcpy(&output[output_index].input_signature, &ancestor_data->input_signature, sizeof(td_digest));
 
-	output[output_index].access_time = now;
+	output[output_index].access_time = (uint64_t) now;
 	output[output_index].job_result = node->job.state;
 
 	for (i = 0, count = node->dep_count; i < count; ++i)
@@ -183,7 +194,7 @@ enum {
 static int
 ancestor_timed_out(const td_ancestor_data *data, time_t now)
 {
-	return data->access_time + TD_ANCESTOR_TTL_SECS < now;
+	return ((time_t)data->access_time) + TD_ANCESTOR_TTL_SECS < now;
 }
 
 void
@@ -196,12 +207,15 @@ td_save_ancestors(td_engine *engine, td_node *root)
 	unsigned char *visited;
 	time_t now = time(NULL);
 	const int dbg = td_debug_check(engine, TD_DEBUG_ANCESTORS);
+	const uint32_t magic = TD_ANCESTOR_MAGIC;
 
 	if (NULL == (f = fopen(TD_ANCESTOR_FILE ".tmp", "wb")))
 	{
 		fprintf(stderr, "warning: couldn't save ancestors\n");
 		return;
 	}
+
+	fwrite(&magic, 1, sizeof magic, f);
 
 	max_count = engine->node_count + engine->ancestor_count;
 	output = (td_ancestor_data *) malloc(sizeof(td_ancestor_data) * max_count);

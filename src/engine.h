@@ -158,9 +158,12 @@ typedef struct td_ancestor_data
 {
 	td_digest guid;
 	td_digest input_signature;
-	int job_result;
-	time_t access_time;
+	int32_t job_result;
+	uint64_t access_time;
+	char padding_[4];
 } td_ancestor_data;
+
+typedef char td_ancestor_data_size_check[sizeof(td_ancestor_data) == 48];
 
 enum {
 	/* Don't delete node outputs on build error or when cleaning. Useful for
@@ -343,7 +346,7 @@ typedef struct td_engine
 	struct td_node **ancestor_used;
 
 	/* A start time; saved with newly created ancestor records for future GC. */
-	time_t start_time;
+	uint64_t start_time;
 
 	/* Deserialized relation cache data. */
 	struct td_frozen_reldata *relcache_data;

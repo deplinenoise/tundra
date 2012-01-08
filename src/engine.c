@@ -370,7 +370,7 @@ static int make_engine(lua_State *L)
 
 	self->file_hash_size = 92413;
 	self->relhash_size = 92413;
-	self->start_time = time(NULL);
+	self->start_time = (uint64_t) time(NULL);
 	self->settings.thread_count = td_get_processor_count();
 
 	/* apply optional overrides */
