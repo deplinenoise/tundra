@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <ctype.h>
 
 #if defined(TUNDRA_WIN32)
 #include <malloc.h> /* alloca */
@@ -234,6 +235,18 @@ int td_sanitize_lua_path(lua_State *L)
 	return 1;
 }
 
+static int isabspath(const char *path)
+{
+	return
+		path[0] == '/' ||
+		path[0] == '\\' ||
+#if defined(TUNDRA_WIN32)
+		(isalpha(path[0]) && path[1] == ':' && (path[2] == '/' || path[2] == '\\'));
+#else
+		0;
+#endif
+}
+
 td_file *
 td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode mode)
 {
@@ -242,16 +255,27 @@ td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode m
 	td_file *chain;
 	td_file *f;
 	int path_len;
-	char path[512];
+	char path[1024];
 	const char *out_path;
 	size_t input_path_len = strlen(input_path);
+	static char cwd[512];
 
 	if (input_path_len >= sizeof(path))
 		td_croak("path too long: %s", input_path);
 
 	if (TD_COPY_STRING == mode)
 	{
-		strcpy(path, input_path);
+		if (isabspath(input_path))
+		{
+			strcpy(path, input_path);
+		}
+		else
+		{
+			if (!cwd[0])
+				td_get_cwd_c(cwd, sizeof cwd);
+			snprintf(path, sizeof path, "%s%c%s", cwd, TD_PATHSEP, input_path);
+		}
+
 		sanitize_path(path, sizeof(path), input_path_len);
 		hash = (unsigned int) djb2_hash(path);
 		out_path = path;
