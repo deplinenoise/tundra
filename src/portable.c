@@ -630,18 +630,24 @@ td_init_homedir()
 #endif
 }
 
+void
+td_get_cwd_c(char buffer[], int bufsize)
+{
+#if defined(TUNDRA_WIN32)
+	DWORD res = GetCurrentDirectoryA((DWORD)bufsize, buffer);
+	if (0 == res || ((DWORD)bufsize) <= res)
+		td_croak("couldn't get working directory");
+#else
+	if (NULL == getcwd(buffer, bufsize))
+		td_croak("couldn't get working directory");
+#endif
+}
+
 int
 td_get_cwd(struct lua_State *L)
 {
 	char buffer[512];
-#if defined(TUNDRA_WIN32)
-	DWORD res = GetCurrentDirectoryA(sizeof(buffer), buffer);
-	if (0 == res || sizeof(buffer) <= res)
-		return luaL_error(L, "couldn't get working dir: win32 error=%d", (int) GetLastError());
-#else
-	if (NULL == getcwd(buffer, sizeof(buffer)))
-		return luaL_error(L, "couldn't get working dir: %s", strerror(errno));
-#endif
+	td_get_cwd_c(buffer, sizeof buffer);
 	lua_pushstring(L, buffer);
 	return 1;
 }

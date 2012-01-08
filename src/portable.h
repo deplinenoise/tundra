@@ -116,6 +116,7 @@ int td_exec(
 #if defined(_WIN32)
 int td_win32_register_query(struct lua_State *L);
 #endif
+void td_get_cwd_c(char buffer[], int buffer_size);
 int td_set_cwd(struct lua_State *L);
 
 int td_get_processor_count(void);
