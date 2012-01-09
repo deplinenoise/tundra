@@ -574,11 +574,11 @@ local function generate_dag(build_tuples, args, passes, configs, named_targets)
 		end
 	end
 
-	-- This is a regular build. Assume these generator sets are always
-	-- needed for now. Could possible make an option for which generator
-	-- sets to load in the future.
-	require "tundra.nodegen.native"
-	require "tundra.nodegen.dotnet"
+	-- This is a regular build. Assume syntax for C and DotNet is always needed
+	-- for now. Could possible make an option for which generator sets to load
+	-- in the future.
+	require "tundra.syntax.native"
+	require "tundra.syntax.dotnet"
 
 	local everything = {}
 
