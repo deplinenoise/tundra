@@ -44,6 +44,9 @@
 #define snprintf _snprintf
 #endif
 
+static char cwd[512];
+static size_t cwdlen;
+
 char td_scanner_hook_key;
 char td_node_hook_key;
 char td_dirwalk_hook_key;
@@ -258,7 +261,6 @@ td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode m
 	char path[1024];
 	const char *out_path;
 	size_t input_path_len = strlen(input_path);
-	static char cwd[512];
 
 	if (input_path_len >= sizeof(path))
 		td_croak("path too long: %s", input_path);
@@ -271,9 +273,7 @@ td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode m
 		}
 		else
 		{
-			if (!cwd[0])
-				td_get_cwd_c(cwd, sizeof cwd);
-			snprintf(path, sizeof path, "%s%c%s", cwd, TD_PATHSEP, input_path);
+			snprintf(path, sizeof path, "%s%s", cwd, input_path);
 		}
 
 		sanitize_path(path, sizeof(path), input_path_len);
@@ -352,6 +352,16 @@ static int make_engine(lua_State *L)
 	int debug_signing = 0;
 	int use_digest_signing = 0;
 	td_engine *self;
+
+	td_get_cwd_c(cwd, sizeof cwd);
+	cwdlen = strlen(cwd);
+
+	if (cwd[cwdlen-1] != TD_PATHSEP)
+	{
+		cwd[cwdlen] = TD_PATHSEP;
+		cwd[cwdlen + 1] = '\0';
+		++cwdlen;
+	}
 
 	self = lua_newuserdata(L, sizeof(td_engine));
 	memset(self, 0, sizeof(td_engine));
@@ -943,7 +953,24 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 		
 		if (emit)
 		{
-			lua_pushstring(L, fn);
+#if defined(TUNDRA_WIN32)
+#  if defined(_MSC_VER)
+			int match = _strnicmp(cwd, fn, cwdlen);
+#  else
+			int match = strnicmp(cwd, fn, cwdlen);
+#  endif
+#else
+			int match = strncmp(cwd, fn, cwdlen);
+#endif
+			if (0 == match)
+			{
+				lua_pushstring(L, fn + cwdlen);
+			}
+			else
+			{
+				lua_pushstring(L, fn);
+			}
+
 			lua_rawseti(L, 2, ++table_size);
 		}
 	}
