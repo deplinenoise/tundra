@@ -75,8 +75,10 @@ sub with_sandbox($$) {
 	die $@ if $@;
 }
 
-sub run_tundra($) {
+sub run_tundra($;$) {
     my $config = shift;
+	my $args = shift;
+	$args = "" unless defined $args;
 
 	my $pid = open (my $child, "-|", "$tundra_path $tundra_options -C $testdir $config 2>&1");
 	fail "cannot start tundra at $tundra_path: $!" unless defined($pid);

@@ -51,7 +51,7 @@ sub run_test($) {
 	};
 
 	with_sandbox($files, sub {
-		run_tundra 'foo-bar', 'foo';
+		run_tundra('foo-bar', 'foo');
 		expect_output_contents 'test.output', uppercase($test_input1);
 		fail "bar target was built" if output_file_exists 'test2.output';
 	});
