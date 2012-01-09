@@ -28,7 +28,15 @@ local default_pass = { Name = "Default", BuildOrder = 100000 }
 function create_node(env_, data_)
 	assert(environment.is_environment(env_))
 
-	local function normalize_paths(paths)
+	local function quote_path(p)
+		if p:find(' ', 1, true) then
+			return '"' .. p .. '"'
+		else
+			return p
+		end
+	end
+
+	local function normalize_paths(paths, quote)
 		return util.mapnil(paths, function (x)
 			if type(x) == "string" then
 				return path.normalize(env_:interpolate(x))
@@ -48,9 +56,10 @@ function create_node(env_, data_)
 	local inputs = util.merge_arrays_2(regular_inputs, implicit_inputs)
 	local outputs = normalize_paths(data_.OutputFiles)
 	
+	-- Quote the paths before interpolation into the command line
 	local expand_env = {
-		['<'] = normalize_paths(regular_inputs),
-		['@'] = outputs
+		['<'] = util.mapnil(regular_inputs, quote_path),
+		['@'] = util.mapnil(outputs, quote_path),
 	}
 
 	local overwrite = true
