@@ -13,7 +13,7 @@ use Digest::MD5 qw(md5_hex);
 
 BEGIN {
     use Exporter ();
-    our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, $tundra_path, @tests, $testdir);
+    our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, $tundra_path, @tests, $testdir, $objectroot);
 
     $VERSION = 1.00;
     @ISA = qw(Exporter);
@@ -23,7 +23,7 @@ BEGIN {
 		&update_file &with_sandbox &bump_timestamp
 		&md5_output_file
 		&fail);
-    @EXPORT_OK = qw(&load_tests &run_tests);
+    @EXPORT_OK = qw(&load_tests &run_tests $objectroot);
 }
 
 our $DEBUG = 0;
@@ -33,6 +33,9 @@ our @tests = ();
 our $testdir = "";
 our $curr_config = "";
 our $curr_output_dir = "";
+our $curr_script = "";
+our $keep_sandbox = 0;
+our $objectroot = 'tundra-output';
 
 sub fail($) {
 	my $msg = shift;
@@ -64,7 +67,11 @@ sub with_sandbox($$) {
 		}
 		&$proc();
 	};
-	remove_tree($testdir);
+	if ($keep_sandbox) {
+		print "Sandbox left at $testdir\n";
+	} else {
+		remove_tree($testdir)
+	}
 	die $@ if $@;
 }
 
@@ -91,7 +98,7 @@ sub run_tundra($) {
 
 	# Store away config & output dir for convenience later when checking results.
 	$curr_config = $config;
-	$curr_output_dir = catdir('tundra-output', $curr_config . '-debug-default');
+	$curr_output_dir = catdir($objectroot, $curr_config . '-debug-default');
 }
 
 sub expect_contents($$) {
@@ -167,6 +174,7 @@ END
 
 sub deftest($) {
 	my $t = shift;
+	$t->{path} = $curr_script;
 	push @tests, $t;
 }
 
@@ -178,6 +186,7 @@ sub load_tests($) {
 		if ($_ eq "t.pl" && -f) {
 			my $pkgname = sprintf "tundra_test%08x", $test_idx++;
 			my $script = wrap_script $pkgname, read_file($_);
+			local $curr_script = "${File::Find::dir}/$_";
 			my $result = eval $script;
 			unless ($result) {
 				print STDERR "couldn't load test ${File::Find::dir}/$_: $@\n";
@@ -189,13 +198,25 @@ sub load_tests($) {
 	File::Find::find($visit_test, "test");
 }
 
-sub run_tests($) {
+sub run_tests($\@) {
 	local $tundra_path = shift;
+	my $filter = shift;
+	my %filter_hash = ();
+	my $have_filter = 0;
 	my $group_count = scalar(@tests);
 	my ($test_count, $pass_count) = (0, 0);
 	printf "Running %d test group%s\n", $group_count, $group_count == 1 ? "" : "s";
 
+	foreach my $f (@$filter) {
+		$have_filter = 1;
+		$filter_hash{$f} = 1;
+	}
+
 	foreach my $t (@tests) {
+		if ($have_filter and not $filter_hash{$t->{path}}) {
+			print "\nSkipping $t->{name} ($t->{path})\n";
+			next;
+		}
 		my ($gtest_count, $gpass_count) = (0, 0);
 		print "\nGroup: $t->{name}\n";
 		my $procs = $t->{procs};
@@ -217,12 +238,18 @@ sub run_tests($) {
 		$test_count += $gtest_count;
 		$pass_count += $gpass_count;
 
-		printf "Group summary: %d of %d passed (%.2f%%)\n",
+		if ($gtest_count > 0) {
+			printf "Group summary: %d of %d passed (%.2f%%)\n",
 			$gpass_count, $gtest_count, 100.0 * $gpass_count / $gtest_count;
+		}
 	}
 
-	printf "\nSummary: %d of %d tests passed (%.2f%%)\n",
+	if ($test_count > 0) {
+		printf "\nSummary: %d of %d tests passed (%.2f%%)\n",
 		$pass_count, $test_count, 100.0 * $pass_count / $test_count;
+	} else {
+		print "\nNo tests were run. Maybe your filter was too good?\n";
+	}
 }
 
 1;
