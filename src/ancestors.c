@@ -82,6 +82,7 @@ td_load_ancestors(td_engine *engine)
 	fread(&magic, 1, sizeof magic, f);
 	if (magic != TD_ANCESTOR_MAGIC) {
 		fprintf(stderr, "warning: bad ancestor magic; discarding build history\n");
+		fclose(f);
 		return;
 	}
 
