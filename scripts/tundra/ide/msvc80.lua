@@ -20,9 +20,10 @@
 
 module(..., package.seeall)
 
-local nodegen = require"tundra.nodegen"
-local util = require"tundra.util"
-local native = require"tundra.native"
+local nodegen = require "tundra.nodegen"
+local util = require "tundra.util"
+local native = require "tundra.native"
+local msvc_common = require "tundra.ide.msvc-common"
 
 local Options = tundra.boot.Options
 
@@ -177,7 +178,8 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 	local projects = {}
 
 	for _, unit in ipairs(raw_nodes) do
-		projects[#projects + 1] = ngen:get_node_of(unit.Decl.Name)
+		local data = msvc_common.extract_data(unit, env)
+		if data then projects[#projects + 1] = data; end
 	end
 
 	local meta_name = "00-Tundra"
@@ -197,6 +199,8 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 
 	local base_dir = env:interpolate('$(OBJECTROOT)$(SEP)')
 
+	native.mkdir(base_dir)
+
 	local sln_file = base_dir .. "tundra-generated.sln" -- FIXME: pass in solution name
 	self:generate_solution(sln_file, projects)
 
@@ -205,34 +209,7 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 	end
 end
 
-
-function apply_nodegen(state)
-	local types = { "Program", "SharedLibrary", "StaticLibrary", "CSharpExe", "CSharpLib", "ExternalLibrary" } 
-	for _, type_name in ipairs(types) do
-		nodegen.add_evaluator(type_name, function (generator, env, decl)
-			local relative_fn = decl.Name .. ".vcproj"
-			local sources = nodegen.flatten_list("*-*-*-*", decl.Sources) or {}
-			sources = util.filter(sources, function (x) return type(x) == "string" end)
-
-			if decl.SourceDir then
-				sources = util.map(sources, function (x) return decl.SourceDir .. x end)
-			end
-
-			sources = util.map(sources, function (x) return x:gsub('/', '\\') end)
-
-			return {
-				Decl = decl,
-				Type = type_name,
-				Sources = sources,
-				RelativeFilename = relative_fn, 
-				Filename = env:interpolate("$(OBJECTROOT)$(SEP)" .. relative_fn),
-				Guid = native.digest_guid(decl.Name)
-			}
-		end)
-	end
-
-	nodegen.set_ide_backend(function(...)
-		local state = setmetatable({}, msvc_generator)
-		state:generate_files(...)
-	end)
-end
+nodegen.set_ide_backend(function(...)
+	local state = setmetatable({}, msvc_generator)
+	state:generate_files(...)
+end)

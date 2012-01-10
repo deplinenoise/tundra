@@ -574,12 +574,6 @@ local function generate_dag(build_tuples, args, passes, configs, named_targets)
 		end
 	end
 
-	-- This is a regular build. Assume syntax for C and DotNet is always needed
-	-- for now. Could possible make an option for which generator sets to load
-	-- in the future.
-	require "tundra.syntax.native"
-	require "tundra.syntax.dotnet"
-
 	local everything = {}
 
 	if cache_flag then
@@ -715,6 +709,12 @@ function _G.Build(args)
 		native.exit(0)
 	end
 
+	-- Assume syntax for C and DotNet is always needed
+	-- for now. Could possible make an option for which generator sets to load
+	-- in the future.
+	require "tundra.syntax.native"
+	require "tundra.syntax.dotnet"
+
 	if not Options.IdeGeneration then
 		GlobalEngine = create_build_engine(args.EngineOptions)
 
@@ -728,7 +728,11 @@ function _G.Build(args)
 	else
 		-- We are generating IDE integration files. Load the specified
 		-- integration module rather than DAG builders.
-		nodegen.add_generator_set("ide", Options.IdeGeneration)
+		local ide_script = Options.IdeGeneration
+		if not ide_script:find('.', 1, true) then
+			ide_script = 'tundra.ide.' .. ide_script
+		end
+		require(ide_script)
 
 		-- Parse the units file
 		local raw_nodes, default_names, always_names = parse_units(build_tuples, args, passes)

@@ -147,6 +147,7 @@ extern int td_cpp_scanner_open(lua_State*);
 extern int td_generic_scanner_open(lua_State*);
 extern int td_get_cwd(lua_State*);
 extern int td_set_cwd(lua_State*);
+extern int td_mkdir_lua(lua_State*);
 extern int td_sanitize_lua_path(lua_State*);
 
 static int tundra_open(lua_State *L)
@@ -163,6 +164,7 @@ static int tundra_open(lua_State *L)
 		/* working dir mgmt */
 		{ "get_cwd", td_get_cwd },
 		{ "set_cwd", td_set_cwd },
+		{ "mkdir", td_mkdir_lua },
 		{ "install_profiler", td_luaprof_install },
 		{ "report_profiler", td_luaprof_report },
 		{ "delete_file", tundra_delete_file },

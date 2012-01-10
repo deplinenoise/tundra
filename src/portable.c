@@ -426,6 +426,14 @@ td_mkdir(const char *path)
 }
 
 int
+td_mkdir_lua(lua_State *L)
+{
+	const char *path = luaL_checkstring(L, 1);
+	lua_pushinteger(L, td_mkdir(path));
+	return 1;
+}
+
+int
 td_rmdir(const char *path)
 {
 #if defined(TUNDRA_UNIX)
