@@ -20,6 +20,8 @@
    along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stddef.h>
+
 #ifdef _MSC_VER
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
@@ -43,6 +45,7 @@ int td_rmdir(const char *path);
 int fs_stat_file(const char *filename, struct td_stat *out);
 int td_move_file(const char *source, const char *dest);
 
+int td_get_executable_path(char *buffer, size_t bufsize);
 const char* td_init_homedir(void);
 
 extern const char * const td_platform_string;

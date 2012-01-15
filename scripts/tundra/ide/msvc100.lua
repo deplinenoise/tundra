@@ -115,7 +115,7 @@ function msvc_generator:generate_project(project)
 
 		local root_dir = ".." -- FIXME
 		local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
-		local base = "tundra -C " .. root_dir .. " "
+		local base = tundra.boot.TundraExePath .. " -C " .. root_dir .. " "
 		build_cmd = base .. build_id
 		clean_cmd = base .. "-c " .. build_id
 

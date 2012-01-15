@@ -250,17 +250,21 @@ int main(int argc, char** argv)
 {
 	td_bin_allocator bin_alloc;
 	const char *homedir;
+	char exepath[512];
 	int res, rc, i;
 	lua_State* L;
 
 	td_init_portable();
 
-#if !defined(TD_STANDALONE)
-	if (NULL == (homedir = td_init_homedir()))
+	if (0 != td_get_executable_path(exepath, sizeof exepath)) {
+		fprintf(stderr, "couldn't find path to tundra executable");
 		return 1;
-#else
-	homedir = "";
-#endif
+	}
+
+	if (NULL == (homedir = td_init_homedir())) {
+		fprintf(stderr, "couldn't find tundra home dir");
+		return 1;
+	}
 
 	td_bin_allocator_init(&bin_alloc);
 
@@ -320,20 +324,21 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	lua_newtable(L);
 	lua_pushstring(L, homedir);
-	lua_rawseti(L, -2, 1);
 
+	lua_newtable(L);
+	lua_pushstring(L, exepath);
+	lua_rawseti(L, -2, 1);
 	for (i=1; i<argc; ++i)
 	{
 		lua_pushstring(L, argv[i]);
-		lua_rawseti(L, -2, i+1);
+		lua_rawseti(L, -2, i + 1);
 	}
 
 	{
 		double t2;
 		script_call_t1 = td_timestamp();
-		res = lua_pcall(L, /*narg:*/1, /*nres:*/0, /*errorfunc:*/ -3);
+		res = lua_pcall(L, /*narg:*/2, /*nres:*/0, /*errorfunc:*/ -4);
 		t2 = td_timestamp();
 		if (global_tundra_stats)
 			printf("total time spent in tundra: %.4fs\n", t2 - script_call_t1);

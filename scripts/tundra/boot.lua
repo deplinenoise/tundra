@@ -744,8 +744,9 @@ function _G.Build(args)
 	end
 end
 
-function main(cmdline_args)
-	TundraRootDir = assert(cmdline_args[1])
+function main(tundra_root_dir, cmdline_args)
+	TundraRootDir = tundra_root_dir
+	TundraExePath = cmdline_args[1]
 
 	-- Parse the command line options.
 	local message = nil

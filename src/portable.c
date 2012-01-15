@@ -758,58 +758,59 @@ set_homedir(const char* dir)
 	return homedir;
 }
 
-const char *
-td_init_homedir()
+int
+td_get_executable_path(char *buffer, size_t bufsize)
 {
-	char* tmp;
-	if (NULL != (tmp = getenv("TUNDRA_HOME")))
-		return set_homedir(tmp);
-
 #if defined(TUNDRA_WIN32)
-	if (0 == GetModuleFileNameA(NULL, homedir, (DWORD)sizeof(homedir)))
-		return NULL;
-
-	if (NULL != (tmp = strrchr(homedir, '\\')))
-		*tmp = 0;
-	return homedir;
-
-#elif defined(TUNDRA_APPLE)
-	char path[1024], resolved_path[1024];
-	uint32_t size = sizeof(path);
-	if (_NSGetExecutablePath(path, &size) != 0)
-		return NULL;
-	if ((tmp = dirname(realpath(path, resolved_path))))
-		return set_homedir(tmp);
+	if (0 == GetModuleFileNameA(NULL, buffer, (DWORD)bufsize))
+		return 1;
 	else
-		return NULL;
-	
-
+		return 0;
+#elif defined(TUNDRA_APPLE)
+	uint32_t size = bufsize;
+	return _NSGetExecutablePath(buffer, &size);
 #elif defined(TUNDRA_LINUX)
-	if (-1 == readlink("/proc/self/exe", homedir, sizeof(homedir)))
-		return NULL;
-
-	if ((tmp = strrchr(homedir, '/')))
-		*tmp = 0;
-	return homedir;
+	if (-1 == readlink("/proc/self/exe", buffer, bufsize))
+		return 1;
+	else
+		return 0;
 #elif defined(TUNDRA_FREEBSD)
-	/* FreeBSD has a sysctl query function to get at the ELF path. */
-	size_t cb = sizeof(homedir);
+	size_t cb = bufsize;
 	int mib[4];
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PATHNAME;
 	mib[3] = -1;
-	if (0 != sysctl(mib, 4, homedir, &cb, NULL, 0))
-		return NULL;
-
-	if ((tmp = strrchr(homedir, '/')))
-		*tmp = 0;
-	return homedir;
-#elif defined(TUNDRA_OPENBSD)
-	/* Not supporting homedir on OpenBSD right now ... */
-	return NULL;
+	return sysctl(mib, 4, buffer, &cb, NULL, 0);
 #else
 #error "unsupported platform"
+#endif
+}
+
+const char *
+td_init_homedir(void)
+{
+	char dir[512];
+	char* tmp;
+
+	if (NULL != (tmp = getenv("TUNDRA_HOME")))
+		return set_homedir(tmp);
+
+	if (0 != td_get_executable_path(dir, sizeof dir))
+		return NULL;
+
+#if defined(TUNDRA_WIN32)
+	if (NULL != (tmp = strrchr(dir, TD_PATHSEP)))
+		*tmp = 0;
+	return set_homedir(dir);
+#else
+	{
+		char resolved[512];
+		if ((tmp = dirname(realpath(dir, resolved))))
+			return set_homedir(tmp);
+		else
+			return NULL;
+	}
 #endif
 }
 
