@@ -719,7 +719,7 @@ function generate_ide_files(config_tuples, default_names, raw_nodes, env)
 	assert(state.default_env)
 	create_unit_map(state, raw_nodes)
 	local backend_fn = assert(ide_backend)
-	backend_fn(state, config_tuples, raw_nodes, env)
+	backend_fn(state, config_tuples, raw_nodes, env, default_names)
 end
 
 function set_ide_backend(backend_fn)

@@ -36,25 +36,31 @@ function create_node(env_, data_)
 		end
 	end
 
-	local function normalize_paths(paths, quote)
+	local function normalize_paths(paths, full_path)
 		return util.mapnil(paths, function (x)
 			if type(x) == "string" then
-				return path.normalize(env_:interpolate(x))
+				return path.normalize(env_:interpolate(full_path .. x))
 			else
 				return x
 			end
 		end)
 	end
 
+	local full_path = ""
+
+	if native.host_platform == "macosx" then 
+		full_path = native.get_cwd() .. env_:get("SEP") 
+	end
+
 	-- these are the inputs that $(<) expand to
-	local regular_inputs = normalize_paths(data_.InputFiles)
+	local regular_inputs = normalize_paths(data_.InputFiles, full_path)
 
 	-- these are other, auxillary input files that shouldn't appear on the command line
 	-- useful to e.g. add an input dependency on a tool
-	local implicit_inputs = normalize_paths(data_.ImplicitInputs)
+	local implicit_inputs = normalize_paths(data_.ImplicitInputs, full_path)
 
 	local inputs = util.merge_arrays_2(regular_inputs, implicit_inputs)
-	local outputs = normalize_paths(data_.OutputFiles)
+	local outputs = normalize_paths(data_.OutputFiles, full_path)
 	
 	-- Quote the paths before interpolation into the command line
 	local expand_env = {
