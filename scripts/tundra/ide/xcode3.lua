@@ -585,7 +585,6 @@ local function write_configs(p, projects, config_tuples, env)
 
 	for __, project in ipairs(projects) do
 		for _, tuple in ipairs(config_tuples) do
-
 			local full_config_name = get_full_config_name(tuple)
 
 			local is_macosx_native = tuple.Config.Name:match('^(%macosx)%-')
@@ -695,7 +694,7 @@ local function generate_shellscript(env)
 	p:write('if [ "$5" = "build" ]; then\n')
 	p:write('    ACTION=""\n')
 	p:write("fi\n\n")
-	p:write(tundra.boot.TundraExePath .. " $TARGET_NAME $CONFIG-$VARIANT-$SUBVARIANT $ACTION -v\n")
+	p:write(tundra.boot.TundraExePath .. " --full-paths $TARGET_NAME $CONFIG-$VARIANT-$SUBVARIANT $ACTION -v\n")
 	p:close()
 	os.execute("chmod +x " .. filename)
 	local filename = path.join(get_absolute_output_path(env), "xcodeupdateproj")

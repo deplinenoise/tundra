@@ -52,7 +52,7 @@ function open_cache(tmp)
 	end)
 end
 
-function commit_cache(tuples, lua_files, cache_file, named_targets)
+function commit_cache(tuples, lua_files, cache_file, named_targets, full_paths)
 	cache_stream:write("local e = tundra.boot.GlobalEngine\n")
 	cache_stream:write("Tuples = {\n")
 	for _, tuple in ipairs(tuples) do
@@ -62,6 +62,10 @@ function commit_cache(tuples, lua_files, cache_file, named_targets)
 		local str = string.format("\t{ %q, %q, %q },\n", cfg, variant, subv)
 		cache_stream:write(str)
 	end
+	cache_stream:write("}\n")
+
+	cache_stream:write("Options = {\n")
+	cache_stream:write(string.format("\tFullPaths = %d\n", full_paths))
 	cache_stream:write("}\n")
 
 	cache_stream:write("Files = {\n")

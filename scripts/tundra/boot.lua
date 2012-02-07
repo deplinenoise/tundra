@@ -559,6 +559,16 @@ local function get_cached_dag(build_tuples, args, named_targets)
 		end
 	end
 
+	if not env.Options then
+		print("discarding cached DAG; old format")
+		return nil
+	end
+	
+	if env.Options.FullPaths ~= (Options.FullPaths or 0) then
+		print("discarding cached DAG; differing --full-paths option")
+		return nil
+	end
+
 	if Options.Verbose then
 		print("using cached DAG")
 	end
@@ -605,7 +615,7 @@ local function generate_dag(build_tuples, args, passes, configs, named_targets)
 	}
 
 	if cache_flag then
-		cache.commit_cache(build_tuples, accessed_lua_files, cache_file, named_targets)
+		cache.commit_cache(build_tuples, accessed_lua_files, cache_file, named_targets, Options.FullPaths or 0)
 	end
 
 	return all
@@ -728,6 +738,11 @@ function _G.Build(args)
 	else
 		-- We are generating IDE integration files. Load the specified
 		-- integration module rather than DAG builders.
+		--
+		-- Also, default to using full paths for all commands to aid locate
+		-- sources better.
+		Options.FullPaths = 1
+
 		local ide_script = Options.IdeGeneration
 		if not ide_script:find('.', 1, true) then
 			ide_script = 'tundra.ide.' .. ide_script
@@ -775,6 +790,7 @@ function main(tundra_root_dir, cmdline_args)
 		{ Name="SelfTest", Long="self-test", Doc="Run a test of Tundra's internals" },
 		{ Name="Profile", Long="lua-profile", Doc="Enable the Lua profiler" },
 		{ Name="Init", Long="init", Doc="Create a default tundra.lua in the current directory." },
+		{ Name="FullPaths", Long="full-paths", Doc="Use full paths in executed command lines." },
 	}
 	Options, Targets, message = util.parse_cmdline(cmdline_args, option_blueprints)
 	if message then

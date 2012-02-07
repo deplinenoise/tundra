@@ -87,3 +87,19 @@ function make_object_filename(env, src_fn, suffix)
 
 	return object_fn
 end
+
+function is_absolute(v)
+	local first = v:sub(1, 1)
+	if first == "/" or first == "\\" then
+		return true
+	end
+
+	if native.host_platform == "windows" then
+		local sep = v:sub(2, 3)
+		if sep == ':\\' or sep == ':/' then
+			return true
+		end
+	end
+
+	return false
+end

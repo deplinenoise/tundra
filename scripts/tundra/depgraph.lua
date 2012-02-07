@@ -36,31 +36,37 @@ function create_node(env_, data_)
 		end
 	end
 
-	local function normalize_paths(paths, full_path)
+	local root_path = ""
+
+	if boot.Options.FullPaths then 
+		root_path = native.get_cwd() .. env_:get('SEP')
+	end
+
+	local function normalize_paths(paths)
 		return util.mapnil(paths, function (x)
 			if type(x) == "string" then
-				return path.normalize(env_:interpolate(full_path .. x))
+				local v = env_:interpolate(x)
+				v = path.normalize(v)
+				if not path.is_absolute(v) then
+					return root_path .. v
+				else
+					return v
+				end
 			else
 				return x
 			end
 		end)
 	end
 
-	local full_path = ""
-
-	if native.host_platform == "macosx" then 
-		full_path = native.get_cwd() .. env_:get("SEP") 
-	end
-
 	-- these are the inputs that $(<) expand to
-	local regular_inputs = normalize_paths(data_.InputFiles, full_path)
+	local regular_inputs = normalize_paths(data_.InputFiles)
 
 	-- these are other, auxillary input files that shouldn't appear on the command line
 	-- useful to e.g. add an input dependency on a tool
-	local implicit_inputs = normalize_paths(data_.ImplicitInputs, full_path)
+	local implicit_inputs = normalize_paths(data_.ImplicitInputs)
 
 	local inputs = util.merge_arrays_2(regular_inputs, implicit_inputs)
-	local outputs = normalize_paths(data_.OutputFiles, full_path)
+	local outputs = normalize_paths(data_.OutputFiles)
 	
 	-- Quote the paths before interpolation into the command line
 	local expand_env = {
@@ -75,7 +81,7 @@ function create_node(env_, data_)
 
 	local params = {
 		pass = data_.Pass or default_pass,
-		salt = env_:get("BUILD_ID", ""),
+		salt = env_:get("BUILD_ID", "") .. "*" .. (boot.Options.FullPaths and "F" or "R"),
 		scanner = data_.Scanner,
 		deps = data_.Dependencies,
 		inputs = inputs,
