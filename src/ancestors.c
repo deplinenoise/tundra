@@ -79,7 +79,8 @@ td_load_ancestors(td_engine *engine)
 	file_size = ftell(f);
 	rewind(f);
 
-	fread(&magic, 1, sizeof magic, f);
+	if (fread(&magic, 1, sizeof magic, f)) {
+	}
 	if (magic != TD_ANCESTOR_MAGIC) {
 		fprintf(stderr, "warning: bad ancestor magic; discarding build history\n");
 		fclose(f);
