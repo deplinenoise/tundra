@@ -73,12 +73,20 @@ function _native_mt:customize_env(env, raw_data)
 		env:set('_USE_PDB_CC', '$(_USE_PDB_CC_OPT)')
 		env:set('_USE_PDB_LINK', '$(_USE_PDB_LINK_OPT)')
 	end
+
+	local pch = raw_data.PrecompiledHeader
+
+	if pch then
+		assert(pch.Header)
+		env:set('_PCH_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pch")
+		env:set('_USE_PCH', '$(_USE_PCH_OPT)')
+		env:set('_PCH_HEADER', pch.Header)
+	end
 end
 
 function _native_mt:create_dag(env, data, input_deps)
 	local build_id = env:get("BUILD_ID")
 	local my_pass = data.Pass
-	local pch = data.PrecompiledHeader
 	local pch_output
 	local gen_pch_node
 	local sources = data.Sources
@@ -134,19 +142,21 @@ function _native_mt:create_dag(env, data, input_deps)
 		end
 	end
 
+	local pch = data.PrecompiledHeader
 	if pch then
-		assert(pch.Source)
-		assert(pch.Header)
-		pch_output = "$(OBJECTDIR)/" .. data.Name .. ".pch"
-		env:set('_PCH_FILE', pch_output)
-		env:set('_USE_PCH', '$(_USE_PCH_OPT)')
-		env:set('_PCH_HEADER', pch.Header)
+		local pch_pass = nil
+		if pch.Pass then
+			pch_pass = nodegen.resolve_pass(pch.Pass)
+		end
+		if not pch_pass then
+			croak("%s: PrecompiledHeader requires a valid Pass", data.Name)
+		end
 		gen_pch_node = env:make_node {
 			Label = "Precompiled header $(@)",
-			Pass = my_pass,
+			Pass = pch_pass,
 			Action = "$(PCHCOMPILE)",
 			InputFiles = { pch.Source, pch.Header },
-			OutputFiles = { pch_output },
+			OutputFiles = { "$(_PCH_FILE)" },
 		}
 	end
 
