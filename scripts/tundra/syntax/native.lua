@@ -32,7 +32,7 @@ local _native_mt = nodegen.create_eval_subclass {
 } 
 
 local _object_mt = nodegen.create_eval_subclass({
-	Suffix = "$(OBJSUFFIX)",
+	Suffix = "$(OBJECTSUFFIX)",
 	Prefix = "",
 	Action = "$(OBJCOM)",
 	Label = "Object $(@)",
@@ -79,6 +79,7 @@ function _native_mt:customize_env(env, raw_data)
 	if pch then
 		assert(pch.Header)
 		env:set('_PCH_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pch")
+		env:set('_PCH_OBJECT_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. "_pchobj$(OBJECTSUFFIX)")
 		env:set('_USE_PCH', '$(_USE_PCH_OPT)')
 		env:set('_PCH_HEADER', pch.Header)
 	end
@@ -157,6 +158,7 @@ function _native_mt:create_dag(env, data, input_deps)
 			Action = "$(PCHCOMPILE)",
 			InputFiles = { pch.Source, pch.Header },
 			OutputFiles = { "$(_PCH_FILE)" },
+			AuxOutputFiles = { "$(_PCH_OBJECT_FILE)" },
 		}
 	end
 
