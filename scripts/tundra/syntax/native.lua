@@ -83,6 +83,10 @@ function _native_mt:customize_env(env, raw_data)
 		env:set('_USE_PCH', '$(_USE_PCH_OPT)')
 		env:set('_PCH_HEADER', pch.Header)
 	end
+
+	if env:get('MODDEF', '0') ~= '0' then
+		env:set('_USE_MODDEF', '$(_USE_MODDEF_OPT)')
+	end
 end
 
 function _native_mt:create_dag(env, data, input_deps)
@@ -168,6 +172,12 @@ function _native_mt:create_dag(env, data, input_deps)
 		aux_outputs[#aux_outputs + 1] = "$(_PDB_FILE)"
 	end
 
+	local extra_inputs = {};
+	
+	if env:get('MODDEF', '0') ~= '0' then
+		extra_inputs[#extra_inputs + 1] = env:get('MODDEF')
+	end
+
 	local targets = nil
 
 	if self.Action then
@@ -190,6 +200,7 @@ function _native_mt:create_dag(env, data, input_deps)
 		InputFiles = data.Sources,
 		OutputFiles = targets,
 		AuxOutputFiles = aux_outputs,
+		ImplicitInputs = extra_inputs,
 		Dependencies = deps,
 		-- Play it safe and delete the output files of this node before re-running it.
 		-- Solves iterative issues with e.g. AR
