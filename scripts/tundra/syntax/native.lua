@@ -161,8 +161,7 @@ function _native_mt:create_dag(env, data, input_deps)
 			Pass = pch_pass,
 			Action = "$(PCHCOMPILE)",
 			InputFiles = { pch.Source, pch.Header },
-			OutputFiles = { "$(_PCH_FILE)" },
-			AuxOutputFiles = { "$(_PCH_OBJECT_FILE)" },
+			OutputFiles = { "$(_PCH_FILE)", "$(_PCH_OBJECT_FILE)" },
 		}
 	end
 
@@ -185,9 +184,11 @@ function _native_mt:create_dag(env, data, input_deps)
 	end
 
 	local deps = {}
+	local inputs = data.Sources
 
 	if gen_pch_node then
 		deps = util.merge_arrays_2(deps, { gen_pch_node })
+		inputs = util.merge_arrays_2(inputs, { "$(_PCH_OBJECT_FILE)" })
 	end
 
 	deps = util.merge_arrays_2(deps, input_deps)
@@ -197,7 +198,7 @@ function _native_mt:create_dag(env, data, input_deps)
 		Label = self.Label,
 		Pass = data.Pass,
 		Action = self.Action,
-		InputFiles = data.Sources,
+		InputFiles = inputs,
 		OutputFiles = targets,
 		AuxOutputFiles = aux_outputs,
 		ImplicitInputs = extra_inputs,
