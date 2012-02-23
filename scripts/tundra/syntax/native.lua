@@ -84,7 +84,7 @@ function _native_mt:customize_env(env, raw_data)
 		env:set('_PCH_HEADER', pch.Header)
 	end
 
-	if env:get('MODDEF', '0') ~= '0' then
+	if env:has_key('MODDEF') then
 		env:set('_USE_MODDEF', '$(_USE_MODDEF_OPT)')
 	end
 end
@@ -120,7 +120,7 @@ function _native_mt:create_dag(env, data, input_deps)
 			library of the linked-to shared library here; but this would be
 			suboptimal:
 
-			1. Because there is a dependency between the nodes themselves,
+			1. Because there is a dependency between the nodes themselves,22222
 			the import library generation will always run before this link
 			step is run. Therefore, the import lib will always exist and be
 			updated before this link step runs.
@@ -171,10 +171,10 @@ function _native_mt:create_dag(env, data, input_deps)
 		aux_outputs[#aux_outputs + 1] = "$(_PDB_FILE)"
 	end
 
-	local extra_inputs = {};
+	local extra_inputs = {}
 	
-	if env:get('MODDEF', '0') ~= '0' then
-		extra_inputs[#extra_inputs + 1] = env:get('MODDEF')
+	if env:has_key('MODDEF') then
+		extra_inputs[#extra_inputs + 1] = "$(MODDEF)"
 	end
 
 	local targets = nil
