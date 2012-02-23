@@ -120,7 +120,7 @@ function _native_mt:create_dag(env, data, input_deps)
 			library of the linked-to shared library here; but this would be
 			suboptimal:
 
-			1. Because there is a dependency between the nodes themselves,22222
+			1. Because there is a dependency between the nodes themselves,
 			the import library generation will always run before this link
 			step is run. Therefore, the import lib will always exist and be
 			updated before this link step runs.
