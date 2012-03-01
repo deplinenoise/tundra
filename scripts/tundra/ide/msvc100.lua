@@ -233,7 +233,7 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 	local projects = {}
 
 	for _, unit in ipairs(raw_nodes) do
-		local data = msvc_common.extract_data(unit, env)
+		local data = msvc_common.extract_data(unit, env, ".vcxproj")
 		if data then
 			projects[#projects + 1] = data
 		end

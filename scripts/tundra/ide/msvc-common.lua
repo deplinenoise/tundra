@@ -8,12 +8,12 @@ local project_types = util.make_lookup_table {
 	"Program", "SharedLibrary", "StaticLibrary", "CSharpExe", "CSharpLib"
 }
 
-function extract_data(unit, env)
+function extract_data(unit, env, proj_extension)
 	local decl = unit.Decl
 
 	if decl.Name and project_types[unit.Keyword] then
 
-		local relative_fn = decl.Name .. ".vcproj"
+		local relative_fn = decl.Name .. proj_extension
 		local sources = nodegen.flatten_list("*-*-*-*", decl.Sources) or {}
 		sources = util.filter(sources, function (x) return type(x) == "string" end)
 
