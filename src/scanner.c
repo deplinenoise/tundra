@@ -132,7 +132,7 @@ scan_file_data(td_alloc *scratch, td_file *file, td_include_data *out, int max_c
 	if (NULL == (f = fopen(file->path, "r")))
 		return 0;
 
-	for (; !at_end_of_file ;)
+	for (; !at_end_of_file && buffer_size != 0 ;)
 	{
 		char *p, *line;
 		int count, remain;
