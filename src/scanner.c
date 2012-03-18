@@ -122,6 +122,7 @@ scan_file_data(td_alloc *scratch, td_file *file, td_include_data *out, int max_c
 	FILE *f;
 	int file_count = 0;
 	int at_start_of_file = 1;
+	int at_end_of_file = 0;
 	char line_buffer[1024];
 	char *buffer_start = line_buffer;
 	int buffer_size = sizeof(line_buffer);
@@ -131,13 +132,18 @@ scan_file_data(td_alloc *scratch, td_file *file, td_include_data *out, int max_c
 	if (NULL == (f = fopen(file->path, "r")))
 		return 0;
 
-	for (;;)
+	for (; !at_end_of_file && buffer_size != 0 ;)
 	{
 		char *p, *line;
 		int count, remain;
 		count = (int) fread(buffer_start, 1, (int) buffer_size, f);
 		if (0 == count)
-			break;
+		{
+			/* add an implicit newline at the end of the file, which is C++11 conformant and good practical behaviour */
+			buffer_start[0] = '\n';
+			count = 1;
+			at_end_of_file = 1;
+		}
 
 		/* skip past any UTF-8 bytemark, or isspace() and related functions trigger asserts in MSVC debug builds! */
 		if (at_start_of_file && count >= sizeof(utf8_mark) && 0 == memcmp(buffer_start, utf8_mark, sizeof(utf8_mark)))
