@@ -103,3 +103,12 @@ function is_absolute(v)
 
 	return false
 end
+
+-- remove_prefix( "src/include/", "src/include/abc.h" ) -> "abc.h"
+function remove_prefix(prefix, fn)
+	if fn:find(prefix, 1, true) == 1 then
+		return fn:sub(#prefix + 1)
+	else
+		return fn
+	end
+end

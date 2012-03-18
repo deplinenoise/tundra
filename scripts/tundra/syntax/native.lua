@@ -78,10 +78,18 @@ function _native_mt:customize_env(env, raw_data)
 
 	if pch then
 		assert(pch.Header)
+		if not nodegen.resolve_pass(pch.Pass) then
+			croak("%s: PrecompiledHeader requires a valid Pass", raw_data.Name)
+		end
 		env:set('_PCH_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pch")
-		env:set('_PCH_OBJECT_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. "_pchobj$(OBJECTSUFFIX)")
 		env:set('_USE_PCH', '$(_USE_PCH_OPT)')
+		env:set('_PCH_SOURCE', pch.Source)
 		env:set('_PCH_HEADER', pch.Header)
+		env:set('_PCH_PASS', pch.Pass)
+		local pch_source = path.remove_prefix(raw_data.SourceDir or '', pch.Source)
+		if not util.array_contains(raw_data.Sources, pch_source) then
+			raw_data.Sources[#raw_data.Sources + 1] = pch_source
+		end
 	end
 
 	if env:has_key('MODDEF') then
@@ -92,8 +100,6 @@ end
 function _native_mt:create_dag(env, data, input_deps)
 	local build_id = env:get("BUILD_ID")
 	local my_pass = data.Pass
-	local pch_output
-	local gen_pch_node
 	local sources = data.Sources
 	local libsuffix = { env:get("LIBSUFFIX") }
 
@@ -147,24 +153,6 @@ function _native_mt:create_dag(env, data, input_deps)
 		end
 	end
 
-	local pch = data.PrecompiledHeader
-	if pch then
-		local pch_pass = nil
-		if pch.Pass then
-			pch_pass = nodegen.resolve_pass(pch.Pass)
-		end
-		if not pch_pass then
-			croak("%s: PrecompiledHeader requires a valid Pass", data.Name)
-		end
-		gen_pch_node = env:make_node {
-			Label = "Precompiled header $(@)",
-			Pass = pch_pass,
-			Action = "$(PCHCOMPILE)",
-			InputFiles = { pch.Source, pch.Header },
-			OutputFiles = { "$(_PCH_FILE)", "$(_PCH_OBJECT_FILE)" },
-		}
-	end
-
 	local aux_outputs = env:get_list("AUX_FILES_" .. self.Label:upper(), {})
 
 	if env:get('GENERATE_PDB', '0') ~= '0' then
@@ -185,11 +173,6 @@ function _native_mt:create_dag(env, data, input_deps)
 
 	local deps = {}
 	local inputs = data.Sources
-
-	if gen_pch_node then
-		deps = util.merge_arrays_2(deps, { gen_pch_node })
-		inputs = util.merge_arrays_2(inputs, { "$(_PCH_OBJECT_FILE)" })
-	end
 
 	deps = util.merge_arrays_2(deps, input_deps)
 	deps = util.uniq(deps)

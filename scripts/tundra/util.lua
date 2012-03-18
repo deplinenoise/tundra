@@ -324,3 +324,12 @@ function make_lookup_table(array)
 	end
 	return result
 end
+
+function array_contains(array, find)
+	for _, val in ipairs(array) do
+		if val == find then
+			return true
+		end
+	end
+	return false
+end

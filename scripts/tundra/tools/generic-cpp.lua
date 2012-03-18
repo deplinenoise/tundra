@@ -32,7 +32,7 @@ function get_cpp_scanner(env, fn)
 	return env:memoize("CPPPATH", "_cpp_scanner", new_scanner)
 end
 
--- Register implicit make functions for C, C++ ad Objective-C files.
+-- Register implicit make functions for C, C++ and Objective-C files.
 -- These functions are called to transform source files in unit lists into
 -- object files. This function is registered as a setup function so it will be
 -- run after user modifications to the environment, but before nodes are
@@ -41,10 +41,26 @@ local function generic_cpp_setup(env)
 	local _anyc_compile = function(env, pass, fn, label, action)
 		local object_fn = path.make_object_filename(env, fn, '$(OBJECTSUFFIX)')
 
+		local output_files = { object_fn }
+
+		local pch_source = env:get('_PCH_SOURCE', '')
 		local implicit_inputs = nil
-		local pch_input = env:get('_PCH_FILE', '')
-		if pch_input ~= '' then
-			implicit_inputs = { pch_input }
+		
+		if fn == pch_source then
+			
+			label = 'Precompiled header'
+			pass = nodegen.resolve_pass(env:get('_PCH_PASS', ''))
+			action = "$(PCHCOMPILE)"
+			output_files = { "$(_PCH_FILE)", object_fn }
+
+		elseif pch_source ~= '' and fn ~= pch_source then
+
+			-- It would be good to make all non-pch source files dependent upon the .pch node.
+			-- That would require that we generate the .pch node before generating these nodes.
+			-- As it stands presently, when .pch compilation fails, the remaining sources
+			-- fail to compile, but if the dependencies were correctly setup, then they wouldn't
+			-- even try to compile.
+			
 		end
 
 		return env:make_node {
@@ -52,7 +68,7 @@ local function generic_cpp_setup(env)
 			Pass = pass,
 			Action = action,
 			InputFiles = { fn },
-			OutputFiles = { object_fn },
+			OutputFiles = output_files,
 			ImplicitInputs = implicit_inputs,
 			Scanner = get_cpp_scanner(env, fn),
 		}
