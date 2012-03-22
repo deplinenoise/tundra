@@ -214,7 +214,8 @@ flush_output_queue(int job_id)
 	for (i = 0; i < count; ++i)
 	{
 		line_buffer *b = buffers[i];
-		write(b->is_stderr ? STDERR_FILENO : STDOUT_FILENO, b->data, strlen(b->data));
+		if (write(b->is_stderr ? STDERR_FILENO : STDOUT_FILENO, b->data, strlen(b->data))) {
+		}
 	}
 
 	/* Compact the queue, removing the buffers from this job. */
@@ -311,7 +312,8 @@ tty_emit(int job_id, int is_stderr, int sort_key, const char *data, int len)
 			TTY_PRINTF(("copying %d bytes of data from job_id %d, stderr=%d, sort_key %d\n",
 						len, job_id, is_stderr, sort_key));
 
-			write(is_stderr ? STDERR_FILENO : STDOUT_FILENO, data, strlen(data));
+			if (write(is_stderr ? STDERR_FILENO : STDOUT_FILENO, data, strlen(data))) {
+			}
 			return; /* finish the loop immediately */
 		}
 		else

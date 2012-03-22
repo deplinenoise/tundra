@@ -790,7 +790,7 @@ td_get_executable_path(char *buffer, size_t bufsize)
 const char *
 td_init_homedir(void)
 {
-	char dir[512];
+	char dir[PATH_MAX > 512 ? PATH_MAX : 512];
 	char* tmp;
 
 	if (NULL != (tmp = getenv("TUNDRA_HOME")))
@@ -805,7 +805,7 @@ td_init_homedir(void)
 	return set_homedir(dir);
 #else
 	{
-		char resolved[512];
+		char resolved[PATH_MAX > 512 ? PATH_MAX : 512];
 		if ((tmp = dirname(realpath(dir, resolved))))
 			return set_homedir(tmp);
 		else
