@@ -185,7 +185,7 @@ sort_buffers(const void *lp, const void *rp)
 
 /* Walk the queue and flush all buffers belonging to job_id to stdout/stderr.
  * Then remove these buffers from the queue. This is done either when a job
- * exists or when it is taking control of the TTY (so older, buffered messages
+ * exits or when it is taking control of the TTY (so older, buffered messages
  * are printed before new ones).
  */
 static void
@@ -193,6 +193,7 @@ flush_output_queue(int job_id)
 {
 	int i;
 	int count = 0;
+	int result;
 	line_buffer *buffers[LINEBUF_COUNT];
 
 	TTY_PRINTF(("linebuf: flush queue for job %d\n", job_id));
@@ -214,7 +215,8 @@ flush_output_queue(int job_id)
 	for (i = 0; i < count; ++i)
 	{
 		line_buffer *b = buffers[i];
-		write(b->is_stderr ? STDERR_FILENO : STDOUT_FILENO, b->data, strlen(b->data));
+		result = write(b->is_stderr ? STDERR_FILENO : STDOUT_FILENO, b->data, strlen(b->data));
+		(void) result; /* tty disappeared; not fatal */
 	}
 
 	/* Compact the queue, removing the buffers from this job. */
@@ -264,6 +266,7 @@ flush_output_queue(int job_id)
 void
 tty_emit(int job_id, int is_stderr, int sort_key, const char *data, int len)
 {
+	int result;
 	line_buffer *buf = NULL;
 
 	td_mutex_lock_or_die(&linelock);
@@ -311,7 +314,8 @@ tty_emit(int job_id, int is_stderr, int sort_key, const char *data, int len)
 			TTY_PRINTF(("copying %d bytes of data from job_id %d, stderr=%d, sort_key %d\n",
 						len, job_id, is_stderr, sort_key));
 
-			write(is_stderr ? STDERR_FILENO : STDOUT_FILENO, data, strlen(data));
+			result = write(is_stderr ? STDERR_FILENO : STDOUT_FILENO, data, strlen(data));
+			(void) result; /* tty disappeared; not fatal */
 			return; /* finish the loop immediately */
 		}
 		else
