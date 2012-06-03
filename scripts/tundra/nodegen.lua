@@ -466,7 +466,10 @@ function _nodegen:get_dag(parent_env)
 			for _, dep in util.nil_ipairs(input_data.Depends) do
 				input_deps[#input_deps + 1] = dep:get_dag(parent_env)
 			end
-			dag = assert(self:create_dag(unit_env, input_data, input_deps, parent_env))
+			dag = self:create_dag(unit_env, input_data, input_deps, parent_env)
+			if not dag then
+				error("create_dag didn't generate a result node")
+			end
 		end
 		self.DagCache[build_id] = dag
 	end
