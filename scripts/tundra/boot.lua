@@ -902,7 +902,7 @@ function main(tundra_root_dir, cmdline_args)
 	end
 
 	if Options.Version or Options.Help then
-		io.write("Tundra Build Processor v1.1a\n")
+		io.write("Tundra Build Processor v1.2\n")
 		io.write("Copyright (C) 2010-2011 Andreas Fredriksson\n\n")
 		io.write("This program comes with ABSOLUTELY NO WARRANTY.\n")
 		io.write("This is free software, and you are welcome to redistribute it\n")
