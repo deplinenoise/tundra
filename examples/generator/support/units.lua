@@ -1,5 +1,22 @@
 
-require "support.example-syntax"
+DefRule {
+	Name = "ExampleGenerator",
+	Pass = "CodeGeneration",
+	Command = "$(EXAMPLEGEN) $(<) $(@)",
+	ImplicitInputs = { "$(EXAMPLEGEN)" },
+
+	Blueprint = {
+		Source = { Required = true, Type = "string", Help = "Input filename", },
+		OutName = { Required = true, Type = "string", Help = "Output filename", },
+	},
+
+	Setup = function (env, data)
+		return {
+			InputFiles    = { data.Source },
+			OutputFiles   = { "$(OBJECTDIR)/_generated/" .. data.OutName },
+		}
+	end,
+}
 
 Program {
 	Name = "generator",

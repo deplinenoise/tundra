@@ -759,6 +759,70 @@ function _G.Build(args)
 	end
 end
 
+-- Expose the DefRule helper which is used to register builder syntax in a
+-- simplified way.
+
+function _G.DefRule(ruledef)
+	local name = assert(ruledef.Name, "Missing Name string in DefRule")
+	local setup_fn = assert(ruledef.Setup, "Missing Setup function in DefRule " .. name)
+	local cmd = assert(ruledef.Command, "Missing Command string in DefRule " .. name)
+	local blueprint = assert(ruledef.Blueprint, "Missing Blueprint in DefRule " .. name)
+	local mt = nodegen.create_eval_subclass {}
+
+	local function verify_table(v, tag)
+		if not v then
+			errorf("No %s returned from DefRule %s", tag, name)
+		end
+
+		if type(v) ~= "table" then
+			errorf("%s returned from DefRule %s is not a table", tag, name)
+		end
+	end
+
+	local function make_node(input_files, output_files, env, data, deps)
+		return env:make_node {
+			Label          = name .. " $(@)",
+			Action         = cmd,
+			Pass           = data.Pass or nodegen.resolve_pass(ruledef.Pass),
+			InputFiles     = input_files,
+			OutputFiles    = output_files,
+			ImplicitInputs = ruledef.ImplicitInputs,
+			Dependencies   = deps,
+		}
+	end
+
+	if ruledef.ConfigInvariant then
+		local cache = {}
+
+		function mt:create_dag(env, data, deps)
+			local setup_data = setup_fn(env, data)
+			local input_files = setup_data.InputFiles
+			local output_files = setup_data.OutputFiles
+			verify_table(input_files, "InputFiles")
+			verify_table(output_files, "OutputFiles")
+
+			table.sort(input_files)
+			local key = util.tostring(input_files)
+			if cache[key] then
+				return cache[key]
+			else
+				local node = make_node(input_files, output_files, env, data, deps)
+				cache[key] = node
+				return node
+			end
+		end
+	else
+		function mt:create_dag(env, data, deps)
+			local setup_data = setup_fn(env, data)
+			verify_table(setup_data.InputFiles, "InputFiles")
+			verify_table(setup_data.OutputFiles, "OutputFiles")
+			return make_node(setup_data.InputFiles, setup_data.OutputFiles, env, data, deps)
+		end
+	end
+
+	nodegen.add_evaluator(name, mt, blueprint)
+end
+
 function main(tundra_root_dir, cmdline_args)
 	TundraRootDir = tundra_root_dir
 	TundraExePath = cmdline_args[1]
