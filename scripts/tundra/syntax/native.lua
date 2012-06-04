@@ -52,6 +52,10 @@ local _staticlib_mt = nodegen.create_eval_subclass({
 	Label = "StaticLibrary $(@)",
 }, _native_mt)
 
+local _objgroup_mt = nodegen.create_eval_subclass({
+	Label = "ObjGroup $(<)",
+}, _native_mt)
+
 local _shlib_mt = nodegen.create_eval_subclass({
 	Suffix = "$(SHLIBSUFFIX)",
 	Prefix = "$(SHLIBPREFIX)",
@@ -65,7 +69,7 @@ local _extlib_mt = nodegen.create_eval_subclass({
 	Label = "",
 }, _native_mt)
 
-local _is_native_mt = util.make_lookup_table { _object_mt, _program_mt, _staticlib_mt, _shlib_mt, _extlib_mt }
+local _is_native_mt = util.make_lookup_table { _object_mt, _program_mt, _staticlib_mt, _shlib_mt, _extlib_mt, _objgroup_mt }
 
 function _native_mt:customize_env(env, raw_data)
 	if env:get('GENERATE_PDB', '0') ~= '0' then
@@ -102,20 +106,28 @@ function _native_mt:create_dag(env, data, input_deps)
 	local my_pass = data.Pass
 	local sources = data.Sources
 	local libsuffix = { env:get("LIBSUFFIX") }
+	local objsuffix = { env:get("OBJECTSUFFIX") }
 
 	-- Link with libraries in dependencies.
 	for _, dep in util.nil_ipairs(data.Depends) do
-		if dep.Keyword == "SharedLibrary" then
 
+		if dep.Keyword == "SharedLibrary" then
 			-- On Win32 toolsets, we need foo.lib
 			-- On UNIX toolsets, we need -lfoo
 			local target = dep.Decl.Target or dep.Decl.Name
 			target = target .. "$(SHLIBLINKSUFFIX)"
 			env:append('LIBS', target)
-
 		elseif dep.Keyword == "StaticLibrary" then
 			local node = dep:get_dag(env:get_parent())
 			node:insert_output_files(sources, libsuffix)
+		elseif dep.Keyword == "ObjGroup" then
+			local node = dep:get_dag(env:get_parent())
+			sources = sources or {}
+			local deps = {}
+			node:insert_deps(deps)
+			for _, dep in ipairs(deps) do
+				dep:insert_output_files(sources, objsuffix)
+			end
 		else
 
 			--[[
@@ -235,3 +247,4 @@ nodegen.add_evaluator("Program", _program_mt, native_blueprint)
 nodegen.add_evaluator("StaticLibrary", _staticlib_mt, native_blueprint)
 nodegen.add_evaluator("SharedLibrary", _shlib_mt, native_blueprint)
 nodegen.add_evaluator("ExternalLibrary", _extlib_mt, external_blueprint)
+nodegen.add_evaluator("ObjGroup", _objgroup_mt, native_blueprint)

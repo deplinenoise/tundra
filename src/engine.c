@@ -991,6 +991,29 @@ insert_output_files(lua_State *L)
 	return insert_file_list(L, self->output_count, self->outputs);
 }
 
+static int
+insert_deps(lua_State *L)
+{
+	td_node *const self = td_check_noderef(L, 1)->node;
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	int i, index;
+	int dep_count = self->dep_count;
+
+	index = (int) lua_objlen(L, 2) + 1;
+
+	for (i = 0; i < dep_count; ++i)
+	{
+		td_noderef* noderef = (td_noderef*) lua_newuserdata(L, sizeof(td_noderef));
+		luaL_getmetatable(L, TUNDRA_NODEREF_MTNAME);
+		lua_setmetatable(L, -2);
+		noderef->node = self->deps[i];
+		lua_rawseti(L, 2, index++);
+	}
+
+	return 0;
+}
+
 /*
  * Execute actions needed to update a dependency graph.
  *
@@ -1055,6 +1078,7 @@ static const luaL_Reg engine_mt_entries[] = {
 static const luaL_Reg node_mt_entries[] = {
 	{ "insert_input_files", insert_input_files },
 	{ "insert_output_files", insert_output_files },
+	{ "insert_deps", insert_deps },
 	{ "__tostring", node_str },
 	{ NULL, NULL }
 };
