@@ -994,11 +994,12 @@ insert_output_files(lua_State *L)
 static int
 insert_deps(lua_State *L)
 {
+	int i, index, dep_count;
+
 	td_node *const self = td_check_noderef(L, 1)->node;
 	luaL_checktype(L, 2, LUA_TTABLE);
 
-	int i, index;
-	int dep_count = self->dep_count;
+	dep_count = self->dep_count;
 
 	index = (int) lua_objlen(L, 2) + 1;
 
