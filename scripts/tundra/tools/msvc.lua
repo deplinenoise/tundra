@@ -17,24 +17,13 @@
 
 module(..., package.seeall)
 
-local path = require("tundra.path")
-local gencpp = require("tundra.tools.generic-cpp")
-
-local function compile_resource_file(env, pass, fn)
-	return env:make_node {
-		Label = 'Rc $(@)',
-		Pass = pass,
-		Action = "$(RCCOM)",
-		InputFiles = { fn },
-		OutputFiles = { path.make_object_filename(env, fn, ".res") },
-		Scanner = gencpp.get_cpp_scanner(env, fn),
-	}
-end
-
 function apply(env, options)
 
 	-- load the generic C toolset first
 	tundra.boot.load_toolset("generic-cpp", env)
+
+	-- load support for win32 resource compilation
+	tundra.boot.load_toolset("win32-rc", env)
 
 	env:set_many {
 		["NATIVE_SUFFIXES"] = { ".c", ".cpp", ".cc", ".cxx", ".lib", ".obj", ".res", ".rc" },
@@ -57,6 +46,7 @@ function apply(env, options)
 		["_USE_MODDEF"] = "",
 		["RC"] = "rc",
 		["RCOPTS"] = "/nologo",
+		["W32RESSUFFIX"] = ".res",
 		["RCCOM"] = "$(RC) $(RCOPTS) /fo$(@:b) $(CPPPATH:b:p/i) $(<:b)",
 		["CCCOM"] = "$(CC) /c @RESPONSE|@|$(_CPPDEFS) $(CPPPATH:b:p/I) /nologo $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) $(_USE_PCH) $(_USE_PDB_CC) /Fo$(@:b) $(<:b)",
 		["CXXCOM"] = "$(CC) /c @RESPONSE|@|$(_CPPDEFS) $(CPPPATH:b:p/I) /nologo $(CXXOPTS) $(CXXOPTS_$(CURRENT_VARIANT:u)) $(_USE_PCH) $(_USE_PDB_CC) /Fo$(@:b) $(<:b)",
@@ -74,6 +64,4 @@ function apply(env, options)
 		["AUX_FILES_PROGRAM"] = { "$(@:B:a.exe.manifest)", "$(@:B:a.pdb)" },
 		["AUX_FILES_SHAREDLIB"] = { "$(@:B:a.dll.manifest)", "$(@:B:a.pdb)", "$(@:B:a.exp)", "$(@:B:a.lib)", },
 	}
-
-	env:register_implicit_make_fn("rc", compile_resource_file)
 end

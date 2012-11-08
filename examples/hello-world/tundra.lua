@@ -11,5 +11,13 @@ Build {
 			DefaultOnHost = "windows",
 			Tools = { "msvc-vs2008", "mono" },
 		},
+		{
+			Name = "win32-mingw",
+			Tools = { "mingw" },
+			-- Link with the C++ compiler to get the C++ standard library.
+			ReplaceEnv = {
+				LD = "$(CXX)",
+			},
+		},
 	},
 }
