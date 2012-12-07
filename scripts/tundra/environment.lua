@@ -228,6 +228,12 @@ function envclass:get_parent()
 	return self.parent
 end
 
+local function escape_for_cmdline_define(value)
+  value = value:gsub([[\$]], "") -- drop trailing backslash if there is one, can't be escaped on windows
+  value = value:gsub([[\]], [[\\]])
+  return '\\"' .. value .. '\\"'
+end
+
 function envclass:interpolate(str, vars)
 	assert(type(str) == "string")
 	assert(not vars or type(vars) == "table")
@@ -320,6 +326,8 @@ function envclass:interpolate(str, vars)
 					v = util.map(v, path.get_filename)
 				elseif 'D' == first_char then
 					v = util.map(v, path.get_filename_dir)
+				elseif '#' == first_char then
+					v = util.map(v, escape_for_cmdline_define)
 				else
 					error("bad interpolation option " .. tostring(o) .. " in " .. str)
 				end
