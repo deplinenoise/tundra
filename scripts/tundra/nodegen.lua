@@ -82,7 +82,6 @@ local validators = {
 	["source_list"] = validate_table,
 	["boolean"] = validate_boolean,
 	["config"] = validate_config,
-	["depends"] = validate_table,
 }
 
 function _nodegen:validate()
@@ -110,22 +109,12 @@ function _nodegen:customize_env(env, raw_data)
 	-- available for subclasses
 end
 
-function _nodegen:configure_env(env)
+function _nodegen:configure_env(env, deps)
 	local build_id = env:get('BUILD_ID')
 	local propagate_blocks = {}
 	local decl = self.Decl
 
-	for _, dep in util.nil_ipairs(decl.Depends) do
-		local dep_obj
-		if type(dep) == "string" then
-			dep_obj = current.units[dep]
-			if not dep_obj then
-				errorf("unknown unit %s", dep)
-			end
-		else
-			dep_obj = dep
-		end
-
+	for _, dep_obj in util.nil_ipairs(deps) do
 		local data = dep_obj.Decl.Propagate
 		if data then
 			propagate_blocks[#propagate_blocks + 1] = data
@@ -325,14 +314,19 @@ local function find_named_node(name_or_dag)
 	end
 end
 
-local function x_depends(self, name, info, value, env, out_deps)
+-- Special resolver for dependencies in a nested (config-filtered) list.
+local function resolve_dependencies(decl, raw_deps, env)
+  if not raw_deps then
+    return {}
+  end
+
 	local build_id = env:get('BUILD_ID')
-	local deps = flatten_list(build_id, value)
+	local deps = flatten_list(build_id, raw_deps)
 	return util.map_in_place(deps, function (i)
 		if type(i) == "string" then
 			n = current.units[i]
 			if not n then
-				errorf("%s: Unknown 'Depends' target %q", self.Decl.Name, i)
+				errorf("%s: Unknown 'Depends' target %q", decl.Name, i)
 			end
 			return n
 		elseif type(i) == "table" and getmetatable(i) and i.Decl then
@@ -356,7 +350,6 @@ local decl_transformers = {
 	["pass"] = x_pass,
 	["source_list"] = x_source_list,
 	["filter_table"] = x_filter_table,
-	["depends"] = x_depends,
 }
 
 -- Create input data for the generator's DAG creation function based on the
@@ -457,13 +450,22 @@ function _nodegen:get_dag(parent_env)
 			}
 		else
 			local unit_env = make_unit_env(self)
+
 			if self.Decl.Name then
 				unit_env:set('UNIT_PREFIX', '__' .. self.Decl.Name)
 			end
-			self:configure_env(unit_env)
-			self:customize_env(unit_env, self.Decl)
+
+      -- Before accessing the unit's dependencies, resolve them via filtering.
+      local deps = resolve_dependencies(self.Decl, self.Decl.Depends, unit_env)
+
+			self:configure_env(unit_env, deps)
+			self:customize_env(unit_env, self.Decl, deps)
+
 			local input_data, input_deps = self:create_input_data(unit_env, parent_env)
-			for _, dep in util.nil_ipairs(input_data.Depends) do
+      -- Copy over dependencies which have been pre-resolved
+      input_data.Depends = deps
+
+			for _, dep in util.nil_ipairs(deps) do
 				input_deps[#input_deps + 1] = dep:get_dag(parent_env)
 			end
 			dag = self:create_dag(unit_env, input_data, input_deps, parent_env)
@@ -593,6 +595,10 @@ local common_blueprint = {
 		Help = "Declarations to propagate to dependent units",
 		Type = "filter_table",
 	},
+  Depends = {
+    Help = "Dependencies for this node",
+    Type = "table", -- handled specially
+  },
 	Env = {
 		Help = "Data to append to the environment for the unit",
 		Type = "filter_table",
@@ -600,10 +606,6 @@ local common_blueprint = {
 	ReplaceEnv = {
 		Help = "Data to replace in the environment for the unit",
 		Type = "filter_table",
-	},
-	Depends = {
-		Help = "List of nodes this node depends on",
-		Type = "depends",
 	},
 	Pass = {
 		Help = "Specify build pass",
