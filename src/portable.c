@@ -622,6 +622,41 @@ static void* signal_handler_thread_fn(void *arg)
 }
 #endif
 
+#if defined(TUNDRA_WIN32)
+BOOL WINAPI console_ctrl_handler(DWORD ctrl_type)
+{
+  const char *reason = NULL;
+
+  switch (ctrl_type)
+  {
+    case CTRL_C_EVENT:
+      reason = "Ctrl+C";
+      break;
+
+    case CTRL_BREAK_EVENT:
+      reason = "Ctrl+Break";
+      break;
+  }
+
+  if (reason)
+  {
+		td_sighandler_info* info = siginfo;
+		if (info)
+    {
+      pthread_mutex_lock(info->mutex);
+      info->flag = -1;
+      info->reason = reason;
+      pthread_mutex_unlock(info->mutex);
+      pthread_cond_broadcast(info->cond);
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+#endif
+
 void td_install_sighandler(td_sighandler_info *info)
 {
 	siginfo = info;
@@ -634,6 +669,7 @@ void td_install_sighandler(td_sighandler_info *info)
 		pthread_detach(sigthread);
 	}
 #elif defined(TUNDRA_WIN32)
+  SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
 #else
 #error Meh
 #endif
