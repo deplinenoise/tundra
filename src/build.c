@@ -338,6 +338,17 @@ update_input_signature(td_job_queue *queue, td_node *node)
 	if (sign_debug_file)
 		fprintf(sign_debug_file, "begin signing \"%s\"\n", node->annotation);
 
+	/* Add the command line */
+	if (node->action)
+	{
+		if (sign_debug_file)
+			fprintf(sign_debug_file, "action = \"%s\"\n", node->action);
+
+		MD5_Update(&context, (char*) node->action, strlen(node->action) + 1);
+	}
+	else
+		MD5_Update(&context, "", 1);
+
 	for (i = 0, count = node->input_count; i < count; ++i)
 	{
 		td_file *input_file = node->inputs[i];
@@ -701,7 +712,7 @@ td_build(td_engine *engine, td_node *node, int *jobs_run)
 	for (i = thread_count - 2; i >= 0; --i)
 	{
 		void *res;
-	   	int rc = pthread_join(threads[i], &res);
+			int rc = pthread_join(threads[i], &res);
 		if (0 != rc)
 			td_croak("couldn't join thread %d: %s", i, strerror(rc));
 	}

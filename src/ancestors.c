@@ -44,11 +44,24 @@ md5_string(MD5_CTX *context, const char *string)
 static void
 compute_node_guid(td_engine *engine, td_node *node)
 {
+	int i, count;
+
 	MD5_CTX context;
 	MD5_Init(&context);
-	md5_string(&context, node->action);
-	md5_string(&context, node->annotation);
 	md5_string(&context, node->salt);
+
+	if (node->output_count)
+	{
+		for (i = 0, count = node->output_count; i < count; ++i)
+		{
+			md5_string(&context, node->outputs[i]->path);
+		}
+	}
+	else
+	{
+		md5_string(&context, node->annotation);
+	}
+
 	MD5_Final(node->guid.data, &context);
 
 	if (td_debug_check(engine, TD_DEBUG_NODES))
