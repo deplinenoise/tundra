@@ -625,8 +625,6 @@ build_worker(void *arg_)
 	return NULL;
 }
 
-#define TD_MAX_THREADS (32)
-
 static thread_start_arg thread_arg[TD_MAX_THREADS];
 static pthread_t threads[TD_MAX_THREADS];
 

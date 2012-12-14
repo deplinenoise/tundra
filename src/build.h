@@ -20,6 +20,8 @@
    along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define TD_MAX_THREADS (32)
+
 struct td_engine;
 struct td_node;
 

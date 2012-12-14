@@ -41,6 +41,7 @@
 
 #include "portable.h"
 #include "config.h"
+#include "build.h"
 
 #if defined(TUNDRA_WIN32)
 
@@ -56,6 +57,8 @@ static pthread_mutex_t fd_mutex;
 static pthread_cond_t tty_free;
 static int tty_owner = -1;
 
+static HANDLE temp_files[TD_MAX_THREADS];
+
 static void get_fn(int job_id, char buf[MAX_PATH])
 {
 	_snprintf(buf, MAX_PATH, "%stundra.%u.%d", temp_path, tundra_pid, job_id);
@@ -63,36 +66,31 @@ static void get_fn(int job_id, char buf[MAX_PATH])
 
 static HANDLE alloc_fd(int job_id)
 {
-	HANDLE result;
-	td_mutex_lock_or_die(&fd_mutex);
-	
-	if (-1 == tty_owner)
+	HANDLE result = temp_files[job_id];
+
+	if (!result)
 	{
-		tty_owner = job_id;
-		td_mutex_unlock_or_die(&fd_mutex);
-		result = GetStdHandle(STD_OUTPUT_HANDLE);
-	}
-	else
-	{
-		char filename[MAX_PATH];
+		char temp_path[MAX_PATH];
 		DWORD access, sharemode, disp, flags;
 
-		td_mutex_unlock_or_die(&fd_mutex);
+		get_fn(job_id, temp_path);
 
-		get_fn(job_id, filename);
-		access = GENERIC_WRITE | GENERIC_READ;
+		access		= GENERIC_WRITE | GENERIC_READ;
 		sharemode = FILE_SHARE_WRITE;
-		disp = CREATE_ALWAYS;
-		flags = FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_TEMPORARY;
+		disp			= CREATE_ALWAYS;
+		flags			= FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE;
 
-		result = CreateFileA(filename, access, sharemode, NULL, disp, flags, NULL);
+		result = CreateFileA(temp_path, access, sharemode, NULL, disp, flags, NULL);
+
 		if (INVALID_HANDLE_VALUE == result)
 		{
-			fprintf(stderr, "couldn't create temporary file %s: %u\n", filename, (unsigned int)GetLastError());
-			return NULL;
+			fprintf(stderr, "failed to create temporary file %s\n", temp_path);
+			return INVALID_HANDLE_VALUE;
 		}
 
 		SetHandleInformation(result, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+
+		temp_files[job_id] = result;
 	}
 
 	return result;
@@ -100,64 +98,44 @@ static HANDLE alloc_fd(int job_id)
 
 static void free_fd(int job_id, HANDLE h)
 {
+	char buf[1024];
+	HANDLE target = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetFilePointer(h, 0, NULL, FILE_BEGIN);
+
+	// Wait until we can take the TTY.
 	td_mutex_lock_or_die(&fd_mutex);
 
-	if (tty_owner == job_id)
+	while (tty_owner != -1)
+		pthread_cond_wait(&tty_free, &fd_mutex);
+
+	tty_owner = job_id;
+	td_mutex_unlock_or_die(&fd_mutex);
+
+	// Dump the contents of the temporary file to the TTY.
+	for (;;)
 	{
-		tty_owner = -1;
-		pthread_cond_signal(&tty_free);
-		td_mutex_unlock_or_die(&fd_mutex);
+		DWORD rb, wb;
+		if (!ReadFile(h, buf, sizeof(buf), &rb, NULL) || rb == 0)
+			break;
+		if (!WriteFile(target, buf, rb, &wb, NULL))
+			break;
 	}
-	else
-	{
-		int retries = 0;
-		char buf[1024], filename[MAX_PATH];
-		HANDLE target = GetStdHandle(STD_OUTPUT_HANDLE);
-		SetFilePointer(h, 0, NULL, FILE_BEGIN);
 
-		// Wait until we can take the TTY.
-		while (tty_owner != -1)
-			pthread_cond_wait(&tty_free, &fd_mutex);
+	// Mark the TTY as free again and wake waiters.
+	td_mutex_lock_or_die(&fd_mutex);
+	tty_owner = -1;
+	pthread_cond_signal(&tty_free);
+	td_mutex_unlock_or_die(&fd_mutex);
 
-		tty_owner = job_id;
-		td_mutex_unlock_or_die(&fd_mutex);
-
-		// Dump the contents of the temporary file to the TTY.
-		for (;;)
-		{
-			DWORD rb, wb;
-			if (!ReadFile(h, buf, sizeof(buf), &rb, NULL) || rb == 0)
-				break;
-			if (!WriteFile(target, buf, rb, &wb, NULL))
-				break;
-		}
-
-		// Mark the TTY as free again and wake waiters.
-		td_mutex_lock_or_die(&fd_mutex);
-		tty_owner = -1;
-		pthread_cond_signal(&tty_free);
-		td_mutex_unlock_or_die(&fd_mutex);
-
-		// Close the temporary file handle, we're done with it.
-		if (!CloseHandle(h))
-			fprintf(stderr, "warning: couldn't close temporary file handle\n");
-
-		// Try to delete the temporary file.
-		//
-		// This can fail now and then, presumably because the spawned
-		// process can still be holding on to the inherited handle. Wait
-		// for it to die a little bit. Normally one retry solves it.
-
-		get_fn(job_id, filename);
-
-		while (!DeleteFileA(filename) && retries++ < 100)
-			Sleep(50);
-	}
+	// Truncate the temporary file for reuse
+	SetFilePointer(h, 0, NULL, FILE_BEGIN);
+	SetEndOfFile(h);
 }
 
 int
 td_init_exec(void)
 {
+	int i;
 	tundra_pid = GetCurrentProcessId();
 
 	if (0 == GetTempPathA(sizeof(temp_path), temp_path)) {
@@ -208,7 +186,7 @@ make_env_block(char* env_block, size_t block_size, const char **env, int env_cou
 		for (i = 0; i < env_count; ++i)
 		{
 			const char *equals;
-			
+
 			if (used_env[i])
 				continue;
 
@@ -264,19 +242,19 @@ println_to_handle(HANDLE h, const char *str)
 }
 
 /*
-   win32_spawn -- spawn and wait for a a sub-process on Windows.
+	 win32_spawn -- spawn and wait for a a sub-process on Windows.
 
-   We would like to say:
+	 We would like to say:
 
-	  return (int) _spawnlpe(_P_WAIT, "cmd", "/c", cmd_line, NULL, env);
+		return (int) _spawnlpe(_P_WAIT, "cmd", "/c", cmd_line, NULL, env);
 
-   but it turns out spawnlpe() isn't thread-safe (MSVC2008) when setting
-   environment data!  So we're doing it the hard way. It also would set the
-   environment in the right way as we want to define our environment strings in
-   addition to whatever is already set, not replace everything.
+	 but it turns out spawnlpe() isn't thread-safe (MSVC2008) when setting
+	 environment data!	So we're doing it the hard way. It also would set the
+	 environment in the right way as we want to define our environment strings in
+	 addition to whatever is already set, not replace everything.
  */
 
-int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_count, const char *annotation, int echo_cmdline)
+int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_count, const char *annotation, const char* echo_cmdline)
 {
 	int result_code = 1;
 	char buffer[8192];
@@ -284,7 +262,7 @@ int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_coun
 	HANDLE output_handle;
 	STARTUPINFO sinfo;
 	PROCESS_INFORMATION pinfo;
-	
+
 	if (0 != make_env_block(env_block, sizeof(env_block) - 2, env, env_count))
 	{
 		fprintf(stderr, "%d: env block error; too big?\n", job_id);
@@ -306,7 +284,7 @@ int win32_spawn(int job_id, const char *cmd_line, const char **env, int env_coun
 		println_to_handle(output_handle, annotation);
 
 	if (echo_cmdline)
-		println_to_handle(output_handle, cmd_line);
+		println_to_handle(output_handle, echo_cmdline);
 
 	if (CreateProcess(NULL, buffer, NULL, NULL, TRUE, 0, env_block, NULL, &sinfo, &pinfo))
 	{
@@ -405,25 +383,51 @@ int td_exec(
 			_snprintf(new_cmd, sizeof(new_cmd), "%s %s%s", command_buf, option_buf, response_file);
 			new_cmd[sizeof(new_cmd)-1] = '\0';
 
-			cmd_result = win32_spawn(job_id, new_cmd, env, env_count, annotation, echo_cmdline);
+			cmd_result = win32_spawn(job_id, new_cmd, env, env_count, annotation, echo_cmdline ? cmd_line : NULL);
 
 			remove(response_file);
 			return cmd_result;
 		}
 		else
 		{
+			size_t i, len;
 			int copy_len = min((int) (response - cmd_line), (int) (sizeof(command_buf) - 1));
 			strncpy(command_buf, cmd_line, copy_len);
 			command_buf[copy_len] = '\0';
 			_snprintf(new_cmd, sizeof(new_cmd), "%s%s", command_buf, option_end + 1);
 			new_cmd[sizeof(new_cmd)-1] = '\0';
-			return win32_spawn(job_id, new_cmd, env, env_count, annotation, echo_cmdline);
+
+			/* Drop any newlines in the command line. They are needed for response
+			 * files only to make sure the max length doesn't exceed 128 kb */
+			for (i = 0, len = strlen(new_cmd); i < len; ++i)
+			{
+				if (new_cmd[i] == '\n')
+				{
+					new_cmd[i] = ' ';
+				}
+			}
+
+			return win32_spawn(job_id, new_cmd, env, env_count, annotation, echo_cmdline ? cmd_line : NULL);
 		}
 	}
 	else
 	{
-		/* no section in command line at all, just run it */
-		return win32_spawn(job_id, cmd_line, env, env_count, annotation, echo_cmdline);
+		size_t i, len;
+
+		/* Drop any newlines in the command line. They are needed for response
+		 * files only to make sure the max length doesn't exceed 128 kb */
+		strncpy(new_cmd, cmd_line, sizeof(new_cmd));
+		new_cmd[sizeof(new_cmd)-1] = '\0';
+
+		for (i = 0, len = strlen(new_cmd); i < len; ++i)
+		{
+			if (new_cmd[i] == '\n')
+			{
+				new_cmd[i] = ' ';
+			}
+		}
+
+		return win32_spawn(job_id, new_cmd, env, env_count, annotation, echo_cmdline ? cmd_line : NULL);
 	}
 }
 
