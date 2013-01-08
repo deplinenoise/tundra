@@ -238,14 +238,21 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 			projects[#projects + 1] = data
 		end
 	end
+	
+	local source_list = { "tundra.lua" }
+	local units = io.open("units.lua")
+	if units then
+		source_list[#source_list + 1] = "units.lua"
+		io.close(units)
+	end
 
 	local meta_name = "00-Tundra"
 	projects[#projects + 1] = {
-		Decl = { Name = meta_name, },
+		Decl = { Name = meta_name, Sources = source_list },
 		Type = "meta",
 		RelativeFilename = meta_name .. ".vcxproj",
 		Filename = env:interpolate("$(OBJECTROOT)$(SEP)" .. meta_name .. ".vcxproj"),
-		Sources = { "tundra.lua" },
+		Sources = { "tundra.lua" }, 
 		Guid = native.digest_guid(meta_name),
 		IsMeta = true,
 	}
