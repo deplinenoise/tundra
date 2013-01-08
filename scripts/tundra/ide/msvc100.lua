@@ -115,7 +115,7 @@ function msvc_generator:generate_project(project)
 
 		local root_dir = ".." -- FIXME
 		local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
-		local base = tundra.boot.TundraExePath .. " -C " .. root_dir .. " "
+		local base = tundra.boot.TundraExePath .. " --full-paths -C " .. root_dir .. " "
 		build_cmd = base .. build_id
 		clean_cmd = base .. "-c " .. build_id
 
@@ -136,7 +136,7 @@ function msvc_generator:generate_project(project)
 
 	-- Emit list of source files
 	p:write('\t<ItemGroup>', LF)
-	for _, fn in ipairs(util.flatten(project.Sources)) do
+	for _, fn in ipairs(util.flatten(project.Decl.Sources)) do
 		if type(fn) == "string" then
 			fn = "..\\" .. fn:gsub('/', '\\') -- FIXME: assumes that the output dir is one dir down from tundra.lua
 			p:write('\t\t<ClCompile Include="', fn, '" />', LF)
@@ -163,7 +163,7 @@ function msvc_generator:generate_project_filters(project)
 	local sources = {}
 
 	-- Mangle source filenames, and find which filters need to be created
-	for _, fn in ipairs(util.flatten(project.Sources)) do
+	for _, fn in ipairs(util.flatten(project.Decl.Sources)) do
 		if type(fn) == "string" then
 			fn = fn:gsub('/', '\\')
 			local a, b, path, filename = string.find(fn, "(.*)\\(.*)")
@@ -238,14 +238,21 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 			projects[#projects + 1] = data
 		end
 	end
+	
+	local source_list = { "tundra.lua" }
+	local units = io.open("units.lua")
+	if units then
+		source_list[#source_list + 1] = "units.lua"
+		io.close(units)
+	end
 
 	local meta_name = "00-Tundra"
 	projects[#projects + 1] = {
-		Decl = { Name = meta_name, },
+		Decl = { Name = meta_name, Sources = source_list },
 		Type = "meta",
 		RelativeFilename = meta_name .. ".vcxproj",
 		Filename = env:interpolate("$(OBJECTROOT)$(SEP)" .. meta_name .. ".vcxproj"),
-		Sources = { "tundra.lua" },
+		Sources = { "tundra.lua" }, 
 		Guid = native.digest_guid(meta_name),
 		IsMeta = true,
 	}
