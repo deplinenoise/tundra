@@ -226,6 +226,9 @@ static void freeexp (FuncState *fs, expdesc *e) {
 }
 
 
+#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 2
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
 static int addk (FuncState *fs, TValue *k, TValue *v) {
   lua_State *L = fs->L;
   TValue *idx = luaH_set(L, fs->h, k);
@@ -245,6 +248,9 @@ static int addk (FuncState *fs, TValue *k, TValue *v) {
     return fs->nk++;
   }
 }
+#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 6
+#pragma GCC diagnostic pop
+#endif
 
 
 int luaK_stringK (FuncState *fs, TString *s) {
