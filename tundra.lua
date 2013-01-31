@@ -32,9 +32,10 @@ local common = {
 			{ "/Ox"; Config = "*-msvc-release" },
 		},
 		CPPDEFS = {
-			{ "_CRT_SECURE_NO_WARNINGS"; Config = "*-msvc-*"  },
-			{ "NDEBUG"; Config = "*-*-release"  },
-			{ "TD_STANDALONE"; Config = "*-*-*-standalone"  },
+			{ "_CRT_SECURE_NO_WARNINGS"; Config = "*-msvc-*" },
+			{ "_GNU_SOURCE"; Config = "linux-*" },
+			{ "NDEBUG"; Config = "*-*-release" },
+			{ "TD_STANDALONE"; Config = "*-*-*-standalone" },
 		},
 	}
 }
