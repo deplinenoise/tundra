@@ -44,6 +44,9 @@ endif (WIN32)
 
 if (UNIX)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -Werror")
+    
+	# Required for earlier versions of glibc to enable POSIX.1-2008 interfaces.
+	add_definitions(-D_GNU_SOURCE)
 endif (UNIX)
 
 add_executable(gen_lua_data src/gen_lua_data.c)
