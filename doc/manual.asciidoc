@@ -1019,7 +1019,7 @@ These environment variables apply to C-based toolsets:
 - `SHLIBOPTS` - Options specific to creating a shared library
 - `SHLIBCOM` - Command line to create a shared library
 - `FRAMEWORKS` - (OS X) Frameworks to include and link with
-- `AUX_FILES_PROGRAM`, `AUX_FILES_SHAREDLIB` - List of patterns that expand to auxilliary files to clean for programs, shared libraries. Useful to clean up debug and map files.
+- `AUX_FILES_PROGRAM`, `AUX_FILES_SHAREDLIBRARY` - List of patterns that expand to auxilliary files to clean for programs, shared libraries. Useful to clean up debug and map files.
 
 These environment variables apply to .NET-based toolsets:
 
