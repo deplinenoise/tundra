@@ -135,7 +135,6 @@ static void free_fd(int job_id, HANDLE h)
 int
 td_init_exec(void)
 {
-	int i;
 	tundra_pid = GetCurrentProcessId();
 
 	if (0 == GetTempPathA(sizeof(temp_path), temp_path)) {
