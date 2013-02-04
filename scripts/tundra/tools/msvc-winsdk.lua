@@ -46,7 +46,10 @@ local compiler_dirs = {
 	},
 	["x64"] = {
 		["x86"] = "bin\\",
-		["x64"] = "bin\\amd64\\",
+		["x64"] = {
+			["11.0"] = "bin\\x86_amd64\\",
+			"bin\\amd64"
+		},
 		["itanium"] = "bin\\x86_ia64\\",
 	},
 	["itanium"] = {
@@ -61,14 +64,57 @@ local function setup(env, options)
 	local host_arch = options.HostArch or get_host_arch()
 	local vcversion = options.VcVersion or "10.0"
 
-	local binDir = compiler_dirs[host_arch][target_arch]
+	local binDir = compiler_dirs[host_arch][target_arch][vcversion]
+	if not binDir then
+		binDir = compiler_dirs[host_arch][target_arch][1]
+	end
+
+	if not binDir then
+		binDir = compiler_dirs[host_arch][target_arch]
+	end
 
 	if not binDir then
 		errorf("can't build target arch %s on host arch %s", target_arch, host_arch)
 	end
 
-	local sdk_key = "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows"
-	local sdkDir = assert(native.reg_query("HKLM", sdk_key, "CurrentInstallFolder"))
+	local sdkDir;
+	local sdkDirIncludes;
+	local sdkLibDir;
+	local vcLibDir;
+
+	if vcversion == "11.0" then
+		local sdk_key = "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\v8.0"
+		sdkDir = assert(native.reg_query("HKLM", sdk_key, "InstallationFolder"))
+		sdkDirIncludes = { sdkDir .. "\\INCLUDE\\UM", sdkDir .. "\\INCLUDE\\SHARED" }
+
+		sdkLibDir = "LIB\\win8\\um\\"
+		vcLibDir = "LIB"
+
+		if "x86" == target_arch then
+			sdkLibDir = sdkLibDir .. "x86"
+		elseif "x64" == target_arch then
+			sdkLibDir = sdkLibDir .. "x64"
+			vcLibDir = "LIB\\amd64"
+		elseif "arm" == target_arch then
+			sdkLibDir = sdkLibDir .. "arm"
+		end
+	else
+		local sdk_key = "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows"
+		sdkDir = assert(native.reg_query("HKLM", sdk_key, "CurrentInstallFolder"))
+		sdkDirIncludes = { sdkDir .. "\\INCLUDE" };
+
+		sdkLibDir = "LIB"
+		vcLibDir = "LIB"
+
+		if "x64" == target_arch then
+			sdkLibDir = "LIB\\x64"
+			vcLibDir = "LIB\\amd64"
+		elseif "itanium" == target_arch then
+			sdkLibDir = "LIB\\IA64"
+			vcLibDir = "LIB\\IA64"
+		end
+	end
+
 
 	local vc_key = "SOFTWARE\\Microsoft\\VisualStudio\\SxS\\VC7"
 	local vc_dir = assert(native.reg_query("HKLM", vc_key, vcversion))
@@ -88,21 +134,10 @@ local function setup(env, options)
 	-- Set up the MS SDK associated with visual studio
 
 	env:set_external_env_var("WindowsSdkDir", sdkDir)
-	env:set_external_env_var("INCLUDE", sdkDir .. "\\INCLUDE;" .. vc_dir .. "\\INCLUDE")
+	env:set_external_env_var("INCLUDE", table.concat(sdkDirIncludes, ";") .. ";" .. vc_dir .. "\\INCLUDE")
 
 	local rc_exe = '"' .. sdkDir .. "\\bin\\rc.exe" ..'"'
 	env:set('RC', rc_exe)
-
-	local sdkLibDir = "LIB"
-	local vcLibDir = "LIB"
-
-	if "x64" == target_arch then
-		sdkLibDir = "LIB\\x64"
-		vcLibDir = "LIB\\amd64"
-	elseif "itanium" == target_arch then
-		sdkLibDir = "LIB\\IA64"
-		vcLibDir = "LIB\\IA64"
-	end
 
 	local libString = sdkDir .. "\\" .. sdkLibDir .. ";" .. vc_dir .. "\\" .. vcLibDir
 	env:set_external_env_var("LIB", libString)
