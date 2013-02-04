@@ -64,14 +64,10 @@ local function setup(env, options)
 	local host_arch = options.HostArch or get_host_arch()
 	local vcversion = options.VcVersion or "10.0"
 
-	local binDir = compiler_dirs[host_arch][target_arch][vcversion]
-	if not binDir then
-		binDir = compiler_dirs[host_arch][target_arch][1]
-	end
-
-	if not binDir then
-		binDir = compiler_dirs[host_arch][target_arch]
-	end
+	local binDir =
+		compiler_dirs[host_arch][target_arch][vcversion]
+		or compiler_dirs[host_arch][target_arch][1]
+		or compiler_dirs[host_arch][target_arch]
 
 	if not binDir then
 		errorf("can't build target arch %s on host arch %s", target_arch, host_arch)
