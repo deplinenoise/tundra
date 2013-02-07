@@ -68,15 +68,9 @@ Build {
 		genwincfg("win32-winsdk6", "x86", "9.0"),
 		genwincfg("win64-winsdk6", "x86", "9.0"),
 		genwincfg("win32-winsdk7", "x86", "10.0"),
-		genwincfg("win64-winsdk7", "x86", "10.0"),
-
-		Config {
-			Name = "win64-winsdk7",
-			Inherit = common,
-			Tools = {
-				{ "msvc-winsdk"; TargetArch = "x64", VcVersion = "10.0" }
-			}
-		},
+		genwincfg("win64-winsdk7", "x64", "10.0"),
+		genwincfg("win32-winsdk8", "x86", "11.0"),
+		genwincfg("win64-winsdk8", "x64", "11.0"),
 
 		-- MingW32 cross compilation under OS X
 		Config {
