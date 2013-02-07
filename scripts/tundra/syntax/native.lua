@@ -29,7 +29,7 @@ local _native_mt = nodegen.create_eval_subclass {
 		Frameworks = "FRAMEWORKS",
 		LibPaths = "LIBPATH",
 	},
-} 
+}
 
 local _object_mt = nodegen.create_eval_subclass({
 	Suffix = "$(OBJECTSUFFIX)",
@@ -165,14 +165,14 @@ function _native_mt:create_dag(env, data, input_deps)
 		end
 	end
 
-	local aux_outputs = env:get_list("AUX_FILES_" .. self.Label:upper(), {})
+	local aux_outputs = env:get_list("AUX_FILES_" .. self.Keyword:upper(), {})
 
 	if env:get('GENERATE_PDB', '0') ~= '0' then
 		aux_outputs[#aux_outputs + 1] = "$(_PDB_FILE)"
 	end
 
 	local extra_inputs = {}
-	
+
 	if env:has_key('MODDEF') then
 		extra_inputs[#extra_inputs + 1] = "$(MODDEF)"
 	end
