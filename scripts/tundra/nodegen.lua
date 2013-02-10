@@ -384,8 +384,8 @@ local pattern_cache = {}
 local function get_cached_pattern(p)
 	local v = pattern_cache[p]
 	if not v then
-		local comp = '%w+'
-		local sub_pattern = p:gsub('*', '%%w+')
+		local comp = '[%w_]+'
+		local sub_pattern = p:gsub('*', '[%%w_]+')
 		local platform, tool, variant, subvariant = boot.match_build_id(sub_pattern, comp)
 		v = string.format('^%s%%-%s%%-%s%%-%s$', platform, tool, variant, subvariant)
 		pattern_cache[p] = v
