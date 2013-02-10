@@ -629,7 +629,7 @@ function _G.Config(args)
 	if not name then
 		error("no `Name' specified for configuration")
 	end
-	if not name:match("^%w+-%w+$") then
+	if not name:match("^[%w_]+-[%w_]+$") then
 		errorf("configuration name %s doesn't follow <platform>-<toolset> pattern", name)
 	end
 
