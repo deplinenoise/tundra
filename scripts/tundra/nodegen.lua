@@ -324,7 +324,7 @@ local function resolve_dependencies(decl, raw_deps, env)
 	local deps = flatten_list(build_id, raw_deps)
 	return util.map_in_place(deps, function (i)
 		if type(i) == "string" then
-			n = current.units[i]
+			local n = current.units[i]
 			if not n then
 				errorf("%s: Unknown 'Depends' target %q", decl.Name, i)
 			end
@@ -730,4 +730,3 @@ end
 function set_ide_backend(backend_fn)
 	ide_backend = backend_fn
 end
-
