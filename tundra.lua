@@ -37,6 +37,9 @@ local common = {
 			{ "NDEBUG"; Config = "*-*-release" },
 			{ "TD_STANDALONE"; Config = "*-*-*-standalone" },
 		},
+		GENERATE_PDB = {
+			{ "1"; Config = "*-*-debug" }
+		}
 	}
 }
 
