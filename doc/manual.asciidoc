@@ -1119,7 +1119,7 @@ Toolsets configure a variation of an existing toolset implementation. Currently
 the following toolset types can be created:
 
 [width="90%",cols="2,4,5,3",options="header"]
-|================================================================================
+|=============================================================================
 |Language     |Base toolset         |Unit driver                | Examples     
 |Assembly     |`generic-asm.lua`    |`tundra.nodegen.native`    | `yasm`
 |C and C++    |`generic-cpp.lua`    |`tundra.nodegen.native`    | `gcc`, `msvc`
@@ -1256,7 +1256,7 @@ build function. In addition to the keys you list for your unit, the following
 keys are always added for consistency:
 
 [width="90%",cols="4,9",options="header"]
-|================================================================================
+|=============================================================================
 |Key            |Description
 |`Propagate`    |Implements environment/keyword propagation to dependencies
 |`Env`          |Environment data to append
@@ -1276,7 +1276,7 @@ are welcome to reading the data in your `create_dag` implementation, especially
 When filling in your data blueprint, the following types are supported:
 
 [width="90%",cols="4,9",options="header"]
-|================================================================================
+|=============================================================================
 |Type name      |Accepted values
 |`string`       |Any string value
 |`boolean`      |Boolean `true` or `false`
