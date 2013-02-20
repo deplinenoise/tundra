@@ -386,12 +386,14 @@ local function setup_env(env, tuple, build_id)
 
 	for env_tab in iter_inherits(config, "ReplaceEnv") do
 		for key, val in util.pairs(env_tab) do
+      if Options.VeryVerbose then
+        printf("Env Replace %s => %s", util.tostring(key), util.tostring(val))
+      end
 			if type(val) == "table" then
 				local list = nodegen.flatten_list(build_id, val)
-				if Options.VeryVerbose then
-					printf("Env Replace %s => %s", util.tostring(val), util.tostring(list))
-				end
-				env:replace(key, list)
+        if #list > 0 then
+          env:replace(key, list)
+        end
 			else
 				env:replace(key, val)
 			end
