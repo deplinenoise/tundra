@@ -1119,7 +1119,7 @@ Toolsets configure a variation of an existing toolset implementation. Currently
 the following toolset types can be created:
 
 [width="90%",cols="2,4,5,3",options="header"]
-|================================================================================
+|=============================================================================
 |Language     |Base toolset         |Unit driver                | Examples     
 |Assembly     |`generic-asm.lua`    |`tundra.nodegen.native`    | `yasm`
 |C and C++    |`generic-cpp.lua`    |`tundra.nodegen.native`    | `gcc`, `msvc`
