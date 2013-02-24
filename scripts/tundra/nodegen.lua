@@ -49,9 +49,9 @@ end
 
 local function validate_pass(name, value)
 	if type(value) == "string" then
-        return value
-    else
-        syntax_error("%s: expected pass name, got %q", name, type(value))
+		return value
+	else
+		syntax_error("%s: expected pass name, got %q", name, type(value))
 	end
 end
 
@@ -324,7 +324,7 @@ local function resolve_dependencies(decl, raw_deps, env)
 	local deps = flatten_list(build_id, raw_deps)
 	return util.map_in_place(deps, function (i)
 		if type(i) == "string" then
-			n = current.units[i]
+			local n = current.units[i]
 			if not n then
 				errorf("%s: Unknown 'Depends' target %q", decl.Name, i)
 			end
@@ -455,15 +455,15 @@ function _nodegen:get_dag(parent_env)
 				unit_env:set('UNIT_PREFIX', '__' .. self.Decl.Name)
 			end
 
-      -- Before accessing the unit's dependencies, resolve them via filtering.
-      local deps = resolve_dependencies(self.Decl, self.Decl.Depends, unit_env)
+			-- Before accessing the unit's dependencies, resolve them via filtering.
+			local deps = resolve_dependencies(self.Decl, self.Decl.Depends, unit_env)
 
 			self:configure_env(unit_env, deps)
 			self:customize_env(unit_env, self.Decl, deps)
 
 			local input_data, input_deps = self:create_input_data(unit_env, parent_env)
-      -- Copy over dependencies which have been pre-resolved
-      input_data.Depends = deps
+			-- Copy over dependencies which have been pre-resolved
+			input_data.Depends = deps
 
 			for _, dep in util.nil_ipairs(deps) do
 				input_deps[#input_deps + 1] = dep:get_dag(parent_env)
@@ -568,13 +568,13 @@ function resolve_pass(name)
 	assert(current)
 	if name then
 		local p = current.passes[name]
-        if not p then
-            syntax_error("%q is not a valid pass name", name)
-        end
-        return p
-    else
-        return nil
-    end
+		if not p then
+			syntax_error("%q is not a valid pass name", name)
+		end
+		return p
+	else
+		return nil
+	end
 end
 
 function get_target(data, suffix, prefix)
@@ -595,10 +595,10 @@ local common_blueprint = {
 		Help = "Declarations to propagate to dependent units",
 		Type = "filter_table",
 	},
-  Depends = {
-    Help = "Dependencies for this node",
-    Type = "table", -- handled specially
-  },
+	Depends = {
+	   Help = "Dependencies for this node",
+	   Type = "table", -- handled specially
+	},
 	Env = {
 		Help = "Data to append to the environment for the unit",
 		Type = "filter_table",
@@ -665,9 +665,9 @@ function add_evaluator(name, meta_tbl, blueprint)
 			errorf("unsupported blueprint type %q", type_)
 		end
 
-        if val.Type == "source_list" and not val.ExtensionKey then
+		if val.Type == "source_list" and not val.ExtensionKey then
 			errorf("%s: source_list must provide ExtensionKey", name)
-        end
+		end
 	end
 
 	-- Record blueprint for use when validating user constructs.
@@ -730,4 +730,3 @@ end
 function set_ide_backend(backend_fn)
 	ide_backend = backend_fn
 end
-
