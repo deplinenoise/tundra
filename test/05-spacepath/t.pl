@@ -4,6 +4,7 @@ sub make_build_file($) {
 	my $use_digest = shift;
 	<<END;
 require 'tundra.syntax.testsupport'
+local native = require 'tundra.native'
 
 Build {
 	Configs = {
@@ -12,6 +13,7 @@ Build {
 			ReplaceEnv = {
 				OBJECTROOT = "a b c"
 			},
+      SupportedHosts = { native.host_platform },
 		}
 	},
 	Units = function()

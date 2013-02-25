@@ -534,7 +534,7 @@
 #ifdef _MSC_VER
 #define lua_str2number(s,p)	_strtoi64((s), (p), 10)
 #else
-#define lua_str2number(s,p)	strtol((s), (p), 10)
+#define lua_str2number(s,p)	strtoll((s), (p), 10)
 #endif
 
 

@@ -10,6 +10,7 @@ Build {
 				BISONOPT = "",
 				CPPPATH = "$(OBJECTDIR)", -- pick up generated files
 			},
+      DefaultOnHost = { "macosx" },
 		},
 	},
 	Passes = {

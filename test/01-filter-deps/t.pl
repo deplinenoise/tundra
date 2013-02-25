@@ -2,11 +2,13 @@ sub make_build_file($) {
 	my $use_digest = shift;
 	<<END;
 require 'tundra.syntax.testsupport'
+local native = require 'tundra.native'
 
 Build {
 	Configs = {
 		Config {
 			Name = "foo-bar",
+      SupportedHosts = { native.host_platform },
 		}
 	},
 	EngineOptions = {

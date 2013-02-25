@@ -2,11 +2,13 @@
 sub make_build_file($) {
 	my $use_caching = shift;
 	<<END;
+local native = require 'tundra.native'
 require 'tundra.syntax.testsupport'
 Build {
 	Configs = {
 		Config {
 			Name = "foo-bar",
+      DefaultOnHost = { native.host_platform },
 		}
 	},
 	Passes = {

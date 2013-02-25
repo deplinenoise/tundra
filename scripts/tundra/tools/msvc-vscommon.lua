@@ -1,20 +1,3 @@
--- Copyright 2013 Andreas Fredriksson
---
--- This file is part of Tundra.
---
--- Tundra is free software: you can redistribute it and/or modify
--- it under the terms of the GNU General Public License as published by
--- the Free Software Foundation, either version 3 of the License, or
--- (at your option) any later version.
---
--- Tundra is distributed in the hope that it will be useful,
--- but WITHOUT ANY WARRANTY; without even the implied warranty of
--- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License for more details.
---
--- You should have received a copy of the GNU General Public License
--- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
-
 -- msvc-vscommon.lua - utility code for all versions of Visual Studio
 
 module(..., package.seeall)
@@ -27,11 +10,13 @@ local arch_dirs = {
     ["x86"] = "\\vc\\bin\\",
     ["x64"] = "\\vc\\bin\\x86_amd64\\",
     ["itanium"] = "\\vc\\bin\\x86_ia64\\",
+    ["arm"] = "\\vc\\bin\\x86_arm\\",
   },
   ["x64"] = {
     ["x86"] = "\\vc\\bin\\",
     ["x64"] = "\\vc\\bin\\amd64\\",
     ["itanium"] = "\\vc\\bin\\x86_ia64\\",
+    ["arm"] = "\\vc\\bin\\x86_arm\\",
   },
   ["itanium"] = {
     ["x86"] = "\\vc\\bin\\x86_ia64\\",
@@ -56,81 +41,108 @@ function apply_msvc_visual_studio(version, env, options)
   if native.host_platform ~= "windows" then
     error("the msvc toolset only works on windows hosts")
   end
-	-- Load basic MSVC environment setup first. We're going to replace the paths to
-	-- some tools.
-	tundra.boot.load_toolset('msvc', env)
+  -- Load basic MSVC environment setup first. We're going to replace the paths to
+  -- some tools.
+  tundra.unitgen.load_toolset('msvc', env)
 
-	options = options or {}
+  options = options or {}
 
-	local target_arch = options.TargetArch or "x86"
-	local host_arch = options.HostArch or get_host_arch()
+  local target_arch = options.TargetArch or "x86"
+  local host_arch = options.HostArch or get_host_arch()
 
   local vs_key = "SOFTWARE\\Microsoft\\VisualStudio\\" .. version
   local idePath = assert(native.reg_query("HKLM", vs_key, "InstallDir"))
   local rootDir = string.gsub(idePath, "\\Common7\\IDE\\$", "")
 
-  local sdk_key = "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows"
-  local sdkDir = assert(native.reg_query("HKLM", sdk_key, "CurrentInstallFolder"))
+  local sdkDir
+  local sdkIncludeDir
 
-	local binDir = arch_dirs[host_arch][target_arch]
+  local sdkLibDir
+  local vcLibDir
 
-	if not binDir then
-		errorf("can't build target arch %s on host arch %s", target_arch, host_arch)
-	end
+  if version ~= "11.0" then
+    local sdk_key = "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows"
+    sdkDir = assert(native.reg_query("HKLM", sdk_key, "CurrentInstallFolder"))
+    sdkIncludeDir = sdkDir .. "\\INCLUDE"
 
-	local cl_exe = '"' .. rootDir .. binDir .. "cl.exe" ..'"'
-	local lib_exe = '"' .. rootDir .. binDir .. "lib.exe" ..'"'
-	local link_exe = '"' .. rootDir .. binDir .. "link.exe" ..'"'
+    if "x86" == target_arch then
+      sdkLibDir = "LIB"
+      vcLibDir = "LIB"
+    elseif "x64" == target_arch then
+      sdkLibDir = "LIB\\x64"
+      vcLibDir = "LIB\\amd64"
+    elseif "itanium" == target_arch then
+      sdkLibDir = "LIB\\IA64"
+      vcLibDir = "LIB\\IA64"
+    end
+  else
+    -- Hardcode VS2012 to use Windows SDK 8.0
+    local sdk_key = "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\v8.0"
+    sdkDir = assert(native.reg_query("HKLM", sdk_key, "InstallationFolder"))
+    sdkIncludeDir = sdkDir .. "\\include\\um;" .. sdkDir .. "\\include\\shared"
 
-	env:set('CC', cl_exe)
-	env:set('CXX', cl_exe)
-	env:set('LIB', lib_exe)
-	env:set('LD', link_exe)
+    if "x86" == target_arch then
+      sdkLibDir = "lib\\win8\\um\\x86"
+      vcLibDir = "lib"
+    elseif "x64" == target_arch then
+      sdkLibDir = "lib\\win8\\um\\x64"
+      vcLibDir = "lib\\amd64"
+    elseif "arm" == target_arch then
+      sdkLibDir = "lib\\win8\\um\\arm"
+      vcLibDir = "lib\\arm"
+    end
+  end
 
-	-- Pickup the Resource Compiler from the current SDK path
-	-- (otherwise tundra has to be run from within an environment where 'RC' already is in the path)
-	local rc_exe = '"' .. sdkDir .. "bin\\rc.exe" .. '"'
-	env:set('RC', rc_exe)
+  local binDir = arch_dirs[host_arch][target_arch]
 
-	-- Expose the required variables to the external environment
-	env:set_external_env_var('VSINSTALLDIR', rootDir)
-	env:set_external_env_var('VCINSTALLDIR', rootDir .. '\\vc')
-	env:set_external_env_var('DevEnvDir', idePath)
+  if not binDir then
+    errorf("can't build target arch %s on host arch %s", target_arch, host_arch)
+  end
 
-	-- Now look for MS SDK associated with visual studio
+  local cl_exe = '"' .. rootDir .. binDir .. "cl.exe" ..'"'
+  local lib_exe = '"' .. rootDir .. binDir .. "lib.exe" ..'"'
+  local link_exe = '"' .. rootDir .. binDir .. "link.exe" ..'"'
 
-	env:set_external_env_var("WindowsSdkDir", sdkDir)
-	env:set_external_env_var("INCLUDE", sdkDir .. "\\INCLUDE;" .. rootDir .. "\\VC\\ATLMFC\\INCLUDE;" .. rootDir .. "\\VC\\INCLUDE")
+  env:set('CC', cl_exe)
+  env:set('CXX', cl_exe)
+  env:set('LIB', lib_exe)
+  env:set('LD', link_exe)
 
-	local sdkLibDir = "LIB"
-	local vcLibDir = "LIB"
+  -- Pickup the Resource Compiler from the current SDK path
+  -- (otherwise tundra has to be run from within an environment where 'RC' already is in the path)
+  local rc_exe = '"' .. sdkDir .. "bin\\rc.exe" .. '"'
+  env:set('RC', rc_exe)
 
-	if "x64" == target_arch then
-		sdkLibDir = "LIB\\x64"
-		vcLibDir = "LIB\\amd64"
-	elseif "itanium" == target_arch then
-		sdkLibDir = "LIB\\IA64"
-		vcLibDir = "LIB\\IA64"
-	end
+  -- Expose the required variables to the external environment
+  env:set_external_env_var('VSINSTALLDIR', rootDir)
+  env:set_external_env_var('VCINSTALLDIR', rootDir .. '\\vc')
+  env:set_external_env_var('DevEnvDir', idePath)
 
-	local libString = sdkDir .. "\\" .. sdkLibDir .. ";" .. rootDir .. "\\VC\\ATLMFC\\" .. vcLibDir .. ";" .. rootDir .. "\\VC\\" .. vcLibDir
-	env:set_external_env_var("LIB", libString)
-	env:set_external_env_var("LIBPATH", libString)
+  -- Now look for MS SDK associated with visual studio
 
-	local path = { }
-	path[#path + 1] = sdkDir
-	path[#path + 1] = idePath
+  env:set_external_env_var("WindowsSdkDir", sdkDir)
+  env:set_external_env_var("INCLUDE", sdkIncludeDir .. ";" .. rootDir .. "\\VC\\ATLMFC\\INCLUDE;" .. rootDir .. "\\VC\\INCLUDE")
 
-	if "x86" == host_arch then
-		path[#path + 1] = rootDir .. "\\VC\\Bin"
-	elseif "x64" == host_arch then
-		path[#path + 1] = rootDir .. "\\VC\\Bin\\amd64"
-	elseif "itanium" == host_arch then
-		path[#path + 1] = rootDir .. "\\VC\\Bin\\ia64"
-	end
-	path[#path + 1] = rootDir .. "\\Common7\\Tools"
+  local libString = sdkDir .. "\\" .. sdkLibDir .. ";" .. rootDir .. "\\VC\\ATLMFC\\" .. vcLibDir .. ";" .. rootDir .. "\\VC\\" .. vcLibDir
+  env:set_external_env_var("LIB", libString)
+  env:set_external_env_var("LIBPATH", libString)
 
-	path[#path + 1] = env:get_external_env_var('PATH') 
+  local path = { }
+  path[#path + 1] = sdkDir
+  path[#path + 1] = idePath
 
-	env:set_external_env_var("PATH", table.concat(path, ';'))
+  if "x86" == host_arch then
+    path[#path + 1] = rootDir .. "\\VC\\Bin"
+  elseif "x64" == host_arch then
+    path[#path + 1] = rootDir .. "\\VC\\Bin\\amd64"
+  elseif "itanium" == host_arch then
+    path[#path + 1] = rootDir .. "\\VC\\Bin\\ia64"
+  elseif "arm" == host_arch then
+    path[#path + 1] = rootDir .. "\\VC\\Bin\\arm"
+  end
+  path[#path + 1] = rootDir .. "\\Common7\\Tools"
+
+  path[#path + 1] = env:get_external_env_var('PATH') 
+
+  env:set_external_env_var("PATH", table.concat(path, ';'))
 end

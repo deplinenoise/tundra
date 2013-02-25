@@ -1,5 +1,6 @@
 
 my $build_file = <<END;
+local native = require 'tundra.native'
 Build {
 	EngineOptions = {
 		UseDigestSigning = 1,
@@ -8,6 +9,7 @@ Build {
 		Config {
 			Name = "foo-bar",
 			Tools = { "gcc" },
+      DefaultOnHost = { native.host_platform },
 		}
 	},
 	Units = function()

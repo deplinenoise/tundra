@@ -845,7 +845,7 @@ local function debugger_loop(ev, vars, file, line, idx_watch)
     local res={}
     local char,arg
     local ptr=1
-	local _
+  local _
     for i=1,string.len(spec) do
       char = string.sub(spec,i,i)
       if     char == 'F' then

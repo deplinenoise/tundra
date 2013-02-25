@@ -1,0 +1,9 @@
+- Documentation
+
+- Figure out how to install/distribute
+
+- Wire up generic include scanners again (asm)
+
+- Implement file-based interpolation options in LuaInterpolate.cpp
+
+- PERF: speed up stale output file cleanup (50% of the time of large null build on windows)
