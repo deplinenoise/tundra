@@ -290,7 +290,7 @@ td_engine_get_file(td_engine *engine, const char *input_path, td_get_file_mode m
 
 	slot = (int) (hash % engine->file_hash_size);
 	chain = engine->file_hash[slot];
-	
+
 	while (chain)
 	{
 		if (chain->hash == hash && 0 == strcmp(out_path, chain->path))
@@ -900,8 +900,8 @@ make_node(lua_State *L)
  * lua arg 2 - array table to append results to
  * lua arg 3 - array table of extensions
  */
-#define TD_MAX_EXTS 16 
-#define TD_EXTLEN 16 
+#define TD_MAX_EXTS 16
+#define TD_EXTLEN 16
 
 static int
 insert_file_list(lua_State *L, int file_count, td_file **files)
@@ -922,6 +922,8 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 		str = lua_tolstring(L, -1, &len);
 		if (0 == len)
 			luaL_error(L, "extensions can't be empty");
+		if (str[0] != '.')
+			luaL_error(L, "extensions must start with a dot '.'");
 		strncpy(exts[i], str, TD_EXTLEN);
 		exts[i][TD_EXTLEN-1] = '\0';
 	}
@@ -950,7 +952,7 @@ insert_file_list(lua_State *L, int file_count, td_file **files)
 		}
 		else
 			emit = 1;
-		
+
 		if (emit)
 		{
 #if defined(TUNDRA_WIN32)
