@@ -1,4 +1,4 @@
--- Copyright 2010 Andreas Fredriksson
+-- Copyright 2013 Andreas Fredriksson
 --
 -- This file is part of Tundra.
 --
@@ -15,7 +15,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Tundra.  If not, see <http://www.gnu.org/licenses/>.
 
--- msvc-vs2008.lua - Settings to use Microsoft Visual Studio 2008 from the
+-- msvc-vs2012.lua - Settings to use Microsoft Visual Studio 2012 from the
 -- registry.
 
 module(..., package.seeall)
@@ -23,5 +23,5 @@ module(..., package.seeall)
 local vscommon = require "tundra.tools.msvc-vscommon"
 
 function apply(env, options)
-  vscommon.apply_msvc_visual_studio("9.0", env, options)
+  vscommon.apply_msvc_visual_studio("11.0", env, options)
 end
