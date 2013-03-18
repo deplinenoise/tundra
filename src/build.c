@@ -344,7 +344,7 @@ update_input_signature(td_job_queue *queue, td_node *node)
 		if (sign_debug_file)
 			fprintf(sign_debug_file, "action = \"%s\"\n", node->action);
 
-		MD5_Update(&context, (char*) node->action, strlen(node->action) + 1);
+		MD5_Update(&context, (char*) node->action, (unsigned long) (strlen(node->action) + 1));
 	}
 	else
 		MD5_Update(&context, "", 1);
