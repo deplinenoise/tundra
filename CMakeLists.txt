@@ -5,6 +5,7 @@ project(Tundra)
 include_directories(src lua/src)
 
 if (WIN32)
+  if (MSVC)
     set(CMAKE_C_FLAGS "/EHsc")
 
     # Warning options--warning level 4 and warnings as errors
@@ -32,7 +33,11 @@ if (WIN32)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4718")
     
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /we4062 /we4263 /we4431")
-
+  endif (MSVC)
+  if (MINGW)
+    add_definitions(-D__USE_MINGW_ANSI_STDIO)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -Werror -Wno-error=strict-aliasing")
+  endif (MINGW)
     # Stick debug into in the object files rather in the PDB file while
     # compiling. Enables parallel builds and prevents msbdpsrv.exe from
     # crashing all the time with msvc 9.

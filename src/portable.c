@@ -57,9 +57,11 @@
 #include <assert.h>
 
 // Use POSIX name for MAX_PATH
+#if !defined(PATH_MAX)
 enum {
 	PATH_MAX = MAX_PATH
 };
+#endif
 
 #if defined(_MSC_VER)
 #define snprintf _snprintf

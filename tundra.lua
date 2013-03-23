@@ -24,10 +24,11 @@ local common = {
 		CPPPATH = { "src", "lua/src" },
 		CCOPTS = {
 			{ "/W4", "/WX", "/wd4127", "/wd4100", "/wd4324"; Config = "*-msvc-*" },
-			{ "-Wall", "-Werror"; Config = { "*-gcc-*", "*-clang-*", "*-crosswin32" } },
+			{ "-Wall", "-Werror"; Config = { "*-gcc-*", "*-clang-*", "*-crosswin32", "*-mingw-*" } },
+			{ "-Wno-error=strict-aliasing", "-std=c99"; Config = { "*-mingw-*" } },
 			{ "-g"; Config = { "*-gcc-debug", "*-clang-debug", "*-gcc-production", "*-clang-production" } },
 			{ "-O2"; Config = { "*-gcc-production", "*-clang-production", "*-crosswin32-production" } },
-			{ "-O3"; Config = { "*-gcc-release", "*-clang-release", "*-crosswin32-release" } },
+			{ "-O3"; Config = { "*-gcc-release", "*-clang-release", "*-crosswin32-release", "*-mingw-release" } },
 			{ "/O2"; Config = "*-msvc-production" },
 			{ "/Ox"; Config = "*-msvc-release" },
 		},
@@ -36,6 +37,7 @@ local common = {
 			{ "_GNU_SOURCE"; Config = "linux-*" },
 			{ "NDEBUG"; Config = "*-*-release" },
 			{ "TD_STANDALONE"; Config = "*-*-*-standalone" },
+			{ "__USE_MINGW_ANSI_STDIO"; Config = "*-mingw-*" },
 		},
 		GENERATE_PDB = {
 			{ "1"; Config = "*-*-debug" }
@@ -67,6 +69,7 @@ Build {
 		Config { Name = "linux-gcc", Inherit = common, Tools = { "gcc" }, DefaultOnHost = "linux" },
 		Config { Name = "freebsd-gcc", Inherit = common, Tools = { "gcc" }, DefaultOnHost = "freebsd" },
 		Config { Name = "openbsd-gcc", Inherit = common, Tools = { "gcc" }, DefaultOnHost = "openbsd" },
+		Config { Name = "win32-mingw", Inherit = common, Tools = { "mingw" } },
 
 		genwincfg("win32-winsdk6", "x86", "9.0"),
 		genwincfg("win64-winsdk6", "x86", "9.0"),
