@@ -35,6 +35,11 @@ typedef signed __int64 int64_t;
 #include <stdint.h>
 #endif
 
+#if defined(_WIN32) && defined(__GNUC__)
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
 #define TD_UNUSED(var) (void) var
 
 struct td_stat;
