@@ -31,7 +31,7 @@ local compiler_dirs = {
     ["x86"] = "bin\\",
     ["x64"] = {
       ["11.0"] = "bin\\x86_amd64\\",
-      "bin\\amd64"
+      "bin\\amd64\\"
     },
     ["itanium"] = "bin\\x86_ia64\\",
   },
