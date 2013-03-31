@@ -55,7 +55,8 @@ Program {
 	Defines = { "TD_STANDALONE"; Config = "*-*-*-standalone" },
 	Depends = { "base_lua", "luac", "gen_lua_data" },
 	Libs = {
-		{ "kernel32.lib", "advapi32.lib"; Config = { "win32-*-*", "win64-*-*" } },
+		{ "kernel32.lib", "advapi32.lib"; Config = { "win32-winsdk*-*", "win64-winsdk*-*" } },
+		{ "kernel32", "advapi32"; Config = { "win32-mingw*-*" } },
 		{ "m", "pthread"; Config = { "linux-*-*", "freebsd-*-*", "openbsd-*-*" } },
 	},
 	Sources = {
