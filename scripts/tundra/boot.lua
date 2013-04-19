@@ -359,7 +359,17 @@ local function setup_env(env, tuple, build_id)
 			end
 
 			if type(data) == "string" then
+				
+				-- if tools options where set like this { "tool" ; Option = "value" }
+				if options == nil then
+					options = {}
+					for k, v in next, tools, next(tools) do -- skip first
+						options[k] = v
+					end
+				end
+
 				load_toolset(data, env, options)
+
 			elseif type(data) == "function" then
 				data(env, options)
 			else
