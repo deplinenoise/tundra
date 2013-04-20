@@ -937,8 +937,12 @@ static bool RunExternalTool(const char* options, ...)
   va_end(args);
   option_str[sizeof(option_str)-1] = '\0';
 
+  const char* quotes = "";
+  if (strchr(dag_gen_path, ' '))
+    quotes = "\"";
+
   char cmdline[1024];
-  snprintf(cmdline, sizeof cmdline, "%s %s", dag_gen_path, option_str);
+  snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
   cmdline[sizeof(cmdline)-1] = '\0';
 
   EnvVariable vars[] =
