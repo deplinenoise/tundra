@@ -3,7 +3,7 @@ CC ?= clang
 CFLAGS ?= -O3 -DNDEBUG
 
 CXX ?= clang++
-CPPFLAGS = -Ilua/src -Isrc
+CPPFLAGS = -Ilua/src -Isrc -MMD -MP
 CXXFLAGS ?= -O3 -std=c++11 -stdlib=libc++ -fno-exceptions -DNDEBUG
 CXXLIBFLAGS ?= -stdlib=libc++
 
@@ -55,20 +55,6 @@ all: build build/tundra2 build/t2-lua build/t2-inspect build/t2-unittest
 
 build:
 	mkdir build
-
-build/%.d: %.c
-	@echo "CDEP $@"
-	@mkdir -p build
-	@set -e; rm -f $@; \
-  $(CC) -M $(CPPFLAGS) $< | \
-	sed 's,\($*\)\.o[ :]*,build/\1.o $@ : ,g' > $@
-
-build/%.d: %.cpp
-	@echo "C++DEP $@"
-	@mkdir -p build
-	@set -e; rm -f $@; \
-  $(CXX) -M $(CPPFLAGS) $< | \
-	sed 's,\($*\)\.o[ :]*,build/\1.o $@ : ,g' > $@
 
 build/%.o: %.c
 	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
