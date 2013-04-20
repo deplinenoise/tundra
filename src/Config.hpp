@@ -50,6 +50,11 @@
 #define TUNDRA_FREEBSD 1
 #define TUNDRA_CASE_INSENSITIVE_FILESYSTEM NO
 #define TUNDRA_EXE_SUFFIX ""
+#elif defined(__NetBSD__)
+#define TUNDRA_UNIX 1
+#define TUNDRA_NETBSD 1
+#define TUNDRA_CASE_INSENSITIVE_FILESYSTEM NO
+#define TUNDRA_EXE_SUFFIX ""
 #elif defined(__OpenBSD__)
 #define TUNDRA_UNIX 1
 #define TUNDRA_OPENBSD 1
