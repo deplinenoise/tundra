@@ -326,24 +326,32 @@ static int ll_loadlib (lua_State *L) {
  */
 static char lf_callback_key;
 
-static int ll_set_lf_callback(lua_State *L) {
-	luaL_checktype(L, 1, LUA_TFUNCTION);
-	lua_pushlightuserdata(L, &lf_callback_key);
-	lua_pushvalue(L, 1);
-	lua_settable(L, LUA_REGISTRYINDEX);
-	return 0;
-}
-
-static void call_lf_callback(lua_State *L, const char* fn) {
+static int ll_get_accessed_files(lua_State *L) {
 	lua_pushlightuserdata(L, &lf_callback_key);
 	lua_gettable(L, LUA_REGISTRYINDEX);
-	if (lua_isfunction(L, -1))
+  if (lua_isnil(L, -1))
+  {
+    lua_pop(L, 1);
+    lua_newtable(L);
+  }
+	return 1;
+}
+
+void lua_on_file_opened(lua_State *L, const char* fn) {
+	lua_pushlightuserdata(L, &lf_callback_key); // +1
+	lua_gettable(L, LUA_REGISTRYINDEX); // -1, +1
+	if (!lua_istable(L, -1))
 	{
-		lua_pushstring(L, fn);
-		lua_call(L, 1, 0);
+    lua_pop(L, 1); // -1
+    lua_newtable(L); // +1
+    lua_pushlightuserdata(L, &lf_callback_key); // +1
+    lua_pushvalue(L, -2); // +1
+    lua_settable(L, LUA_REGISTRYINDEX); // -2
 	}
-	else
-		lua_pop(L, 1);
+  lua_pushstring(L, fn); //+1
+  lua_pushboolean(L, 1); //+1
+  lua_settable(L, -3); //-2
+  lua_pop(L, 1); // -1
 }
 
 
@@ -409,7 +417,7 @@ static int loader_Lua (lua_State *L) {
   if (filename == NULL) return 1;  /* library not found in this path */
   if (luaL_loadfile(L, filename) != 0)
     loaderror(L, filename);
-  call_lf_callback(L, filename);
+  lua_on_file_opened(L, filename);
   return 1;  /* library loaded successfully */
 }
 
@@ -642,8 +650,8 @@ static const luaL_Reg pk_funcs[] = {
 static const luaL_Reg ll_funcs[] = {
   {"module", ll_module},
   {"require", ll_require},
-  /* added for Tundra to track file accesses made by require */
-  {"set_loadfile_callback", ll_set_lf_callback },
+  /* added for Tundra to get list of files that have been opened */
+  {"get_accessed_files", ll_get_accessed_files },
   {NULL, NULL}
 };
 

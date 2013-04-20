@@ -331,7 +331,11 @@ local function check_deps(nodes)
   end
 end
 
-function save_dag_data(bindings, default_variant, default_subvariant, accessed_lua_files)
+function save_dag_data(bindings, default_variant, default_subvariant)
+
+  -- Call builtin function to get at accessed file table
+  local accessed_lua_files = util.table_keys(get_accessed_files())
+
   printf("save_dag_data: %d bindings, %d accessed files", #bindings, #accessed_lua_files)
 
   local nodes = depgraph.get_all_nodes()

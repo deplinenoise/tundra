@@ -163,6 +163,11 @@ static int io_open (lua_State *L) {
   const char *mode = luaL_optstring(L, 2, "r");
   FILE **pf = newfile(L);
   *pf = fopen(filename, mode);
+
+  /* Tundra: Track opened files. */
+  if (*pf && (0 == strcmp(mode, "r") || 0 == strcmp(mode, "rb")))
+    lua_on_file_opened(L, filename);
+
   return (*pf == NULL) ? pushresult(L, 0, filename) : 1;
 }
 

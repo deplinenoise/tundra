@@ -297,6 +297,8 @@ LUA_API void lua_setallocf (lua_State *L, lua_Alloc f, void *ud);
 /* hack */
 LUA_API void lua_setlevel	(lua_State *from, lua_State *to);
 
+/* Tundra specific function to track accessed files. */
+void lua_on_file_opened(lua_State *L, const char* fn);
 
 /*
 ** {======================================================================

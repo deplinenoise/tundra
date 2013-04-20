@@ -4,7 +4,6 @@ module(..., package.seeall)
 require "strict"
 
 local os        = require "os"
-local filetrack = require "tundra.filetrack"
 local platform  = require "tundra.platform"
 local util      = require "tundra.util"
 local depgraph  = require "tundra.depgraph"
@@ -74,8 +73,7 @@ function generate_dag_data(build_script_fn)
   dagsave.save_dag_data(
     node_bindings,
     build_data.DefaultVariant,
-    build_data.DefaultSubVariant,
-    util.table_keys(filetrack.get_accessed_files()))
+    build_data.DefaultSubVariant)
 end
 
 function generate_ide_files(build_script_fn, args)
