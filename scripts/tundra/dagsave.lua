@@ -103,11 +103,12 @@ local function save_scanners(w, scanners)
     for _, path in ipairs(s.Paths) do
       w:write_string(path)
     end
+    w:end_array()
     -- Serialize specialized state for generic scanners
     if s.Kind == 'generic' then
-      w:write_bool('RequireWhitespace', s.RequireWhitespace)
-      w:write_bool('UseSeparators', s.UseSeparators)
-      w:write_bool('BareMeansSystem', s.BareMeansSystem)
+      w:write_bool(s.RequireWhitespace, 'RequireWhitespace')
+      w:write_bool(s.UseSeparators, 'UseSeparators')
+      w:write_bool(s.BareMeansSystem, 'BareMeansSystem')
       w:begin_array('Keywords')
       for _, kw in ipairs(s.Keywords) do
         w:write_string(kw)
@@ -119,7 +120,6 @@ local function save_scanners(w, scanners)
       end
       w:end_array()
     end
-    w:end_array()
     w:end_object()
   end
   w:end_array()

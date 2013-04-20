@@ -74,6 +74,26 @@ static void DumpDag(const DagData* data)
       }
       DigestToString(digest_str, s->m_ScannerGuid);
       printf("    scanner guid: %s\n", digest_str);
+
+      if (ScannerType::kGeneric == s->m_ScannerType)
+      {
+        const GenericScannerData* gs = static_cast<const GenericScannerData*>(s);
+        printf("    flags:");
+        if (GenericScannerData::kFlagRequireWhitespace & gs->m_Flags)
+          printf(" RequireWhitespace");
+        if (GenericScannerData::kFlagUseSeparators & gs->m_Flags)
+          printf(" UseSeparators");
+        if (GenericScannerData::kFlagBareMeansSystem & gs->m_Flags)
+          printf(" BareMeansSystem");
+        printf("\n");
+
+        printf("    keywords:\n");
+        for (const KeywordData& kw : gs->m_Keywords)
+        {
+          printf("      \"%s\" (%d bytes) follow: %s\n",
+              kw.m_String.Get(), kw.m_StringLength, kw.m_ShouldFollow ? "yes" : "no");
+        }
+      }
     }
 
     printf("\n");

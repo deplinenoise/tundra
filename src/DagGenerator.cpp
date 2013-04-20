@@ -392,6 +392,19 @@ static bool SortJsonStrings(const JsonValue* l, const JsonValue* r)
   return strcmp(ls, rs) < 0;
 }
 
+static bool GetBoolean(const JsonObjectValue* obj, const char* name)
+{
+  if (const JsonValue* val = obj->Find(name))
+  {
+    if (const JsonBooleanValue* b = val->AsBoolean())
+    {
+      return b->m_Boolean;
+    }
+  }
+
+  return false;
+}
+
 static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegment* array_seg, BinarySegment* str_seg, const JsonObjectValue* data, HashTable* shared_strings, MemAllocLinear* scratch)
 {
   if (!data)
@@ -406,29 +419,85 @@ static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegme
   BinarySegmentAlign(seg, 4);
   *ptr_out = BinarySegmentPosition(seg);
 
+  ScannerType::Enum type;
   if (0 == strcmp(kind, "cpp"))
-  {
-    BinarySegmentWriteInt32(seg, ScannerType::kCpp);
-    BinarySegmentWriteInt32(seg, (int) incpaths->m_Count);
-    BinarySegmentWritePointer(seg, BinarySegmentPosition(array_seg));
-    HashState h;
-    HashInit(&h);
-    for (size_t i = 0, count = incpaths->m_Count; i < count; ++i)
-    {
-      const char* path = incpaths->m_Values[i]->GetString();
-      if (!path)
-        return false;
-      HashAddString(&h, path);
-      WriteCommonStringPtr(array_seg, str_seg, path, shared_strings, scratch);
-    }
-    HashDigest scanner_guid;
-    HashFinalize(&h, &scanner_guid);
-    BinarySegmentWrite(seg, (char*) &scanner_guid, sizeof scanner_guid);
-  }
+    type = ScannerType::kCpp;
+  else if (0 == strcmp(kind, "generic"))
+    type = ScannerType::kGeneric;
   else
-  {
     return false;
+
+  BinarySegmentWriteInt32(seg, type);
+  BinarySegmentWriteInt32(seg, (int) incpaths->m_Count);
+  BinarySegmentWritePointer(seg, BinarySegmentPosition(array_seg));
+  HashState h;
+  HashInit(&h);
+  HashAddString(&h, kind);
+  for (size_t i = 0, count = incpaths->m_Count; i < count; ++i)
+  {
+    const char* path = incpaths->m_Values[i]->GetString();
+    if (!path)
+      return false;
+    HashAddString(&h, path);
+    WriteCommonStringPtr(array_seg, str_seg, path, shared_strings, scratch);
   }
+
+  void* digest_space = BinarySegmentAlloc(seg, sizeof(HashDigest));
+  
+  if (ScannerType::kGeneric == type)
+  {
+    uint32_t flags = 0;
+
+    if (GetBoolean(data, "RequireWhitespace"))
+      flags |= GenericScannerData::kFlagRequireWhitespace;
+    if (GetBoolean(data, "UseSeparators"))
+      flags |= GenericScannerData::kFlagUseSeparators;
+    if (GetBoolean(data, "BareMeansSystem"))
+      flags |= GenericScannerData::kFlagBareMeansSystem;
+
+    BinarySegmentWriteUint32(seg, flags);
+
+    const JsonArrayValue* follow_kws = FindArrayValue(data, "Keywords");
+    const JsonArrayValue* nofollow_kws = FindArrayValue(data, "KeywordsNoFollow");
+
+    size_t kw_count =
+      (follow_kws ? follow_kws->m_Count : 0) + 
+      (nofollow_kws ? nofollow_kws->m_Count : 0);
+
+    BinarySegmentWriteInt32(seg, (int) kw_count);
+    if (kw_count > 0)
+    {
+      BinarySegmentAlign(array_seg, 4);
+      BinarySegmentWritePointer(seg, BinarySegmentPosition(array_seg));
+      auto write_kws = [array_seg, str_seg](const JsonArrayValue* array, bool follow)
+      {
+        if (array)
+        {
+          for (size_t i = 0, count = array->m_Count; i < count; ++i)
+          {
+            const JsonStringValue* value = array->m_Values[i]->AsString();
+            if (!value)
+              return false;
+            WriteStringPtr(array_seg, str_seg, value->m_String);
+            BinarySegmentWriteInt16(array_seg, (int16_t) strlen(value->m_String));
+            BinarySegmentWriteUint8(array_seg, follow ? 1 : 0);
+            BinarySegmentWriteUint8(array_seg, 0);
+          }
+        }
+        return true;
+      };
+      if (!write_kws(follow_kws, true))
+        return false;
+      if (!write_kws(nofollow_kws, false))
+        return false;
+    }
+    else
+    {
+      BinarySegmentWriteNullPointer(seg);
+    }
+  }
+
+  HashFinalize(&h, static_cast<HashDigest*>(digest_space));
 
   return true;
 }

@@ -31,10 +31,16 @@ size_t BinarySegmentSize(BinarySegment* seg);
 
 void BinarySegmentAlign(BinarySegment* seg, size_t alignment);
 
+void* BinarySegmentAlloc(BinarySegment* seg, size_t len);
 void BinarySegmentWrite(BinarySegment* seg, const char* data, size_t len);
 void BinarySegmentWritePointer(BinarySegment* seg, BinaryLocator locator);
 
 inline void BinarySegmentWriteUint8(BinarySegment* seg, uint8_t v)
+{
+  BinarySegmentWrite(seg, (const char*) &v, sizeof v);
+}
+
+inline void BinarySegmentWriteInt16(BinarySegment* seg, int16_t v)
 {
   BinarySegmentWrite(seg, (const char*) &v, sizeof v);
 }
