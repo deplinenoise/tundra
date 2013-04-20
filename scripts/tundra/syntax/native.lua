@@ -256,10 +256,14 @@ local external_blueprint = {
   },
 }
 
+local external_counter = 1
+
 function _extlib_mt:create_dag(env, data, input_deps)
+  local name = string.format("dummy node for %s (%d)", data.Name, external_counter)
+  external_counter = external_counter + 1
   return depgraph.make_node {
     Env          = env,
-    Label        = "Dummy node for " .. data.Name,
+    Label        = name,
     Pass         = data.Pass,
     Dependencies = input_deps,
   }
