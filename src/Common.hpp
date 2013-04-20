@@ -11,7 +11,11 @@
 #include <malloc.h>
 #include <intrin.h>
 #elif defined(TUNDRA_UNIX)
+#  if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#include <stdlib.h>
+#  else
 #include <alloca.h>
+#  endif
 #endif
 
 #define MB(n) ((n) * 1024 * 1024)
@@ -32,7 +36,7 @@ namespace t2
 {
 
 void InitCommon(void);
- 
+
 //-----------------------------------------------------------------------------
 // Error handling
 //-----------------------------------------------------------------------------
