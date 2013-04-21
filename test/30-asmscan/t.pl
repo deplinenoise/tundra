@@ -1,29 +1,27 @@
 
 my $build_file = <<END;
 local native = require 'tundra.native'
+
 Build {
-	EngineOptions = {
-		UseDigestSigning = 1,
-	},
 	Configs = {
 		Config {
 			Name = "foo-bar",
 			Tools = { "yasm", "gcc" },
-			Env = {
-				ASMOPTS = "-f macho64",
-			},
+			Env = { },
       DefaultOnHost = { native.host_platform },
 		}
 	},
 	Units = function()
-		Program {
-			Name = "foo",
+		local result = ObjGroup {
+      Name = "result",
 			Sources = "foo.asm",
 		}
-		Default "foo"
+		Default(result)
 	end,
 }
 END
+
+my $obj_file = '__result/foo__asm.o';
 
 my $foo_asm = <<END;
 	%include "include1.i" 
@@ -38,12 +36,12 @@ sub run_test($$) {
 
 	with_sandbox($files, sub {
 		run_tundra 'foo-bar';
-		my $sig1 = md5_output_file 'foo';
+		my $sig1 = md5_output_file $obj_file;
 
 		&$alteration();
 
 		run_tundra 'foo-bar';
-		my $sig2 = md5_output_file 'foo';
+		my $sig2 = md5_output_file $obj_file;
 		fail "failed to rebuild when header changed" if $sig1 eq $sig2;
 	});
 }
