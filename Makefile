@@ -6,11 +6,23 @@ CFLAGS ?= -O3 -DNDEBUG
 
 CXX ?= clang++
 CPPFLAGS = -Ilua/src -Isrc -MMD -MP
-CXXFLAGS ?= -O3 -std=c++11 -stdlib=libc++ -fno-exceptions -DNDEBUG
-CXXLIBFLAGS ?= -stdlib=libc++
+CXXFLAGS ?= -O3 -std=c++11 -fno-exceptions -DNDEBUG
+CXXLIBFLAGS ?=
 LDFLAGS ?= -Lbuild -ltundra
+
 ifeq ($(UNAME), $(filter $(UNAME), FreeBSD NetBSD OpenBSD))
 LDFLAGS += -lpthread
+else
+ifeq ($(UNAME), $(filter $(UNAME), Linux))
+LDFLAGS += -pthread
+else
+ifeq ($(UNAME), $(filter $(UNAME), Darwin))
+CXXFLAGS += -stdlib=libc++
+LDFLAGS += -stdlib=libc++
+else
+$(error "unknown platform $(UNAME)")
+endif
+endif
 endif
 
 VPATH = lua/src:src:build:unittest
