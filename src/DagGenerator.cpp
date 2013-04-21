@@ -469,7 +469,7 @@ static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegme
     {
       BinarySegmentAlign(array_seg, 4);
       BinarySegmentWritePointer(seg, BinarySegmentPosition(array_seg));
-      auto write_kws = [array_seg, str_seg](const JsonArrayValue* array, bool follow)
+      auto write_kws = [array_seg, str_seg](const JsonArrayValue* array, bool follow) -> bool
       {
         if (array)
         {
