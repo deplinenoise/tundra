@@ -7,6 +7,11 @@ Build {
 			Tools = { "gcc" },
 		},
 		{
+			Name = "linux-gcc",
+			DefaultOnHost = "linux",
+			Tools = { "gcc" },
+		},
+		{
 			Name = "win32-msvc",
 			DefaultOnHost = "windows",
 			Tools = { "msvc-vs2012" },
