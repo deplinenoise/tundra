@@ -51,6 +51,12 @@ static void DumpDag(const DagData* data)
     for (const char* path : node.m_AuxOutputFiles)
       printf("    %s\n", path);
 
+    printf("  environment:\n");
+    for (const EnvVarData& env : node.m_EnvVars)
+    {
+      printf("    %s = %s\n", env.m_Name.Get(), env.m_Value.Get());
+    }
+
     if (const ScannerData* s = node.m_Scanner)
     {
       printf("  scanner:\n");
@@ -74,6 +80,7 @@ static void DumpDag(const DagData* data)
       }
       DigestToString(digest_str, s->m_ScannerGuid);
       printf("    scanner guid: %s\n", digest_str);
+
 
       if (ScannerType::kGeneric == s->m_ScannerType)
       {
