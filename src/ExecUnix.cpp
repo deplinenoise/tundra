@@ -102,7 +102,6 @@ ExecuteProcess(
 	if (0 == (child = fork()))
 	{
 		const char *args[] = { "/bin/sh", "-c", cmd_line, NULL };
-		char name_block[1024];
 
 		close(stdout_pipe[pipe_read]);
 		close(stderr_pipe[pipe_read]);
