@@ -432,16 +432,19 @@ function _nodegen:get_dag(parent_env)
   if not dag then
     if build_id:len() > 0 and not config_matches(self.Decl.Config, build_id) then
       -- Unit has been filtered out via Config attribute.
-      local name = self.Decl.Name
-      if not name then
-        name = string.format("anon_%d", anon_count)
-        anon_count = anon_count + 1
+      -- Create a fresh dummy node for it.
+      local name
+      if not self.Decl.Name then
+        name = string.format("Dummy node %d", anon_count)
+      else
+        name = string.format("Dummy node %d for %s", anon_count, self.Decl.Name)
       end
+      anon_count = anon_count + 1
 
       dag = depgraph.make_node {
         Env = parent_env,
         Pass = resolve_pass(self.Decl.Pass),
-        Label = "Dummy node for " .. name
+        Label = name,
       }
     else
       local unit_env = make_unit_env(self)
