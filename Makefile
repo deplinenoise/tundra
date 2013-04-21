@@ -1,4 +1,6 @@
 
+UNAME := $(shell uname)
+
 CC ?= clang
 CFLAGS ?= -O3 -DNDEBUG
 
@@ -6,6 +8,10 @@ CXX ?= clang++
 CPPFLAGS = -Ilua/src -Isrc -MMD -MP
 CXXFLAGS ?= -O3 -std=c++11 -stdlib=libc++ -fno-exceptions -DNDEBUG
 CXXLIBFLAGS ?= -stdlib=libc++
+LDFLAGS ?= -Lbuild -ltundra
+ifeq ($(UNAME), $(filter $(UNAME), FreeBSD NetBSD OpenBSD))
+LDFLAGS += -lpthread
+endif
 
 VPATH = lua/src:src:build:unittest
 
@@ -69,16 +75,16 @@ build/libtundra.a: $(LIBTUNDRA_OBJECTS)
 	$(AR) -r $@ $^
 
 build/tundra2: $(TUNDRA_OBJECTS) build/libtundra.a
-	$(CXX) -o $@ $(CXXLIBFLAGS) $(TUNDRA_OBJECTS) -Lbuild -ltundra
+	$(CXX) -o $@ $(CXXLIBFLAGS) $(TUNDRA_OBJECTS) $(LDFLAGS)
 
 build/t2-lua: $(T2LUA_OBJECTS) build/libtundra.a build/libtundralua.a
-	$(CXX) -o $@ $(CXXLIBFLAGS) $(T2LUA_OBJECTS) -Lbuild -ltundra -ltundralua
+	$(CXX) -o $@ $(CXXLIBFLAGS) $(T2LUA_OBJECTS) $(LDFLAGS) -ltundralua
 
 build/t2-inspect: $(T2INSPECT_OBJECTS) build/libtundra.a
-	$(CXX) -o $@ $(CXXLIBFLAGS) $(T2INSPECT_OBJECTS) -Lbuild -ltundra
+	$(CXX) -o $@ $(CXXLIBFLAGS) $(T2INSPECT_OBJECTS) $(LDFLAGS)
 
 build/t2-unittest: $(UNITTEST_OBJECTS) build/libtundra.a
-	$(CXX) -o $@ $(CXXLIBFLAGS) $(UNITTEST_OBJECTS) -Lbuild -ltundra
+	$(CXX) -o $@ $(CXXLIBFLAGS) $(UNITTEST_OBJECTS) $(LDFLAGS)
 
 .PHONY: clean
 clean:
