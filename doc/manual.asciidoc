@@ -164,6 +164,9 @@ Tundra can be obtained from the official GIT repository:
 
 - On Mac OS X and other Unix-like platforms, there is a `Makefile` that should do the job.
 
+- On FreeBSD you might need to rebuild world with the option WITH_LIBCPLUSPLUS=yes added
+  to `/etc/src.conf` in order to have LLVM's libc++ available.
+
 == A bit of Tundra nomenclature
 
 Here are some terms and definitions used in Tundra and elsewhere in this document:
