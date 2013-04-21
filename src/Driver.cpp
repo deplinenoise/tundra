@@ -71,10 +71,10 @@ static bool LoadFrozenData(const char* fn, MemoryMappedFile* result, const Froze
     Log(kDebug, "%s: successfully mapped at %p (%d bytes)", fn, data, (int) mapping.m_Size);
 
     // Check size
-    if (mapping.m_Size < sizeof(StateData))
+    if (mapping.m_Size < sizeof(FrozenType))
     {
       Log(kWarning, "%s: Bad mmap size %d - need at least %d bytes",
-          fn, (int) mapping.m_Size, (int) sizeof(StateData));
+          fn, (int) mapping.m_Size, (int) sizeof(FrozenType));
       goto error;
     }
 
