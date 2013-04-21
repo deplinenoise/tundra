@@ -4,12 +4,12 @@ Build {
 		{
 			Name = "macosx-gcc",
 			DefaultOnHost = "macosx",
-			Tools = { "gcc", "mono" },
+			Tools = { "gcc" },
 		},
 		{
 			Name = "win32-msvc",
 			DefaultOnHost = "windows",
-			Tools = { "msvc-vs2008", "mono" },
+			Tools = { "msvc-vs2012" },
 		},
 		{
 			Name = "win32-mingw",
