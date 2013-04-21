@@ -1,12 +1,20 @@
 
 UNAME := $(shell uname)
 
+CHECKED ?= no
+
 CC ?= clang
-CFLAGS ?= -O3 -DNDEBUG
+CFLAGS ?= -Wall
+
+ifeq ($(CHECKED), no)
+CFLAGS += -O3 -DNDEBUG
+else
+CFLAGS += -D_DEBUG
+endif
 
 CXX ?= clang++
 CPPFLAGS = -Ilua/src -Isrc -MMD -MP
-CXXFLAGS ?= -O3 -std=c++11 -fno-exceptions -DNDEBUG
+CXXFLAGS ?= $(CFLAGS) -std=c++11 -fno-exceptions
 CXXLIBFLAGS ?=
 LDFLAGS ?= -Lbuild -ltundra
 
