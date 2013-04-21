@@ -262,7 +262,7 @@ MakeEnvBlock(char* env_block, size_t block_size, const EnvVariable *env_vars, in
         continue;
 
       size_t len = env_var_len[x];
-      if (len == g_Win32Env[i].m_NameLength && 0 == memcmp(g_Win32Env[i].m_Name, env_vars[x].m_Name, len))
+      if (len == g_Win32Env[i].m_NameLength && 0 == _memicmp(g_Win32Env[i].m_Name, env_vars[x].m_Name, len))
       {
         if (!AppendEnvVar(env_block, block_size, &cursor, env_vars[x].m_Name, len, env_vars[x].m_Value))
           return false;
