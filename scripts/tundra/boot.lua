@@ -40,9 +40,6 @@ _G.Options = {
   FullPaths = 1
 }
 
-_G.TundraRootDir = assert(os.getenv("TUNDRA_HOME"), "TUNDRA_HOME not set")
-_G.TundraExePath = assert(os.getenv("TUNDRA_EXECUTABLE"), "TUNDRA_EXECUTABLE not set")
-
 local function make_default_env()
   local default_env = environment.create()
 
@@ -76,7 +73,7 @@ function generate_dag_data(build_script_fn)
     build_data.DefaultSubVariant)
 end
 
-function generate_ide_files(build_script_fn, args)
+function generate_ide_files(build_script_fn, ide_script)
   -- We are generating IDE integration files. Load the specified
   -- integration module rather than DAG builders.
   --
@@ -86,10 +83,10 @@ function generate_ide_files(build_script_fn, args)
 
   local build_data = buildfile.run(build_script_fn)
 
-  local ide_script = assert(args[1], "no ide script specified")
   if not ide_script:find('.', 1, true) then
     ide_script = 'tundra.ide.' .. ide_script
   end
+
   require(ide_script)
 
   local build_tuples = assert(build_data.BuildTuples)

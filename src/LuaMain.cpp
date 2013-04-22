@@ -78,7 +78,7 @@ void LuaDump(lua_State* L)
 }
 #endif
 
-int main(int argc, char* argv[])
+int main(int argc, char** argv)
 {
   using namespace t2;
 
@@ -87,22 +87,8 @@ int main(int argc, char* argv[])
   MemAllocHeap heap;
   HeapInit(&heap, MB(256), HeapFlags::kDefault);
 
-  const char* action = nullptr;
-  const char* build_script = nullptr;
-
-  if (argc >= 3)
-  {
-    action       = argv[1];
-    build_script = argv[2];
-  }
-
-  if (!build_script || !action)
-  {
-    fprintf(stderr, "usage: t2-lua <action> <build-script>");
-  }
-
   lua_State* L = CreateLuaState(&heap);
-  bool success = RunBuildScript(L, action, build_script, (const char**) &argv[3], argc - 3);
+  bool success = RunBuildScript(L, (const char**) &argv[1], argc - 1);
     
   HeapDestroy(&heap);
 

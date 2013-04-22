@@ -10,7 +10,7 @@ struct MemAllocHeap;
 
 lua_State* CreateLuaState(MemAllocHeap* heap);
 
-bool RunBuildScript(lua_State *L, const char* action, const char *script_fn, const char** args, int argc_count);
+bool RunBuildScript(lua_State *L, const char** args, int argc_count);
 
 }
 

@@ -4,6 +4,7 @@
 #include "BinaryWriter.hpp"
 #include "DagData.hpp"
 #include "PathUtil.hpp"
+#include "Common.hpp"
 
 extern "C"
 {
@@ -25,6 +26,82 @@ extern "C"
 namespace t2
 {
 
+// Return the directory where the tundra Lua scripts live.
+static const char* FindScriptDirectory()
+{
+  static char script_dir[kMaxPathLength];
+
+  // Check cached value.
+  if (script_dir[0] != '\0')
+    return script_dir;
+
+  // If TUNDRA_HOME is set, use that value.
+  if (char* tmp = getenv("TUNDRA_HOME"))
+  {
+    PathBuffer dir;
+    PathInit(&dir, tmp);
+    PathFormat(script_dir, &dir);
+    return script_dir;
+  }
+  else
+  {
+    // Otherwise we need to try a little harder.
+    //
+    // Scan the directories from where Tundra is installed upwards to find a
+    // scripts/tundra.lua file or a share/tundra.lua file. That is our home
+    // directory.
+    //
+    // This handles both the installed case where tundra is installed to say:
+    //
+    // /usr/local/bin/t2-lua - we want /use/local/share
+    //
+    // and the case where the build is being run from the build directory:
+    //
+    // /a/b/c/build/tundra2 - we want /a/b/c/
+
+    PathBuffer dir;
+    PathInit(&dir, GetExePath());
+
+    static const struct Probe
+    {
+      const char* m_Subdir;
+      const char* m_ProbeFile;
+    }
+    dirs[] =
+    {
+      { "share/tundra",  "tundra.lua" },
+      { "scripts",       "tundra.lua", }
+    };
+
+    while (PathStripLast(&dir))
+    {
+      for (size_t i = 0; i < ARRAY_SIZE(dirs); ++i)
+      {
+        PathBuffer sdir = dir;
+        PathConcat(&sdir, dirs[i].m_Subdir);
+
+        PathBuffer test_file = sdir;
+        PathConcat(&test_file, dirs[i].m_ProbeFile);
+
+        char test_file_p[kMaxPathLength];
+        PathFormat(test_file_p, &test_file);
+
+        FileInfo info = GetFileInfo(test_file_p);
+
+        if (info.Exists())
+        {
+          PathFormat(script_dir, &sdir);
+          return script_dir;
+        }
+      }
+    }
+  }
+
+  Croak("Can't detect script directory.\nTried all directories leading up from %s - please set TUNDRA_HOME.",
+      GetExePath());
+}
+
+
 static void* LuaAllocFunc(void* ud, void* old_ptr, size_t old_size, size_t new_size)
 {
   MemAllocHeap* heap = static_cast<MemAllocHeap*>(ud);
@@ -45,7 +122,7 @@ static int OnLuaPanic(lua_State *)
 
 static int LuaTundraExit(lua_State *)
 {
-	exit(1);
+  exit(1);
 }
 
 static void DoDigest(HashDigest* out, lua_State* L)
@@ -69,8 +146,8 @@ static int LuaTundraDigestGuidRaw(lua_State* L)
 {
   HashDigest digest;
   DoDigest(&digest, L);
-	lua_pushlstring(L, (char*) digest.m_Data, sizeof digest);
-	return 1;
+  lua_pushlstring(L, (char*) digest.m_Data, sizeof digest);
+  return 1;
 }
 
 static int LuaTundraDigestGuid(lua_State* L)
@@ -79,49 +156,49 @@ static int LuaTundraDigestGuid(lua_State* L)
   DoDigest(&digest, L);
   char result[41];
   DigestToString(result, digest);
-	lua_pushlstring(L, result, 40);
-	return 1;
+  lua_pushlstring(L, result, 40);
+  return 1;
 }
 
 static int LuaTundraGetEnv(lua_State *L)
 {
-	const char* key    = luaL_checkstring(L, 1);
-	const char* result = getenv(key);
+  const char* key    = luaL_checkstring(L, 1);
+  const char* result = getenv(key);
 
-	if (result)
-	{
-		lua_pushstring(L, result);
-		return 1;
-	}
-	else if (lua_gettop(L) >= 2)
-	{
-		lua_pushvalue(L, 2);
-		return 1;
-	}
-	else
-	{
-		return luaL_error(L, "key %s not present in environment (and no default given)", key);
-	}
+  if (result)
+  {
+    lua_pushstring(L, result);
+    return 1;
+  }
+  else if (lua_gettop(L) >= 2)
+  {
+    lua_pushvalue(L, 2);
+    return 1;
+  }
+  else
+  {
+    return luaL_error(L, "key %s not present in environment (and no default given)", key);
+  }
 }
 
 static int LuaGetTraceback(lua_State *L)
 {
-	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
-	if (!lua_istable(L, -1))
-	{
-		lua_pop(L, 1);
-		return 1;
-	}
-	lua_getfield(L, -1, "traceback");
-	if (!lua_isfunction(L, -1))
-	{
-		lua_pop(L, 2);
-		return 1;
-	}
-	lua_pushvalue(L, 1);  /* pass error message */
-	lua_pushinteger(L, 2);  /* skip this function and traceback */
-	lua_call(L, 2, 1);  /* call debug.traceback */
-	return 1;
+  lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+  if (!lua_istable(L, -1))
+  {
+    lua_pop(L, 1);
+    return 1;
+  }
+  lua_getfield(L, -1, "traceback");
+  if (!lua_isfunction(L, -1))
+  {
+    lua_pop(L, 2);
+    return 1;
+  }
+  lua_pushvalue(L, 1);  /* pass error message */
+  lua_pushinteger(L, 2);  /* skip this function and traceback */
+  lua_call(L, 2, 1);  /* call debug.traceback */
+  return 1;
 }
 
 static void OnFileIter(void* user_data, const FileInfo& info, const char* name)
@@ -286,95 +363,95 @@ static int LuaMkdir(lua_State* L)
 #if defined(TUNDRA_WIN32)
 static void PushWin32Error(lua_State *L, DWORD err, const char *context)
 {
-	int chars;
-	char buf[1024];
-	lua_pushstring(L, context);
-	lua_pushstring(L, ": ");
-	if (0 != (chars = (int) FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, LANG_NEUTRAL, buf, sizeof(buf), NULL)))
-		lua_pushlstring(L, buf, chars);
-	else
-		lua_pushfstring(L, "win32 error %d", (int) err);
-	lua_concat(L, 3);
+  int chars;
+  char buf[1024];
+  lua_pushstring(L, context);
+  lua_pushstring(L, ": ");
+  if (0 != (chars = (int) FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, LANG_NEUTRAL, buf, sizeof(buf), NULL)))
+    lua_pushlstring(L, buf, chars);
+  else
+    lua_pushfstring(L, "win32 error %d", (int) err);
+  lua_concat(L, 3);
 }
 
 static int LuaWin32RegisterQuery(lua_State *L)
 {
-	HKEY regkey, root_key;
-	LONG result = 0;
-	const char *key_name, *subkey_name, *value_name = NULL;
-	int i;
-	static const REGSAM sams[] = { KEY_READ, KEY_READ|KEY_WOW64_32KEY, KEY_READ|KEY_WOW64_64KEY };
+  HKEY regkey, root_key;
+  LONG result = 0;
+  const char *key_name, *subkey_name, *value_name = NULL;
+  int i;
+  static const REGSAM sams[] = { KEY_READ, KEY_READ|KEY_WOW64_32KEY, KEY_READ|KEY_WOW64_64KEY };
 
-	key_name = luaL_checkstring(L, 1);
+  key_name = luaL_checkstring(L, 1);
 
-	if (0 == strcmp(key_name, "HKLM") || 0 == strcmp(key_name, "HKEY_LOCAL_MACHINE"))
-		root_key = HKEY_LOCAL_MACHINE;
-	else if (0 == strcmp(key_name, "HKCU") || 0 == strcmp(key_name, "HKEY_CURRENT_USER"))
-		root_key = HKEY_CURRENT_USER;
-	else
-		return luaL_error(L, "%s: unsupported root key; use HKLM, HKCU or HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER", key_name);
+  if (0 == strcmp(key_name, "HKLM") || 0 == strcmp(key_name, "HKEY_LOCAL_MACHINE"))
+    root_key = HKEY_LOCAL_MACHINE;
+  else if (0 == strcmp(key_name, "HKCU") || 0 == strcmp(key_name, "HKEY_CURRENT_USER"))
+    root_key = HKEY_CURRENT_USER;
+  else
+    return luaL_error(L, "%s: unsupported root key; use HKLM, HKCU or HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER", key_name);
 
-	subkey_name = luaL_checkstring(L, 2);
+  subkey_name = luaL_checkstring(L, 2);
 
-	if (lua_gettop(L) >= 3 && lua_isstring(L, 3))
-		value_name = lua_tostring(L, 3);
+  if (lua_gettop(L) >= 3 && lua_isstring(L, 3))
+    value_name = lua_tostring(L, 3);
 
-	for (i = 0; i < sizeof(sams)/sizeof(sams[0]); ++i)
-	{
-		result = RegOpenKeyExA(root_key, subkey_name, 0, sams[i], &regkey);
+  for (i = 0; i < sizeof(sams)/sizeof(sams[0]); ++i)
+  {
+    result = RegOpenKeyExA(root_key, subkey_name, 0, sams[i], &regkey);
 
-		if (ERROR_SUCCESS == result)
-		{
-			DWORD stored_type;
-			BYTE data[8192];
-			DWORD data_size = sizeof(data);
-			result = RegQueryValueExA(regkey, value_name, NULL, &stored_type, &data[0], &data_size);
-			RegCloseKey(regkey);
+    if (ERROR_SUCCESS == result)
+    {
+      DWORD stored_type;
+      BYTE data[8192];
+      DWORD data_size = sizeof(data);
+      result = RegQueryValueExA(regkey, value_name, NULL, &stored_type, &data[0], &data_size);
+      RegCloseKey(regkey);
 
-			if (ERROR_FILE_NOT_FOUND != result)
-			{
-				if (ERROR_SUCCESS != result)
-				{
-					lua_pushnil(L);
-					PushWin32Error(L, (DWORD) result, "RegQueryValueExA");
-					return 2;
-				}
+      if (ERROR_FILE_NOT_FOUND != result)
+      {
+        if (ERROR_SUCCESS != result)
+        {
+          lua_pushnil(L);
+          PushWin32Error(L, (DWORD) result, "RegQueryValueExA");
+          return 2;
+        }
 
-				switch (stored_type)
-				{
-				case REG_DWORD:
-					if (4 != data_size)
-						luaL_error(L, "expected 4 bytes for integer key but got %d", data_size);
-					lua_pushinteger(L, *(int*)data);
-					return 1;
+        switch (stored_type)
+        {
+        case REG_DWORD:
+          if (4 != data_size)
+            luaL_error(L, "expected 4 bytes for integer key but got %d", data_size);
+          lua_pushinteger(L, *(int*)data);
+          return 1;
 
-				case REG_SZ:
-					/* don't use lstring because that would include potential null terminator */
-					lua_pushstring(L, (const char*) data);
-					return 1;
+        case REG_SZ:
+          /* don't use lstring because that would include potential null terminator */
+          lua_pushstring(L, (const char*) data);
+          return 1;
 
-				default:
-					return luaL_error(L, "unsupported registry value type (%d)", (int) stored_type);
-				}
-			}
-		}
-		else if (ERROR_FILE_NOT_FOUND == result)
-		{
-			continue;
-		}
-		else
-		{
-			lua_pushnil(L);
-			PushWin32Error(L, (DWORD) result, "RegOpenKeyExA");
-			return 2;
-		}
+        default:
+          return luaL_error(L, "unsupported registry value type (%d)", (int) stored_type);
+        }
+      }
+    }
+    else if (ERROR_FILE_NOT_FOUND == result)
+    {
+      continue;
+    }
+    else
+    {
+      lua_pushnil(L);
+      PushWin32Error(L, (DWORD) result, "RegOpenKeyExA");
+      return 2;
+    }
 
-	}
+  }
 
 
-	lua_pushnil(L);
-	PushWin32Error(L, ERROR_FILE_NOT_FOUND, "RegOpenKeyExA");
-	return 2;
+  lua_pushnil(L);
+  PushWin32Error(L, ERROR_FILE_NOT_FOUND, "RegOpenKeyExA");
+  return 2;
 }
 #endif
 
@@ -407,10 +484,10 @@ lua_State* CreateLuaState(MemAllocHeap* lua_heap)
     Croak("couldn't create Lua state");
 
   // Install panic function.
-	lua_atpanic(L, OnLuaPanic);
+  lua_atpanic(L, OnLuaPanic);
 
   // Expose standard Lua libraries.
-	luaL_openlibs(L);
+  luaL_openlibs(L);
 
   // Expose interpolation module
   LuaEnvNativeOpen(L);
@@ -422,19 +499,17 @@ lua_State* CreateLuaState(MemAllocHeap* lua_heap)
   lua_pushstring(L, TUNDRA_PLATFORM_STRING);
   lua_setfield(L, -2, "host_platform");
 
-	// setup package.path
-	{
-    const char* homedir = GetTundraHomeDirectory();
+  // setup package.path
+  {
+    const char* homedir = FindScriptDirectory();
+    char ppath[1024];
+    snprintf(ppath, sizeof(ppath), "%s" TD_PATHSEP_STR "?.lua;", homedir);
+    lua_getglobal(L, "package");
+    CHECK(LUA_TTABLE == lua_type(L, -1));
 
-		char ppath[1024];
-		snprintf(ppath, sizeof(ppath),
-			"%s" TD_PATHSEP_STR "scripts" TD_PATHSEP_STR "?.lua;"
-			"%s" TD_PATHSEP_STR "lua" TD_PATHSEP_STR "etc" TD_PATHSEP_STR "?.lua", homedir, homedir);
-		lua_getglobal(L, "package");
-		CHECK(LUA_TTABLE == lua_type(L, -1));
-		lua_pushstring(L, ppath);
-		lua_setfield(L, -2, "path");
-	}
+    lua_pushstring(L, ppath);
+    lua_setfield(L, -2, "path");
+  }
 
   /* native table on the top of the stack */
   lua_pop(L, 1);
@@ -444,29 +519,42 @@ lua_State* CreateLuaState(MemAllocHeap* lua_heap)
 }
 
 static const char s_BootSnippet[] =
-	"local m = require 'tundra'\n"
-	"return m.main(...)\n";
+  "local m = require 'tundra'\n"
+  "return m.main(...)\n";
 
-bool RunBuildScript(lua_State *L, const char* action, const char *script_fn, const char** args, int argc_count)
+bool RunBuildScript(lua_State *L, const char** args, int argc_count)
 {
-	// Push our error handler on the stack now (before the chunk to run)
-	lua_pushcclosure(L, LuaGetTraceback, 0);
+  // Push our error handler on the stack now (before the chunk to run)
+  lua_pushcclosure(L, LuaGetTraceback, 0);
   int error_index = lua_gettop(L);
 
-	switch (luaL_loadbuffer(L, s_BootSnippet, sizeof(s_BootSnippet)-1, "boot_snippet"))
-	{
-	case LUA_ERRMEM    : Croak("out of memory");
-	case LUA_ERRSYNTAX : Croak("syntax error\n%s\n", lua_tostring(L, -1));
-	}
+  switch (luaL_loadbuffer(L, s_BootSnippet, sizeof(s_BootSnippet)-1, "boot_snippet"))
+  {
+  case LUA_ERRMEM    : Croak("out of memory");
+  case LUA_ERRSYNTAX : Croak("syntax error\n%s\n", lua_tostring(L, -1));
+  }
 
-  lua_pushstring(L, action);
-  lua_pushstring(L, script_fn);
+  // Expose the path to tundra2 -- we're not that executable, so we'll need to find it.
+  {
+    PathBuffer exe_path;
+    PathInit(&exe_path, GetExePath());
+    PathStripLast(&exe_path);
+    PathConcat(&exe_path, "tundra2" TUNDRA_EXE_SUFFIX);
+
+    char tundra2_exe[kMaxPathLength];
+    PathFormat(tundra2_exe, &exe_path);
+
+    lua_pushstring(L, tundra2_exe);
+    lua_setglobal(L, "TundraExePath");
+  }
+
+  // Push args from the command line
   for (int i = 0; i < argc_count; ++i)
   {
     lua_pushstring(L, args[i]);
   }
 
-  int res = lua_pcall(L, /*narg:*/2 + argc_count, /*nres:*/1, /*errorfunc:*/ error_index);
+  int res = lua_pcall(L, /*narg:*/argc_count, /*nres:*/1, /*errorfunc:*/ error_index);
 
   if (0 == res)
   {
@@ -477,7 +565,7 @@ bool RunBuildScript(lua_State *L, const char* action, const char *script_fn, con
     // pcall failed
     if (lua_isstring(L, -1))
     {
-      fprintf(stderr, "Lua error running %s\n\n%s\n", script_fn, lua_tostring(L, -1));
+      fprintf(stderr, "\nLua error\n%s\n", lua_tostring(L, -1));
     }
     return false;
   }

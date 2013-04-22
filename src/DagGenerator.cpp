@@ -924,7 +924,7 @@ static bool RunExternalTool(const char* options, ...)
   {
     // Figure out the path to the default t2-lua DAG generator.
     PathBuffer pbuf;
-    PathInit(&pbuf, GetTundraExePath());
+    PathInit(&pbuf, GetExePath());
     PathStripLast(&pbuf);
     PathConcat(&pbuf, "t2-lua" TUNDRA_EXE_SUFFIX);
     PathFormat(dag_gen_path, &pbuf);
@@ -945,13 +945,7 @@ static bool RunExternalTool(const char* options, ...)
   snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
   cmdline[sizeof(cmdline)-1] = '\0';
 
-  EnvVariable vars[] =
-  {
-    { "TUNDRA_EXECUTABLE",  GetTundraExePath() },
-    { "TUNDRA_HOME",        GetTundraHomeDirectory() },
-  };
-
-  ExecResult result = ExecuteProcess(cmdline, ARRAY_SIZE(vars), vars, 0, true, nullptr);
+  ExecResult result = ExecuteProcess(cmdline, 0, nullptr, 0, true, nullptr);
 
   if (0 != result.m_ReturnCode)
   {

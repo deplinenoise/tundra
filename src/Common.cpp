@@ -221,80 +221,37 @@ bool SetCwd(const char* dir)
 #endif
 }
 
-static char s_TundraHomeDir[kMaxPathLength];
-static char s_TundraExePath[kMaxPathLength];
+static char s_ExePath[kMaxPathLength];
 
-static const char *
-SetPath(char (&var)[kMaxPathLength], const char* dir)
+const char* GetExePath()
 {
-	strncpy(var, dir, sizeof var);
-	var[(sizeof var) - 1] = '\0';
-	return var;
-}
-
-const char* GetTundraHomeDirectory()
-{
-  if (s_TundraHomeDir[0] == '\0')
-  {
-    char* tmp;
-
-    // If TUNDRA_HOME is set, use that value.
-    if (NULL != (tmp = getenv("TUNDRA_HOME")))
-      return SetPath(s_TundraHomeDir, tmp);
-
-    // Otherwise we need to try a little harder.
-    PathBuffer dir;
-    PathInit(&dir, GetTundraExePath());
-
-    while (PathStripLast(&dir))
-    {
-      PathBuffer test_file = dir;
-      PathConcat(&test_file, "scripts/tundra.lua");
-      char test_file_p[kMaxPathLength];
-      PathFormat(test_file_p, &test_file);
-      FileInfo info = GetFileInfo(test_file_p);
-      if (info.Exists())
-      {
-        PathFormat(s_TundraHomeDir, &dir);
-        return s_TundraHomeDir;
-      }
-    }
-
-    Croak("Can't detect tundra home directory. Please set TUNDRA_HOME.");
-  }
-
-  return s_TundraHomeDir;
-}
-
-const char* GetTundraExePath()
-{
-  if (s_TundraExePath[0] == '\0')
+  if (s_ExePath[0] == '\0')
   {
 #if defined(TUNDRA_WIN32)
-    if (!GetModuleFileNameA(NULL, s_TundraExePath, (DWORD)sizeof s_TundraExePath))
+    if (!GetModuleFileNameA(NULL, s_ExePath, (DWORD)sizeof s_ExePath))
       Croak("couldn't get module filename");
 #elif defined(TUNDRA_APPLE)
-    uint32_t size = sizeof s_TundraExePath;
-    if (0 != _NSGetExecutablePath(s_TundraExePath, &size))
+    uint32_t size = sizeof s_ExePath;
+    if (0 != _NSGetExecutablePath(s_ExePath, &size))
       Croak("_NSGetExecutablePath failed");
 #elif defined(TUNDRA_LINUX)
-    if (-1 == readlink("/proc/self/exe", s_TundraExePath, (sizeof s_TundraExePath) - 1))
+    if (-1 == readlink("/proc/self/exe", s_ExePath, (sizeof s_ExePath) - 1))
       Croak("couldn't read /proc/self/exe to get exe path: %s", strerror(errno));
 #elif defined(TUNDRA_FREEBSD)
-    size_t cb = sizeof s_TundraExePath;
+    size_t cb = sizeof s_ExePath;
     int mib[4];
     mib[0] = CTL_KERN;
     mib[1] = KERN_PROC;
     mib[2] = KERN_PROC_PATHNAME;
     mib[3] = -1;
-    if (0 !=sysctl(mib, 4, s_TundraExePath, &cb, NULL, 0))
+    if (0 !=sysctl(mib, 4, s_ExePath, &cb, NULL, 0))
       Croak("KERN_PROC_PATHNAME syscall failed");
 #else
 #error "unsupported platform"
 #endif
   }
 
-  return s_TundraExePath;
+  return s_ExePath;
 }
 
 uint32_t NextPowerOfTwo(uint32_t val)

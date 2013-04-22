@@ -1,40 +1,35 @@
-module(..., package.seeall)
+require "strict"
 
-function main(...)
-  local os = require "os"
-  local package = require "package"
+local os      = require "os"
+local package = require "package"
+local path    = require "tundra.path"
 
-  local tundra_home = assert(os.getenv("TUNDRA_HOME"), "TUNDRA_HOME not set")
-
-  -- Install script directories in package.path
-  do
-    local pp = package.path
-    pp = pp .. ';' .. tundra_home .. "/scripts/?.lua;" .. tundra_home .. "/lua/etc/?.lua"
-    package.path = pp
+local function main(...)
+  local cmd_args = { }
+  for i = 1, select('#', ...) do
+    cmd_args[#cmd_args + 1] = select(i, ...)
   end
 
-  require "strict"
-
-  local args = { }
-  local action = select(1, ...)
-  local build_script = select(2, ...)
-  do
-    local count = select('#', ...)
-    for i = 3, count do
-      args[#args + 1] = select(i, ...)
-    end
-  end
+  local action = assert(cmd_args[1], "need an action")
 
   local boot = require "tundra.boot"
 
-  if action == 'generate-dag' then
-    boot.generate_dag_data(build_script)
-  elseif action == 'generate-ide-files' then
-    boot.generate_ide_files(build_script, args)
-  elseif action == 'unit-test' then
+  if action == 'generate-dag' or action == 'generate-ide-files' then
+    local build_script = assert(cmd_args[2], "need a build script name")
+    if action == 'generate-ide-files' then
+      local ide_script = assert(cmd_args[3], "need a generator name")
+      boot.generate_ide_files(build_script, ide_script)
+    else
+      boot.generate_dag_data(build_script)
+    end
+  elseif action == 'selftest' then
     require "tundra.selftest"
   else
     print("unknown action " .. action)
     os.exit(1)
   end
 end
+
+return {
+    main = main
+}

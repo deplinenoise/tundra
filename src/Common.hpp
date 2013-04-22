@@ -105,10 +105,8 @@ bool MakeDirectory(const char* dir);
 // Process info
 //-----------------------------------------------------------------------------
 
-// Return the directory where Tundra lives
-const char* GetTundraHomeDirectory();
 // Return the path to the Tundra executable
-const char* GetTundraExePath();
+const char* GetExePath();
 
 //-----------------------------------------------------------------------------
 // Misc
