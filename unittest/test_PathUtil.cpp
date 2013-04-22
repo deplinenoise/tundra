@@ -30,8 +30,8 @@ BEGIN_TEST_CASE("PathUtil/init")
     { PathType::kUnix, "foo/../../bar.c", "../bar.c",             false,  1, { 5 } },
     { PathType::kUnix, "../../../bar.c",  "../../../bar.c",       false,  1, { 5 } },
     { PathType::kUnix, "./././bar.c",     "bar.c",                false,  1, { 5 } },
-    { PathType::kUnix, ".",               "",                     false,  0, },
-    { PathType::kUnix, "././.",           "",                     false,  0, },
+    { PathType::kUnix, ".",               "",                     false,  0, {}},
+    { PathType::kUnix, "././.",           "",                     false,  0, {}},
 
     { PathType::kWindows, "",                "",                     false,  0, {} },
     { PathType::kWindows, "\\",              "\\",                   true,   0, {} },

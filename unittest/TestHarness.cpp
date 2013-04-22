@@ -118,7 +118,7 @@ static bool RunTests(TestCase *first_test)
 
 }
 
-int main(int argc, char* argv[])
+int main()
 {
   using namespace t2;
 
