@@ -26,7 +26,7 @@
 #define PathCompare _stricmp
 #else
 #define PathCompareN strncasecmp
-#define PathCompare strncmp
+#define PathCompare strcasecmp
 #endif
 #else
 #define PathCompareN strncmp
