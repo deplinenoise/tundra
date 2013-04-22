@@ -20,6 +20,19 @@
 #include <stdlib.h>
 #include <algorithm> // std::lower_bound
 
+#if ENABLED(TUNDRA_CASE_INSENSITIVE_FILESYSTEM)
+#ifdef _MSC_VER
+#define PathCompareN _strnicmp
+#define PathCompare _stricmp
+#else
+#define PathCompareN strncasecmp
+#define PathCompare strncmp
+#endif
+#else
+#define PathCompareN strncmp
+#define PathCompare strcmp
+#endif
+
 namespace t2
 {
 
@@ -358,9 +371,27 @@ static void FindNodesByName(
       }
     }
 
-    // If the name contains atleast a dot or slash, try to match it against all filenames
+    // Try to match against all input/output filenames
     if (!found)
     {
+      char cwd[kMaxPathLength + 1];
+      GetCwd(cwd, sizeof cwd);
+      size_t cwd_len = strlen(cwd);
+      cwd[cwd_len] = TD_PATHSEP;
+      cwd[cwd_len+1] = '\0';
+
+      const char *filename = name;
+      PathBuffer path;
+      PathInit(&path, filename);
+      char path_fmt[kMaxPathLength];
+      PathFormat(path_fmt, &path);
+
+      if (0 == PathCompareN(path_fmt, cwd, cwd_len+1))
+      {
+        filename = path_fmt + cwd_len + 1;
+        Log(kDebug, "Mapped %s to %s for DAG searching", path_fmt, filename);
+      }
+
       if (!bits_valid)
       {
         FindReachableNodes(node_bits, dag, tuple);
@@ -382,7 +413,7 @@ static void FindNodesByName(
 
           for (const char* input : node->m_InputFiles)
           {
-            if (0 == strcmp(input, name))
+            if (0 == PathCompare(input, filename))
             {
               BufferAppendOne(out_nodes, heap, node_index);
               Log(kDebug, "mapped %s to node %d (based on input file)", name, node_index);
@@ -396,7 +427,7 @@ static void FindNodesByName(
 
           for (const char* output : node->m_OutputFiles)
           {
-            if (0 == strcmp(output, name))
+            if (0 == PathCompare(output, filename))
             {
               BufferAppendOne(out_nodes, heap, node_index);
               Log(kDebug, "mapped %s to node %d (based on output file)", name, node_index);
