@@ -45,6 +45,8 @@ void SignalSet(const char* reason)
 #if defined(TUNDRA_UNIX)
 static void* PosixSignalHandlerThread(void *arg)
 {
+  (void)arg; // unused
+
   int sig, rc;
   sigset_t sigs;
   sigemptyset(&sigs);

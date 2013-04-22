@@ -137,7 +137,7 @@ static bool InitOptions(t2::DriverOptions* options, int* argc, char*** argv)
         return false;
       }
 
-      for (int i = 0; !found && i < ARRAY_SIZE(g_OptionTemplates); ++i)
+      for (size_t i = 0; !found && i < ARRAY_SIZE(g_OptionTemplates); ++i)
       {
         const OptionTemplate* templ = g_OptionTemplates + i;
 
@@ -154,7 +154,7 @@ static bool InitOptions(t2::DriverOptions* options, int* argc, char*** argv)
       size_t      optlen  = equals ? equals - opt_str - 2 : strlen(opt_str + 2);
       const char *opt_arg = equals ? equals + 1 : nullptr;
 
-      for (int i = 0; !found && i < ARRAY_SIZE(g_OptionTemplates); ++i)
+      for (size_t i = 0; !found && i < ARRAY_SIZE(g_OptionTemplates); ++i)
       {
         const OptionTemplate* templ = g_OptionTemplates + i;
 
@@ -196,14 +196,14 @@ static void ShowHelp()
   printf("Options:\n");
 
   size_t max_opt_len = 0;
-  for (int i = 0; i < ARRAY_SIZE(g_OptionTemplates); ++i)
+  for (size_t i = 0; i < ARRAY_SIZE(g_OptionTemplates); ++i)
   {
     size_t opt_len = strlen(g_OptionTemplates[i].m_LongName) + 12;
     if (opt_len > max_opt_len)
       max_opt_len = opt_len;
   }
 
-  for (int i = 0; i < ARRAY_SIZE(g_OptionTemplates); ++i)
+  for (size_t i = 0; i < ARRAY_SIZE(g_OptionTemplates); ++i)
   {
     const OptionTemplate* t = g_OptionTemplates + i;
     char long_text[256];

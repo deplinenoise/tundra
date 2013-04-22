@@ -46,17 +46,17 @@ struct JsonLexeme
   };
 };
 
-static const JsonLexeme s_ValueSeparatorLexeme = { kJsonLexValueSeparator };
-static const JsonLexeme s_NameSeparatorLexeme  = { kJsonLexNameSeparator };
-static const JsonLexeme s_BeginObjectLexeme    = { kJsonLexBeginObject };
-static const JsonLexeme s_EndObjectLexeme      = { kJsonLexEndObject };
-static const JsonLexeme s_BeginArrayLexeme     = { kJsonLexBeginArray };
-static const JsonLexeme s_EndArrayLexeme       = { kJsonLexEndArray };
-static const JsonLexeme s_NullLexeme           = { kJsonLexNull };
-static const JsonLexeme s_EofLexeme            = { kJsonLexEof };
-static const JsonLexeme s_ErrorLexeme          = { kJsonLexError };
-static const JsonLexeme s_TrueLexeme           = { kJsonLexBoolean, { true } };
-static const JsonLexeme s_FalseLexeme          = { kJsonLexBoolean, { false } };
+static const JsonLexeme s_ValueSeparatorLexeme = { kJsonLexValueSeparator, { 0 } };
+static const JsonLexeme s_NameSeparatorLexeme  = { kJsonLexNameSeparator,  { 0 } };
+static const JsonLexeme s_BeginObjectLexeme    = { kJsonLexBeginObject,    { 0 } };
+static const JsonLexeme s_EndObjectLexeme      = { kJsonLexEndObject,      { 0 } };
+static const JsonLexeme s_BeginArrayLexeme     = { kJsonLexBeginArray,     { 0 } };
+static const JsonLexeme s_EndArrayLexeme       = { kJsonLexEndArray,       { 0 } };
+static const JsonLexeme s_NullLexeme           = { kJsonLexNull,           { 0 } };
+static const JsonLexeme s_EofLexeme            = { kJsonLexEof,            { 0 } };
+static const JsonLexeme s_ErrorLexeme          = { kJsonLexError,          { 0 } };
+static const JsonLexeme s_TrueLexeme           = { kJsonLexBoolean,        { true } };
+static const JsonLexeme s_FalseLexeme          = { kJsonLexBoolean,        { false } };
 
 struct JsonLexerState
 {
