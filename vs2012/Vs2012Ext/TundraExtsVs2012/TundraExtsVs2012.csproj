@@ -50,6 +50,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
@@ -118,9 +119,6 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\..\..\..\..\Users\afredriksson\Documents\Visual Studio 2012\Addins\TundraExtsVs2012 - For Testing.AddIn">
-      <Link>TundraExtsVs2012 - For Testing.AddIn</Link>
-    </Content>
     <Content Include="TundraExtsVs2012.AddIn" />
   </ItemGroup>
   <ItemGroup>

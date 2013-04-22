@@ -34,40 +34,50 @@ namespace TundraExtsVs2012
       m_OutputWindow = (OutputWindow) m_ApplicationObject.Windows.Item(EnvDTE.Constants.vsWindowKindOutput).Object;
       m_TundraPane = m_OutputWindow.OutputWindowPanes.Add("Tundra");
 
-			if(connectMode == ext_ConnectMode.ext_cm_UISetup)
-			{
-				object []contextGUIDS = new object[] { };
-				Commands2 commands = (Commands2)m_ApplicationObject.Commands;
-				string toolsMenuName = "Tools";
+      if (connectMode == ext_ConnectMode.ext_cm_UISetup)
+      {
+        object[] contextGUIDS = new object[] { };
+        Commands2 commands = (Commands2)m_ApplicationObject.Commands;
+        string toolsMenuName = "Tools";
 
-				//Place the command on the tools menu.
-				//Find the MenuBar command bar, which is the top-level command bar holding all the main menu items:
-				Microsoft.VisualStudio.CommandBars.CommandBar menuBarCommandBar = ((Microsoft.VisualStudio.CommandBars.CommandBars)m_ApplicationObject.CommandBars)["MenuBar"];
+        //Place the command on the tools menu.
+        //Find the MenuBar command bar, which is the top-level command bar holding all the main menu items:
+        Microsoft.VisualStudio.CommandBars.CommandBar menuBarCommandBar = ((Microsoft.VisualStudio.CommandBars.CommandBars)m_ApplicationObject.CommandBars)["MenuBar"];
 
-				//Find the Tools command bar on the MenuBar command bar:
-				CommandBarControl toolsControl = menuBarCommandBar.Controls[toolsMenuName];
-				CommandBarPopup toolsPopup = (CommandBarPopup)toolsControl;
+        //Find the Tools command bar on the MenuBar command bar:
+        CommandBarControl toolsControl = menuBarCommandBar.Controls[toolsMenuName];
+        CommandBarPopup toolsPopup = (CommandBarPopup)toolsControl;
 
-				//This try/catch block can be duplicated if you wish to add multiple commands to be handled by your Add-in,
-				//  just make sure you also update the QueryStatus/Exec method to include the new command names.
-				try
-				{
-					//Add a command to the Commands collection:
-					Command command = commands.AddNamedCommand2(m_AddInInstance, "BuildCurrentFile", "Build Current File with Tundra", "Builds the current source file using the Tundra build system", true, 59, ref contextGUIDS, (int)vsCommandStatus.vsCommandStatusSupported+(int)vsCommandStatus.vsCommandStatusEnabled, (int)vsCommandStyle.vsCommandStylePictAndText, vsCommandControlType.vsCommandControlTypeButton);
 
-					//Add a control for the command to the tools menu:
-					if((command != null) && (toolsPopup != null))
-					{
-						command.AddControl(toolsPopup.CommandBar, 1);
-					}
-				}
-				catch(System.ArgumentException)
-				{
-					//If we are here, then the exception is probably because a command with that name
-					//  already exists. If so there is no need to recreate the command and we can 
-                    //  safely ignore the exception.
-				}
-			}
+        //This try/catch block can be duplicated if you wish to add multiple commands to be handled by your Add-in,
+        //  just make sure you also update the QueryStatus/Exec method to include the new command names.
+        try
+        {
+          //Add a command to the Commands collection:
+          Command command = commands.AddNamedCommand2(m_AddInInstance, "BuildCurrentFile", "Build Current File with Tundra", "Builds the current source file using the Tundra build system",
+                        true, 483, ref contextGUIDS,
+                        (int)vsCommandStatus.vsCommandStatusSupported + (int)vsCommandStatus.vsCommandStatusEnabled,
+                        (int)vsCommandStyle.vsCommandStylePictAndText, vsCommandControlType.vsCommandControlTypeButton);
+
+          //Add a control for the command to the tools menu:
+          if ((command != null) && (toolsPopup != null))
+          {
+            command.AddControl(toolsPopup.CommandBar, 1);
+          }
+        }
+        catch (System.ArgumentException ex)
+        {
+          m_TundraPane.OutputString(ex.Message);
+          m_TundraPane.OutputString("\n");
+          //If we are here, then the exception is probably because a command with that name
+          //  already exists. If so there is no need to recreate the command and we can 
+          //  safely ignore the exception.
+        }
+      }
+      else
+      {
+        m_TundraPane.OutputString("UI setup already done.\n");
+      }
 		}
 
 		/// <summary>Implements the OnDisconnection method of the IDTExtensibility2 interface. Receives notification that the Add-in is being unloaded.</summary>
@@ -111,7 +121,15 @@ namespace TundraExtsVs2012
 			{
 				if(commandName == "TundraExtsVs2012.TundraConnect.BuildCurrentFile")
 				{
-					status = (vsCommandStatus)vsCommandStatus.vsCommandStatusSupported|vsCommandStatus.vsCommandStatusEnabled;
+          ContextInfo ctx;
+          if (GetContext(out ctx))
+          {
+            status = (vsCommandStatus)vsCommandStatus.vsCommandStatusSupported | vsCommandStatus.vsCommandStatusEnabled;
+          }
+          else
+          {
+            status = (vsCommandStatus)vsCommandStatus.vsCommandStatusUnsupported;
+          }
 					return;
 				}
 			}
@@ -211,7 +229,7 @@ namespace TundraExtsVs2012
                   p.StartInfo.RedirectStandardError = true;
                   p.StartInfo.WorkingDirectory = context.Project.ProjectDirectory;
                   p.StartInfo.FileName = tundra_path;
-                  p.StartInfo.Arguments = "-C \"" + dir + "\" " + full_file_name + " " + config;
+                  p.StartInfo.Arguments = "-C " + dir + " \"" + full_file_name + "\" " + config;
 
                   p.OutputDataReceived += OnOutputDataReceived;
                   p.ErrorDataReceived += OnOutputDataReceived;
@@ -256,7 +274,7 @@ namespace TundraExtsVs2012
       m_TundraPane.OutputString(e.Data + "\n");
     }
 
-    private Regex m_TundraBuildRegex = new Regex("^(\"?.*?tundra2\\.exe\"?)\\s+-C\\s+(\\S+).*?([\\w_]+-[\\w_]+-[\\w_]+-[\\w_]+).*$");
+    private Regex m_TundraBuildRegex = new Regex("^(\"?.*?tundra2\\.exe\"?)\\s+-C\\s+(\"?[^\"]+\"?).*?([\\w_]+-[\\w_]+-[\\w_]+-[\\w_]+).*$");
 		private DTE2 m_ApplicationObject;
 		private AddIn m_AddInInstance;
     private OutputWindow m_OutputWindow;
