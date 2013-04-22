@@ -234,15 +234,19 @@ SetPath(char (&var)[kMaxPathLength], const char* dir)
 
 const char* GetTundraHomeDirectory()
 {
-  if (s_TundraHomeDir[0] == '\0')
+  if (s_TundraHomeDir[0] != '\0')
   {
-    char* tmp;
+    return s_TundraHomeDir;
+  }
 
-    // If TUNDRA_HOME is set, use that value.
-    if (NULL != (tmp = getenv("TUNDRA_HOME")))
-      return SetPath(s_TundraHomeDir, tmp);
+  char* tmp;
 
-    // Otherwise we need to try a little harder.
+  // If TUNDRA_HOME is set, use that value.
+  if (NULL != (tmp = getenv("TUNDRA_HOME")))
+    return SetPath(s_TundraHomeDir, tmp);
+
+  // Otherwise we need to try a little harder.
+  {
     PathBuffer dir;
     PathInit(&dir, GetTundraExePath());
 
@@ -259,11 +263,29 @@ const char* GetTundraHomeDirectory()
         return s_TundraHomeDir;
       }
     }
-
-    Croak("Can't detect tundra home directory. Please set TUNDRA_HOME.");
   }
 
-  return s_TundraHomeDir;
+  // On unixy platforms we will define a script home at build time derived
+  // from the install PREFIX.
+#ifdef TUNDRA_SCRIPT_HOME
+  {
+    PathBuffer dir;
+    PathInit(&dir, TUNDRA_SCRIPT_HOME);
+
+    PathBuffer test_file = dir;
+    PathConcat(&test_file, "tundra.lua");
+    char test_file_p[kMaxPathLength];
+    PathFormat(test_file_p, &test_file);
+    FileInfo info = GetFileInfo(test_file_p);
+    if (info.Exists())
+    {
+        PathFormat(s_TundraHomeDir, &dir);
+        return s_TundraHomeDir;
+    }
+  }
+#endif
+
+  Croak("Can't detect tundra home directory. Please set TUNDRA_HOME.");
 }
 
 const char* GetTundraExePath()

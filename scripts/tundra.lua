@@ -1,31 +1,22 @@
-module(..., package.seeall)
+local os = require "os"
+local package = require "package"
 
-function main(...)
-  local os = require "os"
-  local package = require "package"
-
-  local tundra_home = assert(os.getenv("TUNDRA_HOME"), "TUNDRA_HOME not set")
-
-  -- Install script directories in package.path
-  do
-    local pp = package.path
-    pp = pp .. ';' .. tundra_home .. "/scripts/?.lua;" .. tundra_home .. "/lua/etc/?.lua"
-    package.path = pp
-  end
-
-  require "strict"
+local function main(...)
+  _G.TundraRootDir = select(1, ...)
+  _G.TundraExePath = select(2, ...)
 
   local args = { }
-  local action = select(1, ...)
-  local build_script = select(2, ...)
+  local action = select(3, ...)
+  local build_script = select(4, ...)
   do
     local count = select('#', ...)
-    for i = 3, count do
+    for i = 5, count do
       args[#args + 1] = select(i, ...)
     end
   end
 
   local boot = require "tundra.boot"
+  require "strict"
 
   if action == 'generate-dag' then
     boot.generate_dag_data(build_script)
@@ -36,3 +27,7 @@ function main(...)
     os.exit(1)
   end
 end
+
+return {
+    main = main
+}
