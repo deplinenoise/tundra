@@ -28,6 +28,7 @@ local function replace_if_changed(new_fn, old_fn)
   local old_data = slurp_file(old_fn)
   local new_data = slurp_file(new_fn)
   if old_data == new_data then
+    printf("No change for %s", old_fn)
     os.remove(new_fn)
     return
   end
@@ -80,7 +81,7 @@ function msvc_generator:generate_solution(fn, projects)
     for _, tuple in ipairs(self.config_tuples) do
       local leader = string.format('\t\t{%s}.%s.', proj.Guid, tuple.MsvcName)
       sln:write(leader, "ActiveCfg = ", tuple.MsvcName, LF)
-      if proj.Decl.Name == "00-Tundra" then
+      if proj.IsMeta then
         sln:write(leader, "Build.0 = ", tuple.MsvcName, LF)
       end
     end
@@ -182,9 +183,9 @@ function msvc_generator:generate_project(project, all_projects)
       defines = ''
     end
 
-    local root_dir = ".." -- FIXME
-    local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
-    local base = TundraExePath .. " -C " .. root_dir .. " "
+    local root_dir    = native.getcwd()
+    local build_id    = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
+    local base        = "\"" .. TundraExePath .. "\" -C \"" .. root_dir .. "\" "
     local build_cmd   = base .. build_id
     local clean_cmd   = base .. "--clean " .. build_id
     local rebuild_cmd = base .. "--rebuild " .. build_id
