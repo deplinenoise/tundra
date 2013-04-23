@@ -110,7 +110,12 @@ function apply_msvc_visual_studio(version, env, options)
 
   -- Pickup the Resource Compiler from the current SDK path
   -- (otherwise tundra has to be run from within an environment where 'RC' already is in the path)
-  local rc_exe = '"' .. sdkDir .. "bin\\rc.exe" .. '"'
+  local rc_exe
+  if version == "11.0" then
+    rc_exe = '"' .. sdkDir .. "bin\\x86\\rc.exe" .. '"'
+  else
+    rc_exe = '"' .. sdkDir .. "bin\\rc.exe" .. '"'
+  end
   env:set('RC', rc_exe)
 
   -- Expose the required variables to the external environment

@@ -115,7 +115,13 @@ local function setup(env, options)
   env:set_external_env_var("WindowsSdkDir", sdkDir)
   env:set_external_env_var("INCLUDE", table.concat(sdkDirIncludes, ";") .. ";" .. vc_dir .. "\\INCLUDE")
 
-  local rc_exe = '"' .. sdkDir .. "\\bin\\rc.exe" ..'"'
+  local rc_exe
+  print("vcversion",  vcversion)
+  if vcversion == "11.0" then
+    rc_exe = '"' .. sdkDir .. "\\bin\\x86\\rc.exe" ..'"'
+  else
+    rc_exe = '"' .. sdkDir .. "\\bin\\rc.exe" ..'"'
+  end
   env:set('RC', rc_exe)
 
   local libString = sdkDir .. "\\" .. sdkLibDir .. ";" .. vc_dir .. "\\" .. vcLibDir
