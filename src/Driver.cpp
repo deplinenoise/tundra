@@ -1034,9 +1034,10 @@ void DriverRemoveStaleOutputs(Driver* self)
   for (uint32_t i = 0, nuke_count = nuke_table.m_RecordCount; i < nuke_count; ++i)
   {
     Log(kDebug, "cleaning up %s", paths[i]); 
-    remove(paths[i]);
+    RemoveFileOrDir(paths[i]);
   }
 
+  HashTableDestroy(&nuke_table);
   HashTableDestroy(&file_table);
 }
 
@@ -1047,7 +1048,7 @@ void DriverCleanOutputs(Driver* self)
   {
     for (const char* output : state.m_MmapData->m_OutputFiles)
     {
-      if (0 == remove(output))
+      if (0 == RemoveFileOrDir(output))
         ++count;
     }
   }

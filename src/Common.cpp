@@ -362,5 +362,20 @@ int CountTrailingZeroes(uint32_t v)
   return bit_index;
 }
 
+bool RemoveFileOrDir(const char* path)
+{
+#if defined(TUNDRA_UNIX)
+  return 0 == remove(path);
+#else
+  FileInfo info = GetFileInfo(path);
+  if (!info.Exists())
+    return true;
+  else if (info.IsDirectory())
+    return TRUE == RemoveDirectoryA(path);
+  else
+    return TRUE == DeleteFileA(path);
+#endif
+}
+
 }
 

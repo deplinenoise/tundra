@@ -101,6 +101,8 @@ void GetCwd(char* buffer, size_t buffer_size);
 bool SetCwd(const char* dir);
 bool MakeDirectory(const char* dir);
 
+bool RemoveFileOrDir(const char* path); 
+
 //-----------------------------------------------------------------------------
 // Process info
 //-----------------------------------------------------------------------------
