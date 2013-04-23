@@ -16,7 +16,7 @@ local function tokenize_path(path)
   for token in path:gmatch("[^/\\]+") do
     result[#result + 1] = {
       Str    = token,
-      Drop   = false,
+      Drop   = token == '.',
       DotDot = token == '..',
     }
   end
@@ -25,15 +25,16 @@ end
 
 function normalize(path)
   local segs = tokenize_path(path)
-  local dotdot_drops = 0
 
   -- Compute what segments to drop due to .. (dot dot) tokens
+  local dotdot_drops = 0
   for i=#segs,1,-1 do
     local seg = segs[i]
     if seg.Drop then
       -- nothing
     elseif seg.DotDot then
       dotdot_drops = dotdot_drops + 1
+      seg.Drop = true
     elseif dotdot_drops > 0 then
       dotdot_drops = dotdot_drops - 1
       seg.Drop = true
@@ -42,16 +43,17 @@ function normalize(path)
 
   -- Figure out what segments to concat
   local out_strs = {}
+  for i = 1, dotdot_drops do
+    out_strs[#out_strs + 1] = '..'
+  end
+
   for _, seg in ipairs(segs) do
     if not seg.Drop then
-      if #out_strs > 0 then
-        out_strs[#out_strs + 1] = SEP
-      end
       out_strs[#out_strs + 1] = seg.Str
     end
   end
 
-  return table.concat(out_strs)
+  return table.concat(out_strs, SEP)
 end
 
 function join(dir, fn)
