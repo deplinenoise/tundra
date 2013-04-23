@@ -161,16 +161,10 @@ end
 
 local function resolve_sources(env, items, accum, base_dir)
   local ignored_exts = util.make_lookup_table(env:get_list("IGNORED_AUTOEXTS", {}))
-  base_dir = base_dir or ""
   for _, item in util.nil_ipairs(items) do
     local type_name = type(item)
 
     assert(type_name ~= "function")
-
-    --while type_name == "function" do
-    --  item = item(env)
-    --  type_name = type(item)
-    --end
 
     if type_name == "userdata" then
       accum[#accum + 1] = item
@@ -186,10 +180,11 @@ local function resolve_sources(env, items, accum, base_dir)
       assert(type_name == "string")
       local ext = path.get_extension(item)
       if not ignored_exts[ext] then
-        if path.is_absolute(item) then
+        if not base_dir or path.is_absolute(item) then
           accum[#accum + 1] = item
         else
-          accum[#accum + 1] = base_dir .. item
+          local p = path.join(base_dir, item)
+          accum[#accum + 1] = p
         end
       end
     end
