@@ -1,8 +1,5 @@
 require "strict"
 
-local os      = require "os"
-local package = require "package"
-local path    = require "tundra.path"
 local boot    = require "tundra.boot"
 
 local actions = {
