@@ -29,5 +29,5 @@ local function main(action_name, ...)
 end
 
 return {
-    main = main
+  main = main
 }
