@@ -50,7 +50,7 @@ function get_guid_string(data)
   return guid:upper()
 end
 
-function extract_data(unit, env, proj_extension)
+function extract_data(unit, env, proj_extension, base_dir)
   local decl = unit.Decl
 
   if decl.Name and project_types[unit.Keyword] then
@@ -80,7 +80,7 @@ function extract_data(unit, env, proj_extension)
       Decl             = decl,
       Sources          = sources,
       RelativeFilename = relative_fn,
-      Filename         = env:interpolate("$(OBJECTROOT)$(SEP)" .. relative_fn),
+      Filename         = base_dir .. relative_fn,
       Guid             = get_guid_string(decl.Name),
     }
   else

@@ -123,7 +123,7 @@ end
 
 function msvc_generator:generate_project(project, all_projects)
   local fn = project.Filename
-  local p = io.open(fn, 'wb')
+  local p = assert(io.open(fn, 'wb'))
   p:write('<?xml version="1.0" encoding="utf-8"?>', LF)
   p:write('<Project')
   p:write(' DefaultTargets="Build"')
@@ -263,7 +263,7 @@ end
 
 function msvc_generator:generate_project_filters(project)
   local fn = project.Filename .. ".filters"
-  local p = io.open(fn .. ".tmp", 'wb')
+  local p = assert(io.open(fn .. ".tmp", 'wb'))
   p:write('<?xml version="1.0" encoding="Windows-1252"?>', LF)
   p:write('<Project')
   p:write(' ToolsVersion="4.0"')
@@ -357,7 +357,7 @@ function msvc_generator:generate_project_user(project)
     end
   end
 
-  local p = io.open(fn, 'wb')
+  local p = assert(io.open(fn, 'wb'))
   p:write('<?xml version="1.0" encoding="utf-8"?>', LF)
   p:write('<Project')
   p:write(' ToolsVersion="4.0"')
@@ -416,10 +416,14 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
     printf("Generating Visual Studio projects for %d configurations/variants", #config_tuples)
   end
 
+  -- Figure out where we're going to store the projects
+  local base_dir = hints.MsvcSolutionDir and (hints.MsvcSolutionDir .. '\\') or env:interpolate('$(OBJECTROOT)$(SEP)')
+  native.mkdir(base_dir)
+
   local projects = {}
 
   for _, unit in ipairs(raw_nodes) do
-    local data = msvc_common.extract_data(unit, env, ".vcxproj")
+    local data = msvc_common.extract_data(unit, env, ".vcxproj", base_dir)
     if data then
       projects[#projects + 1] = data
     end
@@ -440,10 +444,6 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
   if Options.Verbose then
     printf("%d projects to generate", #projects)
   end
-
-  local base_dir = env:interpolate('$(OBJECTROOT)$(SEP)')
-
-  native.mkdir(base_dir)
 
   local proj_lut = {}
   for _, p in ipairs(projects) do
@@ -471,7 +471,7 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
       Decl = { Name = meta_name, IdeGenerationHints = { Msvc = { SolutionFolder = "Build System Meta" } } },
       Type = "meta",
       RelativeFilename = meta_name .. ".vcxproj",
-      Filename = env:interpolate("$(OBJECTROOT)$(SEP)" .. meta_name .. ".vcxproj"),
+      Filename = base_dir .. meta_name .. ".vcxproj",
       Sources = source_list,
       Guid = msvc_common.get_guid_string(meta_name),
       IsMeta = true,
