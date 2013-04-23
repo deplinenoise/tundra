@@ -121,15 +121,7 @@ namespace TundraExtsVs2012
 			{
 				if(commandName == "TundraExtsVs2012.TundraConnect.BuildCurrentFile")
 				{
-          ContextInfo ctx;
-          if (GetContext(out ctx))
-          {
-            status = (vsCommandStatus)vsCommandStatus.vsCommandStatusSupported | vsCommandStatus.vsCommandStatusEnabled;
-          }
-          else
-          {
-            status = (vsCommandStatus)vsCommandStatus.vsCommandStatusUnsupported;
-          }
+          status = (vsCommandStatus)vsCommandStatus.vsCommandStatusSupported | vsCommandStatus.vsCommandStatusEnabled;
 					return;
 				}
 			}
