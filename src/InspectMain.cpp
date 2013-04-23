@@ -153,6 +153,21 @@ static void DumpDag(const DagData* data)
       printf("  %s - node %d\n", nn.m_Name.Get(), nn.m_NodeIndex);
     printf("\n");
   }
+
+  printf("\nfile signatures:\n");
+  for (const DagFileSignature& sig : data->m_FileSignatures)
+  {
+    printf("file            : %s\n", sig.m_Path.Get());
+    printf("timestamp       : %u\n", (unsigned int) sig.m_Timestamp);
+  }
+  printf("\nglob signatures:\n");
+  for (const DagGlobSignature& sig : data->m_GlobSignatures)
+  {
+    char digest_str[41];
+    DigestToString(digest_str, sig.m_Digest);
+    printf("path            : %s\n", sig.m_Path.Get());
+    printf("digest          : %s\n", digest_str);
+  }
 }
 
 static void DumpState(const StateData* data)
