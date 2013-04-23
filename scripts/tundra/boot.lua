@@ -40,9 +40,6 @@ _G.Options = {
   FullPaths = 1
 }
 
-_G.TundraRootDir = assert(os.getenv("TUNDRA_HOME"), "TUNDRA_HOME not set")
-_G.TundraExePath = assert(os.getenv("TUNDRA_EXECUTABLE"), "TUNDRA_EXECUTABLE not set")
-
 local function make_default_env()
   local default_env = environment.create()
 

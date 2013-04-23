@@ -4,6 +4,7 @@
 #include "BinaryWriter.hpp"
 #include "DagData.hpp"
 #include "PathUtil.hpp"
+#include "Common.hpp"
 
 extern "C"
 {
@@ -422,19 +423,21 @@ lua_State* CreateLuaState(MemAllocHeap* lua_heap)
   lua_pushstring(L, TUNDRA_PLATFORM_STRING);
   lua_setfield(L, -2, "host_platform");
 
-	// setup package.path
-	{
+  // setup package.path
+  {
     const char* homedir = GetTundraHomeDirectory();
+    char ppath[1024];
+    snprintf(ppath, sizeof(ppath),
+        "%s" TD_PATHSEP_STR "?.lua;"
+        "%s" TD_PATHSEP_STR "scripts" TD_PATHSEP_STR "?.lua;"
+        "%s" TD_PATHSEP_STR "lua" TD_PATHSEP_STR "etc" TD_PATHSEP_STR "?.lua;",
+        homedir, homedir, homedir);
+    lua_getglobal(L, "package");
+    CHECK(LUA_TTABLE == lua_type(L, -1));
 
-		char ppath[1024];
-		snprintf(ppath, sizeof(ppath),
-			"%s" TD_PATHSEP_STR "scripts" TD_PATHSEP_STR "?.lua;"
-			"%s" TD_PATHSEP_STR "lua" TD_PATHSEP_STR "etc" TD_PATHSEP_STR "?.lua", homedir, homedir);
-		lua_getglobal(L, "package");
-		CHECK(LUA_TTABLE == lua_type(L, -1));
-		lua_pushstring(L, ppath);
-		lua_setfield(L, -2, "path");
-	}
+    lua_pushstring(L, ppath);
+    lua_setfield(L, -2, "path");
+  }
 
   /* native table on the top of the stack */
   lua_pop(L, 1);
@@ -459,6 +462,8 @@ bool RunBuildScript(lua_State *L, const char* action, const char *script_fn, con
 	case LUA_ERRSYNTAX : Croak("syntax error\n%s\n", lua_tostring(L, -1));
 	}
 
+  lua_pushstring(L, GetTundraHomeDirectory());
+  lua_pushstring(L, GetTundraExePath());
   lua_pushstring(L, action);
   lua_pushstring(L, script_fn);
   for (int i = 0; i < argc_count; ++i)
@@ -466,7 +471,7 @@ bool RunBuildScript(lua_State *L, const char* action, const char *script_fn, con
     lua_pushstring(L, args[i]);
   }
 
-  int res = lua_pcall(L, /*narg:*/2 + argc_count, /*nres:*/1, /*errorfunc:*/ error_index);
+  int res = lua_pcall(L, /*narg:*/4 + argc_count, /*nres:*/1, /*errorfunc:*/ error_index);
 
   if (0 == res)
   {
