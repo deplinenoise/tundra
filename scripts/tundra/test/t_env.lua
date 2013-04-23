@@ -26,7 +26,8 @@ unit_test('scalar interpolation', function (t)
 
   e1:set("FILE", "foo/bar.txt")
   t:check_equal(e1:interpolate("$(FILE:B)"), "foo/bar")
-  t:check_equal(e1:interpolate("$(FILE:B:a.res)"), "foo/bar.res")
+  t:check_equal(e1:interpolate("$(FILE:F)"), "bar.txt")
+  t:check_equal(e1:interpolate("$(FILE:D)"), "foo")
 end)
 
 unit_test('list interpolation', function (t)

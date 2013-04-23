@@ -293,12 +293,32 @@ public:
 
   void GetFilename()
   {
-    abort();
+    size_t len = GetSize();
+    char* buf = GetBuffer();
+    for (int i = (int) len - 1; i >= 0; --i)
+    {
+      if ('/' == buf[i] || '\\' == buf[i])
+      {
+        int target_len = len - i - 1;
+        memmove(buf, buf + i + 1, target_len);
+        Shrink(target_len);
+        break;
+      }
+    }
   }
 
   void GetFilenameDir()
   {
-    abort();
+    size_t len = GetSize();
+    char* buf = GetBuffer();
+    for (int i = (int) len - 1; i >= 0; --i)
+    {
+      if ('/' == buf[i] || '\\' == buf[i])
+      {
+        Shrink(i);
+        break;
+      }
+    }
   }
 
   void EscapeForCmdlineDefine()
