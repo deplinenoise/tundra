@@ -106,8 +106,6 @@ function _native_mt:create_dag(env, data, input_deps)
   local my_pass = data.Pass
   local sources = data.Sources
   local libsuffix = { env:get("LIBSUFFIX") }
-  local objsuffix = { env:get("OBJECTSUFFIX") }
-
   local my_extra_deps = {}
 
   -- Link with libraries in dependencies.
@@ -126,6 +124,14 @@ function _native_mt:create_dag(env, data, input_deps)
       my_extra_deps[#my_extra_deps + 1] = node
       node:insert_output_files(sources, libsuffix)
     elseif dep.Keyword == "ObjGroup" then
+      -- We want all .obj files
+      local objsuffix = { env:get("OBJECTSUFFIX") }
+
+      -- And also .res files, if we know what that is
+      if env:has_key("W32RESSUFFIX") then
+        objsuffix[#objsuffix + 1] = env:get("W32RESSUFFIX")
+      end
+
       local node = dep:get_dag(env:get_parent())
       my_extra_deps[#my_extra_deps + 1] = node
       if not sources then sources = {} end
