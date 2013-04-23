@@ -31,6 +31,8 @@ function main(...)
     boot.generate_dag_data(build_script)
   elseif action == 'generate-ide-files' then
     boot.generate_ide_files(build_script, args)
+  elseif action == 'unit-test' then
+    require "tundra.selftest"
   else
     print("unknown action " .. action)
     os.exit(1)

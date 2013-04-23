@@ -6,8 +6,7 @@ function _G.unit_test(label, fn)
   local t_mt = {
     check_equal = function (obj, a, b) 
       if a ~= b then
-        io.stdout:write("\n    ", tostring(a) .. " != " .. tostring(b))
-        error_count = error_count + 1
+        error { Message = "Equality test failed: " .. tostring(a) .. " != " .. tostring(b) }
       end
     end
   }
@@ -15,6 +14,9 @@ function _G.unit_test(label, fn)
 
   local t = setmetatable({}, t_mt)
   local function stack_dumper(err_obj)
+    if type(err_obj) == "table" then
+      return err_obj.Message
+    end
     local debug = require 'debug'
     return debug.traceback(err_obj, 2)
   end
@@ -23,7 +25,8 @@ function _G.unit_test(label, fn)
   io.stdout:flush()
   local ok, err = xpcall(function () fn(t) end, stack_dumper)
   if not ok then
-    io.stdout:write("failed: ", tostring(err), "\n")
+    io.stdout:write("failed\n")
+    io.stdout:write(tostring(err), "\n")
     error_count = error_count + 1
   else
     io.stderr:write("OK\n")
@@ -31,3 +34,4 @@ function _G.unit_test(label, fn)
 end
 
 require "tundra.test.t_env"
+require "tundra.test.t_path"
