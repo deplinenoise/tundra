@@ -299,7 +299,7 @@ public:
     {
       if ('/' == buf[i] || '\\' == buf[i])
       {
-        int target_len = len - i - 1;
+        int target_len = int(len - i - 1);
         memmove(buf, buf + i + 1, target_len);
         Shrink(target_len);
         break;
