@@ -75,7 +75,7 @@ function _native_mt:customize_env(env, raw_data)
     end
     env:set('_PCH_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pch")
     env:set('_USE_PCH', '$(_USE_PCH_OPT)')
-    env:set('_PCH_SOURCE', pch.Source)
+    env:set('_PCH_SOURCE', path.normalize(pch.Source))
     env:set('_PCH_HEADER', pch.Header)
     env:set('_PCH_PASS', pch.Pass)
     if cpp_exts[path.get_extension(pch.Source)] then
