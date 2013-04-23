@@ -424,14 +424,19 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
       projects[#projects + 1] = data
     end
   end
-  
-  local source_list = { { Path = "tundra.lua" } }
-  local units = io.open("units.lua")
-  if units then
-    source_list[#source_list + 1] = { Path = "units.lua" }
-    io.close(units)
-  end
 
+  -- Get all accessed Lua files
+  local accessed_lua_files = util.table_keys(get_accessed_files())
+
+  -- Filter out the ones that belong to this build (exclude ones coming from Tundra) 
+  local function is_non_tundra_lua_file(p)
+    return not path.is_absolute(p)
+  end
+  local function make_src_node(p)
+    return { Path = path.normalize(p) }
+  end
+  local source_list = util.map(util.filter(accessed_lua_files, is_non_tundra_lua_file), make_src_node)
+  
   if Options.Verbose then
     printf("%d projects to generate", #projects)
   end
