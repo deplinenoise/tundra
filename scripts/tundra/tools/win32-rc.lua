@@ -6,6 +6,7 @@ local gencpp = require("tundra.tools.generic-cpp")
 
 local function compile_resource_file(env, pass, fn)
   return depgraph.make_node {
+    Env = env,
     Label = 'Rc $(@)',
     Pass = pass,
     Action = "$(RCCOM)",
