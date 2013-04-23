@@ -58,6 +58,12 @@ local function setup_env(env, tuple, build_id)
   env:set("OBJECTDIR", "$(OBJECTROOT)" .. SEP .. "$(BUILD_ID)")
 
   for tools in iter_inherits(config, "Tools") do
+    for k, v in pairs(tools) do
+      if type(k) == "string" then
+        error("Tools must be a plain array - to include options keys wrap them in their own tables:\n " ..
+              "e.g. Tools = { { 'foo'; Option = ... }, ... }.\n Your Tools:\n" .. util.tostring(tools))
+      end
+    end
     for _, data in ipairs(tools) do
       local id, options
 
