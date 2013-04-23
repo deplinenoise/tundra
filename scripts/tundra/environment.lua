@@ -86,7 +86,15 @@ function envclass:get_implicit_make_fn(filename)
 end
 
 function envclass:has_key(key)
-  return self.vars[key] and true or false
+  local chain = self
+  while chain do
+    if chain.vars[key] then
+      return true
+    end
+    chain = chain.parent
+  end
+
+  return false
 end
 
 function envclass:get_vars()
