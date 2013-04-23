@@ -61,7 +61,13 @@ local _is_native_mt = util.make_lookup_table { _object_mt, _program_mt, _staticl
 
 function _native_mt:customize_env(env, raw_data)
   if env:get('GENERATE_PDB', '0') ~= '0' then
-    env:set('_PDB_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pdb")
+    if raw_data.Target then
+      local target = env:interpolate(raw_data.Target)
+      local target_pdb = path.drop_suffix(target) .. '.pdb'
+      env:set('_PDB_FILE', target_pdb)
+    else
+      env:set('_PDB_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pdb")
+    end
     env:set('_USE_PDB_CC', '$(_USE_PDB_CC_OPT)')
     env:set('_USE_PDB_LINK', '$(_USE_PDB_LINK_OPT)')
   end
