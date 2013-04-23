@@ -15,7 +15,7 @@ _node_mt.__index = _node_mt
 
 function make_node(data_)
   local env_ = data_.Env
-  assert(environment.is_environment(env_))
+  assert(environment.is_environment(env_), "Env must be provided")
 
   local root_path = native.getcwd() .. env_:get('SEP')
 
