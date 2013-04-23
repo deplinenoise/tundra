@@ -186,7 +186,11 @@ local function resolve_sources(env, items, accum, base_dir)
       assert(type_name == "string")
       local ext = path.get_extension(item)
       if not ignored_exts[ext] then
-        accum[#accum + 1] = base_dir .. item
+        if path.is_absolute(item) then
+          accum[#accum + 1] = item
+        else
+          accum[#accum + 1] = base_dir .. item
+        end
       end
     end
   end
@@ -583,6 +587,10 @@ function get_target(data, suffix, prefix)
   return target
 end
 
+function get_evaluator(name)
+  return _generator.Evaluators[name]
+end
+
 function is_evaluator(name)
   if _generator.Evaluators[name] then return true else return false end
 end
@@ -683,13 +691,20 @@ end
 -- registered as an evaluator here.
 function evaluate(eval_keyword, data)
   local meta_tbl = assert(_generator.Evaluators[eval_keyword])
+
+  -- Give the evaluator change to fix up the data before we validate it.
+  data = meta_tbl:preprocess_data(data)
+
   local object = setmetatable({
     DagCache = {}, -- maps BUILD_ID -> dag node
-    Decl = data
+    Decl     = data
   }, meta_tbl)
+
   -- Expose the dag cache to the raw input data so the IDE generator can find it later
   data.__DagNodes = object.DagCache
   object.__index = object
+
+  -- Validate data according to Blueprint settings
   object:validate()
   return object
 end
@@ -743,6 +758,8 @@ function _G.DefRule(ruledef)
   local cmd       = assert(ruledef.Command, "Missing Command string in DefRule " .. name)
   local blueprint = assert(ruledef.Blueprint, "Missing Blueprint in DefRule " .. name)
   local mt        = create_eval_subclass {}
+
+  local preproc   = ruledef.Preprocess
 
   local function verify_table(v, tag)
     if not v then
@@ -809,5 +826,15 @@ function _G.DefRule(ruledef)
     end
   end
 
+  if preproc then
+    function mt:preprocess_data(raw_data)
+      return preproc(raw_data)
+    end
+  end
+
   add_evaluator(name, mt, blueprint)
+end
+
+function _nodegen:preprocess_data(data)
+  return data
 end
