@@ -418,6 +418,14 @@ namespace t2
     }
     else
     {
+      // Clean up output files.
+      for (const char* output : node_data->m_OutputFiles)
+      {
+        Log(kDebug, "Removing output file %s from failed build", output);
+        remove(output);
+        StatCacheMarkDirty(stat_cache, output);
+      }
+
       return BuildProgress::kFailed;
     }
   }
