@@ -93,6 +93,8 @@ static uint64_t GetFileSize64(HANDLE h)
 // Attempt to mmap a file for read-only access.
 void MmapFileMap(MemoryMappedFile* self, const char *fn)
 {
+  TimingScope timing_scope(&g_Stats.m_MmapCalls, &g_Stats.m_MmapTimeCycles);
+
   const DWORD desired_access       = GENERIC_READ;
   const DWORD share_mode           = FILE_SHARE_READ;
   const DWORD creation_disposition = OPEN_EXISTING;
@@ -134,6 +136,8 @@ void MmapFileMap(MemoryMappedFile* self, const char *fn)
 // Unmap an mmaped file from RAM.
 void MmapFileUnmap(MemoryMappedFile* self)
 {
+  TimingScope timing_scope(&g_Stats.m_MmapCalls, &g_Stats.m_MmapTimeCycles);
+
   if (self->m_Address)
   {
     if (!UnmapViewOfFile(self->m_Address))
