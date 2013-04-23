@@ -210,6 +210,8 @@ static int g_iofile (lua_State *L, int f, const char *mode) {
       *pf = fopen(filename, mode);
       if (*pf == NULL)
         fileerror(L, 1, filename);
+      if (0 == strcmp("r", mode) || 0 == strcmp("rb", mode))
+        lua_on_file_opened(L, filename);
     }
     else {
       tofile(L);  /* check that it's a valid file handle */
@@ -262,6 +264,7 @@ static int io_lines (lua_State *L) {
     *pf = fopen(filename, "r");
     if (*pf == NULL)
       fileerror(L, 1, filename);
+    lua_on_file_opened(L, filename);
     aux_lines(L, lua_gettop(L), 1);
     return 1;
   }

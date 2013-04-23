@@ -563,6 +563,7 @@ LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
     lua_pushfstring(L, "@%s", filename);
     lf.f = fopen(filename, "r");
     if (lf.f == NULL) return errfile(L, "open", fnameindex);
+    lua_on_file_opened(L, filename);
   }
   c = getc(lf.f);
   if (c == '#') {  /* Unix exec. file? */
