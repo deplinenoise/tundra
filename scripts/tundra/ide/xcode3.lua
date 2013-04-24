@@ -38,7 +38,7 @@ local project_types = util.make_lookup_table {
 
 local function get_absolute_output_path(env)
   local base_dir = env:interpolate('$(OBJECTROOT)$(SEP)') 
-  local cwd = native.get_cwd()
+  local cwd = native.getcwd()
   return cwd .. "/" .. base_dir
 end
 
@@ -137,7 +137,7 @@ end
 
 local function write_file_refs(p, projects)
   p:write('/* Begin FBXFileReference section */\n')
-  local cwd = native.get_cwd();
+  local cwd = native.getcwd();
 
   -- build the source list
 
@@ -664,7 +664,7 @@ end
 
 local function generate_shellscript(env)
   local filename = path.join(get_absolute_output_path(env), "xcodetundra")
-  local p = io.open(filename, 'wb')
+  local p = assert(io.open(filename, 'wb'))
   p:write("#/bin/sh\n")
   p:write("TARGET_NAME=$1\n")
   p:write("CONFIG=$2\n")
