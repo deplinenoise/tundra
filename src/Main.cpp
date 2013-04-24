@@ -59,7 +59,7 @@ static const struct OptionTemplate
   { 's', "stats", OptionType::kBool, offsetof(t2::DriverOptions, m_DisplayStats),
     "Display stats" },
   { 'C', "working-dir", OptionType::kString, offsetof(t2::DriverOptions, m_WorkingDir),
-    "Display stats" },
+    "Set working directory before building" },
   { 'h', "help", OptionType::kBool, offsetof(t2::DriverOptions, m_ShowHelp),
     "Show help" },
   { 'g', "ide-gen", OptionType::kBool, offsetof(t2::DriverOptions, m_IdeGen),
@@ -209,6 +209,8 @@ static void ShowHelp()
     char long_text[256];
     if (t->m_Type == OptionType::kInt)
       snprintf(long_text, sizeof long_text, "%s=<integer>", t->m_LongName);
+    else if (t->m_Type == OptionType::kString)
+      snprintf(long_text, sizeof long_text, "%s=<string>", t->m_LongName);
     else
       snprintf(long_text, sizeof long_text, "%s          ", t->m_LongName);
 
