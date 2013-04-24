@@ -20,7 +20,7 @@ CHECKED ?= no
 ifeq ($(CHECKED), no)
 CFLAGS += -O3 -DNDEBUG
 else
-CFLAGS += -D_DEBUG
+CFLAGS += -g -D_DEBUG
 endif
 
 UNAME := $(shell uname)
@@ -60,7 +60,8 @@ LIBTUNDRA_SOURCES = \
 	TargetSelect.cpp Thread.cpp dlmalloc.c TerminalIo.cpp \
 	ExecUnix.cpp
 
-T2LUA_SOURCES = LuaMain.cpp LuaInterface.cpp LuaInterpolate.cpp LuaJsonWriter.cpp
+T2LUA_SOURCES = LuaMain.cpp LuaInterface.cpp LuaInterpolate.cpp LuaJsonWriter.cpp \
+								LuaPath.cpp
 
 T2INSPECT_SOURCES = InspectMain.cpp
 
