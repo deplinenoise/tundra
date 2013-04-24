@@ -86,6 +86,7 @@ namespace t2
   void PathConcat(PathBuffer* buffer, const PathBuffer* other);
 
   void PathFormat(char (&output)[kMaxPathLength], const PathBuffer* buffer);
+  void PathFormatPartial(char (&output)[kMaxPathLength], const PathBuffer* buffer, int start_seg, int end_seg);
 }
 
 #endif

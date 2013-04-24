@@ -84,6 +84,7 @@
     <ClCompile Include="..\..\src\LuaInterface.cpp" />
     <ClCompile Include="..\..\src\LuaInterpolate.cpp" />
     <ClCompile Include="..\..\src\LuaJsonWriter.cpp" />
+    <ClCompile Include="..\..\src\LuaPath.cpp" />
     <ClCompile Include="..\..\src\LuaMain.cpp" />
   </ItemGroup>
   <ItemGroup>

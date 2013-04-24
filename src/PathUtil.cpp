@@ -205,7 +205,8 @@ void PathInit(PathBuffer* buffer, const char* path, PathType::Enum type)
     if (segments[i].drop)
       continue;
 
-    CHECK(output_pos < kMaxPathLength);
+    if (output_pos >= kMaxPathLength)
+      Croak("Path too long: %s", path);
 
     memcpy(buffer->m_Data + output_pos, path + segments[i].offset, segments[i].len);
     output_pos += segments[i].len;
@@ -295,11 +296,17 @@ void PathConcat(PathBuffer* buffer, const PathBuffer* other)
 
 void PathFormat(char (&output)[kMaxPathLength], const PathBuffer* buffer)
 {
+  PathFormatPartial(output, buffer, 0, buffer->m_SegCount - 1);
+}
+
+void PathFormatPartial(char (&output)[kMaxPathLength], const PathBuffer* buffer, int start_seg, int end_seg)
+{
   char *cursor = &output[0];
   char pathsep = PathType::kWindows == buffer->m_Type ? '\\' : '/';
 
-  if (PathBuffer::kFlagAbsolute ==
-       (buffer->m_Flags & (PathBuffer::kFlagAbsolute|PathBuffer::kFlagWindowsDevicePath)))
+  if (start_seg == 0 &&
+      PathBuffer::kFlagAbsolute ==
+      (buffer->m_Flags & (PathBuffer::kFlagAbsolute|PathBuffer::kFlagWindowsDevicePath)))
   {
     *cursor++ = pathsep;
   }
@@ -314,11 +321,20 @@ void PathFormat(char (&output)[kMaxPathLength], const PathBuffer* buffer)
 
   // Emit all remaining tokens.
   uint16_t off = 0;
-  for (int i = 0, count = buffer->m_SegCount; i < count; ++i)
+
+  for (int i = 0; i < start_seg; ++i)
+  {
+    off += buffer->SegLength(i);
+  }
+
+  for (int i = start_seg; i <= end_seg; ++i)
   {
     uint16_t len = buffer->SegLength(i);
 
-    if (i > 0)
+    if ((cursor - &output[0]) + len + 1 >= kMaxPathLength)
+      Croak("Path too long");
+
+    if (i > start_seg)
       *cursor++ = pathsep;
 
     memcpy(cursor, buffer->m_Data + off, len);
@@ -326,8 +342,6 @@ void PathFormat(char (&output)[kMaxPathLength], const PathBuffer* buffer)
     off += len;
   }
   *cursor = 0;
-
-  CHECK(cursor - &output[0] < kMaxPathLength);
 }
 
 }

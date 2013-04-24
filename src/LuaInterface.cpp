@@ -475,6 +475,7 @@ static const luaL_Reg s_LuaFunctions[] = {
 
 void LuaEnvNativeOpen(lua_State* L);
 void LuaJsonNativeOpen(lua_State* L);
+void LuaPathNativeOpen(lua_State* L);
 
 lua_State* CreateLuaState(MemAllocHeap* lua_heap)
 {
@@ -491,6 +492,9 @@ lua_State* CreateLuaState(MemAllocHeap* lua_heap)
 
   // Expose interpolation module
   LuaEnvNativeOpen(L);
+
+  // Expose path module
+  LuaPathNativeOpen(L);
 
   // Expose JSON writer module
   LuaJsonNativeOpen(L);
