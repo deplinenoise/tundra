@@ -23,9 +23,19 @@ local function main(action_name, ...)
   assert(action_name, "need an action")
 
   local action = actions[action_name]
-  assert(action, "unknown action")
+    assert(action, "unknown action '" .. action_name .. "'")
 
-  action(...)
+  -- check if debugger was requested
+  for i, v in ipairs(arg) do
+    if v == "--lua-debugger" then
+      table.remove(arg, i)
+      require "tundra.debugger"
+      pause()
+      break
+    end
+  end
+
+  action(unpack(arg))
 end
 
 return {
