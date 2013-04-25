@@ -204,10 +204,8 @@ static void StatCacheInsert(StatCache* self, uint32_t hash, const char* path, co
   }
 }
 
-void StatCacheMarkDirty(StatCache* self, const char* path)
+void StatCacheMarkDirty(StatCache* self, const char* path, uint32_t hash)
 {
-  const uint32_t hash = Djb2HashPath(path);
-
   StatLookupResult result = StatCacheLookup(self, hash, path, true);
 
   if (StatCache::Entry *e = result.m_Entry)
@@ -218,10 +216,8 @@ void StatCacheMarkDirty(StatCache* self, const char* path)
   }
 }
 
-FileInfo StatCacheStat(StatCache* self, const char* path)
+FileInfo StatCacheStat(StatCache* self, const char* path, uint32_t hash)
 {
-  const uint32_t  hash       = Djb2HashPath(path);
-
   StatLookupResult result = StatCacheLookup(self, hash, path, false);
   StatCache::Entry* entry = result.m_Entry;
 

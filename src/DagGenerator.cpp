@@ -114,6 +114,7 @@ static bool WriteFileArray(
     PathFormat(cleaned_path, &pathbuf);
 
     WriteStringPtr(ptr_seg, str_seg, cleaned_path);
+    BinarySegmentWriteUint32(ptr_seg, Djb2HashPath(cleaned_path));
   }
 
   return true;

@@ -118,11 +118,9 @@ bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap)
   return success;
 }
 
-bool DigestCacheGet(DigestCache* self, const char* filename, uint64_t timestamp, HashDigest* digest_out)
+bool DigestCacheGet(DigestCache* self, const char* filename, uint32_t hash, uint64_t timestamp, HashDigest* digest_out)
 {
   bool result = false;
-
-  uint32_t hash = Djb2HashPath(filename);
 
   ReadWriteLockRead(&self->m_Lock);
 
@@ -142,10 +140,8 @@ bool DigestCacheGet(DigestCache* self, const char* filename, uint64_t timestamp,
   return result;
 }
 
-void DigestCacheSet(DigestCache* self, const char* filename, uint64_t timestamp, const HashDigest& digest)
+void DigestCacheSet(DigestCache* self, const char* filename, uint32_t hash, uint64_t timestamp, const HashDigest& digest)
 {
-  uint32_t hash = Djb2HashPath(filename);
-
   ReadWriteLockWrite(&self->m_Lock);
 
   DigestCacheRecord* r;

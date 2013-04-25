@@ -8,12 +8,12 @@ namespace t2
   struct ScanCacheEntry
   {
     uint64_t                  m_FileTimestamp;
-    FrozenArray<FrozenString> m_IncludedFiles;
+    FrozenArray<FileAndHash>  m_IncludedFiles;
   };
 
   struct ScanData
   {
-    static const uint32_t MagicNumber = 0x1517000c;
+    static const uint32_t MagicNumber = 0x1517000e;
 
     uint32_t                   m_MagicNumber;
 

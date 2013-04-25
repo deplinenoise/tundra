@@ -17,11 +17,11 @@ namespace t2
 
 struct ScanCache::Record
 {
-  HashDigest   m_Key;
-  uint64_t     m_FileTimestamp;
-  int          m_IncludeCount;
-  const char** m_Includes;
-  Record*      m_Next;
+  HashDigest          m_Key;
+  uint64_t            m_FileTimestamp;
+  int                 m_IncludeCount;
+  FileAndHashDynamic *m_Includes;
+  Record             *m_Next;
 };
 
 void ComputeScanCacheKey(
@@ -152,11 +152,12 @@ bool ScanCacheLookup(ScanCache* self, const HashDigest& key, uint64_t timestamp,
     {
       int                   file_count = entry->m_IncludedFiles.GetCount();
 
-      const char** output = LinearAllocateArray<const char*>(scratch, file_count);
+      FileAndHashDynamic* output = LinearAllocateArray<FileAndHashDynamic>(scratch, file_count);
 
       for (int i = 0; i < file_count; ++i)
       {
-        output[i] = entry->m_IncludedFiles[i];
+        output[i].m_Filename = entry->m_IncludedFiles[i].m_Filename;
+        output[i].m_Hash     = entry->m_IncludedFiles[i].m_Hash;
       }
 
       result_out->m_IncludedFileCount = file_count;
@@ -255,11 +256,12 @@ void ScanCacheInsert(
 
     record->m_FileTimestamp = timestamp;
     record->m_IncludeCount  = count;
-    record->m_Includes      = LinearAllocateArray<const char*>(self->m_Allocator, count);
+    record->m_Includes      = LinearAllocateArray<FileAndHashDynamic>(self->m_Allocator, count);
 
     for (int i = 0; i < count; ++i)
     {
-      record->m_Includes[i] = StrDup(self->m_Allocator, included_files[i]);
+      record->m_Includes[i].m_Filename = StrDup(self->m_Allocator, included_files[i]);
+      record->m_Includes[i].m_Hash     = Djb2HashPath(included_files[i]);
     }
 
     if (is_fresh)
@@ -363,7 +365,8 @@ static void SaveRecord(
   for (int i = 0; i < include_count; ++i)
   {
     BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-    BinarySegmentWriteStringData(string_seg, includes[i]);
+    BinarySegmentWriteUint32(array_seg, includes[i].m_Hash);
+    BinarySegmentWriteStringData(string_seg, includes[i].m_Filename);
   }
 
   BinarySegmentWrite(digest_seg, (const char*) digest->m_Data, sizeof(HashDigest));

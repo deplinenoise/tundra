@@ -53,9 +53,9 @@ namespace t2
 
   bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap);
 
-  bool DigestCacheGet(DigestCache* self, const char* filename, uint64_t timestamp, HashDigest* digest_out);
+  bool DigestCacheGet(DigestCache* self, const char* filename, uint32_t hash, uint64_t timestamp, HashDigest* digest_out);
 
-  void DigestCacheSet(DigestCache* self, const char* filename, uint64_t timestamp, const HashDigest& digest);
+  void DigestCacheSet(DigestCache* self, const char* filename, uint32_t hash, uint64_t timestamp, const HashDigest& digest);
 }
 
 #endif

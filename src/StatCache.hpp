@@ -46,9 +46,15 @@ void StatCacheInit(StatCache* stat_cache, MemAllocLinear* allocator, MemAllocHea
 
 void StatCacheDestroy(StatCache* stat_cache);
 
-void StatCacheMarkDirty(StatCache* stat_cache, const char* path);
+void StatCacheMarkDirty(StatCache* stat_cache, const char* path, uint32_t hash);
 
-FileInfo StatCacheStat(StatCache* stat_cache, const char* path);
+FileInfo StatCacheStat(StatCache* stat_cache, const char* path, uint32_t hash);
+
+inline FileInfo StatCacheStat(StatCache* stat_cache, const char* path)
+{
+  return StatCacheStat(stat_cache, path, Djb2HashPath(path));
+}
+
 
 }
 

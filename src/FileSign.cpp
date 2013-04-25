@@ -9,9 +9,9 @@
 namespace t2
 {
 
-static void ComputeFileSignatureSha1(HashState* state, StatCache* stat_cache, DigestCache* digest_cache, const char* filename)
+static void ComputeFileSignatureSha1(HashState* state, StatCache* stat_cache, DigestCache* digest_cache, const char* filename, uint32_t fn_hash)
 {
-  FileInfo file_info = StatCacheStat(stat_cache, filename);
+  FileInfo file_info = StatCacheStat(stat_cache, filename, fn_hash);
 
   if (!file_info.Exists())
   {
@@ -21,7 +21,7 @@ static void ComputeFileSignatureSha1(HashState* state, StatCache* stat_cache, Di
 
   HashDigest digest;
 
-  if (!DigestCacheGet(digest_cache, filename, file_info.m_Timestamp, &digest))
+  if (!DigestCacheGet(digest_cache, filename, fn_hash, file_info.m_Timestamp, &digest))
   {
     TimingScope timing_scope(&g_Stats.m_FileDigestCount, &g_Stats.m_FileDigestTimeCycles);
 
@@ -43,7 +43,7 @@ static void ComputeFileSignatureSha1(HashState* state, StatCache* stat_cache, Di
     fclose(f);
 
     HashFinalize(&h, &digest);
-    DigestCacheSet(digest_cache, filename, file_info.m_Timestamp, digest);
+    DigestCacheSet(digest_cache, filename, fn_hash, file_info.m_Timestamp, digest);
   }
   else
   {
@@ -53,9 +53,9 @@ static void ComputeFileSignatureSha1(HashState* state, StatCache* stat_cache, Di
   HashUpdate(state, &digest, sizeof(digest));
 }
 
-static bool ComputeFileSignatureTimestamp(HashState* out, StatCache* stat_cache, const char* filename)
+static bool ComputeFileSignatureTimestamp(HashState* out, StatCache* stat_cache, const char* filename, uint32_t hash)
 {
-  FileInfo info = StatCacheStat(stat_cache, filename);
+  FileInfo info = StatCacheStat(stat_cache, filename, hash);
   if (info.Exists())
     HashAddInteger(out, info.m_Timestamp);
   else
@@ -63,7 +63,7 @@ static bool ComputeFileSignatureTimestamp(HashState* out, StatCache* stat_cache,
   return false;
 }
 
-void ComputeFileSignature(HashState* state, StatCache* stat_cache, DigestCache* digest_cache, const char* filename)
+void ComputeFileSignature(HashState* state, StatCache* stat_cache, DigestCache* digest_cache, const char* filename, uint32_t fn_hash)
 {
   if (const char* ext = strrchr(filename, '.'))
   {
@@ -72,12 +72,12 @@ void ComputeFileSignature(HashState* state, StatCache* stat_cache, DigestCache* 
         0 == strcmp(ext, ".h") ||
         0 == strcmp(ext, ".hpp"))
     {
-      ComputeFileSignatureSha1(state, stat_cache, digest_cache, filename);
+      ComputeFileSignatureSha1(state, stat_cache, digest_cache, filename, fn_hash);
       return;
     }
   }
 
-  ComputeFileSignatureTimestamp(state, stat_cache, filename);
+  ComputeFileSignatureTimestamp(state, stat_cache, filename, fn_hash);
 }
 
 }

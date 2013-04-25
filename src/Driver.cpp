@@ -393,6 +393,8 @@ static void FindNodesByName(
         Log(kDebug, "Mapped %s to %s for DAG searching", path_fmt, filename);
       }
 
+      const uint32_t filename_hash = Djb2HashPath(filename);
+
       if (!bits_valid)
       {
         FindReachableNodes(node_bits, dag, tuple);
@@ -412,9 +414,9 @@ static void FindNodesByName(
           size_t node_index = base_index + bit;
           const NodeData* node = dag->m_NodeData + node_index;
 
-          for (const char* input : node->m_InputFiles)
+          for (const FileAndHash& input : node->m_InputFiles)
           {
-            if (0 == PathCompare(input, filename))
+            if (filename_hash == input.m_Hash && 0 == PathCompare(input.m_Filename, filename))
             {
               BufferAppendOne(out_nodes, heap, node_index);
               Log(kDebug, "mapped %s to node %d (based on input file)", name, node_index);
@@ -426,9 +428,9 @@ static void FindNodesByName(
           if (found)
             break;
 
-          for (const char* output : node->m_OutputFiles)
+          for (const FileAndHash& output : node->m_OutputFiles)
           {
-            if (0 == PathCompare(output, filename))
+            if (filename_hash == output.m_Hash && 0 == PathCompare(output.m_Filename, filename))
             {
               BufferAppendOne(out_nodes, heap, node_index);
               Log(kDebug, "mapped %s to node %d (based on output file)", name, node_index);
@@ -847,7 +849,7 @@ bool DriverSaveBuildState(Driver* self)
     for (int32_t i = 0; i < file_count; ++i)
     {
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-      BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i]);
+      BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i].m_Filename);
     }
 
     file_count = src_node->m_AuxOutputFiles.GetCount();
@@ -856,7 +858,7 @@ bool DriverSaveBuildState(Driver* self)
     for (int32_t i = 0; i < file_count; ++i)
     {
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-      BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i]);
+      BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i].m_Filename);
     }
   };
 
@@ -949,15 +951,15 @@ void DriverRemoveStaleOutputs(Driver* self)
   {
     const NodeData* node = dag->m_NodeData + i;
 
-    for (const char* p : node->m_OutputFiles)
+    for (const FileAndHash& p : node->m_OutputFiles)
     {
-      uint32_t    hash = Djb2HashPath(p);
+      uint32_t    hash = p.m_Hash;
 
-      if (nullptr == HashTableLookup(&file_table, hash, p))
+      if (nullptr == HashTableLookup(&file_table, hash, p.m_Filename))
       {
         HashRecord* record = LinearAllocate<HashRecord>(scratch);
         record->m_Hash   = hash;
-        record->m_String = p;
+        record->m_String = p.m_Filename;
         record->m_Next   = nullptr;
         HashTableInsert(&file_table, record);
       }
@@ -1040,9 +1042,9 @@ void DriverCleanOutputs(Driver* self)
   int count = 0;
   for (NodeState& state : self->m_Nodes)
   {
-    for (const char* output : state.m_MmapData->m_OutputFiles)
+    for (const FileAndHash& fh : state.m_MmapData->m_OutputFiles)
     {
-      if (0 == RemoveFileOrDir(output))
+      if (0 == RemoveFileOrDir(fh.m_Filename))
         ++count;
     }
   }

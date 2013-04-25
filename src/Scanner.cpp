@@ -33,10 +33,8 @@ static void IncludeSetDestroy(IncludeSet* self)
   HashTableDestroy(&self->m_HashTable);
 }
 
-static bool IncludeSetAdd(IncludeSet* self, const char* string)
+static bool IncludeSetAdd(IncludeSet* self, const char* string, uint32_t hash)
 {
-  uint32_t hash = Djb2HashPath(string);
-
   if (HashTableLookup(&self->m_HashTable, hash, string))
   {
     return false;
@@ -170,15 +168,15 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
 
     if (ScanCacheLookup(scan_cache, scan_key, info.m_Timestamp, &cache_result, scratch_alloc))
     {
-      int          file_count = cache_result.m_IncludedFileCount;
-      const char **files      = cache_result.m_IncludedFiles;
+      int                       file_count = cache_result.m_IncludedFileCount;
+      const FileAndHashDynamic *files      = cache_result.m_IncludedFiles;
 
       for (int i = 0; i < file_count; ++i)
       {
-        if (IncludeSetAdd(&incset, files[i]))
+        if (IncludeSetAdd(&incset, files[i].m_Filename, files[i].m_Hash))
         {
           // This was a new file, schedule it for scanning as well. 
-          BufferAppendOne(&filename_stack, scratch_heap, files[i]);
+          BufferAppendOne(&filename_stack, scratch_heap, files[i].m_Filename);
         }
       }
     }
@@ -218,7 +216,7 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
 
       for (const char* file : found_includes)
       {
-        if (IncludeSetAdd(&incset, file))
+        if (IncludeSetAdd(&incset, file, Djb2HashPath(file)))
         {
           // This was a new file, schedule it for scanning as well. 
           BufferAppendOne(&filename_stack, scratch_heap, file);

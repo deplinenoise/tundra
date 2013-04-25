@@ -42,16 +42,16 @@ static void DumpDag(const DagData* data)
     printf("\n");
 
     printf("  inputs:\n");
-    for (const char* path : node.m_InputFiles)
-      printf("    %s\n", path);
+    for (const FileAndHash& f : node.m_InputFiles)
+      printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_Hash);
 
     printf("  outputs:\n");
-    for (const char* path : node.m_OutputFiles)
-      printf("    %s\n", path);
+    for (const FileAndHash& f : node.m_OutputFiles)
+      printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_Hash);
 
     printf("  aux_outputs:\n");
-    for (const char* path : node.m_AuxOutputFiles)
-      printf("    %s\n", path);
+    for (const FileAndHash& f : node.m_AuxOutputFiles)
+      printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_Hash);
 
     printf("  environment:\n");
     for (const EnvVarData& env : node.m_EnvVars)
@@ -216,8 +216,8 @@ static void DumpScanCache(const ScanData* data)
     printf("  access time stamp: %llu\n", (long long unsigned int) data->m_AccessTimes[i]);
     printf("  file time stamp: %llu\n", (long long unsigned int) entry.m_FileTimestamp);
     printf("  included files:\n");
-    for (const char* path : entry.m_IncludedFiles)
-      printf("    %s\n", path);
+    for (const FileAndHash& path : entry.m_IncludedFiles)
+      printf("    %s (0x%08x)\n", path.m_Filename.Get(), path.m_Hash);
   }
 }
 

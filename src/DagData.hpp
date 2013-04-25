@@ -102,9 +102,9 @@ struct NodeData
   int32_t                   m_PassIndex;
   FrozenArray<int32_t>      m_Dependencies;
   FrozenArray<int32_t>      m_BackLinks;
-  FrozenArray<FrozenString> m_InputFiles;
-  FrozenArray<FrozenString> m_OutputFiles;
-  FrozenArray<FrozenString> m_AuxOutputFiles;
+  FrozenArray<FileAndHash>  m_InputFiles;
+  FrozenArray<FileAndHash>  m_OutputFiles;
+  FrozenArray<FileAndHash>  m_AuxOutputFiles;
   FrozenArray<EnvVarData>   m_EnvVars;
   FrozenPtr<ScannerData>    m_Scanner;
   uint32_t                  m_Flags;
@@ -117,7 +117,7 @@ struct PassData
 
 struct DagData
 {
-  static const uint32_t         MagicNumber   = 0x15890108;
+  static const uint32_t         MagicNumber   = 0x1589010a;
 
   uint32_t                      m_MagicNumber;
 

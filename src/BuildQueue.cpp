@@ -166,7 +166,7 @@ namespace t2
     
     for (int i = 0; i < file_count; ++i)
     {
-      if (0 != strcmp(node_data->m_OutputFiles[i], prev_state->m_OutputFiles[i]))
+      if (0 != strcmp(node_data->m_OutputFiles[i].m_Filename, prev_state->m_OutputFiles[i]))
         return true;
     }
 
@@ -175,9 +175,9 @@ namespace t2
 
   static bool OutputFilesMissing(StatCache* stat_cache, const NodeData* node)
   {
-    for (const char* path : node->m_OutputFiles)
+    for (const FileAndHash& f : node->m_OutputFiles)
     {
-      FileInfo i = StatCacheStat(stat_cache, path);
+      FileInfo i = StatCacheStat(stat_cache, f.m_Filename, f.m_Hash);
 
       if (!i.Exists())
         return true;
@@ -209,7 +209,7 @@ namespace t2
     {
       Log(kSpam, "create dir \"%s\"", path);
       bool success = MakeDirectory(path);
-      StatCacheMarkDirty(stat_cache, path);
+      StatCacheMarkDirty(stat_cache, path, Djb2HashPath(path));
       return success;
     }
   }
@@ -247,11 +247,11 @@ namespace t2
 
     const ScannerData* scanner = node_data->m_Scanner;
 
-    for (const char* input_path : node_data->m_InputFiles)
+    for (const FileAndHash& input : node_data->m_InputFiles)
     {
       // Add path and timestamp of every direct input file.
-      HashAddString(&sighash, input_path);
-      ComputeFileSignature(&sighash, stat_cache, digest_cache, input_path);
+      HashAddString(&sighash, input.m_Filename);
+      ComputeFileSignature(&sighash, stat_cache, digest_cache, input.m_Filename, input.m_Hash);
 
       if (scanner)
       {
@@ -262,7 +262,7 @@ namespace t2
         scan_input.m_ScannerConfig = scanner;
         scan_input.m_ScratchAlloc  = &thread_state->m_ScratchAlloc;
         scan_input.m_ScratchHeap   = &thread_state->m_LocalHeap;
-        scan_input.m_FileName      = input_path;
+        scan_input.m_FileName      = input.m_Filename;
         scan_input.m_ScanCache     = queue->m_Config.m_ScanCache;
 
         ScanOutput scan_output;
@@ -274,7 +274,7 @@ namespace t2
             // Add path and timestamp of every indirect input file (#includes)
             const char* path = scan_output.m_IncludedFiles[i];
             HashAddString(&sighash, path);
-            ComputeFileSignature(&sighash, stat_cache, digest_cache, path);
+            ComputeFileSignature(&sighash, stat_cache, digest_cache, path, Djb2HashPath(path));
           }
         }
       }
@@ -355,14 +355,14 @@ namespace t2
       env_vars[i].m_Value = node_data->m_EnvVars[i].m_Value;
     }
 
-    for (const char* output_path : node_data->m_OutputFiles)
+    for (const FileAndHash& output_file : node_data->m_OutputFiles)
     {
       PathBuffer output;
-      PathInit(&output, output_path);
+      PathInit(&output, output_file.m_Filename);
 
       if (!MakeDirectoriesForFile(stat_cache, output))
       {
-        Log(kError, "failed to create output directories for %s", output_path);
+        Log(kError, "failed to create output directories for %s", output_file.m_Filename.Get());
         MutexLock(queue_lock);
         return BuildProgress::kFailed;
       }
@@ -373,11 +373,11 @@ namespace t2
     // See if we need to remove the output files before running anything.
     if (0 == (node_data->m_Flags & NodeData::kFlagOverwriteOutputs))
     {
-      for (const char* output : node_data->m_OutputFiles)
+      for (const FileAndHash& output : node_data->m_OutputFiles)
       {
-        Log(kDebug, "Removing output file %s before running action", output);
-        remove(output);
-        StatCacheMarkDirty(stat_cache, output);
+        Log(kDebug, "Removing output file %s before running action", output.m_Filename.Get());
+        remove(output.m_Filename);
+        StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
       }
     }
 
@@ -397,9 +397,9 @@ namespace t2
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
-    for (const char* output : node_data->m_OutputFiles)
+    for (const FileAndHash& output : node_data->m_OutputFiles)
     {
-      StatCacheMarkDirty(stat_cache, output);
+      StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
     }
 
     MutexLock(queue_lock);
@@ -416,11 +416,11 @@ namespace t2
     else
     {
       // Clean up output files.
-      for (const char* output : node_data->m_OutputFiles)
+      for (const FileAndHash& output : node_data->m_OutputFiles)
       {
-        Log(kDebug, "Removing output file %s from failed build", output);
-        remove(output);
-        StatCacheMarkDirty(stat_cache, output);
+        Log(kDebug, "Removing output file %s from failed build", output.m_Filename.Get());
+        remove(output.m_Filename);
+        StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
       }
 
       return BuildProgress::kFailed;
