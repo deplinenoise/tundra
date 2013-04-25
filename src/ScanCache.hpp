@@ -25,14 +25,7 @@ namespace t2
 
   struct ScanCache
   {
-    struct Record
-    {
-      HashDigest   m_Key;
-      uint64_t     m_FileTimestamp;
-      int          m_IncludeCount;
-      const char** m_Includes;
-      Record*      m_Next;
-    };
+    struct Record;
 
     const ScanData* m_FrozenData;
 

@@ -10,6 +10,7 @@
 #include "Exec.hpp"
 #include "Stats.hpp"
 #include "StatCache.hpp"
+#include "FileSign.hpp"
 
 #include <stdio.h>
 
@@ -227,6 +228,7 @@ namespace t2
     MutexUnlock(queue_lock);
 
     StatCache* stat_cache = queue->m_Config.m_StatCache;
+    DigestCache* digest_cache = queue->m_Config.m_DigestCache;
 
     const NodeData* node_data = node->m_MmapData;
 
@@ -247,12 +249,9 @@ namespace t2
 
     for (const char* input_path : node_data->m_InputFiles)
     {
-      FileInfo info = StatCacheStat(stat_cache, input_path);
-
       // Add path and timestamp of every direct input file.
       HashAddString(&sighash, input_path);
-      HashAddSeparator(&sighash);
-      HashAddInteger(&sighash, info.m_Timestamp);
+      ComputeFileSignature(&sighash, stat_cache, digest_cache, input_path);
 
       if (scanner)
       {
@@ -274,10 +273,8 @@ namespace t2
           {
             // Add path and timestamp of every indirect input file (#includes)
             const char* path = scan_output.m_IncludedFiles[i];
-            info = StatCacheStat(stat_cache, path);
             HashAddString(&sighash, path);
-            HashAddSeparator(&sighash);
-            HashAddInteger(&sighash, info.m_Timestamp);
+            ComputeFileSignature(&sighash, stat_cache, digest_cache, path);
           }
         }
       }

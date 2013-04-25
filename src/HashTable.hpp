@@ -25,6 +25,8 @@ namespace t2
 #else
       kFlagPathStrings = 0,
 #endif
+
+      kFlagFrozen         = 1 << 1,
     };
 
     HashRecord   **m_Table;

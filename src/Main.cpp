@@ -369,6 +369,9 @@ int main(int argc, char* argv[])
   if (!DriverSaveScanCache(&driver))
     Log(kWarning, "Couldn't save header scanning cache");
 
+  if (!DriverSaveDigestCache(&driver))
+    Log(kWarning, "Couldn't save SHA1 digest cache");
+
 leave:
   DriverDestroy(&driver);
 
@@ -384,6 +387,12 @@ leave:
     printf("  inserts:         %10u\n", g_Stats.m_ScanCacheInserts);
     printf("  save time:       %10.2f ms\n", TimerToSeconds(g_Stats.m_ScanCacheSaveTime) * 1000.0);
     printf("  entries dropped: %10u\n", g_Stats.m_ScanCacheEntriesDropped);
+    printf("file signing:\n");
+    printf("  cache hits:      %10u\n", g_Stats.m_DigestCacheHits);
+    printf("  cache get time:  %10.2f ms\n", TimerToSeconds(g_Stats.m_DigestCacheGetTimeCycles) * 1000.0);
+    printf("  cache save time: %10.2f ms\n", TimerToSeconds(g_Stats.m_DigestCacheSaveTimeCycles) * 1000.0);
+    printf("  digests:         %10u\n", g_Stats.m_FileDigestCount);
+    printf("  digest time:     %10.2f ms\n", TimerToSeconds(g_Stats.m_FileDigestTimeCycles) * 1000.0);
     printf("stat cache:\n");
     printf("  hits:            %10u\n", g_Stats.m_StatCacheHits);
     printf("  misses:          %10u\n", g_Stats.m_StatCacheMisses);

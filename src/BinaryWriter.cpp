@@ -57,7 +57,7 @@ void* BinarySegmentAlloc(BinarySegment* seg, size_t len)
   return BufferAlloc(&seg->m_Bytes, seg->m_Heap, len);
 }
 
-void BinarySegmentWrite(BinarySegment* seg, const char* data, size_t len)
+void BinarySegmentWrite(BinarySegment* seg, const void* data, size_t len)
 {
   BufferAppend(&seg->m_Bytes, seg->m_Heap, (const uint8_t*) data, len);
 }

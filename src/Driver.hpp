@@ -9,6 +9,7 @@
 #include "Buffer.hpp"
 #include "ScanCache.hpp"
 #include "StatCache.hpp"
+#include "DigestCache.hpp"
 
 namespace t2
 {
@@ -76,6 +77,8 @@ struct Driver
   MemAllocLinear    m_StatCacheAllocator;
   StatCache         m_StatCache;
 
+  DigestCache       m_DigestCache;
+
   int32_t           m_PassNodeCount[kMaxPasses];
 };
 
@@ -99,6 +102,7 @@ bool DriverInitData(Driver* self);
 
 bool DriverSaveScanCache(Driver* self);
 bool DriverSaveBuildState(Driver* self);
+bool DriverSaveDigestCache(Driver* self);
 
 }
 

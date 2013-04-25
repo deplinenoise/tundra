@@ -41,6 +41,12 @@ struct TundraStats
   uint64_t m_ExecTimeCycles;
 
   uint64_t m_JsonParseTimeCycles;
+
+  uint64_t m_DigestCacheSaveTimeCycles;
+  uint64_t m_DigestCacheGetTimeCycles;
+  uint32_t m_DigestCacheHits;
+  uint32_t m_FileDigestCount;
+  uint64_t m_FileDigestTimeCycles;
 };
 
 struct TimingScope

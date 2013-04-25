@@ -15,6 +15,15 @@
 namespace t2
 {
 
+struct ScanCache::Record
+{
+  HashDigest   m_Key;
+  uint64_t     m_FileTimestamp;
+  int          m_IncludeCount;
+  const char** m_Includes;
+  Record*      m_Next;
+};
+
 void ComputeScanCacheKey(
     HashDigest*        key_out,
     const char*        filename,

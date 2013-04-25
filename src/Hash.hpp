@@ -110,6 +110,9 @@ void HashFinalize(HashState* h, HashDigest* digest);
 void
 DigestToString(char (&buffer)[41], const HashDigest& digest);
 
+// Quickie to generate a hash digest from a single string
+void HashSingleString(HashDigest* digest_out, const char* string);
+
 }
 
 #endif

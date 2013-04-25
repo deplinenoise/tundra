@@ -93,10 +93,12 @@
     <ClInclude Include="..\..\src\Config.hpp" />
     <ClInclude Include="..\..\src\DagData.hpp" />
     <ClInclude Include="..\..\src\DagGenerator.hpp" />
+    <ClInclude Include="..\..\src\DigestCache.hpp" />
     <ClInclude Include="..\..\src\dlmalloc.h" />
     <ClInclude Include="..\..\src\Driver.hpp" />
     <ClInclude Include="..\..\src\Exec.hpp" />
     <ClInclude Include="..\..\src\FileInfo.hpp" />
+    <ClInclude Include="..\..\src\FileSign.hpp" />
     <ClInclude Include="..\..\src\Hash.hpp" />
     <ClInclude Include="..\..\src\HashTable.hpp" />
     <ClInclude Include="..\..\src\IncludeScanner.hpp" />
@@ -125,6 +127,7 @@
     <ClCompile Include="..\..\src\BuildQueue.cpp" />
     <ClCompile Include="..\..\src\Common.cpp" />
     <ClCompile Include="..\..\src\DagGenerator.cpp" />
+    <ClCompile Include="..\..\src\DigestCache.cpp" />
     <ClCompile Include="..\..\src\dlmalloc.c" />
     <ClCompile Include="..\..\src\Driver.cpp" />
     <ClCompile Include="..\..\src\ExecUnix.cpp">
@@ -133,6 +136,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\ExecWin32.cpp" />
     <ClCompile Include="..\..\src\FileInfo.cpp" />
+    <ClCompile Include="..\..\src\FileSign.cpp" />
     <ClCompile Include="..\..\src\Hash.cpp" />
     <ClCompile Include="..\..\src\HashTable.cpp" />
     <ClCompile Include="..\..\src\IncludeScanner.cpp" />

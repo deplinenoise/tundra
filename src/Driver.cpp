@@ -42,6 +42,7 @@ static const char s_BuildFile[]         = "tundra.lua";
 static const char s_DagFileName[]       = ".tundra2.dag";
 static const char s_StateFileName[]     = ".tundra2.state";
 static const char s_ScanCacheFileName[] = ".tundra2.scancache";
+static const char s_DigestCacheFileName[] = ".tundra2.digestcache";
 
 static bool DriverPrepareDag(Driver* self, const char* dag_fn);
 static bool DriverCheckDagSignatures(Driver* self);
@@ -657,11 +658,15 @@ bool DriverInit(Driver* self, const DriverOptions* options)
 
   memset(&self->m_PassNodeCount, 0, sizeof self->m_PassNodeCount);
 
+  DigestCacheInit(&self->m_DigestCache, MB(128), s_DigestCacheFileName);
+
   return true;
 }
 
 void DriverDestroy(Driver* self)
 {
+  DigestCacheDestroy(&self->m_DigestCache);
+
   StatCacheDestroy(&self->m_StatCache);
 
   ScanCacheDestroy(&self->m_ScanCache);
@@ -713,6 +718,7 @@ BuildResult::Enum DriverBuild(Driver* self)
   queue_config.m_NodeRemappingTable = self->m_NodeRemap.m_Storage;
   queue_config.m_ScanCache          = &self->m_ScanCache;
   queue_config.m_StatCache          = &self->m_StatCache;
+  queue_config.m_DigestCache        = &self->m_DigestCache;
 
   if (self->m_Options.m_Verbose)
   {
@@ -777,6 +783,14 @@ bool DriverSaveScanCache(Driver* self)
 
   return ScanCacheSave(scan_cache, s_ScanCacheFileName, &self->m_ScanFile, &self->m_Heap);
 }
+
+// Save digest cache
+bool DriverSaveDigestCache(Driver* self)
+{
+  // This will be invalidated.
+  return DigestCacheSave(&self->m_DigestCache, &self->m_Heap);
+}
+
 
 bool DriverSaveBuildState(Driver* self)
 {

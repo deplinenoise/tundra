@@ -15,6 +15,7 @@ namespace t2
   struct NodeData;
   struct ScanCache;
   struct StatCache;
+  struct DigestCache;
 
   enum
   {
@@ -42,6 +43,7 @@ namespace t2
     const int32_t  *m_NodeRemappingTable;
     ScanCache      *m_ScanCache;
     StatCache      *m_StatCache;
+    DigestCache    *m_DigestCache;
   };
 
   struct BuildQueue;

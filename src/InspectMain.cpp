@@ -2,10 +2,12 @@
 #include "DagData.hpp"
 #include "StateData.hpp"
 #include "ScanData.hpp"
+#include "DigestCache.hpp"
 #include "MemoryMappedFile.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 using namespace t2;
 
@@ -219,6 +221,29 @@ static void DumpScanCache(const ScanData* data)
   }
 }
 
+static const char* FmtTime(uint64_t t)
+{
+  time_t tt = (time_t) t;
+  static char time_buf[128];
+  strftime(time_buf, sizeof time_buf, "%F %H:%M:%S", localtime(&tt));
+  return time_buf;
+}
+
+static void DumpDigestCache(const DigestCacheState* data)
+{
+  printf("record count: %d\n", data->m_Records.GetCount());
+  for (const FrozenDigestRecord& r : data->m_Records)
+  {
+    char digest_str[41];
+    printf("  filename     : %s\n", r.m_Filename.Get());
+    printf("  filename hash: %08x\n", r.m_FilenameHash);
+    DigestToString(digest_str, r.m_ContentDigest);
+    printf("  digest SHA1  : %s\n", digest_str);
+    printf("  access time  : %s\n", FmtTime(r.m_AccessTime));
+    printf("  timestamp    : %s\n", FmtTime(r.m_Timestamp));
+    printf("\n");
+  }
+}
 
 int main(int argc, char* argv[])
 {
@@ -263,6 +288,18 @@ int main(int argc, char* argv[])
       if (data->m_MagicNumber == ScanData::MagicNumber)
       {
         DumpScanCache(data);
+      }
+      else
+      {
+        fprintf(stderr, "%s: bad magic number\n", fn);
+      }
+    }
+    else if (0 == strcmp(suffix, ".digestcache"))
+    {
+      const DigestCacheState* data = (const DigestCacheState*) f.m_Address;
+      if (data->m_MagicNumber == DigestCacheState::MagicNumber)
+      {
+        DumpDigestCache(data);
       }
       else
       {

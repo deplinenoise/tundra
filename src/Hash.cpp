@@ -69,7 +69,7 @@ void HashInit(HashState* self)
 
 void HashUpdate(HashState* self, const void *data_in, size_t size)
 {
-  const char*          data   = static_cast<const char*>(data_in);
+  const uint8_t*       data   = static_cast<const uint8_t*>(data_in);
   size_t               remain = size;
   uint8_t*             buffer = self->m_Buffer;
   uint32_t*            state  = self->m_State;
@@ -77,18 +77,27 @@ void HashUpdate(HashState* self, const void *data_in, size_t size)
 
   while (remain > 0)
   {
-    const size_t buf_space = (sizeof self->m_Buffer) - used;
-    const size_t copy_size = remain < buf_space ? remain : buf_space;
-    memcpy(buffer + used, data, copy_size);
-
-    used   += copy_size;
-    data   += copy_size;
-    remain -= copy_size;
-
-    if (used == sizeof self->m_Buffer)
+    if (used != 0 || remain < sizeof self->m_Buffer)
     {
-      HashBlock(buffer, state);
-      used = 0;
+      const size_t buf_space = (sizeof self->m_Buffer) - used;
+      const size_t copy_size = remain < buf_space ? remain : buf_space;
+      memcpy(buffer + used, data, copy_size);
+
+      used   += copy_size;
+      data   += copy_size;
+      remain -= copy_size;
+
+      if (used == sizeof self->m_Buffer)
+      {
+        HashBlock(buffer, state);
+        used = 0;
+      }
+    }
+    else
+    {
+      HashBlock(data, state);
+      data   += sizeof self->m_Buffer;
+      remain -= sizeof self->m_Buffer;
     }
   }
   
@@ -170,6 +179,15 @@ DigestToString(char (&buffer)[41], const HashDigest& digest)
   }
 
   buffer[40] = '\0';
+}
+
+// Quickie to generate a hash digest from a single string
+void HashSingleString(HashDigest* digest_out, const char* string)
+{
+  HashState h;
+  HashInit(&h);
+  HashUpdate(&h, string, strlen(string));
+  HashFinalize(&h, digest_out);
 }
 
 }
