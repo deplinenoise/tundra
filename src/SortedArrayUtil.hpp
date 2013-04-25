@@ -3,9 +3,15 @@
 
 #include <string.h>
 #include "Common.hpp"
+#include "Hash.hpp"
 
 namespace t2
 {
+
+inline int CompareArrayKeys(const HashDigest* l, const HashDigest* r)
+{
+  return CompareHashDigests(*l, *r);
+}
 
 template <
   typename KeySelect1, typename KeySelect2, typename ArrayCallback1, typename ArrayCallback2>
@@ -23,15 +29,15 @@ void TraverseSortedArrays(
   // Paranoia to check both arrays are sorted.
   for (size_t i = 1; i < size1; ++i)
   {
-    const HashDigest* a = key_select1(i - 1);
-    const HashDigest* b = key_select1(i);
-    CHECK(*a < *b);
+    const KeyT a = key_select1(i - 1);
+    const KeyT b = key_select1(i);
+    CHECK(CompareArrayKeys(a, b) < 0);
   }
   for (size_t i = 1; i < size2; ++i)
   {
-    const HashDigest* a = key_select2(i - 1);
-    const HashDigest* b = key_select2(i);
-    CHECK(*a < *b);
+    const KeyT a = key_select2(i - 1);
+    const KeyT b = key_select2(i);
+    CHECK(CompareArrayKeys(a, b) < 0);
   }
 #endif
 
@@ -39,10 +45,10 @@ void TraverseSortedArrays(
 
   while (i1 < size1 && i2 < size2)
   {
-    const HashDigest* record_1 = key_select1(i1);
-    const HashDigest* record_2 = key_select2(i2);
+    const KeyT record_1 = key_select1(i1);
+    const KeyT record_2 = key_select2(i2);
 
-    int compare = CompareHashDigests(*record_1, *record_2);
+    int compare = CompareArrayKeys(record_1, record_2);
 
     if (compare <= 0)
     {
