@@ -498,7 +498,7 @@ contents instead of the traditional timestamp.
 
 In this example, we're specifying that C and C++ source files should be signed
 using a hash of their contents rather than their timestamps. This means you can
-`touch` them all you want and no erbuild will occur, you'll need to actually
+`touch` them all you want and no rebuild will occur, you'll need to actually
 modify their contents to make that happen:
 
 .ContentDigestExtensions Synopsis
@@ -796,7 +796,7 @@ Program {
             Filters = {
                 { Pattern = "/debug/"; Config = "*-*-debug" },
                 { Pattern = "win32"; Config = "win32-*-*" },
-                { Pattern = "/_[^/]*$"; Config = "ignore" },
+                { Pattern = "[/\\]_[^/\\]*$"; Config = "ignore" },
             }
         }
     },
@@ -805,11 +805,12 @@ Program {
 -------------------------------------------------------------------------------
 
 If you wish to exclude files based on a pattern you can specify a configuration
-that doesn't exist. In the above example the pattern `/_[^/]*$` will ignore all 
+that doesn't exist. In the above example the pattern `[/\\]_[^/\\]*$` will ignore all 
 files where the file name starts with `_`.
 
-The initial forward slash is necessary as tundra passes the full path before 
-applying the filter.
+The initial seperator is necessary as tundra passes the full path before 
+applying the filter (note: we need a character class that matches both POSIX and 
+Win32 style paths if we want this to work on all platforms).
 
 Lua patterns are not regular expressions but they are closely related. Instead 
 of using backslash, `%` is used to reference predefined character classes or 
