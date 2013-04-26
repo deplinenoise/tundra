@@ -1,6 +1,8 @@
 #ifndef SCANNER_HPP
 #define SCANNER_HPP
 
+#include "Common.hpp"
+
 // High-level include scanner
 
 namespace t2
@@ -23,8 +25,8 @@ struct ScanInput
 
 struct ScanOutput
 {
-  int          m_IncludedFileCount;
-  const char **m_IncludedFiles;
+  int                m_IncludedFileCount;
+  const FileAndHash *m_IncludedFiles;
 };
 
 bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput* output);

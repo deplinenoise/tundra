@@ -20,7 +20,7 @@ struct ScanCache::Record
   HashDigest          m_Key;
   uint64_t            m_FileTimestamp;
   int                 m_IncludeCount;
-  FileAndHashDynamic *m_Includes;
+  FileAndHash        *m_Includes;
   Record             *m_Next;
 };
 
@@ -152,7 +152,7 @@ bool ScanCacheLookup(ScanCache* self, const HashDigest& key, uint64_t timestamp,
     {
       int                   file_count = entry->m_IncludedFiles.GetCount();
 
-      FileAndHashDynamic* output = LinearAllocateArray<FileAndHashDynamic>(scratch, file_count);
+      FileAndHash *output = LinearAllocateArray<FileAndHash>(scratch, file_count);
 
       for (int i = 0; i < file_count; ++i)
       {
@@ -256,7 +256,7 @@ void ScanCacheInsert(
 
     record->m_FileTimestamp = timestamp;
     record->m_IncludeCount  = count;
-    record->m_Includes      = LinearAllocateArray<FileAndHashDynamic>(self->m_Allocator, count);
+    record->m_Includes      = LinearAllocateArray<FileAndHash>(self->m_Allocator, count);
 
     for (int i = 0; i < count; ++i)
     {

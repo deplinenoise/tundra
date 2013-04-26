@@ -70,7 +70,8 @@ function generate_dag_data(build_script_fn)
   dagsave.save_dag_data(
     node_bindings,
     build_data.DefaultVariant,
-    build_data.DefaultSubVariant)
+    build_data.DefaultSubVariant,
+    build_data.ContentDigestExtensions)
 end
 
 function generate_ide_files(build_script_fn, ide_script)

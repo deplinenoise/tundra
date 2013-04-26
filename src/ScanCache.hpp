@@ -12,12 +12,6 @@ namespace t2
   struct MemAllocLinear;
   struct MemoryMappedFile;
 
-  struct FileAndHashDynamic
-  {
-    const char* m_Filename;
-    uint32_t    m_Hash;
-  };
-
   void ComputeScanCacheKey(
       HashDigest*        key_out,
       const char*        filename,
@@ -25,8 +19,8 @@ namespace t2
 
   struct ScanCacheLookupResult
   {
-    int                  m_IncludedFileCount;
-    FileAndHashDynamic*  m_IncludedFiles;
+    int           m_IncludedFileCount;
+    FileAndHash*  m_IncludedFiles;
   };
 
   struct ScanCache

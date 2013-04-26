@@ -44,6 +44,8 @@ namespace t2
     ScanCache      *m_ScanCache;
     StatCache      *m_StatCache;
     DigestCache    *m_DigestCache;
+    int             m_ShaDigestExtensionCount;
+    const uint32_t* m_ShaDigestExtensions;
   };
 
   struct BuildQueue;

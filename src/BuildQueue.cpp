@@ -175,7 +175,7 @@ namespace t2
 
   static bool OutputFilesMissing(StatCache* stat_cache, const NodeData* node)
   {
-    for (const FileAndHash& f : node->m_OutputFiles)
+    for (const FrozenFileAndHash& f : node->m_OutputFiles)
     {
       FileInfo i = StatCacheStat(stat_cache, f.m_Filename, f.m_Hash);
 
@@ -225,10 +225,12 @@ namespace t2
   {
     CHECK(AllDependenciesReady(queue, node));
 
+
     MutexUnlock(queue_lock);
 
-    StatCache* stat_cache = queue->m_Config.m_StatCache;
-    DigestCache* digest_cache = queue->m_Config.m_DigestCache;
+    const BuildQueueConfig& config = queue->m_Config;
+    StatCache* stat_cache = config.m_StatCache;
+    DigestCache* digest_cache = config.m_DigestCache;
 
     const NodeData* node_data = node->m_MmapData;
 
@@ -247,11 +249,11 @@ namespace t2
 
     const ScannerData* scanner = node_data->m_Scanner;
 
-    for (const FileAndHash& input : node_data->m_InputFiles)
+    for (const FrozenFileAndHash& input : node_data->m_InputFiles)
     {
       // Add path and timestamp of every direct input file.
       HashAddString(&sighash, input.m_Filename);
-      ComputeFileSignature(&sighash, stat_cache, digest_cache, input.m_Filename, input.m_Hash);
+      ComputeFileSignature(&sighash, stat_cache, digest_cache, input.m_Filename, input.m_Hash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
 
       if (scanner)
       {
@@ -272,9 +274,9 @@ namespace t2
           for (int i = 0, count = scan_output.m_IncludedFileCount; i < count; ++i)
           {
             // Add path and timestamp of every indirect input file (#includes)
-            const char* path = scan_output.m_IncludedFiles[i];
-            HashAddString(&sighash, path);
-            ComputeFileSignature(&sighash, stat_cache, digest_cache, path, Djb2HashPath(path));
+            const FileAndHash& path = scan_output.m_IncludedFiles[i];
+            HashAddString(&sighash, path.m_Filename);
+            ComputeFileSignature(&sighash, stat_cache, digest_cache, path.m_Filename, path.m_Hash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
           }
         }
       }
@@ -355,7 +357,7 @@ namespace t2
       env_vars[i].m_Value = node_data->m_EnvVars[i].m_Value;
     }
 
-    for (const FileAndHash& output_file : node_data->m_OutputFiles)
+    for (const FrozenFileAndHash& output_file : node_data->m_OutputFiles)
     {
       PathBuffer output;
       PathInit(&output, output_file.m_Filename);
@@ -373,7 +375,7 @@ namespace t2
     // See if we need to remove the output files before running anything.
     if (0 == (node_data->m_Flags & NodeData::kFlagOverwriteOutputs))
     {
-      for (const FileAndHash& output : node_data->m_OutputFiles)
+      for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
       {
         Log(kDebug, "Removing output file %s before running action", output.m_Filename.Get());
         remove(output.m_Filename);
@@ -397,7 +399,7 @@ namespace t2
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
-    for (const FileAndHash& output : node_data->m_OutputFiles)
+    for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
     {
       StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
     }
@@ -416,7 +418,7 @@ namespace t2
     else
     {
       // Clean up output files.
-      for (const FileAndHash& output : node_data->m_OutputFiles)
+      for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
       {
         Log(kDebug, "Removing output file %s from failed build", output.m_Filename.Get());
         remove(output.m_Filename);

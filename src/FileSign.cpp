@@ -63,21 +63,29 @@ static bool ComputeFileSignatureTimestamp(HashState* out, StatCache* stat_cache,
   return false;
 }
 
-void ComputeFileSignature(HashState* state, StatCache* stat_cache, DigestCache* digest_cache, const char* filename, uint32_t fn_hash)
+void ComputeFileSignature(
+  HashState*          out,
+  StatCache*          stat_cache,
+  DigestCache*        digest_cache,
+  const char*         filename,
+  uint32_t            fn_hash,
+  const uint32_t      sha_extension_hashes[],
+  int                 sha_extension_hash_count)
 {
   if (const char* ext = strrchr(filename, '.'))
   {
-    if (0 == strcmp(ext, ".cpp") ||
-        0 == strcmp(ext, ".c") ||
-        0 == strcmp(ext, ".h") ||
-        0 == strcmp(ext, ".hpp"))
+    uint32_t ext_hash = Djb2Hash(ext);
+    for (int i  = 0; i < sha_extension_hash_count; ++i)
     {
-      ComputeFileSignatureSha1(state, stat_cache, digest_cache, filename, fn_hash);
-      return;
+      if (sha_extension_hashes[i] == ext_hash)
+      {
+        ComputeFileSignatureSha1(out, stat_cache, digest_cache, filename, fn_hash);
+        return;
+      }
     }
   }
 
-  ComputeFileSignatureTimestamp(state, stat_cache, filename, fn_hash);
+  ComputeFileSignatureTimestamp(out, stat_cache, filename, fn_hash);
 }
 
 }

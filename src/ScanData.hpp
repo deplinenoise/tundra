@@ -7,8 +7,8 @@ namespace t2
 {
   struct ScanCacheEntry
   {
-    uint64_t                  m_FileTimestamp;
-    FrozenArray<FileAndHash>  m_IncludedFiles;
+    uint64_t                        m_FileTimestamp;
+    FrozenArray<FrozenFileAndHash>  m_IncludedFiles;
   };
 
   struct ScanData

@@ -331,7 +331,7 @@ local function check_deps(nodes)
   end
 end
 
-function save_dag_data(bindings, default_variant, default_subvariant)
+function save_dag_data(bindings, default_variant, default_subvariant, content_digest_exts)
 
   -- Call builtin function to get at accessed file table
   local accessed_lua_files = util.table_keys(get_accessed_files())
@@ -364,6 +364,15 @@ function save_dag_data(bindings, default_variant, default_subvariant)
   save_scanners(w, scanners)
   save_nodes(w, nodes, pass_to_index, scanner_to_index)
   save_signatures(w, accessed_lua_files)
+
+  if content_digest_exts and #content_digest_exts > 0 then
+    w:begin_array("ContentDigestExtensions")
+    for _, ext in ipairs(content_digest_exts) do
+      w:write_string(ext)
+    end
+    w:end_array()
+  end
+
   w:end_object()
 
   w:close()

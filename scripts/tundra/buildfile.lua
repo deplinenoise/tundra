@@ -208,12 +208,13 @@ function _G.Build(args)
   require "tundra.syntax.dotnet"
 
   build_result = {
-    BuildTuples       = build_tuples,
-    BuildData         = args,
-    Passes            = passes,
-    Configs           = configs,
-    DefaultVariant    = default_variant,
-    DefaultSubVariant = default_subvariant,
+    BuildTuples             = build_tuples,
+    BuildData               = args,
+    Passes                  = passes,
+    Configs                 = configs,
+    DefaultVariant          = default_variant,
+    DefaultSubVariant       = default_subvariant,
+    ContentDigestExtensions = args.ContentDigestExtensions,
   }
 end
 

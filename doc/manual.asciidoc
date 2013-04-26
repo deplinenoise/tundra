@@ -247,7 +247,7 @@ Build {
     ScriptsDirs = { ... },
     SyntaxExtensions = { ... },
     Passes = { ... },
-    EngineOptions = { ... },
+    ContentDigestExtensions { ... },
 }
 ---------------------------------------------------
 
@@ -480,6 +480,34 @@ Build {
         Foo = { Name="...", BuildOrder = 1 },
         Bar = { Name="...", BuildOrder = 2 },
         ...
+    },
+   ...
+}
+-------------------------------------------------------------------------------
+
+=== ContentDigestExtensions (optional)
+
+By default Tundra computes signatures using file timestamps. If a timestamp has
+changed, Tundra will consider the targets out of date. Sometimes it's useful to
+only consider a file changed when its content changes and ignore the timestamp.
+This often comes up in builds that generate lots of source files.
+
+The `ContentDigestExtensions` block can contain an array of file extensions.
+Files that end in these extensions will be signed using a SHA-1 digest of their
+contents instead of the traditional timestamp.
+
+In this example, we're specifying that C and C++ source files should be signed
+using a hash of their contents rather than their timestamps. This means you can
+`touch` them all you want and no erbuild will occur, you'll need to actually
+modify their contents to make that happen:
+
+.ContentDigestExtensions Synopsis
+[source,lua]
+-------------------------------------------------------------------------------
+Build {
+    ...
+    ContentDigestExtensions = {
+      ".c", ".h", ".cpp", ".hpp",
     },
    ...
 }

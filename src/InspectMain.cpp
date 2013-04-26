@@ -42,15 +42,15 @@ static void DumpDag(const DagData* data)
     printf("\n");
 
     printf("  inputs:\n");
-    for (const FileAndHash& f : node.m_InputFiles)
+    for (const FrozenFileAndHash& f : node.m_InputFiles)
       printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_Hash);
 
     printf("  outputs:\n");
-    for (const FileAndHash& f : node.m_OutputFiles)
+    for (const FrozenFileAndHash& f : node.m_OutputFiles)
       printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_Hash);
 
     printf("  aux_outputs:\n");
-    for (const FileAndHash& f : node.m_AuxOutputFiles)
+    for (const FrozenFileAndHash& f : node.m_AuxOutputFiles)
       printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_Hash);
 
     printf("  environment:\n");
@@ -170,6 +170,12 @@ static void DumpDag(const DagData* data)
     printf("path            : %s\n", sig.m_Path.Get());
     printf("digest          : %s\n", digest_str);
   }
+
+  printf("\nSHA-1 signatures enabled for extension hashes:\n");
+  for (const uint32_t ext : data->m_ShaExtensionHashes)
+  {
+    printf("hash            : 0x%08x\n", ext);
+  }
 }
 
 static void DumpState(const StateData* data)
@@ -216,7 +222,7 @@ static void DumpScanCache(const ScanData* data)
     printf("  access time stamp: %llu\n", (long long unsigned int) data->m_AccessTimes[i]);
     printf("  file time stamp: %llu\n", (long long unsigned int) entry.m_FileTimestamp);
     printf("  included files:\n");
-    for (const FileAndHash& path : entry.m_IncludedFiles)
+    for (const FrozenFileAndHash& path : entry.m_IncludedFiles)
       printf("    %s (0x%08x)\n", path.m_Filename.Get(), path.m_Hash);
   }
 }

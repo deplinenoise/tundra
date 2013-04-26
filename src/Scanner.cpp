@@ -168,8 +168,8 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
 
     if (ScanCacheLookup(scan_cache, scan_key, info.m_Timestamp, &cache_result, scratch_alloc))
     {
-      int                       file_count = cache_result.m_IncludedFileCount;
-      const FileAndHashDynamic *files      = cache_result.m_IncludedFiles;
+      int                 file_count = cache_result.m_IncludedFileCount;
+      const FileAndHash  *files      = cache_result.m_IncludedFiles;
 
       for (int i = 0; i < file_count; ++i)
       {
@@ -230,9 +230,10 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
 
   // Allocate space for output array. String data is already in scratch allocator.
   int include_count = incset.m_HashTable.m_RecordCount;
-  const char** result = LinearAllocateArray<const char*>(scratch_alloc, include_count);
+  FileAndHash* result = LinearAllocateArray<FileAndHash>(scratch_alloc, include_count);
   HashTableWalk(&incset.m_HashTable, [=] (uint32_t index, const HashRecord* r) {
-    result[index] = r->m_String;
+    result[index].m_Filename = r->m_String;
+    result[index].m_Hash     = r->m_Hash;
   });
 
   BufferDestroy(&filename_stack, scratch_heap);

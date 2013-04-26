@@ -414,7 +414,7 @@ static void FindNodesByName(
           size_t node_index = base_index + bit;
           const NodeData* node = dag->m_NodeData + node_index;
 
-          for (const FileAndHash& input : node->m_InputFiles)
+          for (const FrozenFileAndHash& input : node->m_InputFiles)
           {
             if (filename_hash == input.m_Hash && 0 == PathCompare(input.m_Filename, filename))
             {
@@ -428,7 +428,7 @@ static void FindNodesByName(
           if (found)
             break;
 
-          for (const FileAndHash& output : node->m_OutputFiles)
+          for (const FrozenFileAndHash& output : node->m_OutputFiles)
           {
             if (filename_hash == output.m_Hash && 0 == PathCompare(output.m_Filename, filename))
             {
@@ -721,6 +721,8 @@ BuildResult::Enum DriverBuild(Driver* self)
   queue_config.m_ScanCache          = &self->m_ScanCache;
   queue_config.m_StatCache          = &self->m_StatCache;
   queue_config.m_DigestCache        = &self->m_DigestCache;
+  queue_config.m_ShaDigestExtensionCount = dag->m_ShaExtensionHashes.GetCount();
+  queue_config.m_ShaDigestExtensions = dag->m_ShaExtensionHashes.GetArray();
 
   if (self->m_Options.m_Verbose)
   {
@@ -951,7 +953,7 @@ void DriverRemoveStaleOutputs(Driver* self)
   {
     const NodeData* node = dag->m_NodeData + i;
 
-    for (const FileAndHash& p : node->m_OutputFiles)
+    for (const FrozenFileAndHash& p : node->m_OutputFiles)
     {
       uint32_t    hash = p.m_Hash;
 
@@ -1042,7 +1044,7 @@ void DriverCleanOutputs(Driver* self)
   int count = 0;
   for (NodeState& state : self->m_Nodes)
   {
-    for (const FileAndHash& fh : state.m_MmapData->m_OutputFiles)
+    for (const FrozenFileAndHash& fh : state.m_MmapData->m_OutputFiles)
     {
       if (0 == RemoveFileOrDir(fh.m_Filename))
         ++count;

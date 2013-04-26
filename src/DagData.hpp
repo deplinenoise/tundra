@@ -96,18 +96,18 @@ struct NodeData
     kFlagOverwriteOutputs   = 1 << 0
   };
 
-  FrozenString              m_Action;
-  FrozenString              m_PreAction;
-  FrozenString              m_Annotation;
-  int32_t                   m_PassIndex;
-  FrozenArray<int32_t>      m_Dependencies;
-  FrozenArray<int32_t>      m_BackLinks;
-  FrozenArray<FileAndHash>  m_InputFiles;
-  FrozenArray<FileAndHash>  m_OutputFiles;
-  FrozenArray<FileAndHash>  m_AuxOutputFiles;
-  FrozenArray<EnvVarData>   m_EnvVars;
-  FrozenPtr<ScannerData>    m_Scanner;
-  uint32_t                  m_Flags;
+  FrozenString                    m_Action;
+  FrozenString                    m_PreAction;
+  FrozenString                    m_Annotation;
+  int32_t                         m_PassIndex;
+  FrozenArray<int32_t>            m_Dependencies;
+  FrozenArray<int32_t>            m_BackLinks;
+  FrozenArray<FrozenFileAndHash>  m_InputFiles;
+  FrozenArray<FrozenFileAndHash>  m_OutputFiles;
+  FrozenArray<FrozenFileAndHash>  m_AuxOutputFiles;
+  FrozenArray<EnvVarData>         m_EnvVars;
+  FrozenPtr<ScannerData>          m_Scanner;
+  uint32_t                        m_Flags;
 };
 
 struct PassData
@@ -117,7 +117,7 @@ struct PassData
 
 struct DagData
 {
-  static const uint32_t         MagicNumber   = 0x1589010a;
+  static const uint32_t         MagicNumber   = 0x1589010b;
 
   uint32_t                      m_MagicNumber;
 
@@ -147,6 +147,9 @@ struct DagData
 
   FrozenArray<DagFileSignature> m_FileSignatures;
   FrozenArray<DagGlobSignature> m_GlobSignatures;
+  
+  // Hashes of filename extensions to use SHA-1 digest signing instead of timestamp signing.
+  FrozenArray<uint32_t>         m_ShaExtensionHashes;
 };
 
 }

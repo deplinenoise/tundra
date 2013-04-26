@@ -75,7 +75,7 @@ private:
   FrozenArray(const FrozenArray&);
 };
 
-struct FileAndHash
+struct FrozenFileAndHash
 {
   FrozenString  m_Filename;
   uint32_t      m_Hash;
