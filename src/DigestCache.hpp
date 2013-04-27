@@ -23,13 +23,17 @@ namespace t2
     uint32_t                       m_FilenameHash;
     HashDigest                     m_ContentDigest;
     FrozenString                   m_Filename;
+#if ENABLED(USE_SHA1_HASH)
     uint32_t                       m_Padding;
+#elif ENABLED(USE_FAST_HASH)
+    uint32_t                       m_Padding[2];
+#endif
   };
   static_assert(sizeof(FrozenDigestRecord) == 48, "struct size");
 
   struct DigestCacheState
   {
-    static const uint32_t           MagicNumber   = 0x12781fa3;
+    static const uint32_t           MagicNumber   = 0x12781fa6 ^ kTundraHashMagic;
 
     uint32_t                        m_MagicNumber;
     FrozenArray<FrozenDigestRecord> m_Records;

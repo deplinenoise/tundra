@@ -559,7 +559,9 @@ bool ComputeNodeGuids(const JsonArrayValue* nodes, int32_t* remap_table, TempNod
       const JsonObjectValue* o1 = nodes->m_Values[i1]->AsObject();
       const char* anno0 = FindStringValue(o0, "Annotation");
       const char* anno1 = FindStringValue(o1, "Annotation");
-      Log(kError, "duplicate node guids: %s and %s share common GUID", anno0, anno1);
+      char digest[kDigestStringSize];
+      DigestToString(digest, guid_table[i].m_Digest);
+      Log(kError, "duplicate node guids: %s and %s share common GUID (%s)", anno0, anno1, digest);
       return false;
     }
   }

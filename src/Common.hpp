@@ -124,6 +124,8 @@ int GetCpuCount();
 
 int CountTrailingZeroes(uint32_t word);
 
+#if ENABLED(USE_LITTLE_ENDIAN)
+
 inline uint32_t LoadBigEndian32(uint32_t v)
 {
 #if defined(__GNUC__)
@@ -145,6 +147,24 @@ inline uint64_t LoadBigEndian64(uint64_t v)
 #error unsupported compiler
 #endif
 }
+
+inline uint32_t LoadLittleEndian32(uint32_t v)
+{
+  return v;
+}
+
+inline uint64_t LoadLittleEndian64(uint64_t v)
+{
+  return v;
+}
+
+#else
+
+#error implement me
+
+#endif
+
+//-----------------------------------------------------------------------------
 
 struct FileAndHash
 {

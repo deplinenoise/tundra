@@ -76,7 +76,7 @@ struct DagGlobSignature
   FrozenString      m_Path;
   HashDigest        m_Digest;
 };
-static_assert(sizeof(DagGlobSignature) == 24, "struct layout");
+static_assert(sizeof(HashDigest) + sizeof(FrozenString) == sizeof(DagGlobSignature), "struct layout");
 
 struct EnvVarData
 {
@@ -117,7 +117,7 @@ struct PassData
 
 struct DagData
 {
-  static const uint32_t         MagicNumber   = 0x1589010b;
+  static const uint32_t         MagicNumber   = 0x1589010b ^ kTundraHashMagic;
 
   uint32_t                      m_MagicNumber;
 

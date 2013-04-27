@@ -4,6 +4,8 @@
 
 using namespace t2;
 
+#if ENABLED(USE_SHA1_HASH)
+
 BEGIN_TEST_CASE("DigestToString")
 {
   HashDigest digest;
@@ -73,4 +75,6 @@ BEGIN_TEST_CASE("Hash/Compare")
   ASSERT_EQUAL(CompareHashDigests(a, b), -1);
 }
 END_TEST_CASE
+#endif
+
 #endif

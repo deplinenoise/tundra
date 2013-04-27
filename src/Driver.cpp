@@ -182,6 +182,15 @@ static bool DriverCheckDagSignatures(Driver* self)
 {
   const DagData* dag_data = self->m_DagData;
 
+#if ENABLED(CHECKED_BUILD)
+    // Paranoia - make sure the data is sorted.
+    for (int i = 1, count = dag_data->m_NodeCount; i < count; ++i)
+    {
+      if (dag_data->m_NodeGuids[i] < dag_data->m_NodeGuids[i - 1])
+        Croak("DAG data is not sorted by guid");
+    }
+#endif
+
   Log(kDebug, "checking file signatures for DAG data");
 
   if (dag_data->m_Passes.GetCount() > Driver::kMaxPasses)
@@ -287,7 +296,7 @@ static bool DriverCheckDagSignatures(Driver* self)
     // Compare digest with the one stored in the signature block
     if (0 != memcmp(&digest, &sig.m_Digest, sizeof digest))
     {
-      char stored[41], actual[41];
+      char stored[kDigestStringSize], actual[kDigestStringSize];
       DigestToString(stored, sig.m_Digest);
       DigestToString(actual, digest);
       Log(kInfo, "DAG out of date: file glob change for %s (%s => %s)", sig.m_Path.Get(), stored, actual);
@@ -586,19 +595,14 @@ bool DriverPrepareNodes(Driver* self, const char** targets, int target_count)
     }
   }
 
-  struct SortHelper
-  {
-    static int CompareNodeState(const void* l, const void* r)
-    {
-      int32_t pass_l = static_cast<const NodeState*>(l)->m_PassIndex;
-      int32_t pass_r = static_cast<const NodeState*>(r)->m_PassIndex;
-
-      return pass_l - pass_r;
-    }
-  };
 
   // Sort the node state array based on which pass the nodes are in.
-  qsort(out_nodes, node_count, sizeof(out_nodes[0]), SortHelper::CompareNodeState);
+  auto compare_node_passes = [](const NodeState& l, const NodeState& r) -> bool
+  {
+    return l.m_PassIndex < r.m_PassIndex;
+  };
+
+  std::sort(out_nodes, out_nodes + node_count, compare_node_passes);
 
   // Now that our local order is established (sorted for pass purposes),
   // initialize a remapping table from global (dag) index to local (state)

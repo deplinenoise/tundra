@@ -99,6 +99,9 @@ bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap)
     BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
     BinarySegmentWriteStringData(string_seg, r->m_String);
     BinarySegmentWriteUint32(array_seg, 0); // m_Padding
+#if ENABLED(USE_FAST_HASH)
+    BinarySegmentWriteUint32(array_seg, 0); // m_Padding
+#endif
   };
 
   HashTableWalk(&self->m_Table, save_record);

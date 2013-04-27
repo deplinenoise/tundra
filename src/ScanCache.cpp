@@ -30,9 +30,15 @@ void ComputeScanCacheKey(
     const HashDigest&  scanner_hash)
 {
   uint64_t path_hash = Djb2HashPath64(filename);
+
+#if ENABLED(USE_SHA1_HASH)
   key_out->m_Words.m_A = scanner_hash.m_Words.m_A ^ path_hash;
   key_out->m_Words.m_B = scanner_hash.m_Words.m_B;
   key_out->m_Words.m_C = scanner_hash.m_Words.m_C;
+#else
+  key_out->m_Words64[0] = scanner_hash.m_Words64[0] ^ path_hash;
+  key_out->m_Words64[1] = scanner_hash.m_Words64[1];
+#endif
 }
     
 void ScanCacheInit(ScanCache* self, MemAllocHeap* heap, MemAllocLinear* allocator)
@@ -72,7 +78,6 @@ void ScanCacheSetCache(ScanCache* self, const ScanData* frozen_data)
       if (frozen_data->m_Keys[i] < frozen_data->m_Keys[i - 1])
         Croak("Header scanning cache is not sorted");
     }
-    
 #endif
   }
 }
@@ -83,7 +88,11 @@ static ScanCache::Record* LookupDynamic(ScanCache* self, const HashDigest& key)
 
   if (table_size > 0)
   {
-    uint32_t hash = key.m_Words.m_C;
+#if ENABLED(USE_SHA1_HASH)
+    const uint32_t hash = key.m_Words.m_C;
+#elif ENABLED(USE_FAST_HASH)
+    const uint32_t hash = key.m_Words32[0];
+#endif
     uint32_t index = hash & (table_size - 1);
 
     ScanCache::Record* chain = self->m_Table[index];
@@ -105,76 +114,76 @@ bool ScanCacheLookup(ScanCache* self, const HashDigest& key, uint64_t timestamp,
 {
   bool success = false;
 
-  result_out->m_IncludedFileCount = 0;
-  result_out->m_IncludedFiles     = nullptr;
-
-  ReadWriteLockRead(&self->m_Lock);
-
-  if (ScanCache::Record* record = LookupDynamic(self, key))
-  {
-    if (record->m_FileTimestamp == timestamp)
-    {
-      result_out->m_IncludedFileCount = record->m_IncludeCount;
-      result_out->m_IncludedFiles     = record->m_Includes;
-      success                         = true;
-    }
-  }
-
-  ReadWriteUnlockRead(&self->m_Lock);
-
-  if (success)
-  {
-    AtomicIncrement(&g_Stats.m_NewScanCacheHits);
-    return true;
-  }
-
+  // First check previously cached data. No lock needed for this as it is purely read-only
+  //
+  // We expect most data to be in here as header files don't change that frequently.
   const ScanData* scan_data = self->m_FrozenData;
 
-  if (!scan_data)
+  if (scan_data)
   {
-    AtomicIncrement(&g_Stats.m_ScanCacheMisses);
-    return false;
-  }
+    const int32_t count = scan_data->m_EntryCount;
 
-  uint32_t count = scan_data->m_EntryCount;
-
-  // Check previously cached data. No lock needed for this as it is purely read-only
-  const HashDigest* begin = scan_data->m_Keys;
-  const HashDigest* end   = scan_data->m_Keys + count;
-  const HashDigest* ptr = std::lower_bound(begin, end, key);
-
-  if (ptr != end && *ptr == key)
-  {
-    int                   index      = int(ptr - begin);
-    const ScanCacheEntry *entry      = scan_data->m_Data.Get() + index;
-
-    if (entry->m_FileTimestamp == timestamp)
+    if (const HashDigest* ptr = BinarySearch(scan_data->m_Keys.Get(), count, key))
     {
-      int                   file_count = entry->m_IncludedFiles.GetCount();
+      int                   index      = int(ptr - scan_data->m_Keys.Get());
+      const ScanCacheEntry *entry      = scan_data->m_Data.Get() + index;
 
-      FileAndHash *output = LinearAllocateArray<FileAndHash>(scratch, file_count);
-
-      for (int i = 0; i < file_count; ++i)
+      if (entry->m_FileTimestamp == timestamp)
       {
-        output[i].m_Filename = entry->m_IncludedFiles[i].m_Filename;
-        output[i].m_Hash     = entry->m_IncludedFiles[i].m_Hash;
+        int                   file_count = entry->m_IncludedFiles.GetCount();
+
+        FileAndHash *output = LinearAllocateArray<FileAndHash>(scratch, file_count);
+
+        for (int i = 0; i < file_count; ++i)
+        {
+          output[i].m_Filename = entry->m_IncludedFiles[i].m_Filename;
+          output[i].m_Hash     = entry->m_IncludedFiles[i].m_Hash;
+        }
+
+        result_out->m_IncludedFileCount = file_count;
+        result_out->m_IncludedFiles     = output;
+        success                         = true;
+
+        // Flag this frozen record as having being accesses, so we don't throw it
+        // away due to timing out. This is technically a race, but we trust CPUs
+        // to sort out the cache line sharing via their cache coherency model.
+        self->m_FrozenAccess[index]     = 1;
+
+        AtomicIncrement(&g_Stats.m_OldScanCacheHits);
       }
-
-      result_out->m_IncludedFileCount = file_count;
-      result_out->m_IncludedFiles     = output;
-      success                         = true;
-
-      // Flag this frozen record as having being accesses, so we don't throw it
-      // away due to timing out. This is technically a race, but we trust CPUs
-      // to sort out the cache line sharing via their cache coherency model.
-      self->m_FrozenAccess[index]     = 1;
     }
   }
 
-  if (success)
-    AtomicIncrement(&g_Stats.m_OldScanCacheHits);
-  else
+  if (!success)
+  {
+    // Consult dynamic state for this session.
+    result_out->m_IncludedFileCount = 0;
+    result_out->m_IncludedFiles     = nullptr;
+
+    ReadWriteLockRead(&self->m_Lock);
+
+    if (ScanCache::Record* record = LookupDynamic(self, key))
+    {
+      if (record->m_FileTimestamp == timestamp)
+      {
+        result_out->m_IncludedFileCount = record->m_IncludeCount;
+        result_out->m_IncludedFiles     = record->m_Includes;
+        success                         = true;
+      }
+    }
+
+    ReadWriteUnlockRead(&self->m_Lock);
+
+    if (success)
+    {
+      AtomicIncrement(&g_Stats.m_NewScanCacheHits);
+    }
+  }
+
+  if (!success)
+  {
     AtomicIncrement(&g_Stats.m_ScanCacheMisses);
+  }
 
   return success;
 }
@@ -206,7 +215,11 @@ static void ScanCachePrepareInsert(ScanCache* self)
     while (r)
     {
       ScanCache::Record *next  = r->m_Next;
+#if ENABLED(USE_SHA1_HASH)
       uint32_t           hash  = r->m_Key.m_Words.m_C;
+#elif ENABLED(USE_FAST_HASH)
+      uint32_t           hash  = r->m_Key.m_Words32[0];
+#endif
       uint32_t           index = hash &(new_size - 1);
 
       r->m_Next        = new_table[index];
@@ -242,7 +255,11 @@ void ScanCacheInsert(
     ScanCachePrepareInsert(self);
 
     uint32_t table_size = self->m_TableSize;
+#if ENABLED(USE_SHA1_HASH)
     uint32_t hash       = key.m_Words.m_C;
+#elif ENABLED(USE_FAST_HASH)
+    uint32_t hash       = key.m_Words32[0];
+#endif
     uint32_t index      = hash &(table_size - 1);
 
     // Allocate a new record if needed

@@ -154,7 +154,7 @@ static int LuaTundraDigestGuid(lua_State* L)
 {
   HashDigest digest;
   DoDigest(&digest, L);
-  char result[41];
+  char result[kDigestStringSize];
   DigestToString(result, digest);
   lua_pushlstring(L, result, 40);
   return 1;

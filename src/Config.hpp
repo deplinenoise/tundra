@@ -9,6 +9,8 @@
 
 // Set up build features
 
+#define USE_SHA1_HASH NO
+#define USE_FAST_HASH YES
 
 #if defined(_DEBUG)
 #define USE_DLMALLOC YES
@@ -23,12 +25,22 @@
 #define RESTRICT __restrict
 #define NORETURN __attribute__((noreturn)) 
 #define ALIGNOF(t) __alignof(t)
+#define ALIGN(n) __attribute__((aligned(n)))
 #elif defined(_MSC_VER)
 #define RESTRICT __restrict
 #define NORETURN __declspec(noreturn)
 #define ALIGNOF(t) __alignof(t)
+#define ALIGN(n) __declspec(align(n))
 #else
 #error unsupported compiler
+#endif
+
+#if defined(__powerpc__)
+#define USE_LITTLE_ENDIAN NO
+#elif defined(_WIN32) || defined(__x86__) || defined(__x86_64__)
+#define USE_LITTLE_ENDIAN YES
+#else
+#error add endian detection here
 #endif
 
 #if defined(__APPLE__)

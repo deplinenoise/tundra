@@ -17,7 +17,7 @@ struct NodeStateData
 
 struct StateData
 {
-  static const uint32_t     MagicNumber = 0x15890102;
+  static const uint32_t     MagicNumber = 0x15890102 ^ kTundraHashMagic;
 
   uint32_t                 m_MagicNumber;
 

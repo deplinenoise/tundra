@@ -58,7 +58,7 @@ LIBTUNDRA_SOURCES = \
 	MemAllocLinear.cpp MemoryMappedFile.cpp PathUtil.cpp \
 	ScanCache.cpp Scanner.cpp SignalHandler.cpp StatCache.cpp \
 	TargetSelect.cpp Thread.cpp dlmalloc.c TerminalIo.cpp \
-	ExecUnix.cpp DigestCache.cpp FileSign.cpp
+	ExecUnix.cpp DigestCache.cpp FileSign.cpp HashSha1.cpp HashFast.cpp
 
 T2LUA_SOURCES = LuaMain.cpp LuaInterface.cpp LuaInterpolate.cpp LuaJsonWriter.cpp \
 								LuaPath.cpp

@@ -20,7 +20,7 @@ static void DumpDag(const DagData* data)
   for (int i = 0; i < node_count; ++i)
   {
     printf("node %d:\n", i);
-    char digest_str[41];
+    char digest_str[kDigestStringSize];
     DigestToString(digest_str, data->m_NodeGuids[i]);
 
     const NodeData& node = data->m_NodeData[i];
@@ -165,7 +165,7 @@ static void DumpDag(const DagData* data)
   printf("\nglob signatures:\n");
   for (const DagGlobSignature& sig : data->m_GlobSignatures)
   {
-    char digest_str[41];
+    char digest_str[kDigestStringSize];
     DigestToString(digest_str, sig.m_Digest);
     printf("path            : %s\n", sig.m_Path.Get());
     printf("digest          : %s\n", digest_str);
@@ -186,7 +186,7 @@ static void DumpState(const StateData* data)
   for (int i = 0; i < node_count; ++i)
   {
     printf("node %d:\n", i);
-    char digest_str[41];
+    char digest_str[kDigestStringSize];
 
     const NodeStateData& node = data->m_NodeStates[i];
 
@@ -213,7 +213,7 @@ static void DumpScanCache(const ScanData* data)
   for (int i = 0; i < entry_count; ++i)
   {
     printf("entry %d:\n", i);
-    char digest_str[41];
+    char digest_str[kDigestStringSize];
 
     const ScanCacheEntry& entry = data->m_Data[i];
 
@@ -240,7 +240,7 @@ static void DumpDigestCache(const DigestCacheState* data)
   printf("record count: %d\n", data->m_Records.GetCount());
   for (const FrozenDigestRecord& r : data->m_Records)
   {
-    char digest_str[41];
+    char digest_str[kDigestStringSize];
     printf("  filename     : %s\n", r.m_Filename.Get());
     printf("  filename hash: %08x\n", r.m_FilenameHash);
     DigestToString(digest_str, r.m_ContentDigest);

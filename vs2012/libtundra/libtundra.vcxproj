@@ -138,6 +138,8 @@
     <ClCompile Include="..\..\src\FileInfo.cpp" />
     <ClCompile Include="..\..\src\FileSign.cpp" />
     <ClCompile Include="..\..\src\Hash.cpp" />
+    <ClCompile Include="..\..\src\HashFast.cpp" />
+    <ClCompile Include="..\..\src\HashSha1.cpp" />
     <ClCompile Include="..\..\src\HashTable.cpp" />
     <ClCompile Include="..\..\src\IncludeScanner.cpp" />
     <ClCompile Include="..\..\src\JsonParse.cpp" />
