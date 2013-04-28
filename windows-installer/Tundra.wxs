@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?> <!--
+vim: ts=2 sw=2 expandtab syntax=xml
+-->
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <Product Id="*" UpgradeCode="{8C6B2F4D-EE8A-4850-8121-ADE2506A621D}" Version="2.0.0.0" Language="1033" Name="Tundra" Manufacturer="Andreas Fredriksson">
+
+    <Package InstallerVersion="300" Compressed="yes"/>
+    <Media Id="1" Cabinet="tundra.cab" EmbedCab="yes"/>
+
+    <!-- Directory structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="APPLICATIONROOTDIRECTORY" Name="Tundra">
+          <Directory Id="BINDIR" Name="bin">
+            <Component Id="set_path" Guid="{6C2DCB8F-4AEA-4892-A95F-B31736E7BD87}">
+              <CreateFolder />
+              <Environment Id="PATH" Name="PATH" Value="[BINDIR]" Permanent="no" Part="last" Action="set" System="yes" />
+            </Component>
+          </Directory>
+          <Directory Id="DOCDIR" Name="doc"/>
+        </Directory>
+      </Directory>
+
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Tundra"/>
+      </Directory>
+    </Directory>
+
+    <!-- Files to install -->
+    <DirectoryRef Id="BINDIR">
+      <Component Id="tundra2_exe" Guid="{9CDCD900-33AF-47A6-B3FF-ABB78E09852D}">
+        <File Id="tundra2_exe" Source="..\vs2012\x64\Release\tundra2.exe" KeyPath="yes" Checksum="yes"/>
+      </Component>
+      <Component Id="t2_inspect_exe" Guid="{9A86C987-D18A-44F7-840E-E45BD62117A5}">
+        <File Id="t2_inspect_exe" Source="..\vs2012\x64\Release\t2-inspect.exe" KeyPath="yes" Checksum="yes"/>
+      </Component>
+      <Component Id="t2_lua_exe" Guid="{030A2E4A-C34E-4ED5-8C3F-C3B59FD0EAFC}">
+        <File Id="t2_lua_exe" Source="..\vs2012\x64\Release\t2-lua.exe" KeyPath="yes" Checksum="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DOCDIR">
+      <Component Id="tundra2_doc" Guid="{9228110B-33E0-4CAE-9AB6-BD6F2712365D}">
+        <File Id="tundra2_doc" Source="tundra-manual.html" KeyPath="yes" Checksum="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ManualShortcut" Guid="{984B7D81-FF05-48F3-92DD-C47AF6024853}">
+        <Shortcut Id="StartMenuManualShortcut"
+                  Name="Tundra Manual"
+                  Description="Manual"
+                  Target="[DOCDIR]tundra-manual.html" />
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\Andreas Fredriksson\Tundra" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="Tundra" Title="Main Application" Level="1">
+      <ComponentGroupRef Id="ScriptFilesComponent"/>
+      <ComponentRef Id="set_path"/>
+      <ComponentRef Id="tundra2_exe"/>
+      <ComponentRef Id="t2_inspect_exe"/>
+      <ComponentRef Id="t2_lua_exe"/>
+      <ComponentRef Id="tundra2_doc"/>
+      <ComponentRef Id="ManualShortcut"/>
+    </Feature>
+  </Product>
+</Wix>
