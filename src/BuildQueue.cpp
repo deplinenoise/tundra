@@ -417,12 +417,15 @@ namespace t2
     }
     else
     {
-      // Clean up output files.
-      for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
+      // Clean up output files after a failed build unless they are precious.
+      if (0 == (NodeData::kFlagPreciousOutputs & node_data->m_Flags))
       {
-        Log(kDebug, "Removing output file %s from failed build", output.m_Filename.Get());
-        remove(output.m_Filename);
-        StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
+        for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
+        {
+          Log(kDebug, "Removing output file %s from failed build", output.m_Filename.Get());
+          remove(output.m_Filename);
+          StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
+        }
       }
 
       return BuildProgress::kFailed;

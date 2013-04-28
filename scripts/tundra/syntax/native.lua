@@ -22,6 +22,7 @@ local _object_mt = nodegen.create_eval_subclass({
   Prefix = "",
   Action = "$(OBJCOM)",
   Label = "Object $(<)",
+  OverwriteOutputs = true,
 }, _native_mt)
 
 local _program_mt = nodegen.create_eval_subclass({
@@ -29,6 +30,8 @@ local _program_mt = nodegen.create_eval_subclass({
   Prefix = "$(PROGPREFIX)",
   Action = "$(PROGCOM)",
   Label = "Program $(@)",
+  PreciousOutputs = true,
+  OverwriteOutputs = true,
 }, _native_mt)
 
 local _staticlib_mt = nodegen.create_eval_subclass({
@@ -36,6 +39,9 @@ local _staticlib_mt = nodegen.create_eval_subclass({
   Prefix = "$(LIBPREFIX)",
   Action = "$(LIBCOM)",
   Label = "StaticLibrary $(@)",
+    -- Play it safe and delete the output files of this node before re-running it.
+    -- Solves iterative issues with e.g. AR
+  OverwriteOutputs = false,
 }, _native_mt)
 
 local _objgroup_mt = nodegen.create_eval_subclass({
@@ -47,6 +53,8 @@ local _shlib_mt = nodegen.create_eval_subclass({
   Prefix = "$(SHLIBPREFIX)",
   Action = "$(SHLIBCOM)",
   Label = "SharedLibrary $(@)",
+  PreciousOutputs = true,
+  OverwriteOutputs = true,
 }, _native_mt)
 
 local _extlib_mt = nodegen.create_eval_subclass({
@@ -214,9 +222,8 @@ function _native_mt:create_dag(env, data, input_deps)
     AuxOutputFiles      = aux_outputs,
     ImplicitInputs      = extra_inputs,
     Dependencies        = deps,
-    -- Play it safe and delete the output files of this node before re-running it.
-    -- Solves iterative issues with e.g. AR
-    OverwriteOutputs    = false,
+    OverwriteOutputs    = self.OverwriteOutputs,
+    PreciousOutputs     = self.PreciousOutputs,
   }
 
   -- Remember this dag node for IDE file generation purposes

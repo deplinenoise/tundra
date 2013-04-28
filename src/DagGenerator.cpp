@@ -158,6 +158,22 @@ void WriteCommonStringPtr(BinarySegment* segment, BinarySegment* str_seg, const 
   BinarySegmentWritePointer(segment, r->m_Pointer);
 }
 
+static uint32_t GetNodeFlag(const JsonObjectValue* node, const char* name, uint32_t value)
+{
+  uint32_t result = 0;
+
+  if (const JsonValue* val = node->Find(name))
+  {
+    if (const JsonBooleanValue* flag = val->AsBoolean())
+    {
+      if (flag->m_Boolean)
+        result = NodeData::kFlagOverwriteOutputs;
+    }
+  }
+
+  return result;
+}
+
 static bool WriteNodes(
     const JsonArrayValue* nodes,
     BinarySegment* main_seg,
@@ -312,12 +328,10 @@ static bool WriteNodes(
     }
 
     uint32_t flags = 0;
-    if (const JsonValue* overwrite_outputs = node->Find("OverwriteOutputs"))
-    {
-      if (const JsonBooleanValue* flag = overwrite_outputs->AsBoolean())
-        if (flag->m_Boolean)
-          flags |= NodeData::kFlagOverwriteOutputs;
-    }
+    
+    flags |= GetNodeFlag(node, "OverwriteOutputs", NodeData::kFlagOverwriteOutputs);
+    flags |= GetNodeFlag(node, "PreciousOutputs", NodeData::kFlagPreciousOutputs);
+
     BinarySegmentWriteUint32(node_data_seg, flags);
   }
 

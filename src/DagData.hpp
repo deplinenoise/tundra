@@ -93,7 +93,11 @@ struct NodeData
     // before running the action. This is useful to prevent tools that
     // sometimes misbehave in the presence of old output files. ar is a good
     // example.
-    kFlagOverwriteOutputs   = 1 << 0
+    kFlagOverwriteOutputs   = 1 << 0,
+
+    // Keep output files even if the build fails. Useful mostly to retain files
+    // for incremental linking.
+    kFlagPreciousOutputs    = 1 << 1
   };
 
   FrozenString                    m_Action;

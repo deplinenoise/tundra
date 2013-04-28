@@ -187,6 +187,10 @@ local function save_nodes(w, nodes, pass_to_index, scanner_to_index)
       w:write_bool(true, "OverwriteOutputs")
     end
 
+    if node.precious then
+      w:write_bool(true, "PreciousOutputs")
+    end
+
     w:end_object()
   end
   w:end_array()
