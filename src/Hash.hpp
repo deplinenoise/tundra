@@ -110,13 +110,13 @@ static_assert(sizeof(HashDigest) == 16, "struct layout");
 
 inline int CompareHashDigests(const HashDigest& lhs, const HashDigest& rhs)
 {
-  const uint64_t l0 = LoadLittleEndian64(lhs.m_Words64[0]);
-  const uint64_t r0 = LoadLittleEndian64(rhs.m_Words64[0]);
+  const uint64_t l0 = lhs.m_Words64[0];
+  const uint64_t r0 = rhs.m_Words64[0];
 
   const int res0 = (l0 > r0) - (l0 < r0);
 
-  const uint64_t l1 = LoadLittleEndian64(lhs.m_Words64[1]);
-  const uint64_t r1 = LoadLittleEndian64(rhs.m_Words64[1]);
+  const uint64_t l1 = lhs.m_Words64[1];
+  const uint64_t r1 = rhs.m_Words64[1];
 
   const int res1 = (l1 > r1) - (l1 < r1);
 

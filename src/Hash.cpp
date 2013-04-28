@@ -123,7 +123,7 @@ DigestToString(char (&buffer)[kDigestStringSize], const HashDigest& digest)
 {
   static const char hex[] = "0123456789abcdef";
 
-  for (int i = 0; i < sizeof(digest.m_Data); ++i)
+  for (size_t i = 0; i < sizeof(digest.m_Data); ++i)
   {
     uint8_t byte = digest.m_Data[i];
     buffer[2 * i + 0] = hex[byte>>4];

@@ -148,19 +148,17 @@ inline uint64_t LoadBigEndian64(uint64_t v)
 #endif
 }
 
-inline uint32_t LoadLittleEndian32(uint32_t v)
-{
-  return v;
-}
-
-inline uint64_t LoadLittleEndian64(uint64_t v)
-{
-  return v;
-}
-
 #else
 
-#error implement me
+inline uint32_t LoadBigEndian32(uint32_t v)
+{
+  return v;
+}
+
+inline uint64_t LoadBigEndian64(uint64_t v)
+{
+  return v;
+}
 
 #endif
 
