@@ -391,8 +391,11 @@ end
   
 function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints)
   assert(config_tuples and #config_tuples > 0)
+  if not hints then
+    hints = {}
+  end
 
-  local solution_hints = hints and hints.MsvcSolutions
+  local solution_hints = hints.MsvcSolutions
   if not solution_hints then
     print("No IdeGenerationHints.MsvcSolutions specified - using defaults")
     solution_hints = {
