@@ -167,7 +167,7 @@ static uint32_t GetNodeFlag(const JsonObjectValue* node, const char* name, uint3
     if (const JsonBooleanValue* flag = val->AsBoolean())
     {
       if (flag->m_Boolean)
-        result = NodeData::kFlagOverwriteOutputs;
+        result = value;
     }
   }
 
