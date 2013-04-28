@@ -18,7 +18,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <algorithm> // std::lower_bound
 
 #if ENABLED(TUNDRA_CASE_INSENSITIVE_FILESYSTEM)
 #ifdef _MSC_VER
@@ -578,18 +577,17 @@ bool DriverPrepareNodes(Driver* self, const char** targets, int target_count)
   // Find frozen node state from previous build, if present.
   if (const StateData* state_data = self->m_StateData)
   {
-    const NodeStateData *frozen_states = state_data->m_NodeStates;
-    const HashDigest    *sb            = state_data->m_NodeGuids;
-    const HashDigest    *se            = sb + state_data->m_NodeCount;
+    const NodeStateData *frozen_states    = state_data->m_NodeStates;
+    const HashDigest    *state_guids      = state_data->m_NodeGuids;
+    const int            state_guid_count = state_data->m_NodeCount;
 
     for (int i = 0; i < node_count; ++i)
     {
       const HashDigest* src_guid = src_guids + node_indices[i];
-      const HashDigest* old_guid = std::lower_bound(sb, se, *src_guid);
 
-      if (old_guid != se && *old_guid == *src_guid)
+      if (const HashDigest* old_guid = BinarySearch(state_guids, state_guid_count, *src_guid))
       {
-        int state_index = int(old_guid - sb);
+        int state_index = int(old_guid - state_guids);
         out_nodes[i].m_MmapState = frozen_states + state_index;
       }
     }
@@ -883,9 +881,7 @@ bool DriverSaveBuildState(Driver* self)
     const HashDigest    *guid = old_guids + index;
 
     // Make sure this node is still relevant before saving.
-    const HashDigest* new_version = std::lower_bound(src_guids, src_guids + src_count, *guid);
-
-    if (new_version == src_guids + src_count || *guid != *new_version)
+    if (const HashDigest* new_version = BinarySearch(src_guids, src_count, *guid))
     {
       ++g_Stats.m_StateSaveDropped;
       // Drop this node.
