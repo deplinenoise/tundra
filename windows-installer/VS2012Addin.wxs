@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?> <!--
+vim: ts=2 sw=2 expandtab syntax=xml
+-->
+<?define CONNECT_CLASS_FULL_NAME_VS_2012 = "TundraExtsVs2012.TundraConnect.BuildCurrentFile " ?>
+<?define CONNECT_CLASS_FULL_NAME_VS = "TundraExtsVs2012.TundraConnect" ?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Fragment>
+
+    <Property Id="VS2012INSTALLATIONFOLDER" Secure="yes">
+      <RegistrySearch Id="VS2012InstallationFolderRegistrySearchId" Type="raw"
+        Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\11.0" Name="InstallDir"></RegistrySearch>
+    </Property>
+
+    <DirectoryRef Id="ADDINDIR">
+      <Component Id="CMPVSEXTENSION" DiskId="1" Guid="{BE1C3B05-FC04-4726-A049-FD17DBFAC860}">
+        <File Id="EXTENSIONBINARY" Name="TundraExtsVS2012.dll" Source="..\vs2012\Vs2012Ext\TundraExtsVs2012\bin\TundraExtsVs2012.dll " Vital="yes" KeyPath="no" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="Dir80AddInsId">
+      <Component Id="CMPADDIN" Guid="{D493ADDA-ECE9-4042-8A30-AC9BBFD19F89}">
+        <File Id="VsIdeHostAddinFile" Vital="yes" DiskId="1" Name="TundraExtsVs2012.AddIn" Source="..\vs2012\Vs2012Ext\TundraExtsVs2012\TundraExtsVs2012.AddIn" />
+        <util:XmlFile Id="AddAssemblyElement" Action="setValue" File="[#VsIdeHostAddinFile]" ElementPath="/Extensibility/Addin/Assembly" Value="[ADDINDIR]TundraExtsVS2012.dll" Sequence="1" />
+      </Component>
+    </DirectoryRef>
+
+    <CustomAction Id="RemoveVS2012Cmds" Script="vbscript" Execute="deferred" Return="ignore" Impersonate="yes">
+      <![CDATA[
+      Set dte = CreateObject("VisualStudio.DTE.11.0")
+      For Each cmd In dte.Commands
+      If InStr(cmd, "$(var.CONNECT_CLASS_FULL_NAME_VS_2012)") <> 0 Then
+      cmd.Delete()
+      End If
+      If InStr(cmd, "$(var.CONNECT_CLASS_FULL_NAME_VS)") <> 0 Then
+      cmd.Delete()
+      End If
+      Next
+      dte.Quit()
+      ]]>
+    </CustomAction>
+
+    <InstallExecuteSequence>
+      <Custom Action="RemoveVS2012Cmds"
+        After="RemoveFiles">
+        Installed AND NOT UPGRADINGPRODUCTCODE AND VS2012INSTALLATIONFOLDER
+        <!--AND !ProductFeature=1000 -->
+      </Custom>
+    </InstallExecuteSequence>
+
+  </Fragment>
+</Wix>

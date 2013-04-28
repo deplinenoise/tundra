@@ -2,12 +2,16 @@
 vim: ts=2 sw=2 expandtab syntax=xml
 -->
 
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
   <Product Id="*" UpgradeCode="{8C6B2F4D-EE8A-4850-8121-ADE2506A621D}" Version="2.0.0.0" Language="1033" Name="Tundra" Manufacturer="Andreas Fredriksson">
 
     <Package InstallerVersion="300" Compressed="yes"/>
     <Media Id="1" Cabinet="tundra.cab" EmbedCab="yes"/>
+
+    <Property Id="WIXUI_INSTALLDIR" Value="APPLICATIONROOTDIRECTORY" />
+    <WixVariable Id="WixUILicenseRtf" Value="gpl3.rtf" />
+    <UIRef Id="WixUI_Mondo" />
 
     <!-- Directory structure -->
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -20,11 +24,22 @@ vim: ts=2 sw=2 expandtab syntax=xml
             </Component>
           </Directory>
           <Directory Id="DOCDIR" Name="doc"/>
+          <Directory Id="ADDINDIR" Name="vsaddin"/>
         </Directory>
       </Directory>
 
       <Directory Id="ProgramMenuFolder">
         <Directory Id="ApplicationProgramsFolder" Name="Tundra"/>
+      </Directory>
+
+      <Directory Id="CommonAppDataFolder">
+        <Directory Id="MicrosoftDirId" Name="Microsoft">
+          <Directory Id="VisualStudioDirId" Name="VisualStudio">
+            <Directory Id="Dir11Id" Name="11.0">
+              <Directory Id="Dir80AddInsId" Name="AddIns" />
+            </Directory>
+          </Directory>
+        </Directory>
       </Directory>
     </Directory>
 
@@ -67,5 +82,11 @@ vim: ts=2 sw=2 expandtab syntax=xml
       <ComponentRef Id="tundra2_doc"/>
       <ComponentRef Id="ManualShortcut"/>
     </Feature>
+
+    <Feature Id="VS2012Addin" Title="Visual Studio 2012 Addin" Level="1">
+      <ComponentRef Id="CMPVSEXTENSION" />
+      <ComponentRef Id="CMPADDIN" />
+    </Feature>
+
   </Product>
 </Wix>
