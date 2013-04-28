@@ -16,6 +16,11 @@
 #define snprintf _snprintf
 #endif
 
+#ifndef TUNDRA_WIN32
+extern "C" char g_GitVersion[];
+extern "C" char g_GitBranch[];
+#endif
+
 namespace OptionType
 {
   enum Enum
@@ -188,6 +193,12 @@ static void ShowHelp()
 {
   printf("\nTundra Build Processor 2.0\n");
   printf("Copyright (C) 2013 Andreas Fredriksson\n\n");
+
+#ifndef TUNDRA_WIN32
+  printf("Git branch: %s\n", g_GitBranch);
+  printf("Git commit: %s\n\n", g_GitVersion);
+#endif
+
   printf("This program comes with ABSOLUTELY NO WARRANTY.\n");
   printf("This is free software, and you are welcome to redistribute it\n");
   printf("under certain conditions; see the GNU GPL license for details.\n\n");

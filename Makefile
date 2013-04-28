@@ -16,6 +16,9 @@ LDFLAGS ?= -Lbuild -ltundra
 
 PREFIX ?= /usr/local
 
+GIT_BRANCH := $(shell git branch 2>/dev/null | sed -n '/^\*/s/^\* //p')
+GIT_HEAD := $(shell git rev-parse HEAD 2>/dev/null)
+
 CHECKED ?= no
 ifeq ($(CHECKED), no)
 CFLAGS += -O3 -DNDEBUG
@@ -95,6 +98,14 @@ FILES_BIN = tundra2 t2-lua t2-inspect
 
 all: build build/tundra2 build/t2-lua build/t2-inspect build/t2-unittest
 
+build/git_version_$(GIT_BRANCH).c: .git/refs/heads/$(GIT_BRANCH)
+	sed 's/^\([A-Fa-f0-9]*\)/const char g_GitVersion[] = "\1";/' < $^ > $@ && \
+	echo 'const char g_GitBranch[] ="'$(GIT_BRANCH)'";' >> $@
+
+build/git_version_$(GIT_BRANCH).o: build/git_version_$(GIT_BRANCH).c
+
+GIT_OBJS = build/git_version_$(GIT_BRANCH).o
+
 #Q ?= @
 #E ?= @echo
 Q ?=
@@ -119,9 +130,9 @@ build/libtundra.a: $(LIBTUNDRA_OBJECTS)
 	$(E) "AR $@"
 	$(Q) $(AR) $@ $^
 
-build/tundra2: $(TUNDRA_OBJECTS) build/libtundra.a
+build/tundra2: $(TUNDRA_OBJECTS) $(GIT_OBJS) build/libtundra.a
 	$(E) "LINK $@"
-	$(Q) $(CXX) -o $@ $(CXXLIBFLAGS) $(TUNDRA_OBJECTS) $(LDFLAGS)
+	$(Q) $(CXX) -o $@ $(CXXLIBFLAGS) $(GIT_OBJS) $(TUNDRA_OBJECTS) $(LDFLAGS)
 
 build/t2-lua: $(T2LUA_OBJECTS) build/libtundra.a build/libtundralua.a
 	$(E) "LINK $@"
