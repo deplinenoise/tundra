@@ -883,12 +883,6 @@ bool DriverSaveBuildState(Driver* self)
     // Make sure this node is still relevant before saving.
     if (const HashDigest* new_version = BinarySearch(src_guids, src_count, *guid))
     {
-      ++g_Stats.m_StateSaveDropped;
-      // Drop this node.
-      return;
-    }
-    else
-    {
       size_t src_index = (new_version - src_guids);
       const NodeData* src_elem = src_data + src_index;
       const NodeStateData *data = old_state + index;
@@ -896,6 +890,11 @@ bool DriverSaveBuildState(Driver* self)
       save_node_state(data->m_BuildResult, &data->m_InputSignature, src_elem, guid);
       ++entry_count;
       ++g_Stats.m_StateSaveOld;
+    }
+    else
+    {
+      // Drop this node.
+      ++g_Stats.m_StateSaveDropped;
     }
   };
 
