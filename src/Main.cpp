@@ -421,7 +421,7 @@ leave:
     printf("  munmap() calls:  %10u\n", g_Stats.m_MunmapCalls);
     printf("  munmap() time:   %10.2f ms\n", TimerToSeconds(g_Stats.m_MunmapTimeCycles) * 1000.0);
     printf("  stat() calls:    %10u\n", g_Stats.m_StatCount);
-    printf("  stat() time:     %10.2f ms\n", TimerToSeconds(g_Stats.m_StatTimeCycles) / 1000.0);
+    printf("  stat() time:     %10.2f ms\n", TimerToSeconds(g_Stats.m_StatTimeCycles) * 1000.0);
   }
 
   double total_time = TimerDiffSeconds(start_time, TimerGet());
