@@ -425,7 +425,18 @@ leave:
   }
 
   double total_time = TimerDiffSeconds(start_time, TimerGet());
-  printf("*** %s (%.2f seconds)\n", BuildResult::Names[build_result], total_time);
+  if (total_time < 60.0)
+  {
+    printf("*** %s (%.2f seconds)\n", BuildResult::Names[build_result], total_time);
+  }
+  else
+  {
+    int t = (int) total_time;
+    int h = t / 3600; t -= h * 3600;
+    int m = t /   60; t -= m *   60;
+    int s = t;
+    printf("*** %s (%.2f seconds - %d:%02d:%02d)\n", BuildResult::Names[build_result], total_time, h, m, s);
+  }
 
   return build_result == BuildResult::kOk ? 0 : 1;
 
