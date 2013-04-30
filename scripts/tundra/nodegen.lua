@@ -753,6 +753,11 @@ function _G.DefRule(ruledef)
   local cmd       = assert(ruledef.Command, "Missing Command string in DefRule " .. name)
   local blueprint = assert(ruledef.Blueprint, "Missing Blueprint in DefRule " .. name)
   local mt        = create_eval_subclass {}
+  local annot     = ruledef.Annotation
+
+  if not annot then
+    annot = name .. " $(<)"
+  end
 
   local preproc   = ruledef.Preprocess
 
@@ -769,7 +774,7 @@ function _G.DefRule(ruledef)
   local function make_node(input_files, output_files, env, data, deps)
     return depgraph.make_node {
       Env            = env,
-      Label          = name .. " $(<)",
+      Label          = annot,
       Action         = cmd,
       Pass           = data.Pass or resolve_pass(ruledef.Pass),
       InputFiles     = input_files,
