@@ -947,23 +947,33 @@ void DriverRemoveStaleOutputs(Driver* self)
   HashTable file_table;
   HashTableInit(&file_table, &self->m_Heap, HashTable::kFlagPathStrings);
 
-  // Insert all current output files into the hash table.
+  // Insert all current regular and aux output files into the hash table.
+  auto add_file = [&file_table, scratch](const FrozenFileAndHash& p) -> void
+  {
+    uint32_t    hash = p.m_Hash;
+
+    if (nullptr == HashTableLookup(&file_table, hash, p.m_Filename))
+    {
+      HashRecord* record = LinearAllocate<HashRecord>(scratch);
+      record->m_Hash   = hash;
+      record->m_String = p.m_Filename;
+      record->m_Next   = nullptr;
+      HashTableInsert(&file_table, record);
+    }
+  };
+
   for (int i = 0, node_count = dag->m_NodeCount; i < node_count; ++i)
   {
     const NodeData* node = dag->m_NodeData + i;
 
     for (const FrozenFileAndHash& p : node->m_OutputFiles)
     {
-      uint32_t    hash = p.m_Hash;
+      add_file(p);
+    }
 
-      if (nullptr == HashTableLookup(&file_table, hash, p.m_Filename))
-      {
-        HashRecord* record = LinearAllocate<HashRecord>(scratch);
-        record->m_Hash   = hash;
-        record->m_String = p.m_Filename;
-        record->m_Next   = nullptr;
-        HashTableInsert(&file_table, record);
-      }
+    for (const FrozenFileAndHash& p : node->m_AuxOutputFiles)
+    {
+      add_file(p);
     }
   }
 
@@ -973,47 +983,57 @@ void DriverRemoveStaleOutputs(Driver* self)
   // Check all output files in the state if they're still around.
   // Otherwise schedule them (and all their parent dirs) for nuking.
   // We will rely on the fact that we can't rmdir() non-empty directories.
+  auto check_file = [&file_table, &nuke_table, scratch](const char* path)
+  {
+    uint32_t path_hash = Djb2HashPath(path);
+
+    if (nullptr == HashTableLookup(&file_table, path_hash, path))
+    {
+      if (nullptr == HashTableLookup(&nuke_table, path_hash, path))
+      {
+        HashRecord* record = LinearAllocate<HashRecord>(scratch);
+        record->m_Hash   = path_hash;
+        record->m_String = path;
+        record->m_Next   = nullptr;
+        HashTableInsert(&nuke_table, record);
+      }
+
+      PathBuffer buffer;
+      PathInit(&buffer, path);
+
+      while (PathStripLast(&buffer))
+      {
+        if (buffer.m_SegCount == 0)
+          break;
+
+        char dir[kMaxPathLength];
+        PathFormat(dir, &buffer);
+        uint32_t dir_hash = Djb2HashPath(dir);
+
+        if (nullptr == HashTableLookup(&nuke_table, dir_hash, dir))
+        {
+          HashRecord* record = LinearAllocate<HashRecord>(scratch);
+          record->m_Hash   = dir_hash;
+          record->m_String = StrDup(scratch, dir);
+          record->m_Next   = nullptr;
+          HashTableInsert(&nuke_table, record);
+        }
+      }
+    }
+  };
+
   for (int i = 0, state_count = state->m_NodeCount; i < state_count; ++i)
   {
     const NodeStateData* node = state->m_NodeStates + i;
 
     for (const char* path : node->m_OutputFiles)
     {
-      uint32_t path_hash = Djb2HashPath(path);
+      check_file(path);
+    }
 
-      if (nullptr == HashTableLookup(&file_table, path_hash, path))
-      {
-        if (nullptr == HashTableLookup(&nuke_table, path_hash, path))
-        {
-          HashRecord* record = LinearAllocate<HashRecord>(scratch);
-          record->m_Hash   = path_hash;
-          record->m_String = path;
-          record->m_Next   = nullptr;
-          HashTableInsert(&nuke_table, record);
-        }
-
-        PathBuffer buffer;
-        PathInit(&buffer, path);
-
-        while (PathStripLast(&buffer))
-        {
-          if (buffer.m_SegCount == 0)
-            break;
-
-          char dir[kMaxPathLength];
-          PathFormat(dir, &buffer);
-          uint32_t dir_hash = Djb2HashPath(dir);
-
-          if (nullptr == HashTableLookup(&nuke_table, dir_hash, dir))
-          {
-            HashRecord* record = LinearAllocate<HashRecord>(scratch);
-            record->m_Hash   = dir_hash;
-            record->m_String = StrDup(scratch, dir);
-            record->m_Next   = nullptr;
-            HashTableInsert(&nuke_table, record);
-          }
-        }
-      }
+    for (const char* path : node->m_AuxOutputFiles)
+    {
+      check_file(path);
     }
   }
 
