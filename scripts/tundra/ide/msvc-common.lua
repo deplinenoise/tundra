@@ -17,6 +17,10 @@ local binary_extension = util.make_lookup_table {
   ".exe", ".lib", ".dll", ".pdb", ".res", ".obj"
 }
 
+local header_exts = util.make_lookup_table {
+  ".h", ".hpp", ".hh", ".inl",
+}
+
 -- Scan for sources, following dependencies until those dependencies seem to be
 -- a different top-level unit
 local function get_sources(dag, sources, generated, level)
@@ -28,6 +32,9 @@ local function get_sources(dag, sources, generated, level)
         return
       end
       generated[output] = true
+      if not binary_extension[ext] then
+        sources[output] = true -- pick up generated headers
+      end
     end
   end
 
@@ -50,6 +57,29 @@ function get_guid_string(data)
   return guid:upper()
 end
 
+local function get_headers(unit, source_lut)
+  local src_dir = ''
+  if unit.Decl.SourceDir then
+    src_dir = unit.Decl.SourceDir .. '/'
+  end
+  for _, src in util.nil_ipairs(nodegen.flatten_list('*-*-*-*', unit.Decl.Sources)) do
+    if type(src) == "string" then
+      local ext = path.get_extension(src)
+      if header_exts[ext] then
+        local full_path = path.normalize(src_dir .. src)
+        source_lut[full_path] = true
+      end
+    end
+  end
+
+  -- Repeat for dependent ObjGroups
+  for _, dep in util.nil_ipairs(nodegen.flatten_list('*-*-*-*', unit.Decl.Depends)) do
+    if dep.Keyword == 'ObjGroup' then
+      get_headers(dep, source_lut)
+    end
+  end
+end
+
 function extract_data(unit, env, proj_extension, base_dir)
   local decl = unit.Decl
 
@@ -62,6 +92,10 @@ function extract_data(unit, env, proj_extension, base_dir)
     for _, dag_node in ipairs(dag_nodes) do
       get_sources(dag_node, source_lut, generated_lut, 0)
     end
+
+    -- Explicitly add all header files too as they are not picked up from the DAG
+    -- Also pick up headers from ObjGroups we're depending on (effectively embedded)
+    get_headers(unit, source_lut)
 
     local sources = {}
     local cwd = native.getcwd()

@@ -14,6 +14,13 @@ local UTF_HEADER = '\239\187\191' -- byte mark EF BB BF
 local msvc_generator = {}
 msvc_generator.__index = msvc_generator
 
+local cl_tags = {
+  ['.h']   = 'ClInclude',
+  ['.hh']  = 'ClInclude',
+  ['.hpp'] = 'ClInclude',
+  ['.inl'] = 'ClInclude',
+}
+
 local function slurp_file(fn)
   local fh, err = io.open(fn, 'rb')
   if fh then
@@ -219,7 +226,9 @@ function msvc_generator:generate_project(project, all_projects)
     if not path.is_absolute(path_str) then
       path_str = native.getcwd() .. '\\' .. path_str
     end
-    p:write('\t\t<ClCompile Include="', path_str, '" />', LF)
+    local ext = path.get_extension(path_str)
+    local cl_tag = cl_tags[ext] or 'ClCompile'
+    p:write('\t\t<', cl_tag,' Include="', path_str, '" />', LF)
   end
   p:write('\t</ItemGroup>', LF)
 
@@ -326,15 +335,14 @@ function msvc_generator:generate_project_filters(project)
   -- Emit list of source files
   p:write('\t<ItemGroup>', LF)
   for _, source in ipairs(sources) do
+    local ext = path.get_extension(source.FullPath)
+    local cl_tag = cl_tags[ext] or 'ClCompile'
     if not source.Directory then
-      p:write('\t\t<ClCompile Include="', source.FullPath, '" />', LF)
-    end
-  end
-  for _, source in ipairs(sources) do
-    if source.Directory then
-      p:write('\t\t<ClCompile Include="', source.FullPath, '">', LF)
+      p:write('\t\t<', cl_tag, ' Include="', source.FullPath, '" />', LF)
+    else
+      p:write('\t\t<', cl_tag, ' Include="', source.FullPath, '">', LF)
       p:write('\t\t\t<Filter>', source.Directory, '</Filter>', LF)
-      p:write('\t\t</ClCompile>', LF)
+      p:write('\t\t</', cl_tag, '>', LF)
     end
   end
   p:write('\t</ItemGroup>', LF)
