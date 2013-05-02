@@ -8,5 +8,7 @@ t2-output
 tundra-sigdebug.txt
 tags
 build
+build.checked
+build.mingw
 dists
 .DS_Store

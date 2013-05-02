@@ -197,6 +197,14 @@ uninstall:
 clean:
 	$(RM) -r $(BUILDDIR)
 
-.PHONY: clean all install uninstall
+$(BUILDDIR)/tundra-manual.html: doc/manual.asciidoc
+	asciidoc -o $@ $^
+
+installer: all $(BUILDDIR)/Tundra-Setup.exe
+
+$(BUILDDIR)/Tundra-Setup.exe: $(BUILDDIR)/tundra-manual.html
+	makensis -DBUILDDIR=$(BUILDDIR) tundra.nsi
+
+.PHONY: clean all install uninstall installer
 
 -include $(ALL_DEPS)
