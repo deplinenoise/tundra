@@ -10,6 +10,20 @@
 #include <windows.h>
 #endif
 
+#if defined(TUNDRA_WIN32_MINGW)
+extern "C" {
+// mingw has very old windows headers; declare CONDITION_VARIABLE here
+typedef void* CONDITION_VARIABLE;
+typedef CONDITION_VARIABLE* PCONDITION_VARIABLE;
+
+extern void (WINAPI *InitializeConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+extern BOOL (WINAPI *SleepConditionVariableCS)(PCONDITION_VARIABLE ConditionVariable, PCRITICAL_SECTION CriticalSection, DWORD dwMilliseconds);
+extern void (WINAPI *WakeConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+extern void (WINAPI *WakeAllConditionVariable)(PCONDITION_VARIABLE ConditionVariable);
+}
+#endif
+
+
 namespace t2
 {
   struct Mutex;
@@ -50,6 +64,7 @@ namespace t2
       CroakErrno("pthread_cond_broadcast() failed");
   }
 #elif defined(TUNDRA_WIN32)
+
   struct ConditionVariable
   {
     CONDITION_VARIABLE m_Impl;

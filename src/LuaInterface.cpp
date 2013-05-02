@@ -17,6 +17,14 @@ extern "C"
 
 #if defined(TUNDRA_WIN32)
 #include <windows.h>
+
+// Mingw has ancient headers
+#ifndef KEY_WOW64_64KEY
+#define KEY_WOW64_64KEY (0x0100)
+#endif
+#ifndef KEY_WOW64_32KEY
+#define KEY_WOW64_32KEY (0x0200)
+#endif
 #endif
 
 #if defined(_MSC_VER)
@@ -379,7 +387,6 @@ static int LuaWin32RegisterQuery(lua_State *L)
   HKEY regkey, root_key;
   LONG result = 0;
   const char *key_name, *subkey_name, *value_name = NULL;
-  int i;
   static const REGSAM sams[] = { KEY_READ, KEY_READ|KEY_WOW64_32KEY, KEY_READ|KEY_WOW64_64KEY };
 
   key_name = luaL_checkstring(L, 1);
@@ -396,16 +403,21 @@ static int LuaWin32RegisterQuery(lua_State *L)
   if (lua_gettop(L) >= 3 && lua_isstring(L, 3))
     value_name = lua_tostring(L, 3);
 
-  for (i = 0; i < sizeof(sams)/sizeof(sams[0]); ++i)
+  for (size_t i = 0; i < ARRAY_SIZE(sams); ++i)
   {
     result = RegOpenKeyExA(root_key, subkey_name, 0, sams[i], &regkey);
 
     if (ERROR_SUCCESS == result)
     {
       DWORD stored_type;
-      BYTE data[8192];
+      union
+      {
+        BYTE as_bytes[8192];
+        DWORD as_int;
+      } data;
+
       DWORD data_size = sizeof(data);
-      result = RegQueryValueExA(regkey, value_name, NULL, &stored_type, &data[0], &data_size);
+      result = RegQueryValueExA(regkey, value_name, NULL, &stored_type, &data.as_bytes[0], &data_size);
       RegCloseKey(regkey);
 
       if (ERROR_FILE_NOT_FOUND != result)
@@ -422,12 +434,12 @@ static int LuaWin32RegisterQuery(lua_State *L)
         case REG_DWORD:
           if (4 != data_size)
             luaL_error(L, "expected 4 bytes for integer key but got %d", data_size);
-          lua_pushinteger(L, *(int*)data);
+          lua_pushinteger(L, data.as_int);
           return 1;
 
         case REG_SZ:
           /* don't use lstring because that would include potential null terminator */
-          lua_pushstring(L, (const char*) data);
+          lua_pushstring(L, (const char*) data.as_bytes);
           return 1;
 
         default:

@@ -52,6 +52,9 @@
 #define TUNDRA_WIN32 1
 #define TUNDRA_CASE_INSENSITIVE_FILESYSTEM YES
 #define TUNDRA_EXE_SUFFIX ".exe"
+#if defined(__GNUC__)
+#define TUNDRA_WIN32_MINGW 1
+#endif
 #elif defined(__linux__)
 #define TUNDRA_UNIX 1
 #define TUNDRA_LINUX 1

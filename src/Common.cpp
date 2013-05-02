@@ -26,6 +26,7 @@
 
 #if defined(TUNDRA_WIN32)
 #include <windows.h>
+#include <ctype.h>
 #endif
 
 #if defined(TUNDRA_APPLE)

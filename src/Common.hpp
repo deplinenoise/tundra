@@ -10,6 +10,8 @@
 #if defined(_MSC_VER)
 #include <malloc.h>
 #include <intrin.h>
+#elif defined(TUNDRA_WIN32_MINGW)
+#include <malloc.h>
 #elif defined(TUNDRA_UNIX)
 #  if defined(TUNDRA_FREEBSD) || defined(TUNDRA_NETBSD) || defined(TUNDRA_OPENBSD)
 #include <stdlib.h>

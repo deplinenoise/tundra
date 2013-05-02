@@ -9,7 +9,7 @@ INSTALL_F = install -m 0644
 
 CFLAGS ?= -Wall
 CPPFLAGS = -Ilua/src -Isrc -MMD -MP
-CXXFLAGS ?= $(CFLAGS) -std=c++11 -fno-exceptions
+CXXFLAGS ?= $(CFLAGS) -fno-exceptions
 
 CXXLIBFLAGS ?=
 LDFLAGS ?= -Lbuild -ltundra
@@ -28,16 +28,24 @@ endif
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), $(filter $(UNAME), FreeBSD NetBSD OpenBSD))
+CXXFLAGS += -std=c++11 
 LDFLAGS += -lpthread
 else
 ifeq ($(UNAME), $(filter $(UNAME), Linux))
+CXXFLAGS += -std=c++11 
 LDFLAGS += -pthread
 else
 ifeq ($(UNAME), $(filter $(UNAME), Darwin))
+CXXFLAGS += -std=c++11 
 CXXFLAGS += -stdlib=libc++
 LDFLAGS += -stdlib=libc++
 else
+ifeq ($(UNAME), $(filter $(UNAME), MINGW32_NT-6.1))
+CXXFLAGS += -std=gnu++11 
+CPPFLAGS += -D_WIN32 -D__MSVCRT_VERSION__=0x0601 -U__STRICT_ANSI__
+else
 $(error "unknown platform $(UNAME)")
+endif
 endif
 endif
 endif
@@ -61,7 +69,8 @@ LIBTUNDRA_SOURCES = \
 	MemAllocLinear.cpp MemoryMappedFile.cpp PathUtil.cpp \
 	ScanCache.cpp Scanner.cpp SignalHandler.cpp StatCache.cpp \
 	TargetSelect.cpp Thread.cpp dlmalloc.c TerminalIo.cpp \
-	ExecUnix.cpp DigestCache.cpp FileSign.cpp HashSha1.cpp HashFast.cpp
+	ExecUnix.cpp ExecWin32.cpp DigestCache.cpp FileSign.cpp \
+	HashSha1.cpp HashFast.cpp ConditionVar.cpp
 
 T2LUA_SOURCES = LuaMain.cpp LuaInterface.cpp LuaInterpolate.cpp LuaJsonWriter.cpp \
 								LuaPath.cpp

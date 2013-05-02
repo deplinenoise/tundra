@@ -107,13 +107,12 @@ static void FreeFd(int job_id, HANDLE h)
         { ".CC\r\n",  5 }
       };
 
-      bool found_ext = false;
       int ext_index = -1;
-      for (int i = 0; -1 == ext_index && i < ARRAY_SIZE(exts); ++i)
+      for (size_t i = 0; -1 == ext_index && i < ARRAY_SIZE(exts); ++i)
       {
         if (rb > exts[i].len && 0 == memcmp(buf + rb - exts[i].len, exts[i].text, exts[i].len))
         {
-          ext_index = i;
+          ext_index = (int) i;
           break;
         }
       }
@@ -241,7 +240,7 @@ MakeEnvBlock(char* env_block, size_t block_size, const EnvVariable *env_vars, in
   size_t env_var_len[ARRAY_SIZE(g_Win32Env)];
   unsigned char used_env[ARRAY_SIZE(g_Win32Env)];
 
-  if (env_count > sizeof used_env)
+  if (env_count > int(sizeof used_env))
     return false;
 
   for (int i = 0; i < env_count; ++i)
@@ -444,7 +443,7 @@ ExecResult ExecuteProcess(
         HANDLE hf = CreateFileA(response_file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         if (INVALID_HANDLE_VALUE == hf)
         {
-          fprintf(stderr, "couldn't create response file %s; @err=%u", response_file, GetLastError());
+          fprintf(stderr, "couldn't create response file %s; @err=%u", response_file, (unsigned int) GetLastError());
           return result;
         }
 

@@ -18,9 +18,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if ENABLED(TUNDRA_CASE_INSENSITIVE_FILESYSTEM)
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(TUNDRA_WIN32_MINGW)
 #define PathCompareN _strnicmp
 #define PathCompare _stricmp
 #else

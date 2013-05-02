@@ -126,6 +126,7 @@
     <ClCompile Include="..\..\src\BinaryWriter.cpp" />
     <ClCompile Include="..\..\src\BuildQueue.cpp" />
     <ClCompile Include="..\..\src\Common.cpp" />
+    <ClCompile Include="..\..\src\ConditionVar.cpp" />
     <ClCompile Include="..\..\src\DagGenerator.cpp" />
     <ClCompile Include="..\..\src\DigestCache.cpp" />
     <ClCompile Include="..\..\src\dlmalloc.c" />

@@ -4,7 +4,18 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#if defined(TUNDRA_WIN32_MINGW)
+// mingw's sys/stat.h is broken and doesn't wrap structs in the extern "C" block
+extern "C" {
+#endif
+
 #include <sys/stat.h>
+
+#if defined(TUNDRA_WIN32_MINGW)
+}
+#endif
+
 #include <errno.h>
 
 #if defined(TUNDRA_UNIX)
@@ -31,6 +42,8 @@ FileInfo GetFileInfo(const char* path)
 
 #if defined(TUNDRA_UNIX)
   if (0 == stat(path, &stbuf))
+#elif defined(TUNDRA_WIN32_MINGW)
+  if (0 == _stat64(path, &stbuf))
 #elif defined(TUNDRA_WIN32)
   if (0 == __stat64(path, &stbuf))
 #endif

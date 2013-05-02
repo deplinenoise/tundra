@@ -11,6 +11,24 @@
 #include <windows.h>
 #endif
 
+#if TUNDRA_WIN32_MINGW
+extern "C"
+{
+  // mingw has very old windows headers; declare SRWLOCK here
+  typedef struct { void* ptr; } SRWLOCK;
+  typedef SRWLOCK* PSRWLOCK;
+
+  // see ConditionVar.cpp for these
+  extern void (WINAPI *InitializeSRWLock)(PSRWLOCK);
+  extern void (WINAPI *AcquireSRWLockExclusive)(PSRWLOCK);
+  extern void (WINAPI *AcquireSRWLockShared)(PSRWLOCK);
+  extern void (WINAPI *ReleaseSRWLockExclusive)(PSRWLOCK);
+  extern void (WINAPI *ReleaseSRWLockShared)(PSRWLOCK);
+}
+#endif
+
+
+
 namespace t2
 {
 #if defined(TUNDRA_UNIX)
