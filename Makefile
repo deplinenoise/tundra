@@ -1,7 +1,3 @@
-CC ?= clang
-CXX ?= clang++
-AR= ar rcus
-
 RM = rm -f
 MKDIR = mkdir -p
 INSTALL_X = install -m 0755
@@ -12,7 +8,7 @@ CPPFLAGS = -Ilua/src -Isrc -MMD -MP
 CXXFLAGS ?= $(CFLAGS) -fno-exceptions
 
 CXXLIBFLAGS ?=
-LDFLAGS ?= -Lbuild -ltundra
+LDFLAGS ?= -L$(BUILDDIR) -ltundra
 
 PREFIX ?= /usr/local
 
@@ -22,10 +18,31 @@ GIT_HEAD := $(shell git rev-parse HEAD 2>/dev/null)
 CHECKED ?= no
 ifeq ($(CHECKED), no)
 CFLAGS += -O3 -DNDEBUG
+BUILDDIR := build
 else
 CFLAGS += -g -D_DEBUG
+BUILDDIR := build.checked
 endif
 
+CROSSMINGW ?= no
+EXESUFFIX =
+
+ifeq ($(CROSSMINGW), yes)
+# Cross-compiling for windows on unix-like platform.
+CROSS ?= x86_64-w64-mingw32-
+CC := $(CROSS)gcc
+CXX := $(CROSS)g++
+AR := $(CROSS)ar rcus
+CXXFLAGS += -std=gnu++11 
+CPPFLAGS += -D_WIN32 -D__MSVCRT_VERSION__=0x0601 -DFORCEINLINE='__inline __attribute__((always_inline))'
+BUILDDIR := build.mingw
+EXESUFFIX := .exe
+else
+CC ?= clang
+CXX ?= clang++
+AR= ar rcus
+
+# Not cross-compiling. Detect options based on uname output.
 UNAME := $(shell uname)
 ifeq ($(UNAME), $(filter $(UNAME), FreeBSD NetBSD OpenBSD))
 CXXFLAGS += -std=c++11 
@@ -43,6 +60,7 @@ else
 ifeq ($(UNAME), $(filter $(UNAME), MINGW32_NT-6.1))
 CXXFLAGS += -std=gnu++11 
 CPPFLAGS += -D_WIN32 -D__MSVCRT_VERSION__=0x0601 -U__STRICT_ANSI__
+EXESUFFIX := .exe
 else
 $(error "unknown platform $(UNAME)")
 endif
@@ -50,7 +68,9 @@ endif
 endif
 endif
 
-VPATH = lua/src:src:build:unittest
+endif
+
+VPATH = lua/src:src:$(BUILDDIR):unittest
 
 LUA_SOURCES = \
   lapi.c lauxlib.c lbaselib.c lcode.c \
@@ -84,17 +104,17 @@ UNITTEST_SOURCES = \
 
 TUNDRA_SOURCES = Main.cpp
 
-LUA_OBJECTS       = $(addprefix build/,$(LUA_SOURCES:.c=.o))
-LIBTUNDRA_OBJECTS = $(addprefix build/,$(LIBTUNDRA_SOURCES:.cpp=.o))
+LUA_OBJECTS       = $(addprefix $(BUILDDIR)/,$(LUA_SOURCES:.c=.o))
+LIBTUNDRA_OBJECTS = $(addprefix $(BUILDDIR)/,$(LIBTUNDRA_SOURCES:.cpp=.o))
 LIBTUNDRA_OBJECTS:= $(LIBTUNDRA_OBJECTS:.c=.o)
-T2LUA_OBJECTS     = $(addprefix build/,$(T2LUA_SOURCES:.cpp=.o))
-T2INSPECT_OBJECTS = $(addprefix build/,$(T2INSPECT_SOURCES:.cpp=.o))
-UNITTEST_OBJECTS  = $(addprefix build/,$(UNITTEST_SOURCES:.cpp=.o))
-TUNDRA_OBJECTS    = $(addprefix build/,$(TUNDRA_SOURCES:.cpp=.o))
+T2LUA_OBJECTS     = $(addprefix $(BUILDDIR)/,$(T2LUA_SOURCES:.cpp=.o))
+T2INSPECT_OBJECTS = $(addprefix $(BUILDDIR)/,$(T2INSPECT_SOURCES:.cpp=.o))
+UNITTEST_OBJECTS  = $(addprefix $(BUILDDIR)/,$(UNITTEST_SOURCES:.cpp=.o))
+TUNDRA_OBJECTS    = $(addprefix $(BUILDDIR)/,$(TUNDRA_SOURCES:.cpp=.o))
 
 ALL_SOURCES = $(TUNDRA_SOURCES) $(LIBTUNDRA_SOURCES) $(LUA_SOURCES) $(T2LUA_SOURCES) $(T2INSPECT_SOURCES)
 ALL_DEPS    = $(ALL_SOURCES:.cpp=.d)
-ALL_DEPS   := $(addprefix build/,$(ALL_DEPS:.c=.d))
+ALL_DEPS   := $(addprefix $(BUILDDIR)/,$(ALL_DEPS:.c=.d))
 
 INSTALL_BASE   = $(DESTDIR)$(PREFIX)
 INSTALL_BIN    = $(INSTALL_BASE)/bin
@@ -103,62 +123,66 @@ INSTALL_SCRIPT = $(INSTALL_BASE)/share/tundra
 INSTALL_DIRS   = $(INSTALL_BIN) $(INSTALL_SCRIPT)
 UNINSTALL_DIRS = $(INSTALL_SCRIPT)
 
-FILES_BIN = tundra2 t2-lua t2-inspect
+FILES_BIN = tundra2$(EXESUFFIX) t2-lua$(EXESUFFIX) t2-inspect$(EXESUFFIX)
 
-all: build build/tundra2 build/t2-lua build/t2-inspect build/t2-unittest
+all: $(BUILDDIR) \
+	   $(BUILDDIR)/tundra2$(EXESUFFIX) \
+		 $(BUILDDIR)/t2-lua$(EXESUFFIX) \
+		 $(BUILDDIR)/t2-inspect$(EXESUFFIX) \
+		 $(BUILDDIR)/t2-unittest$(EXESUFFIX)
 
-build/git_version_$(GIT_BRANCH).c: .git/refs/heads/$(GIT_BRANCH)
+$(BUILDDIR)/git_version_$(GIT_BRANCH).c: .git/refs/heads/$(GIT_BRANCH)
 	sed 's/^\([A-Fa-f0-9]*\)/const char g_GitVersion[] = "\1";/' < $^ > $@ && \
 	echo 'const char g_GitBranch[] ="'$(GIT_BRANCH)'";' >> $@
 
-build/git_version_$(GIT_BRANCH).o: build/git_version_$(GIT_BRANCH).c
+$(BUILDDIR)/git_version_$(GIT_BRANCH).o: $(BUILDDIR)/git_version_$(GIT_BRANCH).c
 
-GIT_OBJS = build/git_version_$(GIT_BRANCH).o
+GIT_OBJS = $(BUILDDIR)/git_version_$(GIT_BRANCH).o
 
 #Q ?= @
 #E ?= @echo
 Q ?=
 E ?= @:
 
-build:
-	$(MKDIR) build
+$(BUILDDIR):
+	$(MKDIR) $(BUILDDIR)
 
-build/%.o: %.c
+$(BUILDDIR)/%.o: %.c
 	$(E) "CC $<"
 	$(Q) $(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
-build/%.o: %.cpp
+$(BUILDDIR)/%.o: %.cpp
 	$(E) "CXX $<"
 	$(Q) $(CXX) -c -o $@ $(CPPFLAGS) $(CXXFLAGS) $<
 
-build/libtundralua.a: $(LUA_OBJECTS)
+$(BUILDDIR)/libtundralua.a: $(LUA_OBJECTS)
 	$(E) "AR $@"
 	$(Q) $(AR) $@ $^
 
-build/libtundra.a: $(LIBTUNDRA_OBJECTS)
+$(BUILDDIR)/libtundra.a: $(LIBTUNDRA_OBJECTS)
 	$(E) "AR $@"
 	$(Q) $(AR) $@ $^
 
-build/tundra2: $(TUNDRA_OBJECTS) $(GIT_OBJS) build/libtundra.a
+$(BUILDDIR)/tundra2$(EXESUFFIX): $(TUNDRA_OBJECTS) $(BUILDDIR)/libtundra.a $(GIT_OBJS)
 	$(E) "LINK $@"
 	$(Q) $(CXX) -o $@ $(CXXLIBFLAGS) $(GIT_OBJS) $(TUNDRA_OBJECTS) $(LDFLAGS)
 
-build/t2-lua: $(T2LUA_OBJECTS) build/libtundra.a build/libtundralua.a
+$(BUILDDIR)/t2-lua$(EXESUFFIX): $(T2LUA_OBJECTS) $(BUILDDIR)/libtundra.a $(BUILDDIR)/libtundralua.a
 	$(E) "LINK $@"
 	$(Q) $(CXX) -o $@ $(CXXLIBFLAGS) $(T2LUA_OBJECTS) $(LDFLAGS) -ltundralua
 
-build/t2-inspect: $(T2INSPECT_OBJECTS) build/libtundra.a
+$(BUILDDIR)/t2-inspect$(EXESUFFIX): $(T2INSPECT_OBJECTS) $(BUILDDIR)/libtundra.a
 	$(E) "LINK $@"
 	$(Q) $(CXX) -o $@ $(CXXLIBFLAGS) $(T2INSPECT_OBJECTS) $(LDFLAGS)
 
-build/t2-unittest: $(UNITTEST_OBJECTS) build/libtundra.a
+$(BUILDDIR)/t2-unittest$(EXESUFFIX): $(UNITTEST_OBJECTS) $(BUILDDIR)/libtundra.a
 	$(E) "LINK $@"
 	$(Q) $(CXX) -o $@ $(CXXLIBFLAGS) $(UNITTEST_OBJECTS) $(LDFLAGS)
 
 install:
 	@echo "Installing Tundra2 to $(INSTALL_BASE)"
 	$(MKDIR) $(INSTALL_DIRS)
-	cd build && $(INSTALL_X) $(FILES_BIN) $(INSTALL_BIN)
+	cd $(BUILDDIR) && $(INSTALL_X) $(FILES_BIN) $(INSTALL_BIN)
 	cp -r scripts/* $(INSTALL_SCRIPT)
 	@echo "Installation complete"
 
@@ -171,7 +195,7 @@ uninstall:
 	@echo "Uninstallation complete"
 
 clean:
-	$(RM) -r build
+	$(RM) -r $(BUILDDIR)
 
 .PHONY: clean all install uninstall
 
