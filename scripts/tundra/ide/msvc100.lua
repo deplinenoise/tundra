@@ -116,7 +116,7 @@ function msvc_generator:generate_project(project)
 
   -- Emit list of source files
   p:write('\t<ItemGroup>', LF)
-  for _, fn in ipairs(util.flatten(project.Decl.Sources)) do
+  for _, fn in ipairs(util.flatten(project.Sources)) do
     if type(fn) == "string" then
       fn = "..\\" .. fn:gsub('/', '\\') -- FIXME: assumes that the output dir is one dir down from tundra.lua
       p:write('\t\t<ClCompile Include="', fn, '" />', LF)
@@ -143,7 +143,7 @@ function msvc_generator:generate_project_filters(project)
   local sources = {}
 
   -- Mangle source filenames, and find which filters need to be created
-  for _, fn in ipairs(util.flatten(project.Decl.Sources)) do
+  for _, fn in ipairs(util.flatten(project.Sources)) do
     if type(fn) == "string" then
       fn = fn:gsub('/', '\\')
       local a, b, path, filename = string.find(fn, "(.*)\\(.*)")
