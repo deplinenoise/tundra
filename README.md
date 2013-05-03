@@ -20,6 +20,13 @@ See doc/manual.asciidoc for more detailed usage information.
 There is a companion Visual Studio 2012 addin that might be useful. See
 https://github.com/deplinenoise/tundra-vsplugin for details.
 
+Binaries
+-----------------------------------------------------------------------------
+
+Windows installers are available for download:
+
+- [2.0 beta 1](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta1.exe)
+  MD5: `7db611ad5e69c518e524195493ab8880`
 
 License and Copyright
 -----------------------------------------------------------------------------
