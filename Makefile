@@ -207,8 +207,8 @@ $(BUILDDIR)/Tundra-Setup.exe: \
 	$(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 	$(BUILDDIR)/t2-lua$(EXESUFFIX) \
 	$(BUILDDIR)/tundra-manual.html \
-	tundra.nsi
-	makensis -V2 -DBUILDDIR=$(BUILDDIR) tundra.nsi
+	windows-installer/tundra.nsi
+	makensis -NOCD -DBUILDDIR=$(BUILDDIR) windows-installer/tundra.nsi > $(BUILDDIR)/nsis.log 2>&1
 
 .PHONY: clean all install uninstall installer
 
