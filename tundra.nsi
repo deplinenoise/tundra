@@ -1,5 +1,6 @@
 ; Pull in Modern UI
 !include "MUI2.nsh"
+!include "windows-installer/EnvVarUpdate.nsh"
 
 ; The name of the installer
 Name "Tundra 2.0"
@@ -47,7 +48,7 @@ RequestExecutionLevel admin
 Section "Tundra 2.0 (required)"
 
   SectionIn RO
-  
+
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR\bin
   
@@ -91,11 +92,17 @@ Section "Examples"
   
 SectionEnd
 
+Section "Add Tundra to PATH"
+  ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin"
+SectionEnd
+
 ;--------------------------------
 
 ; Uninstaller
 
 Section "Uninstall"
+
+  ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin"
   
   ; Remove registry keys
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tundra 2.0"
