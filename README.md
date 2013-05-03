@@ -17,6 +17,10 @@ will take a little bit of work in a few well-defined places.
 
 See doc/manual.asciidoc for more detailed usage information.
 
+There is a companion Visual Studio 2012 addin that might be useful. See
+https://github.com/deplinenoise/tundra-vsplugin for details.
+
+
 License and Copyright
 -----------------------------------------------------------------------------
 
