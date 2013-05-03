@@ -207,8 +207,12 @@ $(BUILDDIR)/Tundra-Setup.exe: \
 	$(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 	$(BUILDDIR)/t2-lua$(EXESUFFIX) \
 	$(BUILDDIR)/tundra-manual.html \
+	windows-installer/PathControl.exe \
 	windows-installer/tundra.nsi
 	makensis -NOCD -DBUILDDIR=$(BUILDDIR) windows-installer/tundra.nsi > $(BUILDDIR)/nsis.log 2>&1
+
+windows-installer/PathControl.exe:
+	wget --output-document=$@ https://s3-us-west-2.amazonaws.com/tundra2-misc/PathControl.exe 
 
 .PHONY: clean all install uninstall installer
 

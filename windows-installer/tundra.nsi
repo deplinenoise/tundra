@@ -1,6 +1,5 @@
 ; Pull in Modern UI
 !include "MUI2.nsh"
-!include "windows-installer/EnvVarUpdate.nsh"
 
 ; The name of the installer
 Name "Tundra 2.0"
@@ -22,6 +21,16 @@ InstallDirRegKey HKLM "Software\Andreas Fredriksson\Tundra 2.0" "Install_Dir"
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin
+
+Function .onInit
+	UserInfo::GetAccountType
+	pop $0
+	${If} $0 != "admin" ;Require admin rights on NT4+
+    MessageBox mb_iconstop "Administrator rights required!"
+    SetErrorLevel 740 ;ERROR_ELEVATION_REQUIRED
+    Quit
+	${EndIf}
+FunctionEnd
 
 ; MUI setup
 !define MUI_ABORTWARNING
@@ -62,6 +71,9 @@ Section "Tundra 2.0 (required)"
 
   SetOutPath $INSTDIR\scripts
   File /r "scripts\*.lua"
+
+	SetOutPath $INSTDIR\installer-support
+	File "windows-installer\PathControl.exe"
   
   ; Write the installation path into the registry
   WriteRegStr HKLM "SOFTWARE\Andreas Fredriksson\Tundra 2.0" "Install_Dir" "$INSTDIR"
@@ -93,7 +105,18 @@ Section "Examples"
 SectionEnd
 
 Section "Add Tundra to PATH"
-  ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\bin"
+	; Clear error flag
+	IfErrors continue
+continue:
+
+	ExecWait '"$INSTDIR\installer-support\PathControl.exe" /ADD "$INSTDIR\bin"' $0
+	IfErrors env_error
+	goto done
+
+env_error:
+	MessageBox MB_OK 'Failed to add "$INSTDIR\bin" to the system path :('
+done:
+	
 SectionEnd
 
 ;--------------------------------
@@ -102,7 +125,8 @@ SectionEnd
 
 Section "Uninstall"
 
-  ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin"
+	; This is harmless if Tundra isn't in the path; it won't change anything.
+	ExecWait '"$INSTDIR\installer-support\PathControl.exe" /REMOVE "$INSTDIR\bin"'
   
   ; Remove registry keys
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tundra 2.0"
@@ -115,6 +139,7 @@ Section "Uninstall"
   RMDir /r $INSTDIR\doc
   RMDir /r $INSTDIR\scripts
   RMDir /r $INSTDIR\examples
+  RMDir /r $INSTDIR\installer-support
 
   RMDir $INSTDIR
 
