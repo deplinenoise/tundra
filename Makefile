@@ -4,7 +4,7 @@ INSTALL_X = install -m 0755
 INSTALL_F = install -m 0644
 
 CFLAGS ?= -Wall
-CPPFLAGS = -Ilua/src -Isrc -MMD -MP
+CPPFLAGS = -Ilua/src -Isrc -MMD -MP -DHAVE_GIT_INFO
 CXXFLAGS ?= $(CFLAGS) -fno-exceptions
 
 CXXLIBFLAGS ?=
@@ -200,9 +200,14 @@ clean:
 $(BUILDDIR)/tundra-manual.html: doc/manual.asciidoc
 	asciidoc -o $@ $^
 
-installer: all $(BUILDDIR)/Tundra-Setup.exe
+installer: $(BUILDDIR)/Tundra-Setup.exe
 
-$(BUILDDIR)/Tundra-Setup.exe: $(BUILDDIR)/tundra-manual.html tundra.nsi
+$(BUILDDIR)/Tundra-Setup.exe: \
+	$(BUILDDIR)/tundra2$(EXESUFFIX) \
+	$(BUILDDIR)/t2-inspect$(EXESUFFIX) \
+	$(BUILDDIR)/t2-lua$(EXESUFFIX) \
+	$(BUILDDIR)/tundra-manual.html \
+	tundra.nsi
 	makensis -V2 -DBUILDDIR=$(BUILDDIR) tundra.nsi
 
 .PHONY: clean all install uninstall installer

@@ -16,7 +16,7 @@
 #define snprintf _snprintf
 #endif
 
-#ifndef TUNDRA_WIN32
+#ifdef HAVE_GIT_INFO
 extern "C" char g_GitVersion[];
 extern "C" char g_GitBranch[];
 #endif
@@ -194,7 +194,7 @@ static void ShowHelp()
   printf("\nTundra Build Processor 2.0\n");
   printf("Copyright (C) 2013 Andreas Fredriksson\n\n");
 
-#ifndef TUNDRA_WIN32
+#ifdef HAVE_GIT_INFO
   printf("Git branch: %s\n", g_GitBranch);
   printf("Git commit: %s\n\n", g_GitVersion);
 #endif
