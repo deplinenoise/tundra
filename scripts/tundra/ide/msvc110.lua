@@ -52,7 +52,7 @@ function msvc_generator:generate_solution(fn, projects)
   -- Map folder names to array of projects under that folder
   local sln_folders = {}
   for _, proj in ipairs(projects) do
-    local hints = proj.Decl.IdeGenerationHints
+    local hints = proj.IdeGenerationHints
     local msvc_hints = hints and hints.Msvc or nil
     local folder = msvc_hints and msvc_hints.SolutionFolder or nil
     if folder then
@@ -63,7 +63,7 @@ function msvc_generator:generate_solution(fn, projects)
   end
 
   for _, proj in ipairs(projects) do
-    local name = proj.Decl.Name
+    local name = proj.Name
     local fname = proj.RelativeFilename
     local guid = proj.Guid
     sln:write(string.format('Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "%s", "%s", "{%s}"', name, fname, guid), LF)
@@ -116,7 +116,7 @@ end
 
 local function find_dag_node_for_config(project, tuple)
   local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
-  local nodes = project.Decl.__DagNodes
+  local nodes = project.DagNodes
   if not nodes then
     return nil
   end
@@ -125,7 +125,7 @@ local function find_dag_node_for_config(project, tuple)
     return nodes[build_id]
   end
   errorf("couldn't find config %s for project %s (%d dag nodes) - available: %s",
-    build_id, project.Decl.Name, #nodes, table.concat(util.table_keys(nodes), ", "))
+    build_id, project.Name, #nodes, table.concat(util.table_keys(nodes), ", "))
 end
 
 function msvc_generator:generate_project(project, all_projects)
@@ -198,12 +198,12 @@ function msvc_generator:generate_project(project, all_projects)
     local rebuild_cmd = base .. "--rebuild " .. build_id
 
     if not project.IsMeta then
-      build_cmd   = build_cmd .. " " .. project.Decl.Name
-      clean_cmd   = clean_cmd .. " " .. project.Decl.Name
-      rebuild_cmd = rebuild_cmd .. " " .. project.Decl.Name
+      build_cmd   = build_cmd .. " " .. project.Name
+      clean_cmd   = clean_cmd .. " " .. project.Name
+      rebuild_cmd = rebuild_cmd .. " " .. project.Name
     else
       local all_projs_str = table.concat(
-        util.map(all_projects, function (p) return p.Decl.Name end), ' ')
+        util.map(all_projects, function (p) return p.Name end), ' ')
       build_cmd   = build_cmd .. " " .. all_projs_str
       clean_cmd   = clean_cmd .. " " .. all_projs_str
       rebuild_cmd = rebuild_cmd .. " " .. all_projs_str
@@ -399,16 +399,9 @@ end
   
 function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints)
   assert(config_tuples and #config_tuples > 0)
+
   if not hints then
     hints = {}
-  end
-
-  local solution_hints = hints.MsvcSolutions
-  if not solution_hints then
-    print("No IdeGenerationHints.MsvcSolutions specified - using defaults")
-    solution_hints = {
-      ['tundra-generated.sln'] = {}
-    }
   end
 
   self.msvc_platforms = {}
@@ -428,73 +421,15 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
   end
 
   -- Figure out where we're going to store the projects
-  local base_dir = hints.MsvcSolutionDir and (hints.MsvcSolutionDir .. '\\') or env:interpolate('$(OBJECTROOT)$(SEP)')
-  native.mkdir(base_dir)
-
-  local projects = {}
-
-  for _, unit in ipairs(raw_nodes) do
-    local data = msvc_common.extract_data(unit, env, ".vcxproj", base_dir)
-    if data then
-      projects[#projects + 1] = data
-    end
-  end
-
-  -- Get all accessed Lua files
-  local accessed_lua_files = util.table_keys(get_accessed_files())
-
-  -- Filter out the ones that belong to this build (exclude ones coming from Tundra) 
-  local function is_non_tundra_lua_file(p)
-    return not path.is_absolute(p)
-  end
-  local function make_src_node(p)
-    return { Path = path.normalize(p) }
-  end
-  local source_list = util.map(util.filter(accessed_lua_files, is_non_tundra_lua_file), make_src_node)
-  
-  if Options.Verbose then
-    printf("%d projects to generate", #projects)
-  end
+  local solutions, projects = msvc_common.make_project_data(raw_nodes, env, ".vcxproj", hints)
 
   local proj_lut = {}
   for _, p in ipairs(projects) do
-    proj_lut[p.Decl.Name] = p
+    proj_lut[p.Name] = p
   end
 
-  for name, data in pairs(solution_hints) do
-    local sln_projects
-    if data.Projects then
-      sln_projects = {}
-      for _, pname in ipairs(data.Projects) do
-        local pp = proj_lut[pname]
-        if not pp then
-          errorf("can't find project %s for inclusion in %s -- check your MsvcSolutions data", pname, name)
-        end
-        sln_projects[#sln_projects + 1] = pp
-      end
-    else
-      -- All the projects
-      sln_projects = util.clone_array(projects)
-    end
-
-    local meta_name = "00-tundra-" .. path.drop_suffix(name)
-    local meta_proj = {
-      Decl = { Name = meta_name, IdeGenerationHints = { Msvc = { SolutionFolder = "Build System Meta" } } },
-      Type = "meta",
-      RelativeFilename = meta_name .. ".vcxproj",
-      Filename = base_dir .. meta_name .. ".vcxproj",
-      Sources = source_list,
-      Guid = msvc_common.get_guid_string(meta_name),
-      IsMeta = true,
-    }
-
-    local sln_file = base_dir .. name
-    self:generate_project(meta_proj, sln_projects)
-    self:generate_project_filters(meta_proj)
-    self:generate_project_user(meta_proj)
-
-    sln_projects[#sln_projects + 1] = meta_proj
-    self:generate_solution(sln_file, sln_projects)
+  for _, sln in pairs(solutions) do
+    self:generate_solution(sln.Filename, sln.Projects)
   end
 
   for _, proj in ipairs(projects) do

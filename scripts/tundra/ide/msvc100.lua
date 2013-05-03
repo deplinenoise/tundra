@@ -14,11 +14,11 @@ local msvc_generator = {}
 msvc_generator.__index = msvc_generator
 
 function msvc_generator:generate_solution(fn, projects)
-  local sln = io.open(fn, 'wb')
+  local sln = assert(io.open(fn, 'wb'))
   sln:write(UTF_HEADER, LF, "Microsoft Visual Studio Solution File, Format Version 11.00", LF, "# Visual Studio 2010", LF)
 
   for _, proj in ipairs(projects) do
-    local name = proj.Decl.Name
+    local name = proj.Name
     local fname = proj.RelativeFilename
     local guid = proj.Guid
     sln:write(string.format('Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "%s", "%s", "{%s}"', name, fname, guid), LF)
@@ -100,8 +100,8 @@ function msvc_generator:generate_project(project)
     clean_cmd = base .. "-c " .. build_id
 
     if not project.IsMeta then
-      build_cmd = build_cmd .. " " .. project.Decl.Name
-      clean_cmd = clean_cmd .. " " .. project.Decl.Name
+      build_cmd = build_cmd .. " " .. project.Name
+      clean_cmd = clean_cmd .. " " .. project.Name
     end
 
     p:write('\t\t<NMakeBuildCommandLine>', build_cmd, '</NMakeBuildCommandLine>', LF)
@@ -191,7 +191,7 @@ function msvc_generator:generate_project_filters(project)
   p:close()
 end
   
-function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
+function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints)
   assert(config_tuples and #config_tuples > 0)
 
   self.msvc_platforms = {}
@@ -206,47 +206,11 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env)
 
   self.config_tuples = config_tuples
 
-  if Options.Verbose then
-    printf("Generating Visual Studio projects for %d configurations/variants", #config_tuples)
+  local solutions, projects = msvc_common.make_project_data(raw_nodes, env, ".vcxproj", hints)
+
+  for _, sln in ipairs(solutions) do
+    self:generate_solution(sln.Filename, sln.Projects)
   end
-
-  local projects = {}
-
-  for _, unit in ipairs(raw_nodes) do
-    local data = msvc_common.extract_data(unit, env, ".vcxproj", env:interpolate("$(OBJECTROOT)$(SEP)"))
-    if data then
-      projects[#projects + 1] = data
-    end
-  end
-  
-  local source_list = { "tundra.lua" }
-  local units = io.open("units.lua")
-  if units then
-    source_list[#source_list + 1] = "units.lua"
-    io.close(units)
-  end
-
-  local meta_name = "00-Tundra"
-  projects[#projects + 1] = {
-    Decl = { Name = meta_name, Sources = source_list },
-    Type = "meta",
-    RelativeFilename = meta_name .. ".vcxproj",
-    Filename = env:interpolate("$(OBJECTROOT)$(SEP)" .. meta_name .. ".vcxproj"),
-    Sources = { "tundra.lua" }, 
-    Guid = native.digest_guid(meta_name),
-    IsMeta = true,
-  }
-
-  if Options.Verbose then
-    printf("%d projects to generate", #projects)
-  end
-
-  local base_dir = env:interpolate('$(OBJECTROOT)$(SEP)')
-
-  native.mkdir(base_dir)
-
-  local sln_file = base_dir .. "tundra-generated.sln" -- FIXME: pass in solution name
-  self:generate_solution(sln_file, projects)
 
   for _, proj in ipairs(projects) do
     self:generate_project(proj)
