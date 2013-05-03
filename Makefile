@@ -202,8 +202,8 @@ $(BUILDDIR)/tundra-manual.html: doc/manual.asciidoc
 
 installer: all $(BUILDDIR)/Tundra-Setup.exe
 
-$(BUILDDIR)/Tundra-Setup.exe: $(BUILDDIR)/tundra-manual.html
-	makensis -DBUILDDIR=$(BUILDDIR) tundra.nsi
+$(BUILDDIR)/Tundra-Setup.exe: $(BUILDDIR)/tundra-manual.html tundra.nsi
+	makensis -V2 -DBUILDDIR=$(BUILDDIR) tundra.nsi
 
 .PHONY: clean all install uninstall installer
 
