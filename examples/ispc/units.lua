@@ -4,7 +4,10 @@ Program {
 	Name = "IspcDemo",
 	Sources = {
 		"main.c",
-		ISPC { Pass = "IspcGen", Source = "lanes.ispc" },
+		ISPC {
+      Pass   = "IspcGen",
+      Source = "lanes.ispc"
+    },
 	},
 }
 
