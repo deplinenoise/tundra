@@ -2,6 +2,10 @@
 
 module(..., package.seeall)
 
+local msvc_common = require "tundra.ide.msvc-common"
+msvc_common.setup("11.00", "2010")
+
+--[[
 local nodegen = require "tundra.nodegen"
 local util = require "tundra.util"
 local native = require "tundra.native"
@@ -222,3 +226,4 @@ nodegen.set_ide_backend(function(...)
   local state = setmetatable({}, msvc_generator)
   state:generate_files(...)
 end)
+]]--
