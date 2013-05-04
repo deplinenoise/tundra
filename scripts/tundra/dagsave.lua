@@ -17,6 +17,8 @@ local function get_passes(nodes)
   for _, node in ipairs(nodes) do
     local p = node.pass
     if not util.array_contains(result, p) then
+      assert(type(p) == "table", "Passes must be tables, have " .. util.tostring(p))
+      assert(type(p.BuildOrder) == "number", "Pass BuildOrder must be a number")
       result[#result + 1] = p
     end
   end
