@@ -95,7 +95,7 @@ static bool LoadFrozenData(const char* fn, MemoryMappedFile* result, const Froze
     // Check magic number
     if (data->m_MagicNumber != FrozenType::MagicNumber)
     {
-      Log(kWarning, "%s: Bad magic number %08x - current is %08x",
+      Log(kDebug, "%s: Bad magic number %08x - current is %08x",
           fn, data->m_MagicNumber, FrozenType::MagicNumber);
       goto error;
     }
