@@ -65,6 +65,8 @@ enum LogLevel
   kSpam         = 1 << 4
 };
 
+int GetLogFlags();
+
 void SetLogFlags(int log_level);
 
 void Log(LogLevel level, const char* fmt, ...);

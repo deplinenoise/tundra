@@ -222,7 +222,7 @@ function run(build_script_fn)
   local f, err = io.open(build_script_fn, 'r')
 
   if not f then
-    errorf("cannot open %s", build_script_fn)
+    croak("%s", err)
   end
 
   local text = f:read("*all")

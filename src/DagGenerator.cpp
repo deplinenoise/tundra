@@ -992,11 +992,12 @@ static bool RunExternalTool(const char* options, ...)
   snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
   cmdline[sizeof(cmdline)-1] = '\0';
 
-  ExecResult result = ExecuteProcess(cmdline, 0, nullptr, 0, true, nullptr);
+  const bool echo = (GetLogFlags() & kDebug) ? true : false;
+  ExecResult result = ExecuteProcess(cmdline, 0, nullptr, 0, echo, nullptr);
 
   if (0 != result.m_ReturnCode)
   {
-    Log(kError, "couldn't run external tool with command line: %s", cmdline);
+    Log(kError, "DAG generator driver failed: %s", cmdline);
     return false;
   }
 
@@ -1015,7 +1016,8 @@ bool GenerateDag(const char* script_fn, const char* dag_fn)
   remove(json_filename);
 
   // Run DAG generator.
-  RunExternalTool("generate-dag %s %s", script_fn, json_filename);
+  if (!RunExternalTool("generate-dag %s %s", script_fn, json_filename))
+    return false;
 
   FileInfo json_info = GetFileInfo(json_filename);
   if (!json_info.Exists())

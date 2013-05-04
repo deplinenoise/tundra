@@ -166,6 +166,11 @@ uint64_t Djb2HashNoCase64(const char *str_)
 
 static int s_LogFlags = 0;
 
+int GetLogFlags()
+{
+  return s_LogFlags;
+}
+
 void SetLogFlags(int log_flags)
 {
   s_LogFlags = log_flags;
