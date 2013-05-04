@@ -149,23 +149,59 @@ distribution.
 
 === Installing a binary package
 
-Binary packages are available, see the root `README.md` file of the Tundra github
-page.
+Binary packages for Windows are available, see the root `README.md` file of the
+Tundra github page.
 
-Unpack it somewhere, and optionally stick it in your `PATH` environment
-variable if you use Tundra a lot.
+Both installers and zip files are available. Choose the installer for a fully
+automated setup, including adding Tundra to your `PATH`. The binary zips are
+useful for DIY installs or to check into source control.
 
 === Installing from source
 
 Tundra can be obtained from the official GIT repository:
 `git://github.com:deplinenoise/tundra.git`.
 
-- On Windows, use Visual Studio 2012. The solution file is `vs2012\\Tundra.sln`.
+* On Windows, there are two options:
 
-- On Mac OS X and other Unix-like platforms, there is a `Makefile` that should do the job.
+  ** Use Visual Studio 2012. The solution file is `vs2012/Tundra.sln`.
+	 After building you will need to copy `vs2012/x64/Release/*.exe` to a `bin`
+     directory of your choice. Copy the `scripts` directory so that is lives next
+     to your `bin` directory.
 
-- On FreeBSD you might need to rebuild world with the option WITH_LIBCPLUSPLUS=yes added
-  to `/etc/src.conf` in order to have LLVM's libc++ available.
+  ** Use MinGW. It should be enough to build using `mingw32-make`. The resulting
+     binary ends up in `build`, and can be installed next to a `scripts` directory
+     as desired. It is also possible to run this binary right away as it will find
+     the `scripts` directory automatically from this location. This can be convenient
+     if you plan to hack on Tundra a lot.
+
+* On Mac OS X and other Unix-like platforms, use GNU Make.
+
+  ** Type `make` to build an optimized version
+  ** Type `make CHECKED=yes` to build a debug version.
+     Do this if you're hacking on the C++ core.
+  ** Type `make install` to install Tundra into `/usr/local`
+     (you can override the path with `PREFIX=/path`)
+  ** Type `make uninstall` to uninstall Tundra
+
+  ** Cross compilation for Windows is also supported:
+    *** Type `make CROSSMINGW=yes` to build a windows version
+    *** Type `make CROSSMINGW=yes installer` to build a windows installer
+    *** Type `make CROSSMINGW=yes windows-zip` to build a windows binary zip
+
+* On FreeBSD you might need to rebuild world with the option
+  `WITH_LIBCPLUSPLUS=yes` added to `/etc/src.conf` in order to have LLVM's libc++
+  available, or hack the `Makefile` a bit.
+
+==== Running the tests
+
+To test the native code, run `build/t2-unittest`.
+
+To test the Lua scripts, run `build/t2-lua selftest`.
+
+To test the build system for regression, run `./run-tests.pl build/tundra2`.
+The regression test suite currently only works on Intel-based UNIX-like
+platforms. You will need to have `yasm` installed for the assembly include
+scanning tests to work.
 
 == A bit of Tundra nomenclature
 
