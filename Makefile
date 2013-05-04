@@ -200,13 +200,34 @@ clean:
 $(BUILDDIR)/tundra-manual.html: doc/manual.asciidoc
 	asciidoc -o $@ $^
 
-installer: $(BUILDDIR)/Tundra-Setup.exe
+ALL_SCRIPTS := $(shell find scripts -name \*.lua)
 
-$(BUILDDIR)/Tundra-Setup.exe: \
+INSTALL_PRODUCTS = \
 	$(BUILDDIR)/tundra2$(EXESUFFIX) \
 	$(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 	$(BUILDDIR)/t2-lua$(EXESUFFIX) \
 	$(BUILDDIR)/tundra-manual.html \
+	$(ALL_SCRIPTS)
+
+installer: $(BUILDDIR)/Tundra-Setup.exe
+windows-zip: $(BUILDDIR)/Tundra-Binaries.zip
+
+$(BUILDDIR)/Tundra-Binaries.zip: $(INSTALL_PRODUCTS)
+	mkdir $(BUILDDIR)/__zip && \
+	mkdir $(BUILDDIR)/__zip/tundra && \
+	mkdir $(BUILDDIR)/__zip/tundra/bin && \
+	mkdir $(BUILDDIR)/__zip/tundra/doc && \
+	ln -s $$PWD/$(BUILDDIR)/tundra2$(EXESUFFIX) $(BUILDDIR)/__zip/tundra/bin/ && \
+	ln -s $$PWD/$(BUILDDIR)/t2-inspect$(EXESUFFIX) $(BUILDDIR)/__zip/tundra/bin/ && \
+	ln -s $$PWD/$(BUILDDIR)/t2-lua$(EXESUFFIX) $(BUILDDIR)/__zip/tundra/bin/ && \
+	ln -s $$PWD/$(BUILDDIR)/tundra-manual.html $(BUILDDIR)/__zip/tundra/doc/ && \
+	ln -s $$PWD/scripts $(BUILDDIR)/__zip/tundra/ && \
+	(cd $(BUILDDIR)/__zip && zip -r -9 ../Tundra-Binaries.zip tundra) && \
+	rm -rf $(BUILDDIR)/__zip
+
+
+$(BUILDDIR)/Tundra-Setup.exe: \
+	$(INSTALL_PRODUCTS) \
 	windows-installer/PathControl.exe \
 	windows-installer/tundra.nsi
 	makensis -NOCD -DBUILDDIR=$(BUILDDIR) windows-installer/tundra.nsi > $(BUILDDIR)/nsis.log 2>&1
@@ -214,6 +235,6 @@ $(BUILDDIR)/Tundra-Setup.exe: \
 windows-installer/PathControl.exe:
 	wget --output-document=$@ https://s3-us-west-2.amazonaws.com/tundra2-misc/PathControl.exe 
 
-.PHONY: clean all install uninstall installer
+.PHONY: clean all install uninstall installer win-zip
 
 -include $(ALL_DEPS)
