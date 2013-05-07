@@ -352,7 +352,7 @@ public:
 
       size_t r = bs_count;
       size_t w = 0;
-      while (r < orig_len)
+      while (r < orig_len + bs_count)
       {
         char ch = data[r++];
         data[w++] = ch;
