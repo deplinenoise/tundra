@@ -110,14 +110,13 @@ static void WriteCommon(lua_State* L, LuaJsonWriter* self, int name_index)
 static int LuaJsonWriteNumber(lua_State* L)
 {
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
-  lua_Integer num = luaL_checkinteger(L, 2);
+  lua_Number num = luaL_checknumber(L, 2);
   WriteCommon(L, self, 3);
-  FILE* f = self->m_File;
-#ifndef _MSC_VER
-  fprintf(f, "%lld", (long long) num);
-#else
-  fprintf(f, "%I64d", (__int64) num);
-#endif
+
+  char buffer[64];
+  lua_number2str(buffer, num);
+
+  fputs(buffer, self->m_File);
   return 0;
 }
 
