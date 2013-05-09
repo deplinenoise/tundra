@@ -204,7 +204,11 @@ namespace t2
     FileInfo info = StatCacheStat(stat_cache, path);
 
     if (info.Exists())
-      return info.IsDirectory();
+    {
+      // Just asssume this is a directory. We could check it - but there's currently no way via _stat64() calls
+      // on Windows to check if a file is a symbolic link (to a directory).
+      return true;
+    }
     else
     {
       Log(kSpam, "create dir \"%s\"", path);
