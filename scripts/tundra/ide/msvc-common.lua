@@ -164,7 +164,7 @@ local function make_project_data(units, env, proj_extension, hints)
         -- This unit is the real thing for this project, not something that's
         -- just being merged into it (like an ObjGroup). Set some more attributes.
         proj.IdeGenerationHints = ide_hints
-        proj.DagNodes           = unit.__DagNodes
+        proj.DagNodes           = decl.__DagNodes
       end
 
       local cwd = native.getcwd()
@@ -263,7 +263,6 @@ local function replace_if_changed(new_fn, old_fn)
   local old_data = slurp_file(old_fn)
   local new_data = slurp_file(new_fn)
   if old_data == new_data then
-    printf("No change for %s", old_fn)
     os.remove(new_fn)
     return
   end
@@ -273,7 +272,6 @@ local function replace_if_changed(new_fn, old_fn)
 end
 
 function msvc_generator:generate_solution(fn, projects)
-  printf("Generating solution %s", fn)
   local sln = io.open(fn .. '.tmp', 'wb')
   sln:write(UTF_HEADER, LF, "Microsoft Visual Studio Solution File, Format Version ", VERSION_NUMBER, LF, "# Visual Studio ", VERSION_YEAR, LF)
 
