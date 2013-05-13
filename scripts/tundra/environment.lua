@@ -233,7 +233,7 @@ function envclass:interpolate(str, vars)
       local keys = util.table_keys(chain.vars)
       table.sort(keys)
       for _, k in ipairs(keys) do
-        printf("  %s", k)
+        printf("  %s = %s", k, util.tostring(chain:get_list(k)))
       end
       chain = chain.parent
     end
