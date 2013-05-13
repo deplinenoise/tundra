@@ -228,6 +228,7 @@ local function make_project_data(units, env, proj_extension, hints)
       Sources            = source_list,
       Guid               = get_guid_string(meta_name),
       IsMeta             = true,
+      BuildProjects      = util.clone_array(sln_projects),
     }
 
     sln_projects[#sln_projects + 1] = meta_proj
@@ -407,13 +408,17 @@ function msvc_generator:generate_project(project, all_projects)
     if dag_node then
       local env = dag_node.src_env
       local paths = util.map(env:get_list("CPPPATH"), function (p)
-        local ip = env:interpolate(p)
+        local ip = path.normalize(env:interpolate(p))
         if not path.is_absolute(ip) then
           ip = native.getcwd() .. '\\' .. ip
         end
         return ip
       end)
       include_paths = table.concat(paths, ';')
+      local ext_paths = env:get_external_env_var('INCLUDE')
+      if ext_paths then
+        include_paths = include_paths .. ';' .. ext_paths
+      end
       defines = env:interpolate("$(CPPDEFS:j;)")
     else
       include_paths = ''
@@ -432,9 +437,8 @@ function msvc_generator:generate_project(project, all_projects)
       clean_cmd   = clean_cmd .. " " .. project.Name
       rebuild_cmd = rebuild_cmd .. " " .. project.Name
     else
-      local build_projs = util.filter(all_projects, function (p) return not p.IsMeta end)
       local all_projs_str = table.concat(
-        util.map(build_projs, function (p) return p.Name end), ' ')
+        util.map(assert(project.BuildProjects), function (p) return p.Name end), ' ')
       build_cmd   = build_cmd .. " " .. all_projs_str
       clean_cmd   = clean_cmd .. " " .. all_projs_str
       rebuild_cmd = rebuild_cmd .. " " .. all_projs_str
