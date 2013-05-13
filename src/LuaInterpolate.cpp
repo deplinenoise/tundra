@@ -56,8 +56,9 @@ public:
       }
       else
       {
-        fprintf(stderr, "env resolve failed: didn't return a table: %s\n", lua_typename(L, lua_type(L, -1)));
-        lua_pop(L, 1);
+        lua_pushlstring(L, key, len);
+        fprintf(stderr, "env resolve failed: didn't return a table for \"%s\": %s\n", lua_tostring(L, -1), lua_typename(L, lua_type(L, -2)));
+        lua_pop(L, 2);
       }
     }
     else
