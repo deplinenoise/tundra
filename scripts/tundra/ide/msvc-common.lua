@@ -356,7 +356,7 @@ end
 
 function msvc_generator:generate_project(project, all_projects)
   local fn = project.Filename
-  local p = assert(io.open(fn, 'wb'))
+  local p = assert(io.open(fn .. ".tmp", 'wb'))
   p:write('<?xml version="1.0" encoding="utf-8"?>', LF)
   p:write('<Project')
   p:write(' DefaultTargets="Build"')
@@ -432,8 +432,9 @@ function msvc_generator:generate_project(project, all_projects)
       clean_cmd   = clean_cmd .. " " .. project.Name
       rebuild_cmd = rebuild_cmd .. " " .. project.Name
     else
+      local build_projs = util.filter(all_projects, function (p) return not p.IsMeta end)
       local all_projs_str = table.concat(
-        util.map(all_projects, function (p) return p.Name end), ' ')
+        util.map(build_projs, function (p) return p.Name end), ' ')
       build_cmd   = build_cmd .. " " .. all_projs_str
       clean_cmd   = clean_cmd .. " " .. all_projs_str
       rebuild_cmd = rebuild_cmd .. " " .. all_projs_str
@@ -466,6 +467,8 @@ function msvc_generator:generate_project(project, all_projects)
 
   p:write('</Project>', LF)
   p:close()
+
+  replace_if_changed(fn .. ".tmp", fn)
 end
 
 local function get_common_dir(sources)
