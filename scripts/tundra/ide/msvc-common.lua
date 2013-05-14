@@ -5,11 +5,12 @@ local nodegen = require "tundra.nodegen"
 local path    = require "tundra.path"
 local util    = require "tundra.util"
 
-local LF = '\r\n'
+LF = '\r\n'
 local UTF_HEADER = '\239\187\191' -- byte mark EF BB BF 
 
 local VERSION_NUMBER = "12.00"
-local VERSION_YEAR = "2012"
+local VERSION_YEAR   = "2012"
+local HOOKS          = {}
 
 local msvc_generator = {}
 msvc_generator.__index = msvc_generator
@@ -193,6 +194,7 @@ local function make_project_data(units, env, proj_extension, hints)
         -- just being merged into it (like an ObjGroup). Set some more attributes.
         proj.IdeGenerationHints = ide_hints
         proj.DagNodes           = decl.__DagNodes
+        proj.Unit               = unit
       end
 
       local cwd = native.getcwd()
@@ -508,6 +510,11 @@ function msvc_generator:generate_project(project, all_projects)
   end
   p:write('\t</ItemGroup>', LF)
 
+  local post_src_hook = HOOKS.post_sources
+  if post_src_hook then
+    post_src_hook(p, project)
+  end
+
   p:write('\t<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />', LF)
 
   p:write('</Project>', LF)
@@ -715,9 +722,12 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
   end
 end
 
-function setup(version_short, version_year)
+function setup(version_short, version_year, hooks)
   VERSION_NUMBER = version_short
-  VERSION_YEAR = version_year
+  VERSION_YEAR   = version_year
+  if hooks then
+    HOOKS          = hooks
+  end
   nodegen.set_ide_backend(function(...)
     local state = setmetatable({}, msvc_generator)
     state:generate_files(...)
