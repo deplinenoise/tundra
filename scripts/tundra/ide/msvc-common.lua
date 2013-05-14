@@ -98,6 +98,34 @@ local function get_headers(unit, source_lut, dag_lut)
   end
 end
 
+local function make_meta_project(base_dir, data)
+  data.Guid               = get_guid_string(data.Name)
+  data.IdeGenerationHints = { Msvc = { SolutionFolder = "Build System Meta" } }
+  data.IsMeta             = true
+  data.RelativeFilename   = data.Name .. ".vcxproj"
+  data.Filename           = base_dir .. data.RelativeFilename
+  data.Type               = "meta"
+  if not data.Sources then
+    data.Sources            = {}
+  end
+  return data
+end
+
+local function tundra_cmdline(args)
+  local root_dir    = native.getcwd()
+  return "\"" .. TundraExePath .. "\" -C \"" .. root_dir .. "\" " .. args
+end
+
+local function project_regen_commandline()
+  if VERSION_YEAR == "2012" then
+    return tundra_cmdline("-g msvc110")
+  elseif VERSION_YEAR == "2010" then
+    return tundra_cmdline("-g msvc100")
+  else
+    croak("unsupported MSVC version %s", VERSION_YEAR)
+  end
+end
+
 local function make_project_data(units, env, proj_extension, hints)
 
   local base_dir = hints.MsvcSolutionDir and (hints.MsvcSolutionDir .. '\\') or env:interpolate('$(OBJECTROOT)$(SEP)')
@@ -199,8 +227,18 @@ local function make_project_data(units, env, proj_extension, hints)
   end
 
   local projects = util.table_values(project_by_name)
+  local vanilla_projects = util.clone_array(projects)
 
   local solutions = {}
+
+  -- Create meta project to regenerate solutions/projects. Added to every solution.
+  local regen_meta_proj = make_meta_project(base_dir, {
+    Name               = "00-Regenerate-Projects",
+    FriendlyName       = "Regenerate Solutions and Projects",
+    BuildCommand       = project_regen_commandline(),
+  })
+
+  projects[#projects + 1] = regen_meta_proj
 
   for name, data in pairs(solution_hints) do
     local sln_projects
@@ -214,23 +252,19 @@ local function make_project_data(units, env, proj_extension, hints)
         sln_projects[#sln_projects + 1] = pp
       end
     else
-      -- All the projects
-      sln_projects = util.clone_array(projects)
+      -- All the projects (that are not meta)
+      sln_projects = util.clone_array(vanilla_projects)
     end
 
-    local meta_name = "00-tundra-" .. path.drop_suffix(name)
-    local meta_proj = {
-      Name               = meta_name,
-      IdeGenerationHints = { Msvc = { SolutionFolder = "Build System Meta" } },
-      Type               = "meta",
-      RelativeFilename   = meta_name .. ".vcxproj",
-      Filename           = base_dir .. meta_name .. ".vcxproj",
+    local meta_proj = make_meta_project(base_dir, {
+      Name               = "00-tundra-" .. path.drop_suffix(name),
+      FriendlyName       = "Build This Solution",
+      BuildByDefault     = true,
       Sources            = source_list,
-      Guid               = get_guid_string(meta_name),
-      IsMeta             = true,
       BuildProjects      = util.clone_array(sln_projects),
-    }
+    })
 
+    sln_projects[#sln_projects + 1] = regen_meta_proj
     sln_projects[#sln_projects + 1] = meta_proj
     projects[#projects + 1] = meta_proj
 
@@ -315,7 +349,7 @@ function msvc_generator:generate_solution(fn, projects)
     for _, tuple in ipairs(self.config_tuples) do
       local leader = string.format('\t\t{%s}.%s.', proj.Guid, tuple.MsvcName)
       sln:write(leader, "ActiveCfg = ", tuple.MsvcName, LF)
-      if proj.IsMeta then
+      if proj.BuildByDefault then
         sln:write(leader, "Build.0 = ", tuple.MsvcName, LF)
       end
     end
@@ -378,6 +412,9 @@ function msvc_generator:generate_project(project, all_projects)
   p:write('\t<PropertyGroup Label="Globals">', LF)
   p:write('\t\t<ProjectGuid>{', project.Guid, '}</ProjectGuid>', LF)
   p:write('\t\t<Keyword>MakeFileProj</Keyword>', LF)
+  if project.FriendlyName then
+    p:write('\t\t<ProjectName>', project.FriendlyName, '</ProjectName>', LF)
+  end
   p:write('\t</PropertyGroup>', LF)
   p:write('\t<PropertyGroup>', LF)
   if VERSION_YEAR == '2012' then
@@ -432,7 +469,11 @@ function msvc_generator:generate_project(project, all_projects)
     local clean_cmd   = base .. "--clean " .. build_id
     local rebuild_cmd = base .. "--rebuild " .. build_id
 
-    if not project.IsMeta then
+    if project.BuildCommand then
+      build_cmd = project.BuildCommand
+      clean_cmd = ""
+      rebuild_cmd = ""
+    elseif not project.IsMeta then
       build_cmd   = build_cmd .. " " .. project.Name
       clean_cmd   = clean_cmd .. " " .. project.Name
       rebuild_cmd = rebuild_cmd .. " " .. project.Name
