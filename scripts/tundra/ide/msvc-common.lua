@@ -36,10 +36,6 @@ local header_exts = util.make_lookup_table {
 local function get_sources(dag, sources, generated, level, dag_lut)
   for _, output in util.nil_ipairs(dag.outputs) do
     local ext = path.get_extension(output)
-    if toplevel_stuff[ext] then
-      -- Terminate here, something else will want the sources files from this sub-DAG
-      return
-    end
     if not binary_extension[ext] then
       generated[output] = true
       sources[output] = true -- pick up generated headers
@@ -117,17 +113,16 @@ local function tundra_cmdline(args)
   return "\"" .. TundraExePath .. "\" -C \"" .. root_dir .. "\" " .. args
 end
 
-local function project_regen_commandline()
-  if VERSION_YEAR == "2012" then
-    return tundra_cmdline("-g msvc110")
-  elseif VERSION_YEAR == "2010" then
-    return tundra_cmdline("-g msvc100")
-  else
-    croak("unsupported MSVC version %s", VERSION_YEAR)
-  end
+local function project_regen_commandline(ide_script)
+  return tundra_cmdline("-g " .. ide_script)
 end
 
-local function make_project_data(units, env, proj_extension, hints)
+local function make_project_data(units_raw, env, proj_extension, hints, ide_script)
+
+  -- Filter out stuff we don't care about.
+  local units = util.filter(units_raw, function (u)
+    return u.Decl.Name and project_types[u.Keyword]
+  end)
 
   local base_dir = hints.MsvcSolutionDir and (hints.MsvcSolutionDir .. '\\') or env:interpolate('$(OBJECTROOT)$(SEP)')
   native.mkdir(base_dir)
@@ -140,11 +135,9 @@ local function make_project_data(units, env, proj_extension, hints)
   for _, unit in ipairs(units) do
     local decl = unit.Decl
 
-    if decl.Name and project_types[unit.Keyword] then
-      local dag_nodes = assert(decl.__DagNodes, "no dag nodes for " .. decl.Name)
-      for build_id, dag_node in pairs(dag_nodes) do
-        dag_node_lut[dag_node] = unit
-      end
+    local dag_nodes = assert(decl.__DagNodes, "no dag nodes for " .. decl.Name)
+    for build_id, dag_node in pairs(dag_nodes) do
+      dag_node_lut[dag_node] = unit
     end
   end
 
@@ -162,47 +155,77 @@ local function make_project_data(units, env, proj_extension, hints)
     return project_by_name[name]
   end
 
+  -- Sort units based on dependency complexity. We want to visit the leaf nodes
+  -- first so that any source file references are picked up as close to the
+  -- bottom of the dependency chain as possible.
+  local unit_weights = {}
+  for _, unit in ipairs(units) do
+    local decl = unit.Decl
+    local stack = { }
+    for _, dag in pairs(decl.__DagNodes) do
+      stack[#stack + 1] = dag
+    end
+    local weight = 0
+    while #stack > 0 do
+      local node = table.remove(stack)
+      if dag_node_lut[node] then
+        weight = weight + 1
+      end
+      for _, dep in util.nil_ipairs(node.deps) do
+        stack[#stack + 1] = dep
+      end
+    end
+    unit_weights[unit] = weight
+  end
+
+  table.sort(units, function (a, b)
+    return unit_weights[a] < unit_weights[b]
+  end)
+
+  -- Keep track of what source files have already been grabbed by other projects.
+  local grabbed_sources = {}
+
   for _, unit in ipairs(units) do
     local decl = unit.Decl
     local name = decl.Name
 
-    if name and project_types[unit.Keyword] then
+    local source_lut = {}
+    local generated_lut = {}
+    for build_id, dag_node in pairs(decl.__DagNodes) do
+      get_sources(dag_node, source_lut, generated_lut, 0, dag_node_lut)
+    end
 
-      local source_lut = {}
-      local generated_lut = {}
-      for build_id, dag_node in pairs(decl.__DagNodes) do
-        get_sources(dag_node, source_lut, generated_lut, 0, dag_node_lut)
+    -- Explicitly add all header files too as they are not picked up from the DAG
+    -- Also pick up headers from non-toplevel DAGs we're depending on
+    get_headers(unit, source_lut, dag_node_lut)
+
+    -- Figure out which project should get this data.
+    local output_name = name
+    local ide_hints = unit.Decl.IdeGenerationHints
+    if ide_hints then
+      if ide_hints.OutputProject then
+        output_name = ide_hints.OutputProject
       end
+    end
 
-      -- Explicitly add all header files too as they are not picked up from the DAG
-      -- Also pick up headers from non-toplevel DAGs we're depending on
-      get_headers(unit, source_lut, dag_node_lut)
+    local proj = get_output_project(output_name)
 
-      -- Figure out which project should get this data.
-      local output_name = name
-      local ide_hints = unit.Decl.IdeGenerationHints
-      if ide_hints then
-        if ide_hints.OutputProject then
-          output_name = ide_hints.OutputProject
-        end
-      end
+    if output_name == name then
+      -- This unit is the real thing for this project, not something that's
+      -- just being merged into it (like an ObjGroup). Set some more attributes.
+      proj.IdeGenerationHints = ide_hints
+      proj.DagNodes           = decl.__DagNodes
+      proj.Unit               = unit
+    end
 
-      local proj = get_output_project(output_name)
-
-      if output_name == name then
-        -- This unit is the real thing for this project, not something that's
-        -- just being merged into it (like an ObjGroup). Set some more attributes.
-        proj.IdeGenerationHints = ide_hints
-        proj.DagNodes           = decl.__DagNodes
-        proj.Unit               = unit
-      end
-
-      local cwd = native.getcwd()
-      for src, _ in pairs(source_lut) do
+    for src, _ in pairs(source_lut) do
+      local norm_src = path.normalize(src)
+      if not grabbed_sources[norm_src] then
+        grabbed_sources[norm_src] = unit
         local is_generated = generated_lut[src]
         proj.Sources[#proj.Sources+1] = {
-          Path        = src:gsub('/', '\\'),
-          Generated   = is_generated,
+          Path      = norm_src,
+          Generated = is_generated,
         }
       end
     end
@@ -237,7 +260,7 @@ local function make_project_data(units, env, proj_extension, hints)
   local regen_meta_proj = make_meta_project(base_dir, {
     Name               = "00-Regenerate-Projects",
     FriendlyName       = "Regenerate Solutions and Projects",
-    BuildCommand       = project_regen_commandline(),
+    BuildCommand       = project_regen_commandline(ide_script),
   })
 
   projects[#projects + 1] = regen_meta_proj
@@ -417,6 +440,11 @@ function msvc_generator:generate_project(project, all_projects)
   if project.FriendlyName then
     p:write('\t\t<ProjectName>', project.FriendlyName, '</ProjectName>', LF)
   end
+
+  if HOOKS.global_properties then
+    HOOKS.global_properties(p, project)
+  end
+
   p:write('\t</PropertyGroup>', LF)
   p:write('\t<PropertyGroup>', LF)
   if VERSION_YEAR == '2012' then
@@ -495,6 +523,10 @@ function msvc_generator:generate_project(project, all_projects)
     p:write('\t\t<NMakeIncludeSearchPath>', include_paths, ';$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>', LF)
     p:write('\t\t<NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>', LF)
     p:write('\t</PropertyGroup>', LF)
+  end
+
+  if HOOKS.pre_sources then
+    HOOKS.pre_sources(p, project)
   end
 
   -- Emit list of source files
@@ -682,19 +714,39 @@ function msvc_generator:generate_project_user(project)
   p:close()
 end
   
-function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints)
+function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints, ide_script)
   assert(config_tuples and #config_tuples > 0)
 
   if not hints then
     hints = {}
   end
 
+  local complained_mappings = {}
+
   self.msvc_platforms = {}
   for _, tuple in ipairs(config_tuples) do
-    local variant, platform = tuple.Variant, tuple.Config.Name:match('^(%w-)%-')
-    local cased_platform = platform:sub(1, 1):upper() .. platform:sub(2)
-    tuple.MsvcConfiguration = cased_platform .. " " .. variant.Name
-    tuple.MsvcPlatform = "Win32" -- Platform has to be Win32, or else VS2010 Express tries to load support libs for the other platform
+
+    tuple.MsvcConfiguration = tuple.Config.Name .. '-' .. tuple.Variant.Name
+
+    -- Use IdeGenerationHints.Msvc.PlatformMappings table to map tundra
+    -- configurations to MSVC platform names. Note that this isn't a huge deal
+    -- for building stuff as Tundra doesn't care about this setting. But it
+    -- might influence the choice of debugger and affect include paths for
+    -- things like Intellisense that certain users may care about.
+    local msvc_hints = hints.Msvc or {}
+    local mappings = msvc_hints.PlatformMappings or {}
+    tuple.MsvcPlatform = mappings[tuple.Config.Name]
+
+    -- If we didn't find anything, warn and then default to Win32, which VS
+    -- will always accept (or so one would assume)
+    if not tuple.MsvcPlatform then
+      tuple.MsvcPlatform = "Win32"
+      if not complained_mappings[tuple.Config.Name] then
+        printf("warning: No VS platform mapping for %s, mapping to Win32", tuple.Config.Name)
+        print("(Add one to IdeGenerationHints.Msvc.PlatformMappings to override)")
+        complained_mappings[tuple.Config.Name] = true
+      end
+    end
     tuple.MsvcName = tuple.MsvcConfiguration .. "|" .. tuple.MsvcPlatform
     self.msvc_platforms[tuple.MsvcPlatform] = true
   end
@@ -704,7 +756,7 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
   printf("Generating Visual Studio projects for %d configurations/variants", #config_tuples)
 
   -- Figure out where we're going to store the projects
-  local solutions, projects = make_project_data(raw_nodes, env, ".vcxproj", hints)
+  local solutions, projects = make_project_data(raw_nodes, env, ".vcxproj", hints, ide_script)
 
   local proj_lut = {}
   for _, p in ipairs(projects) do

@@ -105,5 +105,5 @@ function generate_ide_files(build_script_fn, ide_script)
   -- Pass the build tuples directly to the generator and let it write
   -- files.
   local env = make_default_env()
-  nodegen.generate_ide_files(build_tuples, build_data.DefaultNodes, raw_nodes, env, build_data.BuildData.IdeGenerationHints)
+  nodegen.generate_ide_files(build_tuples, build_data.DefaultNodes, raw_nodes, env, build_data.BuildData.IdeGenerationHints, ide_script)
 end
