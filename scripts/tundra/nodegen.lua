@@ -709,27 +709,64 @@ end
 -- match against the current build identifier like this:
 --
 -- { "a", "b", { "nixfile1", "nixfile2"; Config = "unix-*-*" }, "bar", { "debugfile"; Config = "*-*-debug" }, }
-function flatten_list(build_id, list)
+--
+-- If 'exclusive' is set, then:
+--   If 'build_id' is set, only values _with_ a 'Config' filter are included.
+--   If 'build_id' is nil, only values _without_ a 'Config' filter are included.
+function flatten_list(build_id, list, exclusive)
   if not list then return nil end
+  local filter_defined = build_id ~= nil
 
   -- Helper function to apply filtering recursively and append results to an
   -- accumulator table.
-  local function iter(data, accum)
-    local t = type(data)
-    if t == "table" and not getmetatable(data) then
-      if config_matches(data.Config, build_id) then
-        for _, item in ipairs(data) do
-          iter(item, accum)
+  local function iter(node, accum, filtered)
+    local node_type = type(node)
+    if node_type == "table" and not getmetatable(node) then
+      if node.Config then filtered = true end
+      if not filter_defined or config_matches(node.Config, build_id) then
+        for _, item in ipairs(node) do
+          iter(item, accum, filtered)
         end
       end
-    else
-      accum[#accum + 1] = data
+    elseif not exclusive or (filtered == filter_defined) then
+      accum[#accum + 1] = node
     end
   end
 
-  local result = {}
-  iter(list, result)
-  return result
+  local results = {}
+  iter(list, results, false)
+  return results
+end
+
+-- Processes an "Env" table. For each value, the corresponding variable in 
+-- 'env' is appended to if its "Config" filter matches 'build_id'. If 
+-- 'build_id' is nil, filtered values are skipped.
+function append_filtered_env_vars(env, values_to_append, build_id, exclusive)
+  for key, val in util.pairs(values_to_append) do
+    if type(val) == "table" then
+      local list = flatten_list(build_id, val, exclusive)
+      for _, subvalue in ipairs(list) do
+        env:append(key, subvalue)
+      end
+    elseif not (exclusive and build_id) then
+      env:append(key, val)
+    end
+  end
+end
+
+-- Like append_filtered_env_vars(), but replaces existing variables instead
+-- of appending to them.
+function replace_filtered_env_vars(env, values_to_replace, build_id, exclusive)
+  for key, val in util.pairs(values_to_replace) do
+    if type(val) == "table" then
+      local list = flatten_list(build_id, val, exclusive)
+      if #list > 0 then
+        env:replace(key, list)
+      end
+    elseif not (exclusive and build_id) then
+      env:replace(key, val)
+    end
+  end
 end
 
 function generate_ide_files(config_tuples, default_names, raw_nodes, env, hints, ide_script)

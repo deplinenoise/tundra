@@ -25,7 +25,6 @@ local function iter_inherits(config, name)
   end
 end
 
-
 function load_toolset(id, ...)
   -- For non-qualified packages, use a default package
   if not id:find("%.") then
@@ -41,7 +40,7 @@ function load_toolset(id, ...)
   pkg.apply(...)
 end
 
-local function setup_env(env, tuple, build_id)
+local function setup_env(env, build_data, tuple, build_id)
   local config = tuple.Config
   local variant_name = tuple.Variant.Name
 
@@ -83,44 +82,34 @@ local function setup_env(env, tuple, build_id)
     end
   end
 
-  for env_tab in iter_inherits(config, "Env") do
-    for key, val in util.pairs(env_tab) do
-      if type(val) == "table" then
-        local list = nodegen.flatten_list(build_id, val)
-        for _, subvalue in ipairs(list) do
-          env:append(key, subvalue)
-        end
-      else
-        env:append(key, val)
-      end
-    end
+  -- Incorporate matching values from the build data's Env and ReplaceEnv.
+  if build_data.Env then 
+    nodegen.append_filtered_env_vars(env, build_data.Env, build_id, false)
+  end
+  if build_data.ReplaceEnv then
+    nodegen.replace_filtered_env_vars(env, build_data.ReplaceEnv, build_id, false)
   end
 
+  -- Incorporate matching values from the config's Env and ReplaceEnv.
+  for env_tab in iter_inherits(config, "Env") do
+    nodegen.append_filtered_env_vars(env, env_tab, build_id, false)
+  end
   for env_tab in iter_inherits(config, "ReplaceEnv") do
-    for key, val in util.pairs(env_tab) do
-      if type(val) == "table" then
-        local list = nodegen.flatten_list(build_id, val)
-        if #list > 0 then
-          env:replace(key, list)
-        end
-      else
-        env:replace(key, val)
-      end
-    end
+    nodegen.replace_filtered_env_vars(env, env_tab, build_id, false)
   end
 
   -- Run post-setup functions. This typically sets up implicit make functions.
   env:run_setup_functions()
-
+  
   return env
 end
 
 
 
-local function setup_envs(tuple, configs, default_env)
+local function setup_envs(tuple, configs, default_env, build_data)
   local result = {}
 
-  local top_env = setup_env(default_env:clone(), tuple)
+  local top_env = setup_env(default_env:clone(), build_data, tuple)
   result["__default"] = top_env
 
   -- Use the same build id for all subconfigurations
@@ -135,7 +124,7 @@ local function setup_envs(tuple, configs, default_env)
     if not sub_tuple.Config then
       errorf("%s: no such config (in SubConfigs specification)", x)
     end
-    local sub_env = setup_env(default_env:clone(), sub_tuple, build_id)
+    local sub_env = setup_env(default_env:clone(), build_data, sub_tuple, build_id)
     result[moniker] = sub_env
   end
   return result
@@ -181,7 +170,7 @@ function generate_dag(build_tuples, args, passes, configs, default_env)
   -- configurations/variants.
   for _, tuple in pairs(build_tuples) do
     printf("Generating DAG for %s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
-    local envs = setup_envs(tuple, configs, default_env)
+    local envs = setup_envs(tuple, configs, default_env, args)
     local always_nodes, default_nodes, named_nodes = nodegen.generate_dag {
       Envs         = envs,
       Config       = tuple.Config,
