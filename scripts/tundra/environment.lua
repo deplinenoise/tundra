@@ -123,6 +123,12 @@ function envclass:append(key, value)
   self.vars[key] = result
 end
 
+function envclass:append_many(data)
+  for k, v in pairs(data) do
+    self:append(k, v)
+  end
+end
+
 function envclass:replace(key, value)
   if type(value) == "string" then
     value = { value }
@@ -143,9 +149,15 @@ function envclass:invalidate_memos(key)
 end
 
 function envclass:set_default(key, value)
-    if not self:has_key(key) then
-        self:set(key, value)
-    end
+  if not self:has_key(key) then
+    self:set(key, value)
+  end
+end
+
+function envclass:set_default_many(table)
+  for key, value in pairs(table) do
+    self:set_default(key, value)
+  end
 end
 
 function envclass:set(key, value)

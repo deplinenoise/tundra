@@ -40,7 +40,7 @@ _G.Options = {
   FullPaths = 1
 }
 
-local function make_default_env(build_data)
+local function make_default_env(build_data, add_unfiltered_vars)
   local default_env = environment.create()
 
   default_env:set_many {
@@ -56,12 +56,16 @@ local function make_default_env(build_data)
   end
 
   -- Add any unfiltered entries from the build data's Env and ReplaceEnv to the 
-  -- default environment.
-  if build_data.Env then 
-    nodegen.append_filtered_env_vars(default_env, build_data.Env, nil, true)
-  end
-  if build_data.ReplaceEnv then
-    nodegen.replace_filtered_env_vars(default_env, build_data.ReplaceEnv, nil, true)
+  -- default environment. For config environments, this will be false, because we
+  -- want to wait until the config's tools have run before adding any user
+  -- customizations.
+  if add_unfiltered_vars then
+    if build_data.Env then 
+      nodegen.append_filtered_env_vars(default_env, build_data.Env, nil, true)
+    end
+    if build_data.ReplaceEnv then
+      nodegen.replace_filtered_env_vars(default_env, build_data.ReplaceEnv, nil, true)
+    end
   end
 
   return default_env
@@ -69,13 +73,13 @@ end
 
 function generate_dag_data(build_script_fn)
   local build_data = buildfile.run(build_script_fn)
-
+  local env = make_default_env(build_data.BuildData, false)
   local raw_nodes, node_bindings = unitgen.generate_dag(
     build_data.BuildTuples,
     build_data.BuildData,
     build_data.Passes,
     build_data.Configs,
-    make_default_env(build_data.BuildData))
+    env)
 
   dagsave.save_dag_data(
     node_bindings,
@@ -97,7 +101,7 @@ function generate_ide_files(build_script_fn, ide_script)
   local raw_data     = assert(build_data.BuildData)
   local passes       = assert(build_data.Passes)
 
-  local env = make_default_env(raw_data)
+  local env = make_default_env(raw_data, true)
 
   if not ide_script:find('.', 1, true) then
     ide_script = 'tundra.ide.' .. ide_script

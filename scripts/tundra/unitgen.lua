@@ -82,14 +82,12 @@ local function setup_env(env, build_data, tuple, build_id)
     end
   end
 
-  -- Incorporate matching values from the build data's Env and ReplaceEnv, 
-  -- ignoring unfiltered values, which have already been added to the 
-  -- default environment.
+  -- Incorporate matching values from the build data's Env and ReplaceEnv.
   if build_data.Env then 
-    nodegen.append_filtered_env_vars(env, build_data.Env, build_id, true)
+    nodegen.append_filtered_env_vars(env, build_data.Env, build_id, false)
   end
   if build_data.ReplaceEnv then
-    nodegen.replace_filtered_env_vars(env, build_data.ReplaceEnv, build_id, true)
+    nodegen.replace_filtered_env_vars(env, build_data.ReplaceEnv, build_id, false)
   end
 
   -- Incorporate matching values from the config's Env and ReplaceEnv.
@@ -102,7 +100,7 @@ local function setup_env(env, build_data, tuple, build_id)
 
   -- Run post-setup functions. This typically sets up implicit make functions.
   env:run_setup_functions()
-
+  
   return env
 end
 

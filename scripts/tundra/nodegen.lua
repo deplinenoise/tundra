@@ -715,29 +715,30 @@ end
 --   If 'build_id' is nil, only values _without_ a 'Config' filter are included.
 function flatten_list(build_id, list, exclusive)
   if not list then return nil end
-  local use_filter = (build_id ~= nil)
+  local filter_defined = build_id ~= nil
 
   -- Helper function to apply filtering recursively and append results to an
   -- accumulator table.
-  local function iter(data, accum)
-    local t = type(data)
-    if t == "table" and not getmetatable(data) then
-      local has_filter = (data.Config ~= nil)
-      if (not exclusive or has_filter == use_filter) and 
-        config_matches(data.Config, build_id) then 
-          for _, item in ipairs(data) do
-            iter(item, accum)
-          end
+  local function iter(node, accum, filtered)
+    local node_type = type(node)
+    if node_type == "table" and not getmetatable(node) then
+      if node.Config then filtered = true end
+      if not filter_defined or config_matches(node.Config, build_id) then
+        for _, item in ipairs(node) do
+          iter(item, accum, filtered)
+        end
       end
-    elseif not (exclusive and use_filter) then
-      accum[#accum + 1] = data
+    elseif not exclusive or (filtered == filter_defined) then
+      print("FL ADD " .. node)
+      accum[#accum + 1] = node
+    else
+      print("FL SKIP " .. node)
     end
   end
 
-  local result = {}
-  
-  iter(list, result)
-  return result
+  local results = {}
+  iter(list, results, false)
+  return results
 end
 
 -- Processes an "Env" table. For each value, the corresponding variable in 
@@ -745,8 +746,10 @@ end
 -- 'build_id' is nil, filtered values are skipped.
 function append_filtered_env_vars(env, values_to_append, build_id, exclusive)
   for key, val in util.pairs(values_to_append) do
+      print(util.tostring {key, val})
     if type(val) == "table" then
       local list = flatten_list(build_id, val, exclusive)
+      print("FLATTENED " .. util.tostring{list, build_id, exclusive})
       for _, subvalue in ipairs(list) do
         env:append(key, subvalue)
       end
