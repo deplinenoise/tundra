@@ -729,10 +729,7 @@ function flatten_list(build_id, list, exclusive)
         end
       end
     elseif not exclusive or (filtered == filter_defined) then
-      print("FL ADD " .. node)
       accum[#accum + 1] = node
-    else
-      print("FL SKIP " .. node)
     end
   end
 
@@ -746,10 +743,8 @@ end
 -- 'build_id' is nil, filtered values are skipped.
 function append_filtered_env_vars(env, values_to_append, build_id, exclusive)
   for key, val in util.pairs(values_to_append) do
-      print(util.tostring {key, val})
     if type(val) == "table" then
       local list = flatten_list(build_id, val, exclusive)
-      print("FLATTENED " .. util.tostring{list, build_id, exclusive})
       for _, subvalue in ipairs(list) do
         env:append(key, subvalue)
       end
