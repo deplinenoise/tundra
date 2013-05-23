@@ -102,7 +102,7 @@ local function save_scanners(w, scanners)
     w:begin_object()
     w:write_string(s.Kind, 'Kind')
     w:begin_array("IncludePaths")
-    for _, path in ipairs(s.Paths) do
+    for _, path in util.nil_ipairs(s.Paths) do
       w:write_string(path)
     end
     w:end_array()
@@ -112,12 +112,12 @@ local function save_scanners(w, scanners)
       w:write_bool(s.UseSeparators, 'UseSeparators')
       w:write_bool(s.BareMeansSystem, 'BareMeansSystem')
       w:begin_array('Keywords')
-      for _, kw in ipairs(s.Keywords) do
+      for _, kw in util.nil_ipairs(s.Keywords) do
         w:write_string(kw)
       end
       w:end_array()
       w:begin_array('KeywordsNoFollow')
-      for _, kw in ipairs(s.KeywordsNoFollow) do
+      for _, kw in util.nil_ipairs(s.KeywordsNoFollow) do
         w:write_string(kw)
       end
       w:end_array()
