@@ -239,7 +239,11 @@ function envclass:interpolate(str, vars)
       chain = chain.parent
     end
 
-    printf("Env lookup failed for %q. Available keys:", var)
+    printf("Env lookup failed for %q. Available keys in call:", var)
+    for k, v in util.nil_pairs(vars) do
+      printf("  %s = %s", k, util.tostring(v))
+    end
+    printf("Available keys in environment:", var)
     local chain = self
     while chain do
       local keys = util.table_keys(chain.vars)
