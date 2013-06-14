@@ -867,15 +867,57 @@ bool DriverSaveBuildState(Driver* self)
     }
   };
 
+  auto save_node_state_old = [=](int build_result, const HashDigest* input_signature, const NodeStateData* src_node, const HashDigest* guid) -> void
+  {
+    BinarySegmentWrite(guid_seg, (const char*) guid, sizeof(HashDigest));
+
+    BinarySegmentWriteInt32(state_seg, build_result);
+    BinarySegmentWrite(state_seg, (const char*) input_signature, sizeof(HashDigest));
+
+    int32_t file_count = src_node->m_OutputFiles.GetCount();
+    BinarySegmentWriteInt32(state_seg, file_count);
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+    for (int32_t i = 0; i < file_count; ++i)
+    {
+      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+      BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i]);
+    }
+
+    file_count = src_node->m_AuxOutputFiles.GetCount();
+    BinarySegmentWriteInt32(state_seg, file_count);
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+    for (int32_t i = 0; i < file_count; ++i)
+    {
+      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+      BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i]);
+    }
+  };
+
   auto save_new = [=, &entry_count](size_t index) {
     const NodeState  *elem      = new_state + index;
     const NodeData   *src_elem  = elem->m_MmapData;
     const int         src_index = int(src_elem - src_data);
     const HashDigest *guid      = src_guids + src_index;
 
-    save_node_state(elem->m_BuildResult, &elem->m_InputSignature, src_elem, guid);
-    ++entry_count;
-    ++g_Stats.m_StateSaveNew;
+    // If this node never computed an input signature (due to an error, or build cancellation), copy the old build progress over to retain the history.
+    // Only do this if the output files and aux output files agree with the previously stored build state.
+    if (elem->m_Progress < BuildProgress::kUnblocked)
+    {
+      if (const HashDigest* old_guid = BinarySearch(old_guids, old_count, *guid))
+      {
+        size_t old_index = old_guid - old_guids;
+        const NodeStateData* old_state_data = old_state + old_index;
+        save_node_state_old(old_state_data->m_BuildResult, &old_state_data->m_InputSignature, old_state_data, guid);
+        ++entry_count;
+        ++g_Stats.m_StateSaveNew;
+      }
+    }
+    else
+    {
+      save_node_state(elem->m_BuildResult, &elem->m_InputSignature, src_elem, guid);
+      ++entry_count;
+      ++g_Stats.m_StateSaveNew;
+    }
   };
 
   auto save_old = [=, &entry_count](size_t index) {
