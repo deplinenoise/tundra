@@ -63,6 +63,7 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_Clean         = false;
   self->m_Rebuild       = false;
   self->m_IdeGen        = false;
+  self->m_DebugSigning  = false;
   self->m_ThreadCount   = GetCpuCount();
   self->m_WorkingDir    = nullptr;
 }
@@ -713,6 +714,8 @@ BuildResult::Enum DriverBuild(Driver* self)
 #endif
 
   // Initialize build queue
+  Mutex debug_signing_mutex;
+
   BuildQueueConfig queue_config;
   queue_config.m_Flags              = 0;
   queue_config.m_Heap               = &self->m_Heap;
@@ -734,6 +737,18 @@ BuildResult::Enum DriverBuild(Driver* self)
   if (!self->m_Options.m_Quiet)
   {
     queue_config.m_Flags |= BuildQueueConfig::kFlagEchoAnnotations;
+  }
+
+  if (self->m_Options.m_DebugSigning)
+  {
+    MutexInit(&debug_signing_mutex);
+    queue_config.m_FileSigningLogMutex = &debug_signing_mutex;
+    queue_config.m_FileSigningLog      = fopen("signing-debug.txt", "w");
+  }
+  else
+  {
+    queue_config.m_FileSigningLogMutex = nullptr;
+    queue_config.m_FileSigningLog      = nullptr;
   }
 
 #if ENABLED(CHECKED_BUILD)
@@ -769,6 +784,12 @@ BuildResult::Enum DriverBuild(Driver* self)
     global_node_index += pass_nodes;
 
     Log(kInfo, "end pass %s", pass_name);
+  }
+
+  if (self->m_Options.m_DebugSigning)
+  {
+    fclose((FILE*)queue_config.m_FileSigningLog);
+    MutexDestroy(&debug_signing_mutex);
   }
 
   // Shut down build queue

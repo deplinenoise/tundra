@@ -46,6 +46,8 @@ namespace t2
     DigestCache    *m_DigestCache;
     int             m_ShaDigestExtensionCount;
     const uint32_t* m_ShaDigestExtensions;
+    void*           m_FileSigningLog;
+    Mutex*          m_FileSigningLogMutex;
   };
 
   struct BuildQueue;

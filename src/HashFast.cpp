@@ -1,5 +1,8 @@
 #include "Hash.hpp"
 
+#include <cstdio>
+#include <cctype>
+
 // This is a 128-bit hash adapted from the xxhash project - https://code.google.com/p/xxhash/ 
 //
 // The idea is to compute 4 parallel 32-bit xxhash values and stash them next to each other.
@@ -18,10 +21,39 @@ static inline uint32_t RotateLeft(uint32_t value, int amount)
   return (value << amount) | (value >> (32 - amount));
 }
 
-void HashBlock(const uint8_t* block, HashStateImpl* state)
+void HashBlock(const uint8_t* block, HashStateImpl* state, void* debug_file_)
 {
   const uint32_t* p = (const uint32_t*) block;
   const size_t buffer_size = sizeof(HashState().m_Buffer);
+
+  if (FILE* debug_file = (FILE*) debug_file_)
+  {
+    const size_t line_size = 16;
+
+    for (size_t i = 0; i < buffer_size; i += line_size)
+    {
+      for (size_t x = 0; x < line_size; ++x)
+      {
+        int ch = block[x + i];
+        static const char hex[] = "0123456789ABCDEF";
+        fputc(hex[(ch & 0xf0) >> 4], debug_file);
+        fputc(hex[(ch & 0x0f)     ], debug_file);
+        fputc(' ', debug_file);
+      }
+
+      fputs(" | ", debug_file);
+
+      for (size_t x = 0; x < line_size; ++x)
+      {
+        int ch = block[x + i];
+        if (isalnum(ch) || ispunct(ch) || ' ' == ch)
+          fputc(ch, debug_file);
+        else
+          fputc('.', debug_file);
+      }
+      fputc('\n', debug_file);
+    }
+  }
 
   static_assert((buffer_size & 63) == 0, "buffer must be multiple of 64 bytes");
 

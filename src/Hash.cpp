@@ -1,12 +1,13 @@
 #include "Hash.hpp"
 
 #include <cstring>
+#include <cstdio>
 
 namespace t2
 {
 
 void HashInitImpl(HashStateImpl* impl);
-void HashBlock(const uint8_t* data, HashStateImpl* state);
+void HashBlock(const uint8_t* data, HashStateImpl* state, void* debug_file);
 void HashFinalizeImpl(HashStateImpl* self, HashDigest* digest);
 
 void HashUpdate(HashState* self, const void *data_in, size_t size)
@@ -31,13 +32,13 @@ void HashUpdate(HashState* self, const void *data_in, size_t size)
 
       if (used == sizeof self->m_Buffer)
       {
-        HashBlock(buffer, state);
+        HashBlock(buffer, state, self->m_DebugFile);
         used = 0;
       }
     }
     else
     {
-      HashBlock(data, state);
+      HashBlock(data, state, self->m_DebugFile);
       data   += sizeof self->m_Buffer;
       remain -= sizeof self->m_Buffer;
     }
@@ -80,6 +81,15 @@ void HashInit(HashState* self)
 {
   self->m_MsgSize = 0;
   self->m_BufUsed = 0;
+  self->m_DebugFile = nullptr;
+  HashInitImpl(&self->m_StateImpl);
+}
+
+void HashInitDebug(HashState* self, void* fh)
+{
+  self->m_MsgSize = 0;
+  self->m_BufUsed = 0;
+  self->m_DebugFile = fh;
   HashInitImpl(&self->m_StateImpl);
 }
 

@@ -33,6 +33,7 @@ struct DriverOptions
   bool        m_IdeGen;
   bool        m_Clean;
   bool        m_Rebuild;
+  bool        m_DebugSigning;
   int         m_ThreadCount;
   const char *m_WorkingDir;
 };

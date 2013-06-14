@@ -61,6 +61,8 @@ static const struct OptionTemplate
     "Enable spammy verbose build messages" },
   { 'D', "debug", OptionType::kBool, offsetof(t2::DriverOptions, m_DebugMessages),
     "Enable debug messages" },
+  { 'S', "debug-signing", OptionType::kBool, offsetof(t2::DriverOptions, m_DebugSigning),
+    "Generate an extensive log of signature generation" },
   { 's', "stats", OptionType::kBool, offsetof(t2::DriverOptions, m_DisplayStats),
     "Display stats" },
   { 'C', "working-dir", OptionType::kString, offsetof(t2::DriverOptions, m_WorkingDir),

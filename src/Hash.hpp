@@ -156,10 +156,14 @@ struct ALIGN(16) HashState
   uint64_t      m_MsgSize;
   size_t        m_BufUsed;
   uint8_t       m_Buffer[64];
+  void*         m_DebugFile;
 };
 
 // Initialize hashing state.
 void HashInit(HashState* h);
+
+// Initialize hashing state, appending debug data to a file.
+void HashInitDebug(HashState* h, void* file_handle);
 
 // Add arbitrary data to be hashed.
 void HashUpdate(HashState* h, const void* data, size_t size);

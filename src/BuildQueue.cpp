@@ -229,7 +229,6 @@ namespace t2
   {
     CHECK(AllDependenciesReady(queue, node));
 
-
     MutexUnlock(queue_lock);
 
     const BuildQueueConfig& config = queue->m_Config;
@@ -239,7 +238,18 @@ namespace t2
     const NodeData* node_data = node->m_MmapData;
 
     HashState sighash;
-    HashInit(&sighash);
+    FILE* debug_log = (FILE*) queue->m_Config.m_FileSigningLog;
+
+    if (debug_log)
+    {
+      MutexLock(queue->m_Config.m_FileSigningLogMutex);
+      fprintf(debug_log, "input_sig(\"%s\"):\n", node_data->m_Annotation.Get());
+      HashInitDebug(&sighash, debug_log);
+    }
+    else
+    {
+      HashInit(&sighash);
+    }
 
     // Start with command line action. If that changes, we'll definitely have to rebuild.
     HashAddString(&sighash, node_data->m_Action);
@@ -287,6 +297,14 @@ namespace t2
     }
 
     HashFinalize(&sighash, &node->m_InputSignature);
+
+    if (debug_log)
+    {
+      char sig[kDigestStringSize];
+      DigestToString(sig, node->m_InputSignature);
+      fprintf(debug_log, "  => %s\n", sig);
+      MutexUnlock(queue->m_Config.m_FileSigningLogMutex);
+    }
 
     // Figure out if we need to rebuild this node.
     const NodeStateData* prev_state = node->m_MmapState;
