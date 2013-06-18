@@ -69,6 +69,9 @@ static const struct OptionTemplate
     "Set working directory before building" },
   { 'h', "help", OptionType::kBool, offsetof(t2::DriverOptions, m_ShowHelp),
     "Show help" },
+#if defined(TUNDRA_WIN32)
+  { 'U', "unprotected", OptionType::kBool, offsetof(t2::DriverOptions, m_RunUnprotected), "Run unprotected (same process group - for debugging)" },
+#endif
   { 'g', "ide-gen", OptionType::kBool, offsetof(t2::DriverOptions, m_IdeGen),
     "Run IDE file generator and quit" }
 };
@@ -219,6 +222,10 @@ static void ShowHelp()
   for (size_t i = 0; i < ARRAY_SIZE(g_OptionTemplates); ++i)
   {
     const OptionTemplate* t = g_OptionTemplates + i;
+
+    if (!t->m_Help)
+      continue;
+
     char long_text[256];
     if (t->m_Type == OptionType::kInt)
       snprintf(long_text, sizeof long_text, "%s=<integer>", t->m_LongName);
@@ -238,11 +245,6 @@ int main(int argc, char* argv[])
 
   InitCommon();
 
-  uint64_t start_time = TimerGet();
-
-  SignalHandlerInit();
-  ExecInit();
-
   Driver driver;
   DriverOptions options;
 
@@ -255,6 +257,76 @@ int main(int argc, char* argv[])
     ShowHelp();
     return 1;
   }
+
+#if defined(TUNDRA_WIN32)
+  if (!options.m_RunUnprotected && nullptr == getenv("_TUNDRA2_PARENT_PROCESS_HANDLE"))
+  {
+    // Re-launch Tundra2 as a child in a new process group. The child will be passed a handle to our process so it can
+    // watch for us dying, but not be affected by sudden termination itself.
+    // This ridiculous tapdance is there to prevent hard termination by things like visual studio and the mingw shell.
+    // Because Tundra needs to save build state when shutting down, we need this.
+
+    HANDLE myproc = GetCurrentProcess();
+    HANDLE self_copy = NULL;
+    if (!DuplicateHandle(myproc, myproc, myproc, &self_copy, 0, TRUE, DUPLICATE_SAME_ACCESS))
+    {
+      CroakErrno("DuplicateHandle() failed");
+    }
+
+    // Expose handle in the environment for the child process.
+    {
+      char handle_value[128];
+      _snprintf(handle_value, sizeof handle_value, "_TUNDRA2_PARENT_PROCESS_HANDLE=%016I64x", uint64_t(self_copy));
+      _putenv(handle_value);
+    }
+
+    STARTUPINFOA startup_info;
+    PROCESS_INFORMATION proc_info;
+    ZeroMemory(&startup_info, sizeof startup_info);
+    ZeroMemory(&proc_info, sizeof proc_info);
+    startup_info.cb = sizeof startup_info;
+
+    HANDLE job_handle = CreateJobObject(NULL,  NULL);
+
+    // Set job object limits so children can break out.
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
+    ZeroMemory(&limits, sizeof(limits));
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_BREAKAWAY_OK | JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
+
+    if (!SetInformationJobObject(job_handle, JobObjectExtendedLimitInformation, &limits, sizeof limits) )
+      CroakErrno("couldn't set job info");
+
+    if (!CreateProcessA(NULL, GetCommandLineA(), NULL, NULL, TRUE, CREATE_BREAKAWAY_FROM_JOB|CREATE_NEW_PROCESS_GROUP|CREATE_SUSPENDED, NULL, NULL, &startup_info, &proc_info))
+      CroakErrno("CreateProcess() failed");
+
+    AssignProcessToJobObject(job_handle, proc_info.hProcess);
+    ResumeThread(proc_info.hThread);
+
+    WaitForSingleObject(proc_info.hProcess, INFINITE);
+
+    DWORD exit_code = 1;
+    GetExitCodeProcess(proc_info.hThread, &exit_code);
+
+    CloseHandle(proc_info.hThread);
+    CloseHandle(proc_info.hProcess);
+    ExitProcess(exit_code);
+  }
+  else if (const char* handle_str = getenv("_TUNDRA2_PARENT_PROCESS_HANDLE"))
+  {
+    HANDLE h = (HANDLE) _strtoi64(handle_str, NULL, 16);
+    SignalHandlerInitWithParentProcess(h);
+  }
+  else
+  {
+    SignalHandlerInit();
+  }
+#else
+  SignalHandlerInit();
+#endif
+
+  uint64_t start_time = TimerGet();
+
+  ExecInit();
 
   if (options.m_WorkingDir)
   {

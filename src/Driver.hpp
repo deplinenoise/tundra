@@ -34,6 +34,9 @@ struct DriverOptions
   bool        m_Clean;
   bool        m_Rebuild;
   bool        m_DebugSigning;
+#if defined(TUNDRA_WIN32)
+  bool        m_RunUnprotected;
+#endif
   int         m_ThreadCount;
   const char *m_WorkingDir;
 };

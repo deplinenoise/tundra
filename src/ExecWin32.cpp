@@ -26,6 +26,7 @@
 #include "Mutex.hpp"
 #include "BuildQueue.hpp"
 #include "Atomic.hpp"
+#include "SignalHandler.hpp"
 
 #include <algorithm>
 
@@ -314,7 +315,6 @@ PrintLineToHandle(HANDLE h, const char *str)
 
 static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_vars, int env_count, const char *annotation, const char* echo_cmdline)
 {
-  int result_code = 1;
   char buffer[8192];
   char env_block[128*1024];
   HANDLE output_handle;
@@ -358,17 +358,44 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
   sinfo.hStdOutput = sinfo.hStdError = output_handle;
   sinfo.dwFlags = STARTF_USESTDHANDLES;
 
-  if (CreateProcessA(NULL, buffer, NULL, NULL, TRUE, 0, env_block, NULL, &sinfo, &pinfo))
+  HANDLE job_object = CreateJobObject(NULL, NULL);
+  if (!job_object)
   {
-    DWORD result;
+    char error[256];
+    _snprintf(error, sizeof error, "ERROR: Couldn't create job object. Win32 error = %d", (int) GetLastError());
+    PrintLineToHandle(output_handle, error);
+    return 1;
+  }
+
+  DWORD result_code = 1;
+
+  if (CreateProcessA(NULL, buffer, NULL, NULL, TRUE, CREATE_SUSPENDED, env_block, NULL, &sinfo, &pinfo))
+  {
+    AssignProcessToJobObject(job_object, pinfo.hProcess);
+    ResumeThread(pinfo.hThread);
+
     CloseHandle(pinfo.hThread);
 
-    while (WAIT_OBJECT_0 != WaitForSingleObject(pinfo.hProcess, INFINITE))
-      /* nop */;
+    HANDLE handles[2];
+    handles[0] = pinfo.hProcess;
+    handles[1] = SignalGetHandle();
 
-    GetExitCodeProcess(pinfo.hProcess, &result);
+    switch (WaitForMultipleObjects(2, handles, FALSE, INFINITE))
+    {
+    case WAIT_OBJECT_0:
+      // OK - command ran to completion.
+      GetExitCodeProcess(pinfo.hProcess, &result_code);
+      break;
+
+    case WAIT_OBJECT_0 + 1:
+      // We have been interrupted - kill the program.
+      TerminateJobObject(job_object, 1);
+      WaitForSingleObject(pinfo.hProcess, INFINITE);
+      // Leave result_code at 1 to indicate failed build.
+      break;
+    }
+
     CloseHandle(pinfo.hProcess);
-    result_code = (int) result;
   }
   else
   {
@@ -377,9 +404,11 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
     PrintLineToHandle(output_handle, error);
   }
 
+  CloseHandle(job_object);
+
   FreeFd(job_id, output_handle);
 
-  return result_code;
+  return (int) result_code;
 }
 
 ExecResult ExecuteProcess(

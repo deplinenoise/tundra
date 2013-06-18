@@ -66,6 +66,9 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_DebugSigning  = false;
   self->m_ThreadCount   = GetCpuCount();
   self->m_WorkingDir    = nullptr;
+#if defined(TUNDRA_WIN32)
+  self->m_RunUnprotected = false;
+#endif
 }
 
 // Helper routine to load frozen data into RAM via memory mapping
@@ -719,7 +722,7 @@ BuildResult::Enum DriverBuild(Driver* self)
   BuildQueueConfig queue_config;
   queue_config.m_Flags              = 0;
   queue_config.m_Heap               = &self->m_Heap;
-  queue_config.m_ThreadCount        = self->m_Options.m_ThreadCount;
+  queue_config.m_ThreadCount        = (int) self->m_Options.m_ThreadCount;
   queue_config.m_NodeData           = self->m_DagData->m_NodeData;
   queue_config.m_NodeState          = self->m_Nodes.m_Storage;
   queue_config.m_MaxNodes           = (int) self->m_Nodes.m_Size;

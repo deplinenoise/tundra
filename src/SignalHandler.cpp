@@ -2,6 +2,7 @@
 #include "Config.hpp"
 #include "Mutex.hpp"
 #include "ConditionVar.hpp"
+#include <stdio.h>
 
 #if defined(TUNDRA_UNIX)
 #include <signal.h>
@@ -11,6 +12,10 @@
 
 namespace t2
 {
+
+#if defined(TUNDRA_WIN32)
+HANDLE s_SignalHandle;
+#endif
 
 static struct
 {
@@ -40,6 +45,12 @@ void SignalSet(const char* reason)
     CondBroadcast(cvar);
 
   MutexUnlock(&s_SignalMutex);
+
+#if defined(TUNDRA_WIN32)
+  // Also signal this event - build threads waiting on external programs are stuck in WaitForMultipleObjects()
+  // and can't wait for a condition variable at the same time.
+  SetEvent(s_SignalHandle);
+#endif
 }
 
 #if defined(TUNDRA_UNIX)
@@ -109,11 +120,37 @@ void SignalHandlerInit()
 		pthread_detach(sigthread);
 	}
 #elif defined(TUNDRA_WIN32)
+  s_SignalHandle = CreateEvent(NULL, TRUE, FALSE, NULL);
   SetConsoleCtrlHandler(WindowsSignalHandlerFunc, TRUE);
 #else
 #error Meh
 #endif
 }
+
+#if defined(TUNDRA_WIN32)
+static DWORD WINAPI CanaryWatcherThread(LPVOID parent_handle)
+{
+  WaitForSingleObject(parent_handle, INFINITE);
+  SignalSet("Process terminated");
+  return 0;
+}
+
+void* SignalGetHandle()
+{
+  return s_SignalHandle;
+}
+
+void SignalHandlerInitWithParentProcess(void* parent_handle)
+{
+  SignalHandlerInit();
+  HANDLE t = CreateThread(NULL, 16 * 1024, CanaryWatcherThread, parent_handle, 0, NULL);
+
+  if (nullptr == t)
+    CroakErrno("Failed to create canary watcher thread");
+
+  CloseHandle(t);
+}
+#endif
 
 void SignalHandlerShutdown()
 {
