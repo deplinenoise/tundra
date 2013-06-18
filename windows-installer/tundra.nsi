@@ -23,13 +23,13 @@ InstallDirRegKey HKLM "Software\Andreas Fredriksson\Tundra 2.0" "Install_Dir"
 RequestExecutionLevel admin
 
 Function .onInit
-	UserInfo::GetAccountType
-	pop $0
-	${If} $0 != "admin" ;Require admin rights on NT4+
-    MessageBox mb_iconstop "Administrator rights required!"
-    SetErrorLevel 740 ;ERROR_ELEVATION_REQUIRED
-    Quit
-	${EndIf}
+  UserInfo::GetAccountType
+  pop $0
+  ${If} $0 != "admin" ;Require admin rights on NT4+
+  MessageBox mb_iconstop "Administrator rights required!"
+  SetErrorLevel 740 ;ERROR_ELEVATION_REQUIRED
+  Quit
+  ${EndIf}
 FunctionEnd
 
 ; MUI setup
@@ -71,9 +71,10 @@ Section "Tundra 2.0 (required)"
 
   SetOutPath $INSTDIR\scripts
   File /r "scripts\*.lua"
+  File /r "scripts\*.xml"
 
-	SetOutPath $INSTDIR\installer-support
-	File "windows-installer\PathControl.exe"
+  SetOutPath $INSTDIR\installer-support
+  File "windows-installer\PathControl.exe"
   
   ; Write the installation path into the registry
   WriteRegStr HKLM "SOFTWARE\Andreas Fredriksson\Tundra 2.0" "Install_Dir" "$INSTDIR"
@@ -105,16 +106,16 @@ Section "Examples"
 SectionEnd
 
 Section "Add Tundra to PATH"
-	; Clear error flag
-	IfErrors continue
+  ; Clear error flag
+  IfErrors continue
 continue:
 
-	ExecWait '"$INSTDIR\installer-support\PathControl.exe" /ADD "$INSTDIR\bin"' $0
-	IfErrors env_error
-	goto done
+ExecWait '"$INSTDIR\installer-support\PathControl.exe" /ADD "$INSTDIR\bin"' $0
+IfErrors env_error
+goto done
 
 env_error:
-	MessageBox MB_OK 'Failed to add "$INSTDIR\bin" to the system path :('
+  MessageBox MB_OK 'Failed to add "$INSTDIR\bin" to the system path :('
 done:
 	
 SectionEnd
@@ -125,8 +126,8 @@ SectionEnd
 
 Section "Uninstall"
 
-	; This is harmless if Tundra isn't in the path; it won't change anything.
-	ExecWait '"$INSTDIR\installer-support\PathControl.exe" /REMOVE "$INSTDIR\bin"'
+  ; This is harmless if Tundra isn't in the path; it won't change anything.
+  ExecWait '"$INSTDIR\installer-support\PathControl.exe" /REMOVE "$INSTDIR\bin"'
   
   ; Remove registry keys
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tundra 2.0"
