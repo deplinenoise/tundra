@@ -549,6 +549,12 @@ function msvc_generator:generate_project(project, all_projects)
 
   p:write('\t<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />', LF)
 
+  if VERSION_YEAR == "2012" then
+    -- Import helper msbuild stuff to make build aborting work propertly in VS2012
+    local xml = path.normalize(TundraScriptDir .. '/tundra/ide/msvc-rules.xml')
+    p:write('\t<Import Project="', xml, '" />', LF)
+  end
+
   p:write('</Project>', LF)
   p:close()
 

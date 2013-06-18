@@ -525,6 +525,9 @@ lua_State* CreateLuaState(MemAllocHeap* lua_heap)
 
     lua_pushstring(L, ppath);
     lua_setfield(L, -2, "path");
+
+    lua_pushstring(L, homedir);
+    lua_setglobal(L, "TundraScriptDir");
   }
 
   /* native table on the top of the stack */
