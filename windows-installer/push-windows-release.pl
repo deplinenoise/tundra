@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use File::Slurp;
+use Digest::MD5;
 
 my $tag = shift or die "Need a tag";
 
@@ -24,10 +25,12 @@ for my $f (qw(Tundra-Setup.exe Tundra-Binaries.zip)) {
   my $mod_name = $f;
   $mod_name =~ s/^(.*)\.([^.]*)$/$1-$tag.$2/;
   push @server_names, $mod_name;
-  my $md5 = `md5 build.mingw/$f`;
-  ($md5) = ($md5 =~ /= ([A-Fa-f0-9]{32})\s*$/);
-  chomp $md5;
-  push @md5s, $md5;
+  open my $fh, '<', "build.mingw/$f" or die;
+  binmode $fh;
+  my $context = Digest::MD5->new;
+  $context->addfile($fh);
+  close $fh;
+  push @md5s, $context->hexdigest;
   system "s3cmd put --acl-public build.mingw/$f s3://tundra2-builds/$mod_name\n";
   die "failed to upload $f" unless $? == 0;
 }
