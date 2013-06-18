@@ -305,7 +305,7 @@ int main(int argc, char* argv[])
     WaitForSingleObject(proc_info.hProcess, INFINITE);
 
     DWORD exit_code = 1;
-    GetExitCodeProcess(proc_info.hThread, &exit_code);
+    GetExitCodeProcess(proc_info.hProcess, &exit_code);
 
     CloseHandle(proc_info.hThread);
     CloseHandle(proc_info.hProcess);
