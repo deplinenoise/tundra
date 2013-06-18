@@ -80,7 +80,7 @@
                 }
 
                 p.WaitForExit();
-                return m_Cancel ? p.ExitCode == 0 : false;
+                return m_Cancel ? false : p.ExitCode == 0;
               }
             }
             catch(Exception e)
