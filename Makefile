@@ -104,15 +104,24 @@ UNITTEST_SOURCES = \
 
 TUNDRA_SOURCES = Main.cpp
 
-LUA_OBJECTS       = $(addprefix $(BUILDDIR)/,$(LUA_SOURCES:.c=.o))
-LIBTUNDRA_OBJECTS = $(addprefix $(BUILDDIR)/,$(LIBTUNDRA_SOURCES:.cpp=.o))
-LIBTUNDRA_OBJECTS:= $(LIBTUNDRA_OBJECTS:.c=.o)
-T2LUA_OBJECTS     = $(addprefix $(BUILDDIR)/,$(T2LUA_SOURCES:.cpp=.o))
-T2INSPECT_OBJECTS = $(addprefix $(BUILDDIR)/,$(T2INSPECT_SOURCES:.cpp=.o))
-UNITTEST_OBJECTS  = $(addprefix $(BUILDDIR)/,$(UNITTEST_SOURCES:.cpp=.o))
-TUNDRA_OBJECTS    = $(addprefix $(BUILDDIR)/,$(TUNDRA_SOURCES:.cpp=.o))
+PATHCONTROL_SOURCES = PathControl.cpp
 
-ALL_SOURCES = $(TUNDRA_SOURCES) $(LIBTUNDRA_SOURCES) $(LUA_SOURCES) $(T2LUA_SOURCES) $(T2INSPECT_SOURCES)
+LUA_OBJECTS       	 := $(addprefix $(BUILDDIR)/,$(LUA_SOURCES:.c=.o))
+LIBTUNDRA_OBJECTS 	 := $(addprefix $(BUILDDIR)/,$(LIBTUNDRA_SOURCES:.cpp=.o))
+LIBTUNDRA_OBJECTS		 := $(LIBTUNDRA_OBJECTS:.c=.o)
+T2LUA_OBJECTS     	 := $(addprefix $(BUILDDIR)/,$(T2LUA_SOURCES:.cpp=.o))
+T2INSPECT_OBJECTS 	 := $(addprefix $(BUILDDIR)/,$(T2INSPECT_SOURCES:.cpp=.o))
+UNITTEST_OBJECTS  	 := $(addprefix $(BUILDDIR)/,$(UNITTEST_SOURCES:.cpp=.o))
+TUNDRA_OBJECTS    	 := $(addprefix $(BUILDDIR)/,$(TUNDRA_SOURCES:.cpp=.o))
+
+ALL_SOURCES = \
+							$(TUNDRA_SOURCES) \
+							$(LIBTUNDRA_SOURCES) \
+						 	$(LUA_SOURCES) \
+							$(T2LUA_SOURCES) \
+							$(T2INSPECT_SOURCES) \
+							$(PATHCONTROL_SOURCES) 
+
 ALL_DEPS    = $(ALL_SOURCES:.cpp=.d)
 ALL_DEPS   := $(addprefix $(BUILDDIR)/,$(ALL_DEPS:.c=.d))
 
@@ -125,8 +134,7 @@ UNINSTALL_DIRS = $(INSTALL_SCRIPT)
 
 FILES_BIN = tundra2$(EXESUFFIX) t2-lua$(EXESUFFIX) t2-inspect$(EXESUFFIX)
 
-all: $(BUILDDIR) \
-	   $(BUILDDIR)/tundra2$(EXESUFFIX) \
+all: $(BUILDDIR)/tundra2$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-lua$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-unittest$(EXESUFFIX)
@@ -148,10 +156,12 @@ $(BUILDDIR):
 	$(MKDIR) $(BUILDDIR)
 
 $(BUILDDIR)/%.o: %.c
+	@mkdir -p $(BUILDDIR)
 	$(E) "CC $<"
 	$(Q) $(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
 $(BUILDDIR)/%.o: %.cpp
+	@mkdir -p $(BUILDDIR)
 	$(E) "CXX $<"
 	$(Q) $(CXX) -c -o $@ $(CPPFLAGS) $(CXXFLAGS) $<
 
@@ -178,6 +188,11 @@ $(BUILDDIR)/t2-inspect$(EXESUFFIX): $(T2INSPECT_OBJECTS) $(BUILDDIR)/libtundra.a
 $(BUILDDIR)/t2-unittest$(EXESUFFIX): $(UNITTEST_OBJECTS) $(BUILDDIR)/libtundra.a
 	$(E) "LINK $@"
 	$(Q) $(CXX) -o $@ $(CXXLIBFLAGS) $(UNITTEST_OBJECTS) $(LDFLAGS)
+
+$(BUILDDIR)/PathControl$(EXESUFFIX): PathControl.cpp
+	@mkdir -p $(BUILDDIR)
+	$(E) "LINK $@"
+	$(Q) $(CXX) -o $@ $(CPPFLAGS) $(CXXFLAGS) $(CXXLIBFLAGS) -DUNICODE $^
 
 install:
 	@echo "Installing Tundra2 to $(INSTALL_BASE)"
@@ -206,6 +221,7 @@ INSTALL_PRODUCTS = \
 	$(BUILDDIR)/tundra2$(EXESUFFIX) \
 	$(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 	$(BUILDDIR)/t2-lua$(EXESUFFIX) \
+	$(BUILDDIR)/PathControl$(EXESUFFIX) \
 	$(BUILDDIR)/tundra-manual.html \
 	$(ALL_SCRIPTS)
 
@@ -228,12 +244,8 @@ $(BUILDDIR)/Tundra-Binaries.zip: $(INSTALL_PRODUCTS)
 
 $(BUILDDIR)/Tundra-Setup.exe: \
 	$(INSTALL_PRODUCTS) \
-	windows-installer/PathControl.exe \
 	windows-installer/tundra.nsi
 	makensis -NOCD -DBUILDDIR=$(BUILDDIR) windows-installer/tundra.nsi > $(BUILDDIR)/nsis.log 2>&1
-
-windows-installer/PathControl.exe:
-	wget --output-document=$@ https://s3-us-west-2.amazonaws.com/tundra2-misc/PathControl.exe 
 
 .PHONY: clean all install uninstall installer win-zip
 

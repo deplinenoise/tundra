@@ -1,3 +1,5 @@
+; vim: syntax=nsis ts=2 sw=2 expandtab
+
 ; Pull in Modern UI
 !include "MUI2.nsh"
 
@@ -74,7 +76,7 @@ Section "Tundra 2.0 (required)"
   File /r "scripts\*.xml"
 
   SetOutPath $INSTDIR\installer-support
-  File "windows-installer\PathControl.exe"
+  File "${BUILDDIR}\PathControl.exe"
   
   ; Write the installation path into the registry
   WriteRegStr HKLM "SOFTWARE\Andreas Fredriksson\Tundra 2.0" "Install_Dir" "$INSTDIR"
