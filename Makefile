@@ -215,7 +215,7 @@ clean:
 $(BUILDDIR)/tundra-manual.html: doc/manual.asciidoc
 	asciidoc -o $@ $^
 
-ALL_SCRIPTS := $(shell find scripts -name \*.lua)
+ALL_SCRIPTS := $(shell find scripts -name \*.lua -or -name \*.xml)
 
 INSTALL_PRODUCTS = \
 	$(BUILDDIR)/tundra2$(EXESUFFIX) \
