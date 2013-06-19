@@ -63,7 +63,7 @@ function get_guid_string(data)
   return guid:upper()
 end
 
-local function get_headers(unit, source_lut, dag_lut)
+local function get_headers(unit, source_lut, dag_lut, name_to_dags)
   local src_dir = ''
   if unit.Decl.SourceDir then
     src_dir = unit.Decl.SourceDir .. '/'
@@ -79,6 +79,10 @@ local function get_headers(unit, source_lut, dag_lut)
   end
 
   local function toplevel(u)
+    if type(u) == "string" then
+      return type(name_to_dags[u]) ~= "nil"
+    end
+
     for _, dag in pairs(u.Decl.__DagNodes) do
       if dag_lut[dag] then
         return true
@@ -89,6 +93,7 @@ local function get_headers(unit, source_lut, dag_lut)
 
   -- Repeat for dependencies ObjGroups
   for _, dep in util.nil_ipairs(nodegen.flatten_list('*-*-*-*', unit.Decl.Depends)) do
+
     if not toplevel(dep) then
       get_headers(dep, source_lut, dag_lut)
     end
@@ -130,6 +135,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
   local project_by_name = {}
   local all_sources = {}
   local dag_node_lut = {} -- lookup table of all named, top-level DAG nodes 
+  local name_to_dags = {} -- table mapping unit name to array of dag nodes (for configs)
 
   -- Map out all top-level DAG nodes
   for _, unit in ipairs(units) do
@@ -138,6 +144,12 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
     local dag_nodes = assert(decl.__DagNodes, "no dag nodes for " .. decl.Name)
     for build_id, dag_node in pairs(dag_nodes) do
       dag_node_lut[dag_node] = unit
+      local array = name_to_dags[decl.Name]
+      if not array then
+        array = {}
+        name_to_dags[decl.Name] = array
+      end
+      array[#array + 1] = dag_node
     end
   end
 
@@ -197,7 +209,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
 
     -- Explicitly add all header files too as they are not picked up from the DAG
     -- Also pick up headers from non-toplevel DAGs we're depending on
-    get_headers(unit, source_lut, dag_node_lut)
+    get_headers(unit, source_lut, dag_node_lut, name_to_dags)
 
     -- Figure out which project should get this data.
     local output_name = name
