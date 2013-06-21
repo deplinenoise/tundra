@@ -153,6 +153,28 @@ function clone_table(t)
   end
 end
 
+function deep_clone_table(t)
+  local function clone_value(v)
+    if type(v) == "table" then
+      return deep_clone_table(v)
+    else
+      return v
+    end
+  end
+  if t then
+    local r = {}
+    for k, v in pairs(t) do
+      r[clone_value(k)] = clone_value(v)
+    end
+    for k, v in ipairs(t) do
+      r[k] = clone_value(v)
+    end
+    return r
+  else
+    return nil
+  end
+end
+
 function clone_array(t)
   local r = {}
   for k, v in ipairs(t) do
