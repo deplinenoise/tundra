@@ -279,6 +279,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
 
   for name, data in pairs(solution_hints) do
     local sln_projects
+    local ext_projects = {}
     if data.Projects then
       sln_projects = {}
       for _, pname in ipairs(data.Projects) do
@@ -291,6 +292,10 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
     else
       -- All the projects (that are not meta)
       sln_projects = util.clone_array(vanilla_projects)
+    end
+
+    for _, ext in util.nil_ipairs(data.ExternalProjects) do
+      ext_projects[#ext_projects + 1] = ext
     end
 
     local meta_proj = make_meta_project(base_dir, {
@@ -306,8 +311,10 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
     projects[#projects + 1] = meta_proj
 
     solutions[#solutions + 1] = {
-      Filename = base_dir .. name,
-      Projects = sln_projects
+      Filename             = base_dir .. name,
+      Projects             = sln_projects,
+      ExternalProjects     = ext_projects,
+      BuildSolutionProject = meta_proj,
     }
   end
 
@@ -343,7 +350,7 @@ local function replace_if_changed(new_fn, old_fn)
   os.rename(new_fn, old_fn)
 end
 
-function msvc_generator:generate_solution(fn, projects)
+function msvc_generator:generate_solution(fn, projects, ext_projects, solution)
   local sln = io.open(fn .. '.tmp', 'wb')
   sln:write(UTF_HEADER, LF, "Microsoft Visual Studio Solution File, Format Version ", VERSION_NUMBER, LF, "# Visual Studio ", VERSION_YEAR, LF)
 
@@ -368,6 +375,22 @@ function msvc_generator:generate_solution(fn, projects)
     sln:write('EndProject', LF)
   end
 
+  -- Dump external projects. Make them depend on everything in this solution being built by Tundra.
+  for _, data in util.nil_ipairs(ext_projects) do
+    local guid = data.Guid
+    local fname = path.normalize(path.join(native.getcwd(), data.Filename))
+    local name = path.get_filename_base(fname)
+    sln:write(string.format('Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "%s", "%s", "{%s}"', name, fname, guid), LF)
+    local build_sln_proj = solution.BuildSolutionProject
+    if build_sln_proj then
+      local meta_guid = build_sln_proj.Guid
+      sln:write('\tProjectSection(ProjectDependencies) = postProject', LF)
+      sln:write('\t\t{', meta_guid,'} = {', meta_guid,'}', LF)
+      sln:write('\tEndProjectSection', LF)
+    end
+    sln:write('EndProject', LF)
+  end
+
   for folder_name, _ in pairs(sln_folders) do
     local folder_guid = get_guid_string("folder/" .. folder_name)
     sln:write(string.format('Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "%s", "%s", "{%s}"', folder_name, folder_name, folder_guid), LF)
@@ -387,6 +410,17 @@ function msvc_generator:generate_solution(fn, projects)
       local leader = string.format('\t\t{%s}.%s.', proj.Guid, tuple.MsvcName)
       sln:write(leader, "ActiveCfg = ", tuple.MsvcName, LF)
       if proj.BuildByDefault then
+        sln:write(leader, "Build.0 = ", tuple.MsvcName, LF)
+      end
+    end
+  end
+
+  -- External projects build by default, and after Tundra is done (depends on "Build this solution").
+  for _, proj in util.nil_ipairs(ext_projects) do
+    for _, tuple in ipairs(self.config_tuples) do
+      local leader = string.format('\t\t{%s}.%s.', proj.Guid, tuple.MsvcName)
+      sln:write(leader, "ActiveCfg = ", tuple.MsvcName, LF)
+      if not proj.Platform or proj.Platform == tuple.MsvcPlatform then
         sln:write(leader, "Build.0 = ", tuple.MsvcName, LF)
       end
     end
@@ -742,18 +776,23 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
   local complained_mappings = {}
 
   self.msvc_platforms = {}
-  for _, tuple in ipairs(config_tuples) do
+  local msvc_hints = hints.Msvc or {}
+  local variant_mappings = msvc_hints.VariantMappings or {}
+  local platform_mappings = msvc_hints.PlatformMappings or {}
 
-    tuple.MsvcConfiguration = tuple.Config.Name .. '-' .. tuple.Variant.Name
+  for _, tuple in ipairs(config_tuples) do
+    if variant_mappings[tuple.Variant.Name] then
+      tuple.MsvcConfiguration = variant_mappings[tuple.Variant.Name]
+    else
+      tuple.MsvcConfiguration = tuple.Variant.Name
+    end
 
     -- Use IdeGenerationHints.Msvc.PlatformMappings table to map tundra
     -- configurations to MSVC platform names. Note that this isn't a huge deal
     -- for building stuff as Tundra doesn't care about this setting. But it
     -- might influence the choice of debugger and affect include paths for
     -- things like Intellisense that certain users may care about.
-    local msvc_hints = hints.Msvc or {}
-    local mappings = msvc_hints.PlatformMappings or {}
-    tuple.MsvcPlatform = mappings[tuple.Config.Name]
+    tuple.MsvcPlatform = platform_mappings[tuple.Config.Name]
 
     -- If we didn't find anything, warn and then default to Win32, which VS
     -- will always accept (or so one would assume)
@@ -782,7 +821,7 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
   end
 
   for _, sln in pairs(solutions) do
-    self:generate_solution(sln.Filename, sln.Projects)
+    self:generate_solution(sln.Filename, sln.Projects, sln.ExternalProjects, sln)
   end
 
   for _, proj in ipairs(projects) do
