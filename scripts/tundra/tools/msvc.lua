@@ -31,7 +31,7 @@ function apply(env, options)
     ["RC"] = "rc",
     ["RCOPTS"] = "/nologo",
     ["W32RESSUFFIX"] = ".res",
-    ["RCCOM"] = "$(RC) $(RCOPTS) /fo$(@:b) $(CPPPATH:b:p/i) $(<:b)",
+    ["RCCOM"] = "$(RC) $(RCOPTS) /fo$(@:b) $(_CPPDEFS) $(CPPPATH:b:p/i) $(<:b)",
     ["CCCOM"] = "$(CC) /c @RESPONSE|@|$(_CPPDEFS) $(CPPPATH:b:p/I) /nologo $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) $(_USE_PCH) $(_USE_PDB_CC) /Fo$(@:b) $(<:b)",
     ["CXXCOM"] = "$(CC) /c @RESPONSE|@|$(_CPPDEFS) $(CPPPATH:b:p/I) /nologo $(CXXOPTS) $(CXXOPTS_$(CURRENT_VARIANT:u)) $(_USE_PCH) $(_USE_PDB_CC) /Fo$(@:b) $(<:b)",
     ["PCHCOMPILE_CC"] = "$(CC) /c $(_CPPDEFS) $(CPPPATH:b:p/I) /nologo $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) $(_USE_PDB_CC) /Yc$(_PCH_HEADER) /Fp$(@:[1]:b) /Fo$(@:[2]:b) $(<:[1]:b)",
