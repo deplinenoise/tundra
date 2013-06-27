@@ -50,6 +50,9 @@ function Glob(args)
   if type(recursive) == "nil" then
     recursive = true
   end
+  if not args.Extensions then
+    croak("no 'Extensions' specified in Glob (Dir is '%s')", args.Dir)
+  end  
   local extensions = assert(args.Extensions)
   local ext_lookup = util.make_lookup_table(extensions)
   return glob(args.Dir, recursive, function (fn)
@@ -82,6 +85,9 @@ local function FGlob(args)
   -- to { Pattern = { Config = ... } } with new arrays per config that can be
   -- embedded in the source result.
   for _, fitem in ipairs(args.Filters) do
+    if not fitem.Config then
+      croak("no 'Config' specified in FGlob (Pattern is '%s')", fitem.Pattern)
+    end
     local tab = { Config = assert(fitem.Config) }
     pats[assert(fitem.Pattern)] = tab
     result[#result + 1] = tab
