@@ -9,6 +9,7 @@ function apply(env, options)
 
   env:set_many {
     ["CSLIBS"] = "", -- assembly references
+    ["CSLIBPATH"] = {}, -- assembly directories
     ["CSCOPTS"] = "-optimize",
     ["CSRESOURCES"] = "",
     ["CSC_WARNING_LEVEL"] = "4",
