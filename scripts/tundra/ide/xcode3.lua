@@ -45,7 +45,7 @@ end
 local function newid(data)
   local string = native.digest_guid(data) 
   -- a bit ugly but is to match the xcode style of UIds
-  return string.sub(string.gsub(string, '-', ''), 9)
+  return string.sub(string.gsub(string, '-', ''), 1, 24)
 end
 
 local function getfiletype(name)
@@ -570,7 +570,18 @@ local function write_configs(p, projects, config_tuples, env)
     for _, tuple in ipairs(config_tuples) do
       local full_config_name = get_full_config_name(tuple)
 
-      local is_macosx_native = tuple.Config.Name:match('^(%macosx)%-')
+      local is_macosx_native = false
+
+      for _, host in util.nil_ipairs(tuple.Config.SupportedHosts) do
+        if host == "macosx" then
+          is_macosx_native = true
+        end
+      end
+
+      if "macosx" == tuple.Config.DefaultOnHost then
+        is_macosx_native = true
+      end
+
       local config_id = newid(project.Decl.Name .. full_config_name)
 
       p:write('\t\t', config_id, ' = {\n')
