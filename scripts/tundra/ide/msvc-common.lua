@@ -24,7 +24,7 @@ local toplevel_stuff = util.make_lookup_table {
 }
 
 local binary_extension = util.make_lookup_table {
-  ".exe", ".lib", ".dll", ".pdb", ".res", ".obj"
+  ".exe", ".lib", ".dll", ".pdb", ".res", ".obj", ".o", ".a",
 }
 
 local header_exts = util.make_lookup_table {
@@ -65,6 +65,12 @@ end
 
 local function get_headers(unit, source_lut, dag_lut, name_to_dags)
   local src_dir = ''
+
+  if not unit.Decl then
+    -- Ignore ExternalLibrary and similar that have no data.
+    return
+  end
+
   if unit.Decl.SourceDir then
     src_dir = unit.Decl.SourceDir .. '/'
   end
