@@ -25,6 +25,9 @@ Binaries
 
 Windows installers are available for download:
 
+- 2.0 Beta7 (2013-07-31)
+  - [installer](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta7.exe) MD5: `2d4b6e8c5a8e5b642b478ce4700b1f3f`
+  - [zip](http://tundra2-builds.s3.amazonaws.com/Tundra-Binaries-Beta7.zip) MD5: `9ee4bfedd3e98c2fa8d3fe8b480c9a62`
 - 2.0 Beta6a (2013-06-18)
   - [installer](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta6a.exe) MD5: `40fefb751e9255334680835a82c3cbcf`
   - [zip](http://tundra2-builds.s3.amazonaws.com/Tundra-Binaries-Beta6a.zip) MD5: `1f6c127ef33aa3504aeeacd8ce045601`
