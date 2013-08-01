@@ -9,7 +9,7 @@ Build {
 		Config {
 			Name = "win64-msvc",
 			DefaultOnHost = "windows",
-			Tools = { "msvc-vs2008"; TargetPlatform = "x64" },
+			Tools = { { "msvc-vs2008"; TargetPlatform = "x64" } },
 		},
 	},
 	Units = function()
