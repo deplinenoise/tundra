@@ -32,6 +32,7 @@ local _program_mt = nodegen.create_eval_subclass({
   Label = "Program $(@)",
   PreciousOutputs = true,
   OverwriteOutputs = true,
+  Expensive = true,
 }, _native_mt)
 
 local _staticlib_mt = nodegen.create_eval_subclass({
@@ -55,6 +56,7 @@ local _shlib_mt = nodegen.create_eval_subclass({
   Label = "SharedLibrary $(@)",
   PreciousOutputs = true,
   OverwriteOutputs = true,
+  Expensive = true,
 }, _native_mt)
 
 local _extlib_mt = nodegen.create_eval_subclass({
@@ -224,6 +226,7 @@ function _native_mt:create_dag(env, data, input_deps)
     Dependencies        = deps,
     OverwriteOutputs    = self.OverwriteOutputs,
     PreciousOutputs     = self.PreciousOutputs,
+    Expensive           = self.Expensive,
   }
 
   -- Remember this dag node for IDE file generation purposes

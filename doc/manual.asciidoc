@@ -284,6 +284,7 @@ Build {
     SyntaxExtensions = { ... },
     Passes = { ... },
     ContentDigestExtensions { ... },
+    Options = { ... },
 }
 ---------------------------------------------------
 
@@ -548,6 +549,36 @@ Build {
    ...
 }
 -------------------------------------------------------------------------------
+
+=== Options (optional)
+
+The `Options` block is used to set advanced build engine options.
+
+Currently the only options is `MaxExpensiveJobs` which limits the maximum
+number of concurrent "expensive" jobs. If your build includes heavy link steps
+which might trash the system's virtual memory reserves when run concurrently,
+this option will constrain the parallelism of those jobs, and your swap file
+will thank you.
+
+To flag a DAG node as expensive, pass `Expensive=true` to the dag node creator.
+Currently linking programs and shared libraries is considered expensive by
+default.
+
+If `MaxExpensiveJobs` is not specified, Tundra will run as many expensive jobs
+as there are build threads -- that is, there's no limit.
+
+.Options Synopsis
+[source,lua]
+-------------------------------------------------------------------------------
+Build {
+    ...
+    Options = {
+      MaxExpensiveJobs = 2,
+    },
+   ...
+}
+-------------------------------------------------------------------------------
+
 
 == Unit Syntax
 

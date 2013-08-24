@@ -93,6 +93,7 @@ function make_node(data_)
     inputs            = inputs_sorted,
     outputs           = outputs_sorted,
     is_precious       = data_.Precious,
+    expensive         = data_.Expensive,
     overwrite_outputs = overwrite,
     src_env           = env_,
     env               = env_.external_vars,

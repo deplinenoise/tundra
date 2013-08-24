@@ -122,6 +122,27 @@ namespace t2
     CHECK(AvailableNodeCount(queue) == 1 + avail_init);
   }
 
+  static void ParkExpensiveNode(BuildQueue* queue, NodeState* state)
+  {
+    NodeStateFlagQueued(state);
+    CHECK(queue->m_ExpensiveWaitCount < (int) queue->m_QueueCapacity);
+    queue->m_ExpensiveWaitList[queue->m_ExpensiveWaitCount++] = state;
+  }
+
+  static void UnparkExpensiveNode(BuildQueue* queue)
+  {
+    if (queue->m_ExpensiveWaitCount > 0)
+    {
+      NodeState* node = queue->m_ExpensiveWaitList[--queue->m_ExpensiveWaitCount];
+      CHECK(NodeStateIsQueued(node));
+      // Really only to avoid tripping up checks in Enqueue()
+      NodeStateFlagUnqueued(node);
+      NodeStateFlagInactive(node);
+      Enqueue(queue, node);
+      CondSignal(&queue->m_WorkAvailable);
+    }
+  }
+
   static BuildProgress::Enum SetupDependencies(BuildQueue* queue, NodeState* node)
   {
     const NodeData *src_node         = node->m_MmapData;
@@ -154,7 +175,11 @@ namespace t2
     if (enqueue_count > 0)
       WakeWaiters(queue, enqueue_count);
 
-    return dep_waits_needed > 0 ? BuildProgress::kBlocked : BuildProgress::kUnblocked;
+    // We're waiting on dependencies to be ready.
+    if (dep_waits_needed > 0)
+      return BuildProgress::kBlocked;
+
+    return BuildProgress::kUnblocked;
   }
 
   static bool OutputFilesDiffer(const NodeData* node_data, const NodeStateData* prev_state)
@@ -363,6 +388,19 @@ namespace t2
     if (!cmd_line || cmd_line[0] == '\0')
       return BuildProgress::kSucceeded;
 
+    if (node->m_MmapData->m_Flags & NodeData::kFlagExpensive)
+    {
+      if (queue->m_ExpensiveRunning == queue->m_Config.m_MaxExpensiveCount)
+      {
+        ParkExpensiveNode(queue, node);
+        return BuildProgress::kRunAction;
+      }
+      else
+      {
+        ++queue->m_ExpensiveRunning;
+      }
+    }
+
     MutexUnlock(queue_lock);
 
     StatCache         *stat_cache   = queue->m_Config.m_StatCache;
@@ -521,6 +559,13 @@ namespace t2
 
         case BuildProgress::kRunAction:
           node->m_Progress = RunAction(queue, thread_state, node, queue_lock);
+
+          // If we couldn't make progress, we're a parked expensive node.
+          // Another expensive job will put us back on the queue later when it
+          // has finshed.
+          if (BuildProgress::kRunAction == node->m_Progress)
+            return;
+
           break;
 
         case BuildProgress::kSucceeded:
@@ -542,6 +587,15 @@ namespace t2
           queue->m_PendingNodeCount--;
 
           UnblockWaiters(queue, node);
+
+          if (node->m_MmapData->m_Flags & NodeData::kFlagExpensive)
+          {
+            --queue->m_ExpensiveRunning;
+
+            // We were an expensive job. We can unpark another expensive job if
+            // anything is waiting.
+            UnparkExpensiveNode(queue);
+          }
 
           CondBroadcast(&queue->m_WorkAvailable);
           return;
@@ -643,6 +697,8 @@ namespace t2
 
   void BuildQueueInit(BuildQueue* queue, const BuildQueueConfig* config)
   {
+    CHECK(config->m_MaxExpensiveCount > 0 && config->m_MaxExpensiveCount <= config->m_ThreadCount);
+
     MutexInit(&queue->m_Lock);
     CondInit(&queue->m_WorkAvailable);
 
@@ -654,14 +710,17 @@ namespace t2
 
     MemAllocHeap* heap = config->m_Heap;
 
-    queue->m_Queue            = HeapAllocateArray<int32_t>(heap, capacity);
-    queue->m_QueueReadIndex   = 0;
-    queue->m_QueueWriteIndex  = 0;
-    queue->m_QueueCapacity    = capacity;
-    queue->m_Config           = *config;
-    queue->m_PendingNodeCount = 0;
-    queue->m_FailedNodeCount  = 0;
-    queue->m_QuitSignalled    = false;
+    queue->m_Queue              = HeapAllocateArray<int32_t>(heap, capacity);
+    queue->m_QueueReadIndex     = 0;
+    queue->m_QueueWriteIndex    = 0;
+    queue->m_QueueCapacity      = capacity;
+    queue->m_Config             = *config;
+    queue->m_PendingNodeCount   = 0;
+    queue->m_FailedNodeCount    = 0;
+    queue->m_QuitSignalled      = false;
+    queue->m_ExpensiveRunning   = 0;
+    queue->m_ExpensiveWaitCount = 0;
+    queue->m_ExpensiveWaitList  = HeapAllocateArray<NodeState*>(heap, capacity);
 
     CHECK(queue->m_Queue);
 
@@ -718,6 +777,7 @@ namespace t2
 
     // Deallocate storage.
     MemAllocHeap* heap = queue->m_Config.m_Heap;
+    HeapFree(heap, queue->m_ExpensiveWaitList);
     HeapFree(heap, queue->m_Queue);
 
     CondDestroy(&queue->m_WorkAvailable);

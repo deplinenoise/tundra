@@ -97,7 +97,9 @@ struct NodeData
 
     // Keep output files even if the build fails. Useful mostly to retain files
     // for incremental linking.
-    kFlagPreciousOutputs    = 1 << 1
+    kFlagPreciousOutputs    = 1 << 1,
+
+    kFlagExpensive          = 1 << 2
   };
 
   FrozenString                    m_Action;
@@ -121,7 +123,7 @@ struct PassData
 
 struct DagData
 {
-  static const uint32_t         MagicNumber   = 0x1589010b ^ kTundraHashMagic;
+  static const uint32_t         MagicNumber   = 0x1589010c ^ kTundraHashMagic;
 
   uint32_t                      m_MagicNumber;
 
@@ -154,6 +156,8 @@ struct DagData
   
   // Hashes of filename extensions to use SHA-1 digest signing instead of timestamp signing.
   FrozenArray<uint32_t>         m_ShaExtensionHashes;
+
+  int32_t                       m_MaxExpensiveCount;
 };
 
 }

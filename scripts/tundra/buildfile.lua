@@ -215,6 +215,7 @@ function _G.Build(args)
     DefaultVariant          = default_variant,
     DefaultSubVariant       = default_subvariant,
     ContentDigestExtensions = args.ContentDigestExtensions,
+    Options                 = args.Options,
   }
 end
 

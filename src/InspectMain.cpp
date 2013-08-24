@@ -26,7 +26,11 @@ static void DumpDag(const DagData* data)
     const NodeData& node = data->m_NodeData[i];
 
     printf("  guid: %s\n", digest_str);
-    printf("  action: %s\n", node.m_Action.Get());
+    printf("  flags:");
+    if (node.m_Flags & NodeData::kFlagPreciousOutputs) printf(" precious");
+    if (node.m_Flags & NodeData::kFlagOverwriteOutputs) printf(" overwrite");
+    if (node.m_Flags & NodeData::kFlagExpensive) printf(" expensive");
+    printf("\n  action: %s\n", node.m_Action.Get());
     printf("  preaction: %s\n", node.m_PreAction.Get() ? node.m_PreAction.Get() : "(null)");
     printf("  annotation: %s\n", node.m_Annotation.Get());
     printf("  pass index: %u\n", node.m_PassIndex);
@@ -176,6 +180,8 @@ static void DumpDag(const DagData* data)
   {
     printf("hash            : 0x%08x\n", ext);
   }
+
+  printf("\nMax expensive jobs: %d\n", data->m_MaxExpensiveCount);
 }
 
 static void DumpState(const StateData* data)

@@ -330,7 +330,8 @@ static bool WriteNodes(
     uint32_t flags = 0;
     
     flags |= GetNodeFlag(node, "OverwriteOutputs", NodeData::kFlagOverwriteOutputs);
-    flags |= GetNodeFlag(node, "PreciousOutputs", NodeData::kFlagPreciousOutputs);
+    flags |= GetNodeFlag(node, "PreciousOutputs",  NodeData::kFlagPreciousOutputs);
+    flags |= GetNodeFlag(node, "Expensive",        NodeData::kFlagExpensive);
 
     BinarySegmentWriteUint32(node_data_seg, flags);
   }
@@ -905,6 +906,8 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
     BinarySegmentWriteInt32(main_seg, 0);
     BinarySegmentWriteNullPointer(main_seg);
   }
+
+  BinarySegmentWriteInt32(main_seg, FindIntValue(root, "MaxExpensiveCount", -1));
 
   HashTableDestroy(&shared_strings);
 

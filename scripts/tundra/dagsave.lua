@@ -189,8 +189,12 @@ local function save_nodes(w, nodes, pass_to_index, scanner_to_index)
       w:write_bool(true, "OverwriteOutputs")
     end
 
-    if node.precious then
+    if node.is_precious then
       w:write_bool(true, "PreciousOutputs")
+    end
+
+    if node.expensive then
+      w:write_bool(true, "Expensive")
     end
 
     w:end_object()
@@ -337,10 +341,13 @@ local function check_deps(nodes)
   end
 end
 
-function save_dag_data(bindings, default_variant, default_subvariant, content_digest_exts)
+function save_dag_data(bindings, default_variant, default_subvariant, content_digest_exts, misc_options)
 
   -- Call builtin function to get at accessed file table
   local accessed_lua_files = util.table_keys(get_accessed_files())
+
+  misc_options = misc_options or {}
+  local max_expensive_jobs = misc_options.MaxExpensiveJobs or -1
 
   printf("save_dag_data: %d bindings, %d accessed files", #bindings, #accessed_lua_files)
 
@@ -378,6 +385,8 @@ function save_dag_data(bindings, default_variant, default_subvariant, content_di
     end
     w:end_array()
   end
+
+  w:write_number(max_expensive_jobs, "MaxExpensiveCount")
 
   w:end_object()
 

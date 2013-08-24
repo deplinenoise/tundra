@@ -85,7 +85,8 @@ function generate_dag_data(build_script_fn)
     node_bindings,
     build_data.DefaultVariant,
     build_data.DefaultSubVariant,
-    build_data.ContentDigestExtensions)
+    build_data.ContentDigestExtensions,
+    build_data.Options)
 end
 
 function generate_ide_files(build_script_fn, ide_script)

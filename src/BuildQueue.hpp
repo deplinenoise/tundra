@@ -48,6 +48,7 @@ namespace t2
     const uint32_t* m_ShaDigestExtensions;
     void*           m_FileSigningLog;
     Mutex*          m_FileSigningLogMutex;
+    int32_t         m_MaxExpensiveCount;
   };
 
   struct BuildQueue;
@@ -74,6 +75,9 @@ namespace t2
     int32_t            m_CurrentPassIndex;
     ThreadId           m_Threads[kMaxBuildThreads];
     ThreadState        m_ThreadState[kMaxBuildThreads];
+    int32_t            m_ExpensiveRunning;
+    int32_t            m_ExpensiveWaitCount;
+    NodeState        **m_ExpensiveWaitList;
     bool               m_QuitSignalled;
   };
 

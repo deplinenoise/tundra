@@ -719,19 +719,29 @@ BuildResult::Enum DriverBuild(Driver* self)
   // Initialize build queue
   Mutex debug_signing_mutex;
 
+  int max_expensive_count = self->m_DagData->m_MaxExpensiveCount;
+
+  if (max_expensive_count < 0)
+    max_expensive_count = self->m_Options.m_ThreadCount;
+  else
+    max_expensive_count = std::max(std::min(max_expensive_count, self->m_Options.m_ThreadCount), 1);
+
+  Log(kDebug, "Max # expensive jobs: %d", max_expensive_count);
+
   BuildQueueConfig queue_config;
-  queue_config.m_Flags              = 0;
-  queue_config.m_Heap               = &self->m_Heap;
-  queue_config.m_ThreadCount        = (int) self->m_Options.m_ThreadCount;
-  queue_config.m_NodeData           = self->m_DagData->m_NodeData;
-  queue_config.m_NodeState          = self->m_Nodes.m_Storage;
-  queue_config.m_MaxNodes           = (int) self->m_Nodes.m_Size;
-  queue_config.m_NodeRemappingTable = self->m_NodeRemap.m_Storage;
-  queue_config.m_ScanCache          = &self->m_ScanCache;
-  queue_config.m_StatCache          = &self->m_StatCache;
-  queue_config.m_DigestCache        = &self->m_DigestCache;
+  queue_config.m_Flags                   = 0;
+  queue_config.m_Heap                    = &self->m_Heap;
+  queue_config.m_ThreadCount             = (int) self->m_Options.m_ThreadCount;
+  queue_config.m_NodeData                = self->m_DagData->m_NodeData;
+  queue_config.m_NodeState               = self->m_Nodes.m_Storage;
+  queue_config.m_MaxNodes                = (int) self->m_Nodes.m_Size;
+  queue_config.m_NodeRemappingTable      = self->m_NodeRemap.m_Storage;
+  queue_config.m_ScanCache               = &self->m_ScanCache;
+  queue_config.m_StatCache               = &self->m_StatCache;
+  queue_config.m_DigestCache             = &self->m_DigestCache;
   queue_config.m_ShaDigestExtensionCount = dag->m_ShaExtensionHashes.GetCount();
-  queue_config.m_ShaDigestExtensions = dag->m_ShaExtensionHashes.GetArray();
+  queue_config.m_ShaDigestExtensions     = dag->m_ShaExtensionHashes.GetArray();
+  queue_config.m_MaxExpensiveCount       = max_expensive_count;
 
   if (self->m_Options.m_Verbose)
   {
