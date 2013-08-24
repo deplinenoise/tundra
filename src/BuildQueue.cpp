@@ -566,6 +566,17 @@ namespace t2
           if (BuildProgress::kRunAction == node->m_Progress)
             return;
 
+          // Otherwise, we just ran our action. If we were an expensive node,
+          // make sure to let other expensive nodes on to the cores now.
+          if (node->m_MmapData->m_Flags & NodeData::kFlagExpensive)
+          {
+            --queue->m_ExpensiveRunning;
+            CHECK(queue->m_ExpensiveRunning >= 0);
+
+            // We were an expensive job. We can unpark another expensive job if
+            // anything is waiting.
+            UnparkExpensiveNode(queue);
+          }
           break;
 
         case BuildProgress::kSucceeded:
@@ -587,15 +598,6 @@ namespace t2
           queue->m_PendingNodeCount--;
 
           UnblockWaiters(queue, node);
-
-          if (node->m_MmapData->m_Flags & NodeData::kFlagExpensive)
-          {
-            --queue->m_ExpensiveRunning;
-
-            // We were an expensive job. We can unpark another expensive job if
-            // anything is waiting.
-            UnparkExpensiveNode(queue);
-          }
 
           CondBroadcast(&queue->m_WorkAvailable);
           return;
