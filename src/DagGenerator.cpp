@@ -907,7 +907,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
     BinarySegmentWriteNullPointer(main_seg);
   }
 
-  BinarySegmentWriteInt32(main_seg, FindIntValue(root, "MaxExpensiveCount", -1));
+  BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "MaxExpensiveCount", -1));
 
   HashTableDestroy(&shared_strings);
 
