@@ -12,10 +12,57 @@ extern "C" {
 namespace t2
 {
 
+struct BufferedWriter
+{
+  size_t m_Used;
+  char m_Buffer[8192];
+  FILE* m_File;
+};
+
+static void BufferedWriterInit(BufferedWriter* w, FILE* f)
+{
+  w->m_Used = 0;
+  w->m_File = f;
+}
+
+static void BufferedWriterFlush(BufferedWriter* w)
+{
+  size_t remain = w->m_Used;
+  const char* src = w->m_Buffer;
+  while (remain)
+  {
+    size_t count = fwrite(src, 1, remain, w->m_File);
+    src += count;
+    remain -= count;
+  }
+  w->m_Used = 0;
+}
+
+inline void BufferedWriterAppend(BufferedWriter* w, int ch)
+{
+  size_t pos = w->m_Used;
+  if (pos == ARRAY_SIZE(w->m_Buffer))
+  {
+    BufferedWriterFlush(w);
+    pos = 0;
+  }
+  w->m_Buffer[pos] = (char) ch;
+  w->m_Used = pos + 1;
+}
+
+static void BufferedWriterAppendString(BufferedWriter* w, const char* str)
+{
+  for (const char* p = str; *p; ++p)
+  {
+    BufferedWriterAppend(w, *p);
+  }
+}
+
+
 struct LuaJsonWriter
 {
-  FILE *m_File;
-  bool  m_FirstElem;
+  bool           m_FirstElem;
+  BufferedWriter m_Writer;
 };
 
 static int LuaJsonWriterNew(lua_State* L)
@@ -23,12 +70,13 @@ static int LuaJsonWriterNew(lua_State* L)
   const char* filename = luaL_checkstring(L, 1);
   LuaJsonWriter* self = (LuaJsonWriter*) lua_newuserdata(L, sizeof(LuaJsonWriter));
 
-  self->m_File      = nullptr;
+  memset(self, 0, sizeof *self);
+
   self->m_FirstElem = true;
 
   if (FILE* f = fopen(filename, "w"))
   {
-    self->m_File = f;
+    BufferedWriterInit(&self->m_Writer, f);
 
     luaL_getmetatable(L, "tundra_jsonw");
     lua_setmetatable(L, -2);
@@ -43,18 +91,19 @@ static int LuaJsonWriterNew(lua_State* L)
 static int LuaJsonGc(lua_State* L)
 {
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
-  if (FILE* f = self->m_File)
+  if (FILE* f = self->m_Writer.m_File)
   {
-    self->m_File = nullptr;
+    BufferedWriterFlush(&self->m_Writer);
+    self->m_Writer.m_File = nullptr;
     fclose(f);
   }
 
   return 0;
 }
 
-static void WriteEscapedString(FILE* f, const char* str)
+static void WriteEscapedString(BufferedWriter* w, const char* str)
 {
-  fputc('"', f);
+  BufferedWriterAppend(w, '"');
 
   while (char ch = *str++)
   {
@@ -73,16 +122,16 @@ static void WriteEscapedString(FILE* f, const char* str)
 
     if (escape_code)
     {
-      fputc('\\', f);
-      fputc(escape_code, f);
+      BufferedWriterAppend(w, '\\');
+      BufferedWriterAppend(w, escape_code);
     }
     else
     {
-      fputc(ch, f);
+      BufferedWriterAppend(w, ch);
     }
   }
 
-  fputc('"', f);
+  BufferedWriterAppend(w, '"');
 }
 
 static void WriteComma(LuaJsonWriter* self)
@@ -93,7 +142,7 @@ static void WriteComma(LuaJsonWriter* self)
   }
   else
   {
-    fputc(',', self->m_File);
+    BufferedWriterAppend(&self->m_Writer, ',');
   }
 }
 
@@ -102,8 +151,8 @@ static void WriteCommon(lua_State* L, LuaJsonWriter* self, int name_index)
   WriteComma(self);
   if (lua_gettop(L) >= name_index)
   {
-    WriteEscapedString(self->m_File, luaL_checkstring(L, name_index));
-    fputc(':', self->m_File);
+    WriteEscapedString(&self->m_Writer, luaL_checkstring(L, name_index));
+    BufferedWriterAppend(&self->m_Writer, ':');
   }
 }
 
@@ -115,8 +164,7 @@ static int LuaJsonWriteNumber(lua_State* L)
 
   char buffer[64];
   lua_number2str(buffer, num);
-
-  fputs(buffer, self->m_File);
+  BufferedWriterAppendString(&self->m_Writer, buffer);
   return 0;
 }
 
@@ -125,7 +173,7 @@ static int LuaJsonWriteBool(lua_State* L)
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
   int value = lua_toboolean(L, 2);
   WriteCommon(L, self, 3);
-  fputs(value ? "true" : "false", self->m_File);
+  BufferedWriterAppendString(&self->m_Writer, value ? "true" : "false");
   return 0;
 }
 
@@ -134,7 +182,7 @@ static int LuaJsonWriteString(lua_State* L)
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
   const char* value = lua_tostring(L, 2);
   WriteCommon(L, self, 3);
-  WriteEscapedString(self->m_File, value);
+  WriteEscapedString(&self->m_Writer, value);
   return 0;
 }
 
@@ -142,7 +190,7 @@ static int LuaJsonBeginObject(lua_State* L)
 {
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
   WriteCommon(L, self, 2);
-  fputc('{', self->m_File);
+  BufferedWriterAppend(&self->m_Writer, '{');
   self->m_FirstElem = true;
   return 0;
 }
@@ -150,7 +198,7 @@ static int LuaJsonBeginObject(lua_State* L)
 static int LuaJsonEndObject(lua_State* L)
 {
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
-  fputc('}', self->m_File);
+  BufferedWriterAppend(&self->m_Writer, '}');
   self->m_FirstElem = false;
   return 0;
 }
@@ -159,7 +207,7 @@ static int LuaJsonBeginArray(lua_State* L)
 {
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
   WriteCommon(L, self, 2);
-  fputc('[', self->m_File);
+  BufferedWriterAppend(&self->m_Writer, '[');
   self->m_FirstElem = true;
   return 0;
 }
@@ -167,7 +215,7 @@ static int LuaJsonBeginArray(lua_State* L)
 static int LuaJsonEndArray(lua_State* L)
 {
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
-  fputc(']', self->m_File);
+  BufferedWriterAppend(&self->m_Writer, ']');
   self->m_FirstElem = false;
   return 0;
 }
