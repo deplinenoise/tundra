@@ -13,13 +13,15 @@ local dag_dag_magic = 0x15890105
 
 local function get_passes(nodes)
   local result = {}
+  local seen_passes = {}
 
   for _, node in ipairs(nodes) do
     local p = node.pass
-    if not util.array_contains(result, p) then
+    if not seen_passes[p] then
       assert(type(p) == "table", "Passes must be tables, have " .. util.tostring(p))
       assert(type(p.BuildOrder) == "number", "Pass BuildOrder must be a number")
       result[#result + 1] = p
+      seen_passes[p] = true
     end
   end
 
@@ -45,6 +47,8 @@ local function setup_input_deps(nodes)
     filter = function (str) return str end
   end
 
+  local node_deps = {}
+
   -- Record producing node for all output files
   for _, n in ipairs(nodes) do
     for _, output in util.nil_ipairs(n.outputs) do
@@ -58,6 +62,9 @@ local function setup_input_deps(nodes)
       end
       producers[output] = n
     end
+    if n.deps then
+      node_deps[n] = util.make_lookup_table(n.deps)
+    end
   end
 
   -- Map input files to dependencies
@@ -68,11 +75,18 @@ local function setup_input_deps(nodes)
       end
       inputf = filter(inputf)
       local producer = producers[inputf]
-      if producer and not util.array_contains(n.deps, producer) then
+      local deps_lut = node_deps[n]
+      if producer and (not deps_lut or not deps_lut[producer]) then
         n.deps[#n.deps + 1] = producer
+        if not deps_lut then
+          deps_lut = {}
+          node_deps[n] = deps_lut
+        end
+        deps_lut[producer] = true
       end
     end
   end
+
 end
 
 local function get_scanners(nodes)
