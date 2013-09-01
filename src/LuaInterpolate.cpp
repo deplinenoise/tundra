@@ -17,13 +17,15 @@ class LuaEnvLookup
 {
 private:
   lua_State *m_LuaState;
-  int        m_FunctionIndex;
+  int        m_EnvIndex;
+  int        m_VarIndex;
 
 public:
-  LuaEnvLookup(lua_State* L, int func_index)
+  LuaEnvLookup(lua_State* L, int func_index, int var_index)
   {
-    m_LuaState      = L;
-    m_FunctionIndex = func_index;
+    m_LuaState = L;
+    m_EnvIndex = func_index;
+    m_VarIndex = var_index;
   }
 
 private:
@@ -44,28 +46,57 @@ public:
     m_Valid    = false;
 
     lua_State* L = lookup.m_LuaState;
-    lua_checkstack(L, 5);
-    lua_pushvalue(L, lookup.m_FunctionIndex);
-    lua_pushlstring(L, key, len);
-    if (0 == lua_pcall(L, 1, 1, 0))
+
+    // If we have a table of per-call variables, look there first.
+    if (int var_table_idx = lookup.m_VarIndex)
     {
-      if (LUA_TTABLE == lua_type(L, -1))
+      lua_getfield(L, var_table_idx, key);
+      if (!lua_isnil(L, -1))
       {
+        if (LUA_TTABLE != lua_type(L, -1))
+        {
+          lua_newtable(L);
+          lua_pushvalue(L, -2);
+          lua_rawseti(L, -2, 1);
+          lua_replace(L, -2);
+        }
         m_Count = lua_objlen(L, -1);
         m_Valid = true;
+        return;
       }
       else
       {
-        lua_pushlstring(L, key, len);
-        fprintf(stderr, "env resolve failed: didn't return a table for \"%s\": %s\n", lua_tostring(L, -1), lua_typename(L, lua_type(L, -2)));
-        lua_pop(L, 2);
+        lua_pop(L, 1);
       }
     }
-    else
+
+    // Next, walk through the environment tables. 
+    lua_pushvalue(L, lookup.m_EnvIndex);
+    while (!lua_isnil(L, -1))
     {
-      fprintf(stderr, "env resolve failed: %s\n", lua_tostring(L, -1));
-      lua_pop(L, 1);
+      lua_getfield(L, -1, "parent");
+      lua_getfield(L, -2, "vars");
+      // remove env table index from stack, replace it with its parent table
+      lua_remove(L, -3);
+
+      lua_getfield(L, -1, key);
+      if (!lua_isnil(L, -1))
+      {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        lua_remove(L, -3);
+        lua_remove(L, -2);
+        m_Count = lua_objlen(L, -1);
+        m_Valid = true;
+        return;
+      }
+
+      // Pop nil value, and vars table. Leaving us with next table to try.
+      lua_pop(L, 2);
     }
+    // Pop nil table.
+    lua_pop(L, 1);
+
+    luaL_error(L, "No key '%s' present in environment", key);
   }
 
   size_t GetCount()
@@ -572,27 +603,27 @@ static bool DoInterpolate(StringBuffer& output, const char* str, size_t len, Lua
 //
 // Calling interface:
 //  Arg 1 - String to interpolate
-//  Arg 2 - A function to call to map a string to an table of expansions
+//  Arg 2 - Top environment (we will follow "parent" links if needed)
+//  Arg 3 - Optional table of variables for this interpolation only
 static int LuaInterpolate(lua_State* L)
 {
   size_t input_len;
   const char* input = luaL_checklstring(L, 1, &input_len);
-  luaL_checktype(L, 2, LUA_TFUNCTION);
+  luaL_checktype(L, 2, LUA_TTABLE);
+  const bool has_vars = lua_type(L, 3) == LUA_TTABLE;
 
+  MemAllocHeap* heap;
+  lua_getallocf(L, (void**) &heap);
+
+  LuaEnvLookup lookup(L, 2, has_vars ? 3 : 0);
+  StringBuffer output(heap);
+
+  if (DoInterpolate(output, input, input_len, lookup))
   {
-    MemAllocHeap* heap;
-    lua_getallocf(L, (void**) &heap);
-
-    LuaEnvLookup lookup(L, 2);
-    StringBuffer output(heap);
-
-    if (DoInterpolate(output, input, input_len, lookup))
-    {
-      lua_pushlstring(L, output.GetBuffer(), output.GetSize());
-      return 1;
-    }
+    lua_pushlstring(L, output.GetBuffer(), output.GetSize());
+    return 1;
   }
-  
+
   return luaL_error(L, "interpolation failed: %s", input);
 }
 

@@ -221,43 +221,9 @@ function envclass:get_parent()
 end
 
 function envclass:interpolate(str, vars)
-  local n = nenv.interpolate(str, function (var)
-    local v = vars and vars[var] or nil
-    if v then
-      if type(v) ~= "table" then
-        v = { v }
-      end
-      return v
-    end
-
-    local chain = self
-    while chain do
-      v = chain.vars[var]
-      if v then
-        return v
-      end
-      chain = chain.parent
-    end
-
-    printf("Env lookup failed for %q. Available keys in call:", var)
-    for k, v in util.nil_pairs(vars) do
-      printf("  %s = %s", k, util.tostring(v))
-    end
-    printf("Available keys in environment:", var)
-    local chain = self
-    while chain do
-      local keys = util.table_keys(chain.vars)
-      table.sort(keys)
-      for _, k in ipairs(keys) do
-        printf("  %s = %s", k, util.tostring(chain:get_list(k)))
-      end
-      chain = chain.parent
-    end
-
-    return nil
-  end)
-
-  return n
+  -- Interpolation is entirely in native code.
+  -- It's slow enough. :(
+  return nenv.interpolate(str, self, vars)
 end
 
 function create(parent, assignments, obj)
