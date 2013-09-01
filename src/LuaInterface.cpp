@@ -470,6 +470,23 @@ static int LuaWin32RegisterQuery(lua_State *L)
 }
 #endif
 
+static int LuaTime(lua_State* L)
+{
+  lua_pushinteger(L, TimerGet());
+  return 1;
+}
+
+static int LuaTimeDiff(lua_State* L)
+{
+  lua_Integer a = luaL_checkinteger(L, 1);
+  lua_Integer b = luaL_checkinteger(L, 2);
+  double d = t2::TimerDiffSeconds(a, b);
+  char buffer[64];
+  snprintf(buffer, sizeof buffer, "%.5f", d);
+  lua_pushstring(L, buffer);
+  return 1;
+}
+
 static const luaL_Reg s_LuaFunctions[] = {
   { "exit",             LuaTundraExit },
   { "list_directory",   LuaListDirectory },
@@ -482,6 +499,8 @@ static const luaL_Reg s_LuaFunctions[] = {
   { "djb2_hash_path",   LuaDjb2HashPath },
   { "getcwd",           LuaGetCwd },
   { "mkdir",            LuaMkdir },
+  { "get_timer",        LuaTime },
+  { "timerdiff",        LuaTimeDiff },
 #ifdef _WIN32
   { "reg_query",        LuaWin32RegisterQuery },
 #endif

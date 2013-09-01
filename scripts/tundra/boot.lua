@@ -1,6 +1,7 @@
 module(..., package.seeall)
 
 -- Use "strict" when developing to flag accesses to nil global variables
+-- This has very low perf impact (<0.1%), so always leave it on.
 require "strict"
 
 local os        = require "os"
@@ -9,6 +10,7 @@ local util      = require "tundra.util"
 local depgraph  = require "tundra.depgraph"
 local unitgen   = require "tundra.unitgen"
 local buildfile = require "tundra.buildfile"
+local native    = require "tundra.native"
 
 -- This trio is so useful we want them everywhere without imports.
 function _G.printf(msg, ...)
@@ -25,6 +27,22 @@ function _G.croak(msg, ...)
   local str = string.format(msg, ...)
   io.stderr:write(str, "\n")
   os.exit(1)
+end
+
+-- Expose benchmarking function for those times everything sucks
+--
+-- Wrap a function so that it prints execution times.
+--
+-- Usage:
+--   foo = bench("foo", foo) -- benchmark function foo
+function _G.bench(name, fn) 
+  return function (...)
+    local t1 = native.get_timer()
+    local result = { fn(...) }
+    local t2 = native.get_timer()
+    printf("%s: %ss", name, native.timerdiff(t1, t2))
+    return unpack(result)
+  end
 end
 
 local environment = require "tundra.environment"
