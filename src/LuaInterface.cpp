@@ -1,4 +1,7 @@
+#include "LuaInterface.hpp"
+#include "LuaProfiler.hpp"
 #include "MemAllocHeap.hpp"
+#include "MemAllocLinear.hpp"
 #include "Hash.hpp"
 #include "FileInfo.hpp"
 #include "BinaryWriter.hpp"
@@ -511,9 +514,19 @@ void LuaEnvNativeOpen(lua_State* L);
 void LuaJsonNativeOpen(lua_State* L);
 void LuaPathNativeOpen(lua_State* L);
 
-lua_State* CreateLuaState(MemAllocHeap* lua_heap)
+static bool s_IsProfiling;
+static MemAllocLinear s_ProfilerAllocator;
+
+lua_State* CreateLuaState(MemAllocHeap* lua_heap, bool profile)
 {
   lua_State* L = lua_newstate(LuaAllocFunc, lua_heap);
+
+  if (profile)
+  {
+    s_IsProfiling = true;
+    LinearAllocInit(&s_ProfilerAllocator, lua_heap, 512 * 1024, "Profiler Allocator");
+    LuaProfilerInit(lua_heap, &s_ProfilerAllocator, L); 
+  }
 
   if (!L)
     Croak("couldn't create Lua state");
@@ -610,6 +623,17 @@ bool RunBuildScript(lua_State *L, const char** args, int argc_count)
     }
     return false;
   }
+}
+
+void DestroyLuaState(lua_State* L)
+{
+  if (s_IsProfiling)
+  {
+    LuaProfilerDestroy();
+    LinearAllocDestroy(&s_ProfilerAllocator);
+  }
+
+  lua_close(L);
 }
 
 }

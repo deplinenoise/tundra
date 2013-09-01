@@ -93,7 +93,7 @@ LIBTUNDRA_SOURCES = \
 	HashSha1.cpp HashFast.cpp ConditionVar.cpp
 
 T2LUA_SOURCES = LuaMain.cpp LuaInterface.cpp LuaInterpolate.cpp LuaJsonWriter.cpp \
-								LuaPath.cpp
+								LuaPath.cpp LuaProfiler.cpp
 
 T2INSPECT_SOURCES = InspectMain.cpp
 

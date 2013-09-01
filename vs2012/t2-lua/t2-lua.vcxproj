@@ -86,9 +86,11 @@
     <ClCompile Include="..\..\src\LuaJsonWriter.cpp" />
     <ClCompile Include="..\..\src\LuaPath.cpp" />
     <ClCompile Include="..\..\src\LuaMain.cpp" />
+    <ClCompile Include="..\..\src\LuaProfiler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\LuaInterface.hpp" />
+    <ClInclude Include="..\..\src\LuaProfiler.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\libtundra\libtundra.vcxproj">

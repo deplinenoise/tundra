@@ -1,4 +1,5 @@
 #include "LuaInterface.hpp"
+#include "LuaProfiler.hpp"
 #include "MemAllocHeap.hpp"
 
 extern "C"
@@ -87,8 +88,25 @@ int main(int argc, char** argv)
   MemAllocHeap heap;
   HeapInit(&heap, MB(256), HeapFlags::kDefault);
 
-  lua_State* L = CreateLuaState(&heap);
-  bool success = RunBuildScript(L, (const char**) &argv[1], argc - 1);
+  bool profile = false;
+
+  int script_arg_start = 1;
+
+  // Eat a secret --profile argument if it's first on the command line.
+  if (argc > 1 && 0 == strcmp("--profile", argv[1]))
+  {
+    profile = true;
+    ++script_arg_start;
+  }
+
+  lua_State* L = CreateLuaState(&heap, profile);
+
+  bool success = RunBuildScript(L, (const char**) &argv[script_arg_start], argc - script_arg_start);
+
+  if (profile)
+    LuaProfilerReport();
+
+  DestroyLuaState(L);
     
   HeapDestroy(&heap);
 
