@@ -101,24 +101,16 @@ static int LuaJsonGc(lua_State* L)
   return 0;
 }
 
-static void WriteEscapedString(BufferedWriter* w, const char* str)
+static char s_EscapeTable[256] = { 0 };
+
+static void WriteEscapedString(BufferedWriter* w, const char* str, size_t len)
 {
   BufferedWriterAppend(w, '"');
 
-  while (char ch = *str++)
+  for (size_t i = 0; i < len; ++i)
   {
-    char escape_code = 0;
-
-    switch (ch)
-    {
-      case '\r': escape_code = 'r'; break;
-      case '\n': escape_code = 'n'; break;
-      case '\t': escape_code = 't'; break;
-      case '\v': escape_code = 'v'; break;
-      case '\f': escape_code = 'f'; break;
-      case '\\': escape_code = '\\'; break;
-      case '"': escape_code = '"'; break;
-    }
+    char ch = str[i];
+    char escape_code = s_EscapeTable[(uint32_t) ch];
 
     if (escape_code)
     {
@@ -151,7 +143,9 @@ static void WriteCommon(lua_State* L, LuaJsonWriter* self, int name_index)
   WriteComma(self);
   if (lua_gettop(L) >= name_index)
   {
-    WriteEscapedString(&self->m_Writer, luaL_checkstring(L, name_index));
+    size_t len;
+    const char* str = luaL_checklstring(L, name_index, &len);
+    WriteEscapedString(&self->m_Writer, str, len);
     BufferedWriterAppend(&self->m_Writer, ':');
   }
 }
@@ -180,9 +174,10 @@ static int LuaJsonWriteBool(lua_State* L)
 static int LuaJsonWriteString(lua_State* L)
 {
   LuaJsonWriter* self = (LuaJsonWriter*) luaL_checkudata(L, 1, "tundra_jsonw");
-  const char* value = lua_tostring(L, 2);
+  size_t value_len;
+  const char* value = lua_tolstring(L, 2, &value_len);
   WriteCommon(L, self, 3);
-  WriteEscapedString(&self->m_Writer, value);
+  WriteEscapedString(&self->m_Writer, value, value_len);
   return 0;
 }
 
@@ -250,6 +245,14 @@ void LuaJsonNativeOpen(lua_State* L)
   lua_setfield(L, -2, "__index");
   luaL_register(L, nullptr, meta_table);
   lua_pop(L, 1);
+
+  s_EscapeTable[uint32_t('\n')] = 'n';
+  s_EscapeTable[uint32_t('\r')] = 'r';
+  s_EscapeTable[uint32_t('\t')] = 't';
+  s_EscapeTable[uint32_t('\v')] = 'v';
+  s_EscapeTable[uint32_t('\f')] = 'f';
+  s_EscapeTable[uint32_t('\\')] = '\\';
+  s_EscapeTable[uint32_t('"')] = '"';
 }
 
 }
