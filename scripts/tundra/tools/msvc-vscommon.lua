@@ -211,6 +211,12 @@ function apply_msvc_visual_studio(version, env, options)
     env:set("RCOPTS", "") -- clear the "/nologo" option (it was first added in VS2010)
   end
  
+  if version == "12.0" then
+    -- Force MSPDBSRV.EXE
+    env:set("CCOPTS", "/FS")
+    env:set("CXXOPTS", "/FS")
+  end
+ 
   -- Wire-up the external environment
 
   env:set_external_env_var('VSINSTALLDIR', vs_root)
