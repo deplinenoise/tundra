@@ -239,7 +239,7 @@ function apply_msvc_visual_studio(version, env, options)
   -- the linker will throw an error when looking for libs
   -- Lua does not have a "does directory exist function"
   -- we could use one here
-  local lib_str = sdk_lib .. ";" .. vs_root .. "\\VC\\ATLMFC\\" .. vc_lib_map[host_arch][target_arch] .. ";" .. vc_lib
+  local lib_str = sdk_lib .. ";" .. vs_root .. "\\VC\\ATLMFC\\lib\\" .. vc_lib_map[host_arch][target_arch] .. ";" .. vc_lib
   env:set_external_env_var("LIB", lib_str)
   env:set_external_env_var("LIBPATH", lib_str)
 
