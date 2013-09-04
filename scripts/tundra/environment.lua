@@ -30,6 +30,7 @@ function envclass:create(parent, assignments, obj)
   setmetatable(obj, self)
   self.__index = self
 
+  obj.cached_interpolation = {}
   obj.vars = {}
   obj.parent = parent
   obj.lookup = { obj.vars }
@@ -140,6 +141,7 @@ function envclass:replace(key, value)
 end
 
 function envclass:invalidate_memos(key)
+  self.cached_interpolation = {}
   local name_tab = self.memo_keys[key]
   if name_tab then
     for name, _ in pairs(name_tab) do
@@ -221,9 +223,18 @@ function envclass:get_parent()
 end
 
 function envclass:interpolate(str, vars)
-  -- Interpolation is entirely in native code.
-  -- It's slow enough. :(
-  return nenv.interpolate(str, self, vars)
+  local cached = self.cached_interpolation[str]
+
+  if not cached then
+    cached = nenv.interpolate(str, self)
+    self.cached_interpolation[str] = cached
+  end
+
+  if vars then
+    return nenv.interpolate(cached, self, vars)
+  else
+    return cached
+  end
 end
 
 function create(parent, assignments, obj)

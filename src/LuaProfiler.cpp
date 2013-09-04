@@ -281,11 +281,16 @@ void LuaProfilerReport()
 {
   printf("Generating profiling report..\n");
 
-  FILE* f = fopen("tundra.prof", "w");
+  if (FILE* f = fopen("tundra.prof", "w"))
+  {
+    DumpReport(f);
 
-  DumpReport(f);
-
-  fclose(f);
+    fclose(f);
+  }
+  else
+  {
+    fprintf(stderr, "Failed to write tundra.prof\n");
+  }
 }
 
 }

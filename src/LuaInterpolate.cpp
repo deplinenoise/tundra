@@ -13,23 +13,11 @@ extern "C" {
 namespace t2
 {
 
-class LuaEnvLookup
+struct LuaEnvLookup
 {
-private:
   lua_State *m_LuaState;
   int        m_EnvIndex;
   int        m_VarIndex;
-
-public:
-  LuaEnvLookup(lua_State* L, int func_index, int var_index)
-  {
-    m_LuaState = L;
-    m_EnvIndex = func_index;
-    m_VarIndex = var_index;
-  }
-
-private:
-  friend class LuaEnvLookupScope;
 };
 
 class LuaEnvLookupScope
@@ -579,17 +567,22 @@ static bool DoInterpolate(StringBuffer& output, const char* str, size_t len, Lua
     {
       if (end != str && '(' == str[0])
       {
-        ++str;
-        const char* end_paren = FindEndParen(str, end - str);
-        if (!end_paren)
+        // Don't interpolate $(<) or $(@) without a lookaside table.
+        // We leave them in the string.
+        if (lookup.m_VarIndex || (str[1] != '<' && str[1] != '@'))
         {
-          fprintf(stderr, "unbalanced parens\n");
-          return false;
+          ++str;
+          const char* end_paren = FindEndParen(str, end - str);
+          if (!end_paren)
+          {
+            fprintf(stderr, "unbalanced parens\n");
+            return false;
+          }
+          if (!InterpolateVar(output, str, end_paren - str, lookup))
+            return false;
+          str = end_paren + 1;
+          continue;
         }
-        if (!InterpolateVar(output, str, end_paren - str, lookup))
-          return false;
-        str = end_paren + 1;
-        continue;
       }
     }
 
@@ -615,7 +608,7 @@ static int LuaInterpolate(lua_State* L)
   MemAllocHeap* heap;
   lua_getallocf(L, (void**) &heap);
 
-  LuaEnvLookup lookup(L, 2, has_vars ? 3 : 0);
+  LuaEnvLookup lookup = { L, 2, has_vars ? 3 : 0 };
   StringBuffer output(heap);
 
   if (DoInterpolate(output, input, input_len, lookup))
