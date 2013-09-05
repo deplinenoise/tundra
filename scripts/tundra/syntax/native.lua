@@ -116,6 +116,7 @@ function _native_mt:create_dag(env, data, input_deps)
   local my_pass = data.Pass
   local sources = data.Sources
   local libsuffix = { env:get("LIBSUFFIX") }
+  local shlibsuffix = { env:get("SHLIBLINKSUFFIX") }
   local my_extra_deps = {}
 
   -- Link with libraries in dependencies.
@@ -124,11 +125,16 @@ function _native_mt:create_dag(env, data, input_deps)
     if dep.Keyword == "SharedLibrary" then
       -- On Win32 toolsets, we need foo.lib
       -- On UNIX toolsets, we need -lfoo
+      --
+      -- We only want to add this if the node actually produced any output (i.e
+      -- it's not completely filtered out.)
       local node = dep:get_dag(env:get_parent())
-      my_extra_deps[#my_extra_deps + 1] = node
-      local target = dep.Decl.Target or dep.Decl.Name
-      target = target .. "$(SHLIBLINKSUFFIX)"
-      env:append('LIBS', target)
+      if #node.outputs > 0 then
+        my_extra_deps[#my_extra_deps + 1] = node
+        local target = dep.Decl.Target or dep.Decl.Name
+        target = target .. "$(SHLIBLINKSUFFIX)"
+        env:append('LIBS', target)
+      end
     elseif dep.Keyword == "StaticLibrary" then
       local node = dep:get_dag(env:get_parent())
       my_extra_deps[#my_extra_deps + 1] = node
