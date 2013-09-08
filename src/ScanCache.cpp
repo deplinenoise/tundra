@@ -397,7 +397,7 @@ static void SaveRecord(
   self->m_RecordsOut++;
 }
 
-bool ScanCacheSave(ScanCache* self, const char* fn, MemoryMappedFile* prev_mapping, MemAllocHeap* heap)
+bool ScanCacheSave(ScanCache* self, const char* fn, MemAllocHeap* heap)
 {
   TimingScope timing_scope(nullptr, &g_Stats.m_ScanCacheSaveTime);
 
@@ -479,9 +479,6 @@ bool ScanCacheSave(ScanCache* self, const char* fn, MemoryMappedFile* prev_mappi
   };
 
   TraverseSortedArrays(record_count, save_dynamic, key_dynamic, frozen_count, save_frozen, key_frozen);
-
-  // Unmap the previous file from RAM so we can overwrite it on Windows.
-  MmapFileUnmap(prev_mapping);
 
   self->m_FrozenData = nullptr;
 

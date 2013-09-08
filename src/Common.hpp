@@ -107,6 +107,9 @@ bool MakeDirectory(const char* dir);
 
 bool RemoveFileOrDir(const char* path); 
 
+// Like rename(), but also works when target file exists on Windows.
+bool RenameFile(const char* oldf, const char* newf);
+
 //-----------------------------------------------------------------------------
 // Process info
 //-----------------------------------------------------------------------------

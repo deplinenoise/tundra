@@ -52,7 +52,7 @@ namespace t2
 
   bool ScanCacheDirty(ScanCache* self);
 
-  bool ScanCacheSave(ScanCache* self, const char* fn, MemoryMappedFile* prev_mapping, MemAllocHeap* heap);
+  bool ScanCacheSave(ScanCache* self, const char* fn, MemAllocHeap* heap);
 
 }
 

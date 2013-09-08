@@ -383,5 +383,15 @@ bool RemoveFileOrDir(const char* path)
 #endif
 }
 
+// Like rename(), but also works when target file exists on Windows.
+bool RenameFile(const char* oldf, const char* newf)
+{
+#if defined(TUNDRA_UNIX)
+  return 0 == rename(oldf, newf);
+#else
+  return FALSE != MoveFileExA(oldf, newf, MOVEFILE_REPLACE_EXISTING);
+#endif
+}
+
 }
 

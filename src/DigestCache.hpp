@@ -55,7 +55,7 @@ namespace t2
 
   void DigestCacheDestroy(DigestCache* self);
 
-  bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap);
+  bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const char* tmp_filename);
 
   bool DigestCacheGet(DigestCache* self, const char* filename, uint32_t hash, uint64_t timestamp, HashDigest* digest_out);
 

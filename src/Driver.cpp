@@ -38,11 +38,15 @@ namespace t2
 
 TundraStats g_Stats;
 
-static const char s_BuildFile[]         = "tundra.lua";
-static const char s_DagFileName[]       = ".tundra2.dag";
-static const char s_StateFileName[]     = ".tundra2.state";
-static const char s_ScanCacheFileName[] = ".tundra2.scancache";
-static const char s_DigestCacheFileName[] = ".tundra2.digestcache";
+static const char s_BuildFile[]              = "tundra.lua";
+static const char s_DagFileName[]            = ".tundra2.dag";
+static const char s_StateFileName[]          = ".tundra2.state";
+static const char s_ScanCacheFileName[]      = ".tundra2.scancache";
+static const char s_DigestCacheFileName[]    = ".tundra2.digestcache";
+// Temporary filenames where we write data first. These are then renamed to commit.
+static const char s_StateFileNameTmp[]       = ".tundra2.state.tmp";
+static const char s_ScanCacheFileNameTmp[]   = ".tundra2.scancache.tmp";
+static const char s_DigestCacheFileNameTmp[] = ".tundra2.digestcache.tmp";
 
 static bool DriverPrepareDag(Driver* self, const char* dag_fn);
 static bool DriverCheckDagSignatures(Driver* self);
@@ -822,14 +826,28 @@ bool DriverSaveScanCache(Driver* self)
   // This will be invalidated.
   self->m_ScanData = nullptr;
 
-  return ScanCacheSave(scan_cache, s_ScanCacheFileName, &self->m_ScanFile, &self->m_Heap);
+  bool success = ScanCacheSave(scan_cache, s_ScanCacheFileNameTmp, &self->m_Heap);
+
+  // Unmap the file so we can overwrite it (on Windows.)
+  MmapFileDestroy(&self->m_ScanFile);
+
+  if (success)
+  {
+    success = RenameFile(s_ScanCacheFileNameTmp, s_ScanCacheFileName);
+  }
+  else
+  {
+    remove(s_ScanCacheFileNameTmp);
+  }
+
+  return success;
 }
 
 // Save digest cache
 bool DriverSaveDigestCache(Driver* self)
 {
   // This will be invalidated.
-  return DigestCacheSave(&self->m_DigestCache, &self->m_Heap);
+  return DigestCacheSave(&self->m_DigestCache, &self->m_Heap, s_DigestCacheFileNameTmp);
 }
 
 
@@ -994,11 +1012,21 @@ bool DriverSaveBuildState(Driver* self)
   BinarySegmentWritePointer(main_seg, guid_ptr);
   BinarySegmentWritePointer(main_seg, state_ptr);
 
-  // Unmap old state data to prevent sharing conflicts on windows.
+  // Unmap old state data.
   MmapFileUnmap(&self->m_StateFile);
   self->m_StateData = nullptr;
 
-  bool success = BinaryWriterFlush(&writer, s_StateFileName);
+  bool success = BinaryWriterFlush(&writer, s_StateFileNameTmp);
+
+  if (success)
+  {
+    // Commit atomically with a file rename.
+    success = RenameFile(s_StateFileNameTmp, s_StateFileName);
+  }
+  else
+  {
+    remove(s_StateFileNameTmp);
+  }
 
   BinaryWriterDestroy(&writer);
 

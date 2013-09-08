@@ -76,7 +76,7 @@ void DigestCacheDestroy(DigestCache* self)
   ReadWriteLockDestroy(&self->m_Lock);
 }
 
-bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap)
+bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const char* tmp_filename)
 {
   TimingScope timing_scope(nullptr, &g_Stats.m_DigestCacheSaveTimeCycles);
 
@@ -114,7 +114,16 @@ bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap)
   MmapFileUnmap(&self->m_StateFile);
   self->m_State = nullptr;
 
-  bool success = BinaryWriterFlush(&writer, self->m_StateFilename);
+  bool success = BinaryWriterFlush(&writer, tmp_filename);
+
+  if (success)
+  {
+    success = RenameFile(tmp_filename, self->m_StateFilename);
+  }
+  else
+  {
+    remove(tmp_filename);
+  }
 
   BinaryWriterDestroy(&writer);
 
