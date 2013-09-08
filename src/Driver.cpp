@@ -129,7 +129,8 @@ void DriverShowTargets(Driver* self)
 {
   const DagData* dag = self->m_DagData;
 
-  printf("%-20s %-20s %-20s\n", "config", "variant", "sub-variant");
+  printf("%-20s %-20s %-20s\n", "Config", "Variant", "SubVariant");
+  printf("----------------------------------------------------------------\n");
 
   for (const BuildTupleData& tuple : dag->m_BuildTuples)
   {
@@ -137,7 +138,21 @@ void DriverShowTargets(Driver* self)
     const char* variant_name = dag->m_VariantNames[tuple.m_VariantIndex];
     const char* subvariant_name = dag->m_SubVariantNames[tuple.m_SubVariantIndex];
     printf("%-20s %-20s %-20s\n", config_name, variant_name, subvariant_name);
+  }
 
+  printf("\nNamed nodes and aliases:\n");
+  printf("----------------------------------------------------------------\n");
+
+  for (const BuildTupleData& tuple : dag->m_BuildTuples)
+  {
+    for (const NamedNodeData& nnode : tuple.m_NamedNodes)
+    {
+      printf(" - %s\n", nnode.m_Name.Get());
+    }
+
+    // Currently the named nodes are the same for all build tuples.
+    // We just need one.
+    break;
   }
 }
 
