@@ -168,6 +168,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
         RelativeFilename = relative_fn,
         Filename         = base_dir .. relative_fn,
         Guid             = get_guid_string(name),
+        BuildByDefault   = hints.BuildAllByDefault,
       }
     end
     return project_by_name[name]
