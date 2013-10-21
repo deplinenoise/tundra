@@ -20,6 +20,7 @@ function apply(env, options)
     ["LD"] = "link",
     ["CPPDEFS"] = "_WIN32",
     ["_CPPDEFS"] = "$(CPPDEFS:p/D) $(CPPDEFS_$(CURRENT_VARIANT:u):p/D)",
+    ["_PCH_SUPPORTED"] = "1",
     ["_USE_PCH_OPT"] = "/Fp$(_PCH_FILE:b) /Yu$(_PCH_HEADER)",
     ["_USE_PCH"] = "",
     ["_USE_PDB_CC_OPT"] = "/Zi /Fd$(_PDB_FILE:b)",

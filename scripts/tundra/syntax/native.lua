@@ -84,7 +84,7 @@ function _native_mt:customize_env(env, raw_data)
 
   local pch = raw_data.PrecompiledHeader
 
-  if pch then
+  if pch and env:get('_PCH_SUPPORTED', '0') ~= '0' then
     assert(pch.Header)
     if not nodegen.resolve_pass(pch.Pass) then
       croak("%s: PrecompiledHeader requires a valid Pass", raw_data.Name)
