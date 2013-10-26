@@ -60,11 +60,11 @@
                 p.StartInfo.RedirectStandardError = true;
                 p.OutputDataReceived += (object sender, DataReceivedEventArgs line) => {
                   if (line.Data != null)
-                    Log.LogMessage(MessageImportance.High, line.Data);
+                    Log.LogMessageFromText(line.Data, MessageImportance.High);
                 };
                 p.ErrorDataReceived += (object sender, DataReceivedEventArgs line) => {
                   if (line.Data != null)
-                    Log.LogMessage(MessageImportance.High, line.Data);
+                    Log.LogMessageFromText(line.Data, MessageImportance.High);
                 };
                 p.Start();
                 p.BeginOutputReadLine();
