@@ -81,5 +81,12 @@ Build {
       ['ProgramOnly.sln'] = { Projects = { "prog" } },
       ['LibOnly.sln'] = { Projects = { "blahlib" } },
     },
+
+    -- Cause all projects to have "Build" ticked on them inside the MSVC Configuration Manager.
+    -- As a result of this, you can choose a project as the "Startup Project",
+    -- and when hitting "Debug" or "Run", the IDE will build that project before running it.
+    -- You will want to avoid pressing "Build Solution" with this option turned on, because MSVC
+    -- will kick off all project builds simultaneously.
+    BuildAllByDefault = true,
   }
 }
