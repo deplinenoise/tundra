@@ -23,27 +23,7 @@ https://github.com/deplinenoise/tundra-vsplugin for details.
 Binaries
 -----------------------------------------------------------------------------
 
-Windows installers are available for download:
-
-- 2.0 Beta8 (2013-09-01)
-  - [installer](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta8.exe) MD5: `803d45405f1ec446e5c534d5015bbe4e`
-  - [zip](http://tundra2-builds.s3.amazonaws.com/Tundra-Binaries-Beta8.zip) MD5: `2e703366008fe046f973b4a20c9c1b56`
-- 2.0 Beta7 (2013-07-31)
-  - [installer](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta7.exe) MD5: `2d4b6e8c5a8e5b642b478ce4700b1f3f`
-  - [zip](http://tundra2-builds.s3.amazonaws.com/Tundra-Binaries-Beta7.zip) MD5: `9ee4bfedd3e98c2fa8d3fe8b480c9a62`
-- 2.0 Beta6a (2013-06-18)
-  - [installer](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta6a.exe) MD5: `40fefb751e9255334680835a82c3cbcf`
-  - [zip](http://tundra2-builds.s3.amazonaws.com/Tundra-Binaries-Beta6a.zip) MD5: `1f6c127ef33aa3504aeeacd8ce045601`
-- 2.0 Beta5 (2013-06-17)
-  - [installer](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta5.exe) MD5: `b52fdcf2a19dd418bf98d5ba76eb7730`
-  - [zip](http://tundra2-builds.s3.amazonaws.com/Tundra-Binaries-Beta5.zip) MD5: `fabda381bfdc7f83a249a13251fb0e4b`
-- 2.0 Beta4 (2013-06-16)
-  - [installer](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta4.exe) MD5: `ffbe55fd9dcf7a009f6264e6cf8824b5`
-  - [zip](http://tundra2-builds.s3.amazonaws.com/Tundra-Binaries-Beta4.zip) MD5: `6ff1c6e87f30325fac295ebed5b9d07b`
-- 2.0 Beta3 (2013-05-09)
-  - [installer](http://tundra2-builds.s3.amazonaws.com/Tundra-Setup-Beta3.exe) MD5: `5f3b740259646d24eaf321b1b430836e`
-  - [zip](http://tundra2-builds.s3.amazonaws.com/Tundra-Binaries-Beta3.zip) MD5: `dd8ebd0f9d461b3eea2192d02016cdb8`
-
+Windows installers are available for download in the releases tab.
 
 License and Copyright
 -----------------------------------------------------------------------------
