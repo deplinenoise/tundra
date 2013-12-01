@@ -5,7 +5,6 @@ local path = require "tundra.path"
 local depgraph = require "tundra.depgraph"
 
 local _bison_mt = nodegen.create_eval_subclass {}
-local _flex_mt = nodegen.create_eval_subclass {}
 
 local bison_blueprint = {
   Source = { Required = true, Type = "string" },
@@ -40,29 +39,4 @@ function _bison_mt:create_dag(env, data, deps)
   }
 end
 
-local flex_blueprint = {
-  Source = { Required = true, Type = "string" },
-  OutputFile = { Required = false, Type = "string" },
-}
-
-function _flex_mt:create_dag(env, data, deps)
-  local input = data.Source
-  local out_src
-  if data.OutputFile then
-    out_src = "$(OBJECTDIR)$(SEP)" .. data.OutputFile
-  else
-    local targetbase = "$(OBJECTDIR)$(SEP)flexgen_" .. path.get_filename_base(input)
-    out_src = targetbase .. ".c"
-  end
-  return depgraph.make_node {
-    Env = env,
-    Pass = data.Pass,
-    Label = "Flex $(@)",
-    Action = "$(FLEX) $(FLEXOPT) --outfile=$(@) $(<)",
-    InputFiles = { input },
-    OutputFiles = { out_src },
-  }
-end
-
-nodegen.add_evaluator("Flex", _flex_mt, flex_blueprint)
 nodegen.add_evaluator("Bison", _bison_mt, bison_blueprint)
