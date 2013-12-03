@@ -1,7 +1,6 @@
 module(..., package.seeall)
 
 local decl     = require "tundra.decl"
-local nodegen  = require "tundra.nodegen"
 local depgraph = require "tundra.depgraph"
 
 local common_blueprint = {
@@ -38,3 +37,14 @@ def_copy_rule('HardLinkFile', '$(_HARDLINK_FILE)')
 def_copy_rule('HardLinkFileInvariant', '$(_HARDLINK_FILE)', true)
 
 
+function hardlink_file(env, src, dst, pass, deps)
+  return depgraph.make_node {
+    Env = env,
+    Annotation = "HardLink $(<)",
+    Action = "$(_HARDLINK_FILE)",
+    InputFiles = { src },
+    OutputFiles = { dst },
+    Dependencies = deps,
+    Pass = pass,
+  }
+end
