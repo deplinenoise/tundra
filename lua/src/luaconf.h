@@ -45,7 +45,6 @@
 #endif
 
 
-
 /*
 @@ LUA_USE_POSIX includes all functionallity listed as X/Open System
 @* Interfaces Extension (XSI).
@@ -57,6 +56,14 @@
 #define LUA_USE_POPEN
 #define LUA_USE_ULONGJMP
 #endif
+
+/* Custom overrides for Tundra - we want POPEN on Unixy platforms. */
+#if defined(__APPLE__) || defined(linux)
+  #ifndef LUA_USE_POPEN
+    #define LUA_USE_POPEN
+  #endif
+#endif
+
 
 
 /*
