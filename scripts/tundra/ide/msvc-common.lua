@@ -514,6 +514,8 @@ function msvc_generator:generate_project(project, all_projects)
     p:write('\t\t<UseDebugLibraries>true</UseDebugLibraries>', LF) -- I have no idea what this setting affects
     if VERSION_YEAR == '2012' then
       p:write('\t\t<PlatformToolset>v110</PlatformToolset>', LF) -- I have no idea what this setting affects
+    elseif VERSION_YEAR == '2013' then
+      p:write('\t\t<PlatformToolset>v120</PlatformToolset>', LF) -- I have no idea what this setting affects
     end
     p:write('\t</PropertyGroup>', LF)
   end
