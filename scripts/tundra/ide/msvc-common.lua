@@ -788,9 +788,15 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
   local msvc_hints = hints.Msvc or {}
   local variant_mappings = msvc_hints.VariantMappings or {}
   local platform_mappings = msvc_hints.PlatformMappings or {}
+  local full_mappings = msvc_hints.FullMappings or {}
 
   for _, tuple in ipairs(config_tuples) do
-    if variant_mappings[tuple.Variant.Name] then
+    local build_id    = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
+    if full_mappings[build_id] then
+      local m = full_mappings[build_id]
+      tuple.MsvcConfiguration = assert(m.Config)
+      tuple.MsvcPlatform = assert(m.Platform)
+    elseif variant_mappings[tuple.Variant.Name] then
       tuple.MsvcConfiguration = variant_mappings[tuple.Variant.Name]
     else
       tuple.MsvcConfiguration = tuple.Variant.Name
@@ -801,7 +807,9 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
     -- for building stuff as Tundra doesn't care about this setting. But it
     -- might influence the choice of debugger and affect include paths for
     -- things like Intellisense that certain users may care about.
-    tuple.MsvcPlatform = platform_mappings[tuple.Config.Name]
+    if not tuple.MsvcPlatform then
+      tuple.MsvcPlatform = platform_mappings[tuple.Config.Name]
+    end
 
     -- If we didn't find anything, warn and then default to Win32, which VS
     -- will always accept (or so one would assume)
