@@ -123,8 +123,6 @@ error:
   return false;
 }
 
-
-
 void DriverShowTargets(Driver* self)
 {
   const DagData* dag = self->m_DagData;
@@ -145,11 +143,18 @@ void DriverShowTargets(Driver* self)
 
   for (const BuildTupleData& tuple : dag->m_BuildTuples)
   {
-    for (const NamedNodeData& nnode : tuple.m_NamedNodes)
+    int32_t count = tuple.m_NamedNodes.GetCount();
+    const char** temp = (const char**)alloca(sizeof(const char*) * count);
+    for (int i = 0; i < count; ++i)
     {
-      printf(" - %s\n", nnode.m_Name.Get());
+      temp[i] = tuple.m_NamedNodes[i].m_Name.Get();
     }
+    std::sort(temp, temp + count, [](const char *a, const char *b) { return strcmp(a, b) < 0; });
 
+    for (int i = 0; i < count; ++i)
+    {
+      printf(" - %s\n", temp[i]);
+    }
     // Currently the named nodes are the same for all build tuples.
     // We just need one.
     break;
