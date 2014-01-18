@@ -510,6 +510,13 @@ static bool InterpolateVar(StringBuffer& output, const char* str, size_t len, Lu
         case 'A': item.AppendUnless(&option[1], strlen(&option[1])); break;
         case 'f': item.ToForwardSlashes(); break;
         case 'b': item.ToBackSlashes(); break;
+        case 'n':
+#if defined(TUNDRA_WIN32)
+          item.ToBackSlashes();
+#else
+          item.ToForwardSlashes();
+#endif
+          break;
         case 'u': item.ToUppercase(); break;
         case 'l': item.ToLowercase(); break;
         case 'B': item.DropSuffix(); break;
