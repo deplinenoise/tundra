@@ -276,6 +276,15 @@ public:
         buf[i] = '\\';
     }
   }
+  
+  void ToNativeSlashes()
+  {
+#if defined(TUNDRA_WIN32)
+    ToBackSlashes();
+#else
+    ToForwardSlashes();
+#endif
+  }
 
   void ToUppercase()
   {
@@ -510,6 +519,7 @@ static bool InterpolateVar(StringBuffer& output, const char* str, size_t len, Lu
         case 'A': item.AppendUnless(&option[1], strlen(&option[1])); break;
         case 'f': item.ToForwardSlashes(); break;
         case 'b': item.ToBackSlashes(); break;
+        case 'n': item.ToNativeSlashes(); break;
         case 'u': item.ToUppercase(); break;
         case 'l': item.ToLowercase(); break;
         case 'B': item.DropSuffix(); break;
