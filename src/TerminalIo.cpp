@@ -352,14 +352,19 @@ void TerminalIoJobExit(int job_id)
 	CondBroadcast(&s_CanPrint);
 }
 
+void TerminalIoPrint(int job_id, int sort_key, const char *data)
+{
+	TerminalIoEmit(job_id, 0, sort_key, data, (int) strlen(data));
+}
+
 void TerminalIoPrintf(int job_id, int sort_key, const char *format, ...)
 {
 	char buffer[2048];
 	va_list a;
 	va_start(a, format);
-	vsnprintf(buffer, sizeof(buffer), format, a);
-	buffer[sizeof(buffer)-1] = '\0';
-	TerminalIoEmit(job_id, 0, sort_key, buffer, (int) strlen(buffer));
+	int	n = vsnprintf(buffer, sizeof(buffer), format, a);
+	if (n > 0)
+		TerminalIoEmit(job_id, 0, sort_key, buffer, n);
 	va_end(a);
 }
 
