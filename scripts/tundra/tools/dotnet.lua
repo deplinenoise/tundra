@@ -15,6 +15,8 @@ function apply(env, options)
 
   -- C# support
   env:set_many {
+    ["DOTNET_SUFFIXES"] = { ".cs" },
+    ["DOTNET_SUFFIXES_RESOURCE"] = { ".resource" },
     ["CSC"] = "csc.exe",
     ["CSPROGSUFFIX"] = ".exe",
     ["CSLIBSUFFIX"] = ".dll",
