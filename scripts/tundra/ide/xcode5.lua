@@ -522,7 +522,7 @@ local function make_groups(p, files, key)
     local path, filename = split(entry.Value)
 	for i, part in ipairs(split_str(path, "/")) do
       if part ~= '.' then
-        local grp = group.Children[part]
+        local grp = parent_group.Children[part]
         if grp == nil then
 		  grp = { Type = 1, Key=newid(util.tostring(parent_group)..part), Children={} }
           parent_group.Children[part] = grp
