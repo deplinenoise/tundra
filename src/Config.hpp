@@ -13,7 +13,7 @@
 #define USE_FAST_HASH YES
 
 #if defined(_DEBUG)
-#define USE_DLMALLOC YES
+#define USE_DLMALLOC NO
 #define CHECKED_BUILD YES
 #else
 #define USE_DLMALLOC YES
@@ -105,6 +105,12 @@
 #else
 #define TD_PATHSEP     '/'
 #define TD_PATHSEP_STR "/"
+#endif
+
+#if defined(_DEBUG) && defined(TUNDRA_LINUX)
+#define USE_VALGRIND YES
+#else
+#define USE_VALGRIND NO
 #endif
 
 #endif

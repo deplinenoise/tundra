@@ -5,6 +5,10 @@
 #include "Thread.hpp"
 #include <cstring>
 
+#if ENABLED(USE_VALGRIND)
+#include <valgrind/memcheck.h>
+#endif
+
 namespace t2
 {
 
@@ -51,6 +55,9 @@ public:
   ~MemAllocLinearScope()
   {
     m_Allocator->m_Offset = m_Offset;
+#if ENABLED(USE_VALGRIND)
+    VALGRIND_MAKE_MEM_NOACCESS(m_Allocator->m_Pointer + m_Offset, m_Allocator->m_Size - m_Offset);
+#endif
   }
 
 private:
