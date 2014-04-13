@@ -711,6 +711,8 @@ void DriverDestroy(Driver* self)
   MmapFileDestroy(&self->m_StateFile);
   MmapFileDestroy(&self->m_DagFile);
 
+  LinearAllocDestroy(&self->m_ScanCacheAllocator);
+  LinearAllocDestroy(&self->m_StatCacheAllocator);
   LinearAllocDestroy(&self->m_Allocator);
   HeapDestroy(&self->m_Heap);
 }
