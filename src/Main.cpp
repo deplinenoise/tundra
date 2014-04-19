@@ -69,6 +69,8 @@ static const struct OptionTemplate
     "Set working directory before building" },
   { 'h', "help", OptionType::kBool, offsetof(t2::DriverOptions, m_ShowHelp),
     "Show help" },
+  { 'k', "continue", OptionType::kBool, offsetof(t2::DriverOptions, m_ContinueOnError),
+    "Continue building on error" },
 #if defined(TUNDRA_WIN32)
   { 'U', "unprotected", OptionType::kBool, offsetof(t2::DriverOptions, m_RunUnprotected), "Run unprotected (same process group - for debugging)" },
 #endif

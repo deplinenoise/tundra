@@ -34,6 +34,7 @@ struct DriverOptions
   bool        m_Clean;
   bool        m_Rebuild;
   bool        m_DebugSigning;
+  bool        m_ContinueOnError;
 #if defined(TUNDRA_WIN32)
   bool        m_RunUnprotected;
 #endif

@@ -54,24 +54,25 @@ static bool DriverCheckDagSignatures(Driver* self);
 // Set default options.
 void DriverOptionsInit(DriverOptions* self)
 {
-  self->m_ShowHelp      = false;
-  self->m_DryRun        = false;
-  self->m_ForceDagRegen = false;
-  self->m_ShowTargets   = false;
-  self->m_DebugMessages = false;
-  self->m_Verbose       = false;
-  self->m_SpammyVerbose = false;
-  self->m_DisplayStats  = false;
-  self->m_GenDagOnly    = false;
-  self->m_Quiet         = false;
-  self->m_Clean         = false;
-  self->m_Rebuild       = false;
-  self->m_IdeGen        = false;
-  self->m_DebugSigning  = false;
-  self->m_ThreadCount   = GetCpuCount();
-  self->m_WorkingDir    = nullptr;
-#if defined(TUNDRA_WIN32)
-  self->m_RunUnprotected = false;
+  self->m_ShowHelp        = false;
+  self->m_DryRun          = false;
+  self->m_ForceDagRegen   = false;
+  self->m_ShowTargets     = false;
+  self->m_DebugMessages   = false;
+  self->m_Verbose         = false;
+  self->m_SpammyVerbose   = false;
+  self->m_DisplayStats    = false;
+  self->m_GenDagOnly      = false;
+  self->m_Quiet           = false;
+  self->m_Clean           = false;
+  self->m_Rebuild         = false;
+  self->m_IdeGen          = false;
+  self->m_DebugSigning    = false;
+  self->m_ContinueOnError = false;
+  self->m_ThreadCount     = GetCpuCount();
+  self->m_WorkingDir      = nullptr;
+  #if defined(TUNDRA_WIN32)
+  self->m_RunUnprotected  = false;
 #endif
 }
 
@@ -776,6 +777,10 @@ BuildResult::Enum DriverBuild(Driver* self)
   if (!self->m_Options.m_Quiet)
   {
     queue_config.m_Flags |= BuildQueueConfig::kFlagEchoAnnotations;
+  }
+  if (self->m_Options.m_ContinueOnError)
+  {
+    queue_config.m_Flags |= BuildQueueConfig::kFlagContinueOnError;
   }
 
   if (self->m_Options.m_DebugSigning)
