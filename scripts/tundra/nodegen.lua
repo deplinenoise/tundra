@@ -174,7 +174,7 @@ local function resolve_sources(env, items, accum, base_dir)
       elseif getmetatable(item) then
         accum[#accum + 1] = item:get_dag(env)
       else
-        resolve_sources(env, item, accum, base_dir)
+        resolve_sources(env, item, accum, item.SourceDir or base_dir)
       end
     else
       assert(type_name == "string")
@@ -269,7 +269,12 @@ end
 
 local function x_source_list(self, name, info, value, env, out_deps)
   local build_id = env:get('BUILD_ID')
-  local source_files = flatten_list(build_id, value)
+  local source_files
+  if build_id then
+    source_files = filter_structure(build_id, value)
+  else
+    source_files = value
+  end
   local sources = resolve_sources(env, source_files, {}, self.Decl.SourceDir)
   local source_exts = env:get_list(info.ExtensionKey)
   local inputs, ideps = analyze_sources(env, resolve_pass(self.Decl.Pass), sources, source_exts)
@@ -736,6 +741,37 @@ function flatten_list(build_id, list, exclusive)
   local results = {}
   iter(list, results, false)
   return results
+end
+
+-- Conceptually similar to flatten_list(), but retains table structure.
+-- Use to keep source tables as they are passed in, to retain nested SourceDir attributes.
+local empty_leaf = {} -- constant
+function filter_structure(build_id, data, exclusive)
+  if type(data) == "table" then
+    if getmetatable(data) then
+      return data -- it's already a DAG node; use as-is
+    end
+
+    local filtered = data.Config and true or false
+
+    if not data.Config or config_matches(data.Config, build_id) then
+      local result = {}
+      for k, item in pairs(data) do
+        if type(k) == "number" then
+          -- Filter array elements.
+          result[#result + 1] = filter_structure(build_id, item, filtered)
+        elseif k ~= "Config" then
+          -- Copy key-value data through.
+          result[k] = item
+        end
+      end
+      return result
+    else
+      return empty_leaf
+    end
+  else
+    return data
+  end
 end
 
 -- Processes an "Env" table. For each value, the corresponding variable in 
