@@ -15,6 +15,9 @@ Build {
 			Name = "win32-msvc",
 			DefaultOnHost = "windows",
 			Tools = { "msvc-vs2012" },
+      Env = {
+        CXXFLAGS = { "/EHsc" },
+      },
 		},
 		{
 			Name = "win32-mingw",
