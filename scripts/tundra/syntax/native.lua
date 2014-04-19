@@ -71,13 +71,16 @@ local _is_native_mt = util.make_lookup_table { _object_mt, _program_mt, _staticl
 
 function _native_mt:customize_env(env, raw_data)
   if env:get('GENERATE_PDB', '0') ~= '0' then
+    -- Figure out the final linked PDB (the one next to the dll or exe)
     if raw_data.Target then
       local target = env:interpolate(raw_data.Target)
-      local target_pdb = path.drop_suffix(target) .. '.pdb'
-      env:set('_PDB_FILE', target_pdb)
+      local link_pdb = path.drop_suffix(target) .. '.pdb'
+      env:set('_PDB_LINK_FILE', link_pdb)
     else
-      env:set('_PDB_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pdb")
+      env:set('_PDB_LINK_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pdb")
     end
+    -- Keep the compiler's idea of the PDB file separate
+    env:set('_PDB_CC_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. "_ccpdb.pdb")
     env:set('_USE_PDB_CC', '$(_USE_PDB_CC_OPT)')
     env:set('_USE_PDB_LINK', '$(_USE_PDB_LINK_OPT)')
   end
@@ -201,7 +204,8 @@ function _native_mt:create_dag(env, data, input_deps)
   local aux_outputs = env:get_list("AUX_FILES_" .. self.Keyword:upper(), {})
 
   if env:get('GENERATE_PDB', '0') ~= '0' then
-    aux_outputs[#aux_outputs + 1] = "$(_PDB_FILE)"
+    aux_outputs[#aux_outputs + 1] = "$(_PDB_LINK_FILE)"
+    aux_outputs[#aux_outputs + 1] = "$(_PDB_CC_FILE)"
   end
 
   local extra_inputs = {}
