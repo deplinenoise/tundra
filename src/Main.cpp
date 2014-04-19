@@ -59,6 +59,8 @@ static const struct OptionTemplate
     "Rebuild targets (clean and build again)" },
   { 'w', "spammy-verbose", OptionType::kBool, offsetof(t2::DriverOptions, m_SpammyVerbose),
     "Enable spammy verbose build messages" },
+  { 'i', "continue_on_error", OptionType::kBool, offsetof(t2::DriverOptions, m_ContinueOnError),
+    "Continue building after errors" },
   { 'D', "debug", OptionType::kBool, offsetof(t2::DriverOptions, m_DebugMessages),
     "Enable debug messages" },
   { 'S', "debug-signing", OptionType::kBool, offsetof(t2::DriverOptions, m_DebugSigning),
