@@ -389,7 +389,7 @@ local function get_projects(raw_nodes, env, hints, ide_script)
 	  decl.Name = "OsxBundle"
 
       local source_list = {[newid(decl.InfoPList)] = decl.InfoPList}
-      for _, resource in ipairs(decl.Resources) do
+      for _, resource in util.nil_ipairs(decl.Resources) do
         if resource.Decl then
           source_list[newid(resource.Decl.Source)] = resource.Decl.Source
         end
