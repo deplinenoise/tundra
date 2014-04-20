@@ -10,7 +10,7 @@ Tundra is portable and works on
   - Mac OSX (10.6-10.8 tested, but most any version should work)
   - Linux
   - FreeBSD
-  - Windows (Vista and later, 64 bit native)
+  - Windows (XP or later - binary releases require Vista/64 or later - for XP support build from source using MinGW.)
 
 Porting to UNIX-like platforms will be very easy, porting to other platforms
 will take a little bit of work in a few well-defined places.
