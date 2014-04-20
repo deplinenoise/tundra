@@ -836,6 +836,7 @@ end
 function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints, ide_script)
   assert(config_tuples and #config_tuples > 0)
 
+  hints = hints or {}
   hints = hints.Xcode or {}
   local base_dir = hints.BaseDir and (hints.BaseDir .. '/') or env:interpolate('$(OBJECTROOT)$(SEP)')
   native.mkdir(base_dir)
