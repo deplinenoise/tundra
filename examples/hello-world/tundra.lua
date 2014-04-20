@@ -16,7 +16,7 @@ Build {
 			DefaultOnHost = "windows",
 			Tools = { "msvc-vs2012" },
       Env = {
-        CXXFLAGS = { "/EHsc" },
+        CXXOPTS = { "/EHsc" },
       },
 		},
 		{
