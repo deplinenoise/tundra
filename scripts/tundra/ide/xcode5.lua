@@ -160,7 +160,7 @@ local function write_file_refs(p, projects)
 
   local full_source_list = {}
 
-  for _, project in pairs(projects) do
+  for _, project in ipairs(projects) do
     local sources = project.Sources
     for key, fn in pairs(sources) do
       full_source_list[key] = fn
@@ -201,7 +201,7 @@ end
 local function write_legacy_targets(p, projects, env)
   p:write('/* Begin PBXLegacyTarget section */\n')
 
-  for _, project in pairs(projects) do
+  for _, project in ipairs(projects) do
     local decl = project.Decl
 
     if project.IsMeta then
@@ -248,7 +248,7 @@ local function write_native_targes(p, projects)
     ["SharedLibrary"] = "com.apple.product-type.library.dynamic",
   }
 
-  for _, project in pairs(projects) do
+  for _, project in ipairs(projects) do
     local decl = project.Decl
 
     if not project.IsMeta then
@@ -545,7 +545,7 @@ local function write_groups(p, projects)
 
   -- Map folder names to array of projects under that folder
   local folders = {}
-  for _, project in pairs(projects) do
+  for _, project in ipairs(projects) do
     local hints			= project.IdeGenerationHints
     local msvc_hints	= hints and hints.Msvc
     local fname			= msvc_hints and msvc_hints.SolutionFolder
@@ -609,7 +609,7 @@ local function write_project(p, projects)
   p:write('\t\t\tprojectRoot = "";\n')
   p:write('\t\t\ttargets = (\n')
 
-  for _, project in pairs(projects) do
+  for _, project in ipairs(projects) do
     p:write(string.format('\t\t\t\t%s /* %s */,\n', newid(project.Decl.Name .. "Target"), project.Decl.Name))
   end
 
@@ -623,7 +623,7 @@ local function write_shellscripts(p, projects, env)
 
   -- TODO: Do we really need to repeat this for all projects? seems a bit wasteful
 
-  for _, project in pairs(projects) do
+  for _, project in ipairs(projects) do
     local name = project.Decl.Name
     if not project.IsMeta then
       p:write('\t\t', newid(name .. "ShellScript"), ' /* ShellScript */ = {\n')
@@ -655,7 +655,7 @@ local function write_configs(p, projects, config_tuples, env, set_env)
 
   -- I wonder if we really need to do it this way for all configs?
 
-  for __, project in ipairs(projects) do
+  for _, project in ipairs(projects) do
     for _, tuple in ipairs(config_tuples) do
       local full_config_name = get_full_config_name(tuple)
       local is_macosx_native = false
@@ -882,7 +882,7 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
   end
 
   for name, data in pairs(solution_hints) do
-    local sln_projects = {build_project, generate_project}
+    local sln_projects = { build_project, generate_project }
 
     if data.Projects then
       for _, pname in ipairs(data.Projects) do
@@ -890,12 +890,12 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
         if not pp then
           errorf("can't find project %s for inclusion in %s -- check your Projects data", pname, name)
         end
-        sln_projects[pname] = pp
+        sln_projects[#sln_projects + 1] = pp
       end
     else
       -- All the projects (that are not meta)
       for pname, pp in pairs(projects) do
-        sln_projects[pname] = pp
+        sln_projects[#sln_projects + 1] = pp
       end
     end
 
