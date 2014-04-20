@@ -8,7 +8,6 @@ local util = require "tundra.util"
 local native = require "tundra.native"
 
 local xcode_generator = {}
-local xcode_generator = {}
 xcode_generator.__index = xcode_generator
 
 function xcode_generator:generate_workspace(fn, projects)
@@ -290,7 +289,7 @@ local function get_projects(raw_nodes, env, hints, ide_script)
   local units = util.filter(raw_nodes, function (u)
     return u.Decl.Name and project_types[u.Keyword]
   end)
-  
+
   local dag_node_lut = {} -- lookup table of all named, top-level DAG nodes
   local name_to_dags = {} -- table mapping unit name to array of dag nodes (for configs)
 
@@ -386,7 +385,7 @@ local function get_projects(raw_nodes, env, hints, ide_script)
   for _, unit in ipairs(raw_nodes) do
     if unit.Keyword == "OsxBundle" then
       local decl = unit.Decl
-	  decl.Name = "OsxBundle"
+      decl.Name = "OsxBundle"
 
       local source_list = {[newid(decl.InfoPList)] = decl.InfoPList}
       for _, resource in util.nil_ipairs(decl.Resources) do
@@ -843,17 +842,9 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
 
   local projects = get_projects(raw_nodes, env, hints, ide_script)
   
-  local solution_hints = hints.Projects
-  if not solution_hints then
-    print("No IdeGenerationHints.Xcode.Projects specified - using defaults")
-    solution_hints = {
-      ['tundra-generated.sln'] = {}
-    }
-  end
-  
-  	local source_list = {
-		[newid("tundra.lua")] = "tundra.lua"
-	}
+  local source_list = {
+    [newid("tundra.lua")] = "tundra.lua"
+  }
 	local units = io.open("units.lua")
 	if units then
 		source_list[newid("units.lua")] = "units.lua"
@@ -881,9 +872,17 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
 		MetaData = { BuildArgs = "--g " .. ide_script, BuildTool = TundraExePath },
 	}
 
+  local solution_hints = hints.Projects
+  if not solution_hints then
+    print("No IdeGenerationHints.Xcode.Projects specified - using defaults")
+    solution_hints = {
+      ['tundra-generated.sln'] = { }
+    }
+  end
+
   for name, data in pairs(solution_hints) do
     local sln_projects = {build_project, generate_project}
-	
+
     if data.Projects then
       for _, pname in ipairs(data.Projects) do
         local pp = projects[pname]
@@ -894,27 +893,27 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
       end
     else
       -- All the projects (that are not meta)
-	  for pname, pp in ipairs(projects) do
-		sln_projects[pname] = pp
-	  end
+      for pname, pp in pairs(projects) do
+        sln_projects[pname] = pp
+      end
     end
 
-	local proj_dir	= base_dir .. path.drop_suffix(name) .. ".xcodeproj/"
-	native.mkdir(proj_dir)
+    local proj_dir	= base_dir .. path.drop_suffix(name) .. ".xcodeproj/"
+    native.mkdir(proj_dir)
 
-	local p = io.open(path.join(proj_dir, "project.pbxproj"), 'wb')
+    local p = io.open(path.join(proj_dir, "project.pbxproj"), 'wb')
 
-	write_header(p)
-	write_file_refs(p, sln_projects)
-	write_groups(p, sln_projects)
-	write_legacy_targets(p, sln_projects, env)
-	write_native_targes(p, sln_projects)
-	write_project(p, sln_projects)
-	write_shellscripts(p, sln_projects, env)
-	write_configs(p, sln_projects, config_tuples, env, hints.EnvVars or {})
-	write_config_list(p, sln_projects, config_tuples)
-	write_footer(p)
-	end
+    write_header(p)
+    write_file_refs(p, sln_projects)
+    write_groups(p, sln_projects)
+    write_legacy_targets(p, sln_projects, env)
+    write_native_targes(p, sln_projects)
+    write_project(p, sln_projects)
+    write_shellscripts(p, sln_projects, env)
+    write_configs(p, sln_projects, config_tuples, env, hints.EnvVars or {})
+    write_config_list(p, sln_projects, config_tuples)
+    write_footer(p)
+  end
 end
 
 nodegen.set_ide_backend(function(...)
