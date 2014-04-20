@@ -148,6 +148,7 @@
     <ClCompile Include="..\..\src\MemAllocLinear.cpp" />
     <ClCompile Include="..\..\src\MemoryMappedFile.cpp" />
     <ClCompile Include="..\..\src\PathUtil.cpp" />
+    <ClCompile Include="..\..\src\ReadWriteLock.cpp" />
     <ClCompile Include="..\..\src\ScanCache.cpp" />
     <ClCompile Include="..\..\src\Scanner.cpp" />
     <ClCompile Include="..\..\src\SignalHandler.cpp" />

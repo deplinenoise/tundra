@@ -34,7 +34,7 @@ CC := $(CROSS)gcc
 CXX := $(CROSS)g++
 AR := $(CROSS)ar rcus
 CXXFLAGS += -std=gnu++11 
-CPPFLAGS += -D_WIN32 -D__MSVCRT_VERSION__=0x0601 -DFORCEINLINE='__inline __attribute__((always_inline))'
+CPPFLAGS += -D_WIN32 -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -D__MSVCRT_VERSION__=0x0601 -DFORCEINLINE='__inline __attribute__((always_inline))'
 BUILDDIR := build.mingw
 EXESUFFIX := .exe
 else
@@ -59,9 +59,14 @@ CXXFLAGS += -std=c++11
 CXXFLAGS += -stdlib=libc++
 LDFLAGS += -stdlib=libc++
 else
-ifeq ($(UNAME), $(filter $(UNAME), MINGW32_NT-6.1))
+ifeq ($(UNAME), $(filter $(UNAME), MINGW32_NT-5.1))
 CXXFLAGS += -std=gnu++11 
-CPPFLAGS += -D_WIN32 -D__MSVCRT_VERSION__=0x0601 -U__STRICT_ANSI__
+CPPFLAGS += -D_WIN32 -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -U__STRICT_ANSI__
+EXESUFFIX := .exe
+else
+ifeq (MINGW32_NT, $(findstring MINGW32_NT, $(UNAME)))
+CXXFLAGS += -std=gnu++11 
+CPPFLAGS += -D_WIN32 -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -D__MSVCRT_VERSION__=0x0601 -U__STRICT_ANSI__
 EXESUFFIX := .exe
 else
 $(error "unknown platform $(UNAME)")
@@ -69,7 +74,7 @@ endif
 endif
 endif
 endif
-
+endif
 endif
 
 VPATH = lua/src:src:$(BUILDDIR):unittest
@@ -92,7 +97,7 @@ LIBTUNDRA_SOURCES = \
 	ScanCache.cpp Scanner.cpp SignalHandler.cpp StatCache.cpp \
 	TargetSelect.cpp Thread.cpp dlmalloc.c TerminalIo.cpp \
 	ExecUnix.cpp ExecWin32.cpp DigestCache.cpp FileSign.cpp \
-	HashSha1.cpp HashFast.cpp ConditionVar.cpp
+	HashSha1.cpp HashFast.cpp ConditionVar.cpp ReadWriteLock.cpp
 
 T2LUA_SOURCES = LuaMain.cpp LuaInterface.cpp LuaInterpolate.cpp LuaJsonWriter.cpp \
 								LuaPath.cpp LuaProfiler.cpp

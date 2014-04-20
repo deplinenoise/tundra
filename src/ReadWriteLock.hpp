@@ -2,6 +2,8 @@
 #define READWRITELOCK_HPP
 
 #include "Common.hpp"
+#include "ConditionVar.hpp"
+#include "Mutex.hpp"
 
 #if defined(TUNDRA_UNIX)
 #include <pthread.h>
@@ -11,27 +13,21 @@
 #include <windows.h>
 #endif
 
-#if TUNDRA_WIN32_MINGW
-extern "C"
-{
-  // mingw has very old windows headers; declare SRWLOCK here
-  typedef struct { void* ptr; } SRWLOCK;
-  typedef SRWLOCK* PSRWLOCK;
-
-  // see ConditionVar.cpp for these
-  extern void (WINAPI *InitializeSRWLock)(PSRWLOCK);
-  extern void (WINAPI *AcquireSRWLockExclusive)(PSRWLOCK);
-  extern void (WINAPI *AcquireSRWLockShared)(PSRWLOCK);
-  extern void (WINAPI *ReleaseSRWLockExclusive)(PSRWLOCK);
-  extern void (WINAPI *ReleaseSRWLockShared)(PSRWLOCK);
-}
-#endif
-
-
-
 namespace t2
 {
+  struct ReadWriteLock;
+
+  void ReadWriteLockInit(ReadWriteLock* self);
+  void ReadWriteLockDestroy(ReadWriteLock* self);
+
+  void ReadWriteLockRead(ReadWriteLock* self);
+  void ReadWriteUnlockRead(ReadWriteLock* self);
+
+  void ReadWriteLockWrite(ReadWriteLock* self);
+  void ReadWriteUnlockWrite(ReadWriteLock* self);
+
 #if defined(TUNDRA_UNIX)
+
 struct ReadWriteLock
 {
   pthread_rwlock_t m_Impl;
@@ -75,11 +71,24 @@ inline void ReadWriteUnlockWrite(ReadWriteLock* self)
 #endif
 
 #if defined(TUNDRA_WIN32)
+
 struct ReadWriteLock
 {
+#if ENABLED(TUNDRA_WIN32_VISTA_APIS)
   SRWLOCK m_Impl;
+#else
+  // Emulation modeled after Buthenhof
+  Mutex               m_Mutex;
+  ConditionVariable   m_Read;
+  ConditionVariable   m_Write;
+  int                 m_ActiveReaders;
+  int                 m_ActiveWriters;
+  int                 m_WaitingReaders;
+  int                 m_WaitingWriters;
+#endif
 };
 
+#if ENABLED(TUNDRA_WIN32_VISTA_APIS)
 inline void ReadWriteLockInit(ReadWriteLock* self)
 {
   InitializeSRWLock(&self->m_Impl);
@@ -109,6 +118,8 @@ inline void ReadWriteUnlockWrite(ReadWriteLock* self)
 {
   ReleaseSRWLockExclusive(&self->m_Impl);
 }
+#endif
+
 #endif
 
 }

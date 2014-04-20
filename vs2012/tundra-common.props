@@ -5,7 +5,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0600;_WIN32_WINNT=0x0600;WIN32_LEAN_AND_MEAN;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4624;4127;4100;4324</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>$(SolutionDir)..\lua\src;$(SolutionDir)..\src</AdditionalIncludeDirectories>
