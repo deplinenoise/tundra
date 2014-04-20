@@ -52,29 +52,30 @@ local function newid(data)
   return string.sub(string.gsub(string, '-', ''), 1, 24)
 end
 
+local file_types = {
+  [".c"]         = "sourcecode.c.c",
+  [".cc"]        = "sourcecode.cpp.cpp",
+  [".cpp"]       = "sourcecode.cpp.cpp",
+  [".css"]       = "text.css",
+  [".cxx"]       = "sourcecode.cpp.cpp",
+  [".framework"] = "wrapper.framework",
+  [".gif"]       = "image.gif",
+  [".h"]         = "sourcecode.c.h",
+  [".html"]      = "text.html",
+  [".lua"]       = "sourcecode.lua",
+  [".m"]         = "sourcecode.c.objc",
+  [".mm"]        = "sourcecode.cpp.objc",
+  [".nib"]       = "wrapper.nib",
+  [".pch"]       = "sourcecode.c.h",
+  [".plist"]     = "text.plist.xml",
+  [".strings"]   = "text.plist.strings",
+  [".xib"]       = "file.xib",
+  [".icns"]      = "image.icns",
+  [""]           = "compiled.mach-o.executable",
+}
+
 local function getfiletype(name)
-  local types = {
-    [".c"]         = "sourcecode.c.c",
-    [".cc"]        = "sourcecode.cpp.cpp",
-    [".cpp"]       = "sourcecode.cpp.cpp",
-    [".css"]       = "text.css",
-    [".cxx"]       = "sourcecode.cpp.cpp",
-    [".framework"] = "wrapper.framework",
-    [".gif"]       = "image.gif",
-    [".h"]         = "sourcecode.c.h",
-    [".html"]      = "text.html",
-    [".lua"]       = "sourcecode.lua",
-    [".m"]         = "sourcecode.c.objc",
-    [".mm"]        = "sourcecode.cpp.objc",
-    [".nib"]       = "wrapper.nib",
-    [".pch"]       = "sourcecode.c.h",
-    [".plist"]     = "text.plist.xml",
-    [".strings"]   = "text.plist.strings",
-    [".xib"]       = "file.xib",
-    [".icns"]      = "image.icns",
-    [""]           = "compiled.mach-o.executable",
-  }
-  return types[path.get_extension(name)] or "text"
+  return file_types[path.get_extension(name)] or "text"
 end
 
 -- Scan for sources, following dependencies until those dependencies seem to be a different top-level unit
@@ -186,10 +187,10 @@ local function write_file_refs(p, projects)
     local str = ""
     if file_type == "compiled.mach-o.executable" then
       str = string.format('\t\t%s /* %s */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = %s; name = "%s"; includeInIndex = 0; path = "%s"; sourceTree = BUILT_PRODUCTS_DIR; };',
-                key, fn, file_type, name, fn)
+      key, fn, file_type, name, fn)
     else
       str = string.format('\t\t%s /* %s */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = %s; name = "%s"; path = "%s"; sourceTree = "<group>"; };',
-                key, fn, file_type, name, path.join(cwd, fn))
+      key, fn, file_type, name, path.join(cwd, fn))
     end
     p:write(str, '\n')
   end
@@ -308,7 +309,7 @@ local function get_projects(raw_nodes, env, hints, ide_script)
       array[#array + 1] = dag_node
     end
   end
-  
+
   -- Sort units based on dependency complexity. We want to visit the leaf nodes
   -- first so that any source file references are picked up as close to the
   -- bottom of the dependency chain as possible.
@@ -361,24 +362,24 @@ local function get_projects(raw_nodes, env, hints, ide_script)
         output_name = ide_hints.OutputProject
       end
     end
-	
+
     -- Rebuild source list with ids that are needed by the xcode project layout
     local source_list = {}
     for src, _ in pairs(sources) do
       local norm_src = path.normalize(src)
---      if not grabbed_sources[norm_src] then
-        grabbed_sources[norm_src] = unit
-        source_list[newid(norm_src)] = norm_src
---      end
+      --      if not grabbed_sources[norm_src] then
+      grabbed_sources[norm_src] = unit
+      source_list[newid(norm_src)] = norm_src
+      --      end
     end
-    
+
     projects[name] = {
       Type = unit.Keyword,
       Decl = decl,
       Sources = source_list,
       RelativeFilename = name,
       Guid = newid(name .. "ProjectId"),
-	  IdeGenerationHints = unit.Decl.IdeGenerationHints
+      IdeGenerationHints = unit.Decl.IdeGenerationHints
     }
   end
 
@@ -417,75 +418,75 @@ local function split(fn)
 end
 
 local function split_str(str, pat)
-   local t = {}  -- NOTE: use {n = 0} in Lua-5.0
-   local fpat = "(.-)" .. pat
-   local last_end = 1
-   local s, e, cap = str:find(fpat, 1)
-   while s do
-      if s ~= 1 or cap ~= "" then
-   table.insert(t,cap)
-      end
-      last_end = e+1
-      s, e, cap = str:find(fpat, last_end)
-   end
-   if last_end <= #str then
-      cap = str:sub(last_end)
-      table.insert(t, cap)
-   end
-   return t
+  local t = {}  -- NOTE: use {n = 0} in Lua-5.0
+  local fpat = "(.-)" .. pat
+  local last_end = 1
+  local s, e, cap = str:find(fpat, 1)
+  while s do
+    if s ~= 1 or cap ~= "" then
+      table.insert(t,cap)
+    end
+    last_end = e+1
+    s, e, cap = str:find(fpat, last_end)
+  end
+  if last_end <= #str then
+    cap = str:sub(last_end)
+    table.insert(t, cap)
+  end
+  return t
 end
 
 local function print_children_2(p, groupname, key, children, path)
- 
+
   for name, c in pairs(children) do
     if c.Type > 0 then
-		print_children_2(p, name, c.Key, c.Children, c.Type == 1 and path..'/'..name or path)
-	end
+      print_children_2(p, name, c.Key, c.Children, c.Type == 1 and path..'/'..name or path)
+    end
   end
-  
-	p:write('\t\t', key, ' /* ', path, ' */ = {\n')
-	p:write('\t\t\tisa = PBXGroup;\n')
-	p:write('\t\t\tchildren = (\n')
 
-	local dirs = {}
-	local files = {}
+  p:write('\t\t', key, ' /* ', path, ' */ = {\n')
+  p:write('\t\t\tisa = PBXGroup;\n')
+  p:write('\t\t\tchildren = (\n')
 
-	for name, ref in pairs(children) do
-	  if ref.Type > 0 then
-		dirs[#dirs + 1] = { Key = ref.Key, Name = name }
-	  else
-		files[#files + 1] = { Key = ref.Key, Name = name }
-	  end
-	end
+  local dirs = {}
+  local files = {}
 
-	table.sort(dirs, function(a, b) return a.Name < b.Name end)
-	table.sort(files, function(a, b) return a.Name < b.Name end)
+  for name, ref in pairs(children) do
+    if ref.Type > 0 then
+      dirs[#dirs + 1] = { Key = ref.Key, Name = name }
+    else
+      files[#files + 1] = { Key = ref.Key, Name = name }
+    end
+  end
 
-	for i, ref in pairs(dirs) do
-	p:write(string.format('\t\t\t\t%s /* %s */,\n', ref.Key, path .. '/' .. ref.Name))
-	end
+  table.sort(dirs, function(a, b) return a.Name < b.Name end)
+  table.sort(files, function(a, b) return a.Name < b.Name end)
 
-	for i, ref in pairs(files) do
-	p:write(string.format('\t\t\t\t%s /* %s */,\n', ref.Key, path .. '/' .. ref.Name))
-	end
+  for i, ref in pairs(dirs) do
+    p:write(string.format('\t\t\t\t%s /* %s */,\n', ref.Key, path .. '/' .. ref.Name))
+  end
 
-	p:write('\t\t\t);\n')
-	p:write('\t\t\tname = "', groupname, '"; \n');
-	p:write('\t\t\tsourceTree = "<group>";\n');
-	p:write('\t\t};\n')
+  for i, ref in pairs(files) do
+    p:write(string.format('\t\t\t\t%s /* %s */,\n', ref.Key, path .. '/' .. ref.Name))
+  end
+
+  p:write('\t\t\t);\n')
+  p:write('\t\t\tname = "', groupname, '"; \n');
+  p:write('\t\t\tsourceTree = "<group>";\n');
+  p:write('\t\t};\n')
 end
 
 local function prune_groups(group)
   local i = 0
   local first_name
   local first_child
-  
+
   for name, child in pairs(group.Children) do
     first_name = name
     first_child = child
     i = i + 1
   end
-  
+
   if i == 1 and first_child.Type > 0 then
     local new_name = prune_groups(first_child)
     group.Children = first_child.Children;
@@ -493,7 +494,7 @@ local function prune_groups(group)
       new_name = first_name
     end
     return new_name
-    
+
   else
     local children = {}
     for name, child in pairs(group.Children) do
@@ -508,22 +509,22 @@ local function prune_groups(group)
     group.children = children
     return nil
   end
-  
+
 end
 
 
 local function make_groups(p, files, key)
   local filelist = sort_filelist(files)
   local group = { Type = 2, Key = key, Children = {} }
-  
+
   for _, entry in pairs(filelist) do
     local parent_group = group
     local path, filename = split(entry.Value)
-	for i, part in ipairs(split_str(path, "/")) do
+    for i, part in ipairs(split_str(path, "/")) do
       if part ~= '.' then
         local grp = parent_group.Children[part]
         if grp == nil then
-		  grp = { Type = 1, Key=newid(util.tostring(parent_group)..part), Children={} }
+          grp = { Type = 1, Key=newid(util.tostring(parent_group)..part), Children={} }
           parent_group.Children[part] = grp
         end
         parent_group = grp
@@ -531,10 +532,10 @@ local function make_groups(p, files, key)
     end
     parent_group.Children[filename] = { Type = 0, Key = entry.Key }
   end
-  
+
   -- prune single-entry groups
   prune_groups(group)
-  
+
   return group
 end
 
@@ -542,28 +543,28 @@ end
 local function write_groups(p, projects)
   p:write('/* Begin PBXGroup section */\n')
 
-    -- Map folder names to array of projects under that folder
+  -- Map folder names to array of projects under that folder
   local folders = {}
   for _, project in pairs(projects) do
     local hints			= project.IdeGenerationHints
     local msvc_hints	= hints and hints.Msvc
     local fname			= msvc_hints and msvc_hints.SolutionFolder
     if fname == nil then
-	  fname = "<root>"
+      fname = "<root>"
     end
-	local folder = folders[fname]
-	if folder == nil then
-	  folder = { Type = 2, Key = newid("Folder"..fname), Children = {} }
+    local folder = folders[fname]
+    if folder == nil then
+      folder = { Type = 2, Key = newid("Folder"..fname), Children = {} }
       folders[fname] = folder
-	end
+    end
     folder.Children[project.Decl.Name] = make_groups(p, project.Sources, project.Guid)
   end
 
   local root = folders["<root>"];
   for name, folder in pairs(folders) do
     if folder ~= root then
-	  root.Children[name] = folder
-	end
+      root.Children[name] = folder
+    end
   end
 
   local all_targets_name = "AllTargets.workspace"
@@ -572,19 +573,19 @@ local function write_groups(p, projects)
 
   -- write last group that links the projects names above
 
---  local all_targets_name = "AllTargets.workspace"
---  local all_targets_id = newid(all_targets_name)
---  p:write('\t\t', all_targets_id, ' /* ', all_targets_name, ' */ = {\n')
---  p:write('\t\t\tisa = PBXGroup;\n')
---  p:write('\t\t\tchildren = (\n')
+  --  local all_targets_name = "AllTargets.workspace"
+  --  local all_targets_id = newid(all_targets_name)
+  --  p:write('\t\t', all_targets_id, ' /* ', all_targets_name, ' */ = {\n')
+  --  p:write('\t\t\tisa = PBXGroup;\n')
+  --  p:write('\t\t\tchildren = (\n')
 
---  for _, project in pairs(projects) do
---    p:write(string.format('\t\t\t\t%s /* %s */,\n', project.Guid, project.Decl.Name))
---  end
---  p:write('\t\t\t);\n')
---  p:write('\t\t\tname = "', all_targets_name, '"; \n');
---  p:write('\t\t\tsourceTree = "<group>";\n');
---  p:write('\t\t};\n')
+  --  for _, project in pairs(projects) do
+  --    p:write(string.format('\t\t\t\t%s /* %s */,\n', project.Guid, project.Decl.Name))
+  --  end
+  --  p:write('\t\t\t);\n')
+  --  p:write('\t\t\tname = "', all_targets_name, '"; \n');
+  --  p:write('\t\t\tsourceTree = "<group>";\n');
+  --  p:write('\t\t};\n')
 
   p:write('/* End PBXGroup section */\n\n')
 end
@@ -637,7 +638,7 @@ local function write_shellscripts(p, projects, env)
       p:write('\t\t\trunOnlyForDeploymentPostprocessing = 0;\n')
       p:write('\t\t\tshellPath = /bin/sh;\n')
       p:write('\t\t\tshellScript = "cd ..\\n', TundraExePath, ' $(CONFIG)-$(VARIANT)-$(SUBVARIANT)";\n')
-	  p:write('\t\t};\n')
+      p:write('\t\t};\n')
     end
   end
 
@@ -693,10 +694,10 @@ local function write_configs(p, projects, config_tuples, env, set_env)
       -- this is a little hack to get xcode to clean the whole output folder when using "FullBuild"
       p:write('\t\t\t\tPRODUCT_NAME = "',project.Decl.Name , '";\n')
       p:write('\t\t\t\tTARGET_NAME = "',project.Decl.Name , '";\n')
-	  
-	  for i, var in ipairs(set_env) do
+
+      for i, var in ipairs(set_env) do
         p:write('\t\t\t\t', var, ' = "', os.getenv(var), '";\n')
-	  end
+      end
 
       p:write('\t\t\t};\n')
       p:write('\t\t\tname = "',full_config_name , '";\n')
@@ -754,7 +755,7 @@ local function write_config_list(p, projects, config_tuples)
     -- Don't add any think extra if subvariant is default
 
     p:write('\t\t\tbuildConfigurations = (\n')
-  
+
     for _, tuple in ipairs(config_tuples) do
       local full_config_name = get_full_config_name(tuple)
       p:write(string.format('\t\t\t\t%s /* %s */,\n', newid(project.Decl.Name .. full_config_name), full_config_name))
@@ -766,7 +767,7 @@ local function write_config_list(p, projects, config_tuples)
 
     p:write('\t\t};\n')
   end
-  
+
   -- PBXProject configuration list
 
   local config_id = newid("ProjectObjectConfigList")
@@ -777,7 +778,7 @@ local function write_config_list(p, projects, config_tuples)
   -- Don't add any think extra if subvariant is default
 
   p:write('\t\t\tbuildConfigurations = (\n')
-  
+
   for _, tuple in ipairs(config_tuples) do
     local full_config_name = get_full_config_name(tuple)
     p:write(string.format('\t\t\t\t%s /* %s */,\n', newid("ProjectObject" .. full_config_name), full_config_name))
@@ -799,37 +800,37 @@ local function write_footer(p)
 end
 
 local function make_meta_projects(ide_script)
-	local source_list = {
-		[newid("tundra.lua")] = "tundra.lua"
-	}
-	local units = io.open("units.lua")
-	if units then
-		source_list[newid("units.lua")] = "units.lua"
-		io.close(units)
-	end
+  local source_list = {
+    [newid("tundra.lua")] = "tundra.lua"
+  }
+  local units = io.open("units.lua")
+  if units then
+    source_list[newid("units.lua")] = "units.lua"
+    io.close(units)
+  end
 
-	local meta_name1 = "!BuildWorkspace"
-	local meta_name2 = "!UpdateWorkspace"
-	return {
-	  {
-		Decl = { Name = meta_name1, },
-		Type = "LegacyTarget",
-		RelativeFilename = "",
-		Sources = source_list,
-		Guid = newid(meta_name1 .. 'ProjectId'),
-		IsMeta = true,
-		MetaData = { BuildArgs = "-v $(CONFIG)-$(VARIANT)-$(SUBVARIANT)", BuildTool = TundraExePath },
-	  },
-	  {
-		Decl = { Name = meta_name2, },
-		Type = "LegacyTarget", 
-		RelativeFilename = "",
-		Sources = source_list, 
-		Guid = newid(meta_name2 .. 'ProjectId'),
-		IsMeta = true,
-		MetaData = { BuildArgs = "--g " .. ide_script, BuildTool = TundraExePath },
-	  }
-	}
+  local meta_name1 = "!BuildWorkspace"
+  local meta_name2 = "!UpdateWorkspace"
+  return {
+    {
+      Decl = { Name = meta_name1, },
+      Type = "LegacyTarget",
+      RelativeFilename = "",
+      Sources = source_list,
+      Guid = newid(meta_name1 .. 'ProjectId'),
+      IsMeta = true,
+      MetaData = { BuildArgs = "-v $(CONFIG)-$(VARIANT)-$(SUBVARIANT)", BuildTool = TundraExePath },
+    },
+    {
+      Decl = { Name = meta_name2, },
+      Type = "LegacyTarget", 
+      RelativeFilename = "",
+      Sources = source_list, 
+      Guid = newid(meta_name2 .. 'ProjectId'),
+      IsMeta = true,
+      MetaData = { BuildArgs = "--g " .. ide_script, BuildTool = TundraExePath },
+    }
+  }
 end
 
 function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints, ide_script)
@@ -841,36 +842,36 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
   native.mkdir(base_dir)
 
   local projects = get_projects(raw_nodes, env, hints, ide_script)
-  
+
   local source_list = {
     [newid("tundra.lua")] = "tundra.lua"
   }
-	local units = io.open("units.lua")
-	if units then
-		source_list[newid("units.lua")] = "units.lua"
-		io.close(units)
-	end
+  local units = io.open("units.lua")
+  if units then
+    source_list[newid("units.lua")] = "units.lua"
+    io.close(units)
+  end
 
-	local meta_name = "!BuildWorkspace"
-	local build_project = {
-		Decl = { Name = meta_name, },
-		Type = "LegacyTarget",
-		RelativeFilename = "",
-		Sources = source_list,
-		Guid = newid(meta_name .. 'ProjectId'),
-		IsMeta = true,
-		MetaData = { BuildArgs = "$(CONFIG)-$(VARIANT)-$(SUBVARIANT)", BuildTool = TundraExePath },
-	}
-	local meta_name = "!UpdateWorkspace"
-	local generate_project = {
-		Decl = { Name = meta_name, },
-		Type = "LegacyTarget", 
-		RelativeFilename = "",
-		Sources = source_list, 
-		Guid = newid(meta_name .. 'ProjectId'),
-		IsMeta = true,
-		MetaData = { BuildArgs = "--g " .. ide_script, BuildTool = TundraExePath },
-	}
+  local meta_name = "!BuildWorkspace"
+  local build_project = {
+    Decl = { Name = meta_name, },
+    Type = "LegacyTarget",
+    RelativeFilename = "",
+    Sources = source_list,
+    Guid = newid(meta_name .. 'ProjectId'),
+    IsMeta = true,
+    MetaData = { BuildArgs = "$(CONFIG)-$(VARIANT)-$(SUBVARIANT)", BuildTool = TundraExePath },
+  }
+  local meta_name = "!UpdateWorkspace"
+  local generate_project = {
+    Decl = { Name = meta_name, },
+    Type = "LegacyTarget", 
+    RelativeFilename = "",
+    Sources = source_list, 
+    Guid = newid(meta_name .. 'ProjectId'),
+    IsMeta = true,
+    MetaData = { BuildArgs = "--g " .. ide_script, BuildTool = TundraExePath },
+  }
 
   local solution_hints = hints.Projects
   if not solution_hints then
