@@ -43,6 +43,7 @@ local _staticlib_mt = nodegen.create_eval_subclass({
     -- Play it safe and delete the output files of this node before re-running it.
     -- Solves iterative issues with e.g. AR
   OverwriteOutputs = false,
+  IsStaticLib = true,
 }, _native_mt)
 
 local _objgroup_mt = nodegen.create_eval_subclass({
@@ -141,7 +142,9 @@ function _native_mt:create_dag(env, data, input_deps)
     elseif dep.Keyword == "StaticLibrary" then
       local node = dep:get_dag(env:get_parent())
       my_extra_deps[#my_extra_deps + 1] = node
-      node:insert_output_files(sources, libsuffix)
+      if not self.IsStaticLib then
+        node:insert_output_files(sources, libsuffix)
+      end
     elseif dep.Keyword == "ObjGroup" then
       -- We want all .obj files
       local objsuffix = { env:get("OBJECTSUFFIX") }
