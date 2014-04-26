@@ -9,6 +9,7 @@ function ConfigureRaw(cmdline, name, constructor)
   local libpath = {}
   local libs = {}
   local defines = {}
+  local frameworks = {}
 
   for kind, value in data:gmatch("-([ILlD])([^ \n\r]+)") do
     if kind == "I" then
@@ -22,11 +23,16 @@ function ConfigureRaw(cmdline, name, constructor)
     end
   end
 
+  for value in data:gmatch("-framework ([^ \n\r]+)") do
+    frameworks[#frameworks + 1] = value
+  end
+
   -- We don't have access to ExternalLibrary here - user has to pass it in.
   return constructor({
     Name = name,
     Propagate = {
       Env = {
+        FRAMEWORKS = frameworks,
         CPPDEFS = defines,
         CPPPATH = cpppath,
         LIBS    = libs,
