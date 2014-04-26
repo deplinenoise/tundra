@@ -798,6 +798,8 @@ function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, defa
       tuple.MsvcPlatform = assert(m.Platform)
     elseif variant_mappings[tuple.Variant.Name] then
       tuple.MsvcConfiguration = variant_mappings[tuple.Variant.Name]
+    elseif variant_mappings[tuple.Variant.Name .. "-" .. tuple.SubVariant] then
+      tuple.MsvcConfiguration = variant_mappings[tuple.Variant.Name .. "-" .. tuple.SubVariant]
     else
       tuple.MsvcConfiguration = tuple.Variant.Name
     end
