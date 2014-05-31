@@ -136,8 +136,9 @@ function _native_mt:create_dag(env, data, input_deps)
       if #node.outputs > 0 then
         my_extra_deps[#my_extra_deps + 1] = node
         local target = dep.Decl.Target or dep.Decl.Name
-        target = target .. "$(SHLIBLINKSUFFIX)"
-        env:append('LIBS', target)
+        target = env:interpolate(target)
+        local link_lib = path.drop_suffix(target) .. '$(SHLIBLINKSUFFIX)'
+        env:append('LIBS', link_lib)
       end
     elseif dep.Keyword == "StaticLibrary" then
       local node = dep:get_dag(env:get_parent())
