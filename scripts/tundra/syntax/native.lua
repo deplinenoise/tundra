@@ -137,8 +137,16 @@ function _native_mt:create_dag(env, data, input_deps)
         my_extra_deps[#my_extra_deps + 1] = node
         local target = dep.Decl.Target or dep.Decl.Name
         target = env:interpolate(target)
-        local link_lib = path.drop_suffix(target) .. '$(SHLIBLINKSUFFIX)'
+        local dir, fn = path.split(target)
+        local libpfx = env:interpolate("$(LIBPREFIX)")
+        if fn:sub(1, libpfx:len()) == libpfx then
+          fn = fn:sub(libpfx:len()+1)
+        end
+        local link_lib = path.drop_suffix(fn) .. '$(SHLIBLINKSUFFIX)'
         env:append('LIBS', link_lib)
+        if dir:len() > 0 then
+          env:append('LIBPATH', dir)
+        end
       end
     elseif dep.Keyword == "StaticLibrary" then
       local node = dep:get_dag(env:get_parent())
