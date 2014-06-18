@@ -341,7 +341,7 @@ public:
     }
   }
 
-  void EscapeForCmdlineDefine()
+  void PrepQuoteCommon()
   {
     // Drop trailing backslash - can't be escaped on windows
     {
@@ -383,7 +383,38 @@ public:
         }
       }
     }
+  }
 
+  void Quote()
+  {
+    // Avoid double quoting.
+    {
+      char* data = GetBuffer();
+      const size_t orig_len = GetSize();
+
+      if (orig_len > 0 && data[0] == '"' && data[orig_len-1] == '"')
+      {
+        // Already quoted. Make sure it doesn't end in a backslash.
+        if (orig_len > 1 && data[orig_len-2] == '\\')
+        {
+          Shrink(orig_len - 1);
+          size_t len = orig_len - 1;
+
+          data = GetBuffer();
+          data[len-1] = '"';
+        }
+        return;
+      }
+    }
+
+    PrepQuoteCommon();
+    Prepend("\"", 1);
+    Append("\"", 1);
+  }
+
+  void EscapeForCmdlineDefine()
+  {
+    PrepQuoteCommon();
     Prepend("\\\"", 2);
     Append("\\\"", 2);
   }
@@ -522,6 +553,7 @@ static bool InterpolateVar(StringBuffer& output, const char* str, size_t len, Lu
         case 'B': item.DropSuffix(); break;
         case 'F': item.GetFilename(); break;
         case 'D': item.GetFilenameDir(); break;
+        case 'q': item.Quote(); break;
         case '#': item.EscapeForCmdlineDefine(); break;
 
         // Ignore these here
