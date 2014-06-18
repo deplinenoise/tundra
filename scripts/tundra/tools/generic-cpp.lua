@@ -45,9 +45,11 @@ local function generic_cpp_setup(env)
       
     end
 
+    local custom_label = env:get('_CUSTOM_LABEL', 0)
+
     return depgraph.make_node {
       Env            = env,
-      Label          = label .. ' $(<)',
+      Label          = type(custom_label) == "string" and custom_label or label .. ' $(<)',
       Pass           = pass,
       Action         = action,
       InputFiles     = { fn },
