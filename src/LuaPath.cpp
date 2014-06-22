@@ -103,6 +103,19 @@ static int LuaPathGetFilename(lua_State* L)
 static int LuaPathGetExtension(lua_State* L)
 {
   const char* input = luaL_checkstring(L, 1);
+  
+  // Make sure to look at the last path segment only.
+  if (const char* pslash = strrchr(input, '/'))
+  {
+    input = pslash;
+  }
+
+  if (const char* pslash = strrchr(input, '\\'))
+  {
+    if (pslash > input)
+      input = pslash;
+  }
+
   if (const char* dot = strrchr(input, '.'))
     lua_pushstring(L, dot);
   else
