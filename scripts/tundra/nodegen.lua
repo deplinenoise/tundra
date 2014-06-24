@@ -457,25 +457,33 @@ function _nodegen:get_dag(parent_env)
         unit_env:set('UNIT_PREFIX', '__' .. self.Decl.Name)
       end
 
-      -- Before accessing the unit's dependencies, resolve them via filtering.
-      local deps = resolve_dependencies(self.Decl, self.Decl.Depends, unit_env)
+      local function do_it()
+        -- Before accessing the unit's dependencies, resolve them via filtering.
+        local deps = resolve_dependencies(self.Decl, self.Decl.Depends, unit_env)
 
-      self:configure_env(unit_env, deps)
-      self:customize_env(unit_env, self.Decl, deps)
+        self:configure_env(unit_env, deps)
+        self:customize_env(unit_env, self.Decl, deps)
 
-      local input_data, input_deps = self:create_input_data(unit_env, parent_env)
-      -- Copy over dependencies which have been pre-resolved
-      input_data.Depends = deps
+        local input_data, input_deps = self:create_input_data(unit_env, parent_env)
+        -- Copy over dependencies which have been pre-resolved
+        input_data.Depends = deps
 
-      for _, dep in util.nil_ipairs(deps) do
-        input_deps[#input_deps + 1] = dep:get_dag(parent_env)
+        for _, dep in util.nil_ipairs(deps) do
+          input_deps[#input_deps + 1] = dep:get_dag(parent_env)
+        end
+
+        dag = self:create_dag(unit_env, input_data, input_deps, parent_env)
+
+        if not dag then
+          error("create_dag didn't generate a result node")
+        end
       end
 
-      dag = self:create_dag(unit_env, input_data, input_deps, parent_env)
-
-      if not dag then
-        error("create_dag didn't generate a result node")
+      local success, result = xpcall(do_it, debug.traceback)
+      if not success then
+        croak("Error while generating DAG for unit %s:\n%s", self.Decl.Name or "UNNAMED", result)
       end
+
     end
     self.DagCache[build_id] = dag
   end
