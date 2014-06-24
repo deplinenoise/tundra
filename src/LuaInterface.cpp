@@ -553,8 +553,9 @@ lua_State* CreateLuaState(MemAllocHeap* lua_heap, bool profile)
   // setup package.path
   {
     const char* homedir = FindScriptDirectory();
+    const char* luapath = getenv("TUNDRA_LUA_PATH");
     char ppath[1024];
-    snprintf(ppath, sizeof(ppath), "%s" TD_PATHSEP_STR "?.lua;", homedir);
+    snprintf(ppath, sizeof(ppath), "%s" TD_PATHSEP_STR "?.lua;%s", homedir, (luapath ? luapath : ""));
     lua_getglobal(L, "package");
     CHECK(LUA_TTABLE == lua_type(L, -1));
 
