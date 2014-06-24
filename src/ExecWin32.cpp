@@ -420,32 +420,45 @@ ExecResult ExecuteProcess(
       const char*         annotation)
 {
   static const char response_prefix[] = "@RESPONSE|";
+  static const char response_suffix_char = '|';
+  static const char always_response_prefix[] = "@RESPONSE!";
+  static const char always_response_suffix_char = '!';
+  static_assert(sizeof response_prefix == sizeof always_response_prefix, "Response prefix lengths differ");
   static const size_t response_prefix_len = sizeof(response_prefix) - 1;
   char command_buf[512];
   char option_buf[32];
   char new_cmd[8192];
+  char response_suffix = response_suffix_char;
   const char* response;
+  
+  if (NULL == (response = strstr(cmd_line, response_prefix)))
+  {
+    if (NULL != (response = strstr(cmd_line, always_response_prefix)))
+    {
+      response_suffix = always_response_suffix_char;
+    }
+  }
 
   ExecResult result;
   result.m_WasSignalled = false;
   result.m_ReturnCode   = 1;
 
   /* scan for a @RESPONSE|<option>|.... section at the end of the command line */
-  if (NULL != (response = strstr(cmd_line, response_prefix)))
+  if (NULL != response)
   {
     const size_t cmd_len = strlen(cmd_line);
     const char *option, *option_end;
 
     option = response + response_prefix_len;
 
-    if (NULL == (option_end = strchr(option, '|')))
+    if (NULL == (option_end = strchr(option, response_suffix)))
     {
-      fprintf(stderr, "badly formatted @RESPONSE section; no comma after option: %s\n", cmd_line);
+      fprintf(stderr, "badly formatted @RESPONSE section; missing %c after option: %s\n", response_suffix, cmd_line);
       return result;
     }
 
     /* Limit on XP and later is 8191 chars; but play it safe */
-    if (cmd_len > 8000)
+    if (response_suffix == always_response_suffix_char || cmd_len > 8000)
     {
       char tmp_dir[MAX_PATH];
       char response_file[MAX_PATH];
