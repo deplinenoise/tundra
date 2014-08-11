@@ -1,0 +1,205 @@
+
+How to setup projects with subprojects
+======================================
+
+This example demonstrate how to have libs with their own examples and/or
+unit-tests which are compilable directly in their root folder or only the 
+library as part of a bigger project. the idea is to have the libraries as 
+subprojects included into the main-app (also revision-control wise).
+
+you can compile this example in this main-folder (and get the main-app)
+or you can start tundra in extlibs/libA and get the library-example-app.
+
+
+== the basic setup
+
+this example application structure looks like that:
+
+-------------------------------------------------------------------------------
+app-root (folder)
+  |- extlibs (folder)
+  |    |- lib1 (folder)
+  |    |   |- subfolders of lib1
+  |    |   |- sources of lib1
+  |    |   
+  |    |- lib2 (folder)
+  |
+  |- sourcefiles for app
+-------------------------------------------------------------------------------
+
+the main-app consists of sourcefiles and one extra folder called "extlibs" with
+subrepositories (buildsystem-wise as well as rvc-wise). these libraries can contain
+example- and/or testcode, too.
+
+so in a perfect world the buildsystem is living inside lib1 which is used to build
+all examples and tests and another one in the application root that includes the build-rules
+from the library and uses these.
+
+== pattern for libraries(with examples and tests) and application
+
+In the library folder there's tundra.lua, library.lua and examples.lua. tundra.lua includes library 
+and examples as unit-files. because when the library is compiled in the root-folder (examples 
+from the library itself) or as a subfolder of "extlibs" the buildsystem needs to know the base-path in 
+libraries.lua; here the option is used to set a variable in the global lua-table. in tundra.lua 
+is written:
+
+-------------------------------------------------------------------------------
+_G.LIBROOT_LIB1 = "."
+-------------------------------------------------------------------------------
+
+and in the library.lua you can use this information as the base path:
+
+-------------------------------------------------------------------------------
+    Sources = { 
+        _G.LIBROOT_LIB1 .. "/file.cpp" ,
+        Glob { Dir = _G.LIBROOT_LIB1 .. "/", Extensions = {".h"}},
+    ...
+-------------------------------------------------------------------------------
+
+now when you want to include the library as part of another application you can set the basepath
+in the variable in tundra.lua of the main-application accordingly:
+
+-------------------------------------------------------------------------------
+_G.LIBROOT_LIB1 = "extlibs/lib1"
+-------------------------------------------------------------------------------
+
+If there is the need to normalize the path this might help you (from John Leidegren):
+
+-------------------------------------------------------------------------------
+local path = require "tundra.path"
+local LIBROOT_QBGFX = _G.LIBROOT_QBGFX -- or use native.getenv
+--I also normalize the path like this
+if LIBROOT_QBGFX ~= "." then
+  LIBROOT_QBGFX = path.normalize(LIBROOT_QBGFX)
+end
+LIBROOT_QBGFX = LIBROOT_QBGFX .. "/" -- ensure end with trailing slash
+-------------------------------------------------------------------------------
+
+== multiple dependencies of libraries
+
+Now if you have a base library (libBase) which is needed by Lib1 AND by the 
+main application only adding it as a dependency to Lib1 is not enough, you also have to add
+it as dependency to the main application!
+
+== own buildrules in the library buildfile
+
+When using some sort of code generator with custom defrules which is provided by the library Lib1 and you
+want to be able to use this rule also in the mainapplication you have to add the rule also to the global 
+lua table (Here we're using some string-concatenation to build different defrules for a shader compiler, 
+below is the complete block; notice the "function _G.compileVertexShader..."):
+
+-------------------------------------------------------------------------------
+local function firstToUpper(str)
+    return (str:gsub("^%l", string.upper))
+end
+
+local function generateShaderCompilerDefRule(build, type, platform, path, profile, addParam)
+    local addOption = ""
+    if build == "debug" then
+        addOption = "--debug"
+    end
+
+    return  DefRule {
+                Name = "ShaderCompiler"..firstToUpper(type)..firstToUpper(platform)..firstToUpper(path)..firstToUpper(build),
+                Pass = "CodeGeneration",
+                Command = "$(SHADERCOMPILER) "..addOption.." --type "..type.." --platform "..platform.." -p "..profile.." "..addParam.." -f $(<) -o $(@) -i ".._G.LIBROOT_QBGFX.."/src",
+                ImplicitInputs = { "$(SHADERCOMPILER)" },
+
+                Blueprint = {
+                    Source = { Required = true, Type = "string", Help = "Input filename", },
+                    Output = { Required = true, Type = "string", Help = "Output filename", },
+                },
+
+                Setup = function (env, data)
+                    return {
+                        InputFiles    = { data.Source },
+                        OutputFiles   = { "$(OBJECTDIR)/shaders/" .. path .. "/" .. data.Output },
+                    }
+                end,
+            }
+end
+
+generateShaderCompilerDefRule("debug", "fragment", "linux", "glsl", "120", "")
+generateShaderCompilerDefRule("debug", "vertex", "linux", "glsl", "120", "")
+generateShaderCompilerDefRule("debug", "fragment", "linux", "gles", "100", "")
+generateShaderCompilerDefRule("debug", "vertex", "linux", "gles", "100", "")
+generateShaderCompilerDefRule("release", "fragment", "linux", "glsl", "120", "")
+generateShaderCompilerDefRule("release", "vertex", "linux", "glsl", "120", "")
+generateShaderCompilerDefRule("release", "fragment", "linux", "gles", "100", "")
+generateShaderCompilerDefRule("release", "vertex", "linux", "gles", "100", "")
+
+function _G.compileVertexShader(inputFile, outputFile)
+    return {
+        {Config="*-*-debug"; ShaderCompilerVertexLinuxGlslDebug { Source = inputFile; Output = outputFile;}},
+        {Config="linux_imx6-*-debug"; ShaderCompilerVertexLinuxGlesDebug { Source = inputFile; Output = outputFile;}},
+        {Config="*-*-release"; ShaderCompilerVertexLinuxGlslRelease { Source = inputFile; Output = outputFile;}},
+        {Config="linux_imx6-*-release"; ShaderCompilerVertexLinuxGlesRelease { Source = inputFile; Output = outputFile;}},
+    }
+end
+function _G.compileFragmentShader(inputFile, outputFile)
+    return {
+        {Config="*-*-debug"; ShaderCompilerFragmentLinuxGlslDebug { Source = inputFile; Output = outputFile;}},
+        {Config="linux_imx6-*-debug"; ShaderCompilerFragmentLinuxGlesDebug { Source = inputFile; Output = outputFile;}},
+        {Config="*-*-release"; ShaderCompilerFragmentLinuxGlslRelease { Source = inputFile; Output = outputFile;}},
+        {Config="linux_imx6-*-release"; ShaderCompilerFragmentLinuxGlesRelease { Source = inputFile; Output = outputFile;}},
+    }
+end
+-------------------------------------------------------------------------------
+
+and now these generated defrules can be used(in units.lua from main-app):
+
+-------------------------------------------------------------------------------
+Program {
+   Name = "test",
+   Sources = {
+    ...
+      compileVertexShader("vs_cubes.sc", "vs_cubes.bin"),
+      compileFragmentShader("fs_cubes.sc", "fs_cubes.bin"),
+   },
+   Depends = {
+...
+-------------------------------------------------------------------------------
+
+== how to handle repetetive stuff inside your units.lua
+
+There's often the need to specify an include-directory to a library and also to the main 
+application, this can be shortened this way:
+
+-------------------------------------------------------------------------------
+Env = {
+  CPPPATH = {
+  "include",
+  "examples/common",
+  ....
+  }
+},
+Propagate = {
+  Env = {
+    CPPPATH = {
+      "include",
+      "examples/common",
+-------------------------------------------------------------------------------
+
+can be written as:
+
+-------------------------------------------------------------------------------
+local repetetive_stuff = {
+  "include",
+  "examples/common",
+  ....
+}
+...
+Env = {
+  CPPPATH = {
+    repetetive_stuff,
+  }
+},
+Propagate = {
+  Env = {
+    CPPPATH = {
+      repetetive_stuff,
+    }
+  }
+}
+-------------------------------------------------------------------------------
+
