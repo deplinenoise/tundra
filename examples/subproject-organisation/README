@@ -1,0 +1,8 @@
+
+This example demonstrate how to have libs with their own examples and/or
+unit-tests which are compilable directly in their root folder or only the 
+library as part of a bigger project. the idea is to have the libraries as 
+subprojects included into the main-app (also revision-control wise).
+
+you can compile this example in this main-folder (and get the main-app)
+or you can start tundra in extlibs/libA and get the library-example-app.
