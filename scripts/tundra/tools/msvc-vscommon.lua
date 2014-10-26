@@ -148,7 +148,7 @@ function apply_msvc_visual_studio(version, env, options)
 
   -- We'll find any edition of VS (including Express) here
   local vs_root = native.reg_query("HKLM", "SOFTWARE\\Microsoft\\VisualStudio\\SxS\\VS7", version)
-  assert(vs_root, "The requested version of Visual Studio isn't installed")
+  assert(vs_root, "Visual Studio [Version " .. version .. "] isn't installed. To use a different Visual Studio version, edit tundra.lua accordingly")
   vs_root = string.gsub(vs_root, "\\+$", "\\")
 
   local vc_lib
