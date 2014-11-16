@@ -33,7 +33,11 @@ local function generic_cpp_setup(env)
       label = 'Precompiled header'
       pass = nodegen.resolve_pass(env:get('_PCH_PASS', ''))
       action = "$(PCHCOMPILE)"
-      output_files = { "$(_PCH_FILE)", object_fn }
+      if env:get('_PCH_WRITES_OBJ', '0') == '1' then
+        output_files = { "$(_PCH_FILE)", object_fn }
+      else
+        output_files = { "$(_PCH_FILE)" }
+      end
 
     elseif pch_source ~= '' and fn ~= pch_source then
 

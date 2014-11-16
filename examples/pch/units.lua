@@ -6,9 +6,23 @@ Program {
 		Header = "pch.h",
 		Pass = "PchGen",
 	},
+	Includes = {
+		-- GCC and Clang need this for the PCH system to work. MSVC doesn't have that requirement.
+		-- However, Tundra itself needs this, otherwise it's dependency header scanner doesn't work.
+		-- So if you want to use a PCH, then you must include the directory containing the header file
+		-- in your Includes list.
+		"src",
+	},
 	SourceDir = "src/",
-	Sources = { "main.cpp", "src1.cpp" },
-	--Sources = { "main.cpp", "src1.cpp", "pch.cpp" }, -- this also works. i.e. It's OK to duplicate the source file of the PCH here.
+	Sources = {
+		-- Note that it is OK to include pch.cpp in the Sources list (eg when using globbing), but it is not necessary
+		"main.cpp",
+		"src1.cpp",
+		"src2.cpp",
+		"src3.cpp",
+		"src4.cpp",
+		"subdir/src5.cpp",
+	},
 }
 
 Default "testpch"

@@ -93,10 +93,12 @@ function _native_mt:customize_env(env, raw_data)
     if not nodegen.resolve_pass(pch.Pass) then
       croak("%s: PrecompiledHeader requires a valid Pass", raw_data.Name)
     end
-    env:set('_PCH_FILE', "$(OBJECTDIR)/" .. raw_data.Name .. ".pch")
+    local pch_dir = "$(OBJECTDIR)/__" .. raw_data.Name
+    env:set('_PCH_HEADER', pch.Header)
+    env:set('_PCH_FILE', pch_dir .. '/' .. pch.Header .. '$(_PCH_SUFFIX)')
+    env:set('_PCH_INCLUDE_PATH', path.join(pch_dir, pch.Header))
     env:set('_USE_PCH', '$(_USE_PCH_OPT)')
     env:set('_PCH_SOURCE', path.normalize(pch.Source))
-    env:set('_PCH_HEADER', pch.Header)
     env:set('_PCH_PASS', pch.Pass)
     if cpp_exts[path.get_extension(pch.Source)] then
       env:set('PCHCOMPILE', '$(PCHCOMPILE_CXX)')

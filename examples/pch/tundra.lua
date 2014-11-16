@@ -1,3 +1,11 @@
+unix_options = {
+	Env = {
+		CXXOPTS = {
+			"-std=c++11",
+		},
+	},
+}
+
 Build {
 	Units = "units.lua",
 	Passes= {
@@ -9,5 +17,18 @@ Build {
 			DefaultOnHost = "windows",
 			Tools = { "msvc-winsdk" },
 		},
+		{
+			Name = "linux-gcc",
+			SupportedHosts = { "linux" },
+			DefaultOnHost = "linux",
+			Tools = { "gcc" },
+			Inherit = { unix_options },
+		},
+		--{
+		--	Name = "linux-clang",
+		--	SupportedHosts = { "linux" },
+		--	Tools = { "clang" },
+		--	Inherit = { unix_options },
+		--},
 	},
 }

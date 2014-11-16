@@ -1,5 +1,5 @@
 #include "pch.h"
 
-static void src1()
+static void src5()
 {
 }
