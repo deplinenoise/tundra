@@ -45,6 +45,8 @@ AR= ar rcus
 # Not cross-compiling. Detect options based on uname output.
 UNAME := $(shell uname)
 ifeq ($(UNAME), $(filter $(UNAME), FreeBSD NetBSD OpenBSD))
+CC := clang
+CXX := clang++
 CXXFLAGS += -std=c++11 
 LDFLAGS += -lpthread
 else

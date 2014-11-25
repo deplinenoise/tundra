@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <time.h>
+#include <stdio.h>
 
 namespace t2
 {
