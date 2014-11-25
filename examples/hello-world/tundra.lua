@@ -12,6 +12,11 @@ Build {
 			Tools = { "gcc" },
 		},
 		{
+			Name = "freebsd-clang",
+			DefaultOnHost = "freebsd",
+			Tools = { "clang" },
+		},
+		{
 			Name = "win32-msvc",
 			DefaultOnHost = "windows",
 			Tools = { "msvc-vs2012" },
