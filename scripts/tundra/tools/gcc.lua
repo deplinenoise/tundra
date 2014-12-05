@@ -26,12 +26,12 @@ function apply(env, options)
     ["PCHCOMPILE_CC"] = "$(CC) $(_OS_CCOPTS) -x c-header -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CCOPTS) $(CCOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
     ["PCHCOMPILE_CXX"] = "$(CXX) $(_OS_CXXOPTS) -x c++-header -c $(CPPDEFS:p-D) $(CPPPATH:f:p-I) $(CXXOPTS) $(CXXOPTS_$(CURRENT_VARIANT:u)) -o $(@) $(<)",
     ["PROGOPTS"] = "",
-    ["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) -o $(@) $(<) $(LIBS:p-l)",
+    ["PROGCOM"] = "$(LD) $(PROGOPTS) $(LIBPATH:p-L) -o $(@) -Wl,--start-group $(<) $(LIBS:p-l) -Wl,--end-group",
     ["PROGPREFIX"] = "",
     ["LIBOPTS"] = "",
     ["LIBCOM"] = "$(LIB) -rs $(LIBOPTS) $(@) $(<)",
     ["SHLIBPREFIX"] = "lib",
     ["SHLIBOPTS"] = "-shared",
-    ["SHLIBCOM"] = "$(LD) $(SHLIBOPTS) $(LIBPATH:p-L) -o $(@) $(<) $(LIBS:p-l)",
+    ["SHLIBCOM"] = "$(LD) $(SHLIBOPTS) $(LIBPATH:p-L) -o $(@) -Wl,--start-group $(<) $(LIBS:p-l) -Wl,--end-group",
   }
 end

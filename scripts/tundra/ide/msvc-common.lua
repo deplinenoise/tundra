@@ -28,7 +28,7 @@ local binary_extension = util.make_lookup_table {
 }
 
 local header_exts = util.make_lookup_table {
-  ".h", ".hpp", ".hh", ".inl",
+  ".h", ".hpp", ".hh", ".inl", ".ch"
 }
 
 -- Scan for sources, following dependencies until those dependencies seem to be
@@ -128,14 +128,38 @@ local function project_regen_commandline(ide_script)
   return tundra_cmdline("-g " .. ide_script)
 end
 
+local function check_config(config, starts)
+	if type(config) == "table" then
+		for _,c in ipairs(config) do
+			if not check_config(c, starts) then return false end
+		end
+	elseif type(config) == "string" then
+		return config:sub(1, #starts) == starts
+	else
+		return true
+	end
+end
+
 local function make_project_data(units_raw, env, proj_extension, hints, ide_script)
 
   -- Filter out stuff we don't care about.
   local units = util.filter(units_raw, function (u)
-    return u.Decl.Name and project_types[u.Keyword]
+    return u.Decl.Name and check_config(u.Decl.Config, "win")-- and project_types[u.Keyword]
   end)
 
-  local base_dir = hints.MsvcSolutionDir and (hints.MsvcSolutionDir .. '\\') or env:interpolate('$(OBJECTROOT)$(SEP)')
+  --local base_dir = hints.MsvcSolutionDir and (hints.MsvcSolutionDir .. '\\') or env:interpolate('$(OBJECTROOT)$(SEP)')
+  local base_dir = hints.MsvcSolutionDir
+  if type(base_dir) == "table" then
+	base_dir = base_dir[VERSION_YEAR]
+  end
+  if type(base_dir) == "string" then
+	if base_dir:sub(-1) ~= '\\' then
+	  base_dir = base_dir .. '\\'
+	end
+  else
+	base_dir = env:interpolate('$(OBJECTROOT)$(SEP)')
+  end
+  
   native.mkdir(base_dir)
 
   local project_by_name = {}
