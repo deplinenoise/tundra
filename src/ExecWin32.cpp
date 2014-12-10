@@ -501,7 +501,18 @@ ExecResult ExecuteProcess(
       }
 
       {
-        int copy_len = std::min((int) (response - cmd_line), (int) (sizeof(command_buf) - 1));
+        const int pre_suffix_len = (int)(response - cmd_line);
+        int copy_len = std::min(pre_suffix_len, (int) (sizeof(command_buf) - 1));
+		if (copy_len != pre_suffix_len)
+		{
+			char truncated_cmd[sizeof(command_buf)];
+			_snprintf(truncated_cmd, sizeof(truncated_cmd) - 1, "%s", cmd_line);
+			truncated_cmd[sizeof(truncated_cmd) - 1] = '\0';
+
+			fprintf(stderr, "Couldn't copy command (%s...) before response file suffix. "
+				"Move the response file suffix closer to the command starting position.\n", truncated_cmd);
+			return result;
+		}
         strncpy(command_buf, cmd_line, copy_len);
         command_buf[copy_len] = '\0';
         copy_len = std::min((int) (option_end - option), (int) (sizeof(option_buf) - 1));
