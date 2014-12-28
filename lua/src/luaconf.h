@@ -58,7 +58,7 @@
 #endif
 
 /* Custom overrides for Tundra - we want POPEN on Unixy platforms. */
-#if defined(__APPLE__) || defined(linux)
+#if defined(__APPLE__) || defined(linux) || defined(__FreeBSD__)
   #ifndef LUA_USE_POPEN
     #define LUA_USE_POPEN
   #endif
