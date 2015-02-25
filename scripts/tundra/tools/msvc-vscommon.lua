@@ -91,6 +91,7 @@ local post_win8_sdk = {
 local sdk_map = { 
   ["9.0"] = { "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\v6.0A", "InstallationFolder", pre_win8_sdk_dir, pre_win8_sdk },
   ["10.0"] = { "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\v7.0A", "InstallationFolder", pre_win8_sdk_dir, pre_win8_sdk },
+  ["10.1"] = { "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\v7.1A", "InstallationFolder", pre_win8_sdk_dir, pre_win8_sdk },  
   ["11.0"] = { "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots", "KitsRoot", win8_sdk_dir, post_win8_sdk },
   ["12.0"] = { "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots", "KitsRoot81", win81_sdk_dir, post_win8_sdk },
 }
