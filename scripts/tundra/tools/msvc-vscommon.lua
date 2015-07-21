@@ -94,6 +94,7 @@ local sdk_map = {
   ["10.1"] = { "SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\v7.1A", "InstallationFolder", pre_win8_sdk_dir, pre_win8_sdk },  
   ["11.0"] = { "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots", "KitsRoot", win8_sdk_dir, post_win8_sdk },
   ["12.0"] = { "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots", "KitsRoot81", win81_sdk_dir, post_win8_sdk },
+  ["14.0"] = { "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots", "KitsRoot81", win81_sdk_dir, post_win8_sdk }  -- For now use 8.1 SDK
 }
 
 local function get_host_arch()
@@ -196,7 +197,6 @@ function apply_msvc_visual_studio(version, env, options)
   --
   -- Tools
   --
-
   local cl_exe = '"' .. path_combine(vc_bin, "cl.exe") .. '"'
   local lib_exe = '"' .. path_combine(vc_bin, "lib.exe") .. '"'
   local link_exe = '"' .. path_combine(vc_bin, "link.exe") .. '"'
@@ -212,7 +212,7 @@ function apply_msvc_visual_studio(version, env, options)
     env:set("RCOPTS", "") -- clear the "/nologo" option (it was first added in VS2010)
   end
  
-  if version == "12.0" then
+  if version == "12.0" or version == "14.0" then
     -- Force MSPDBSRV.EXE
     env:set("CCOPTS", "/FS")
     env:set("CXXOPTS", "/FS")
@@ -233,14 +233,29 @@ function apply_msvc_visual_studio(version, env, options)
   include[#include + 1] = vs_root .. "VC\\ATLMFC\\INCLUDE"
   include[#include + 1] = vs_root .. "VC\\INCLUDE"
 
-  env:set_external_env_var("WindowsSdkDir", sdk_root)
-  env:set_external_env_var("INCLUDE", table.concat(include, ';'))
 
   -- if MFC isn't installed with VS
   -- the linker will throw an error when looking for libs
   -- Lua does not have a "does directory exist function"
   -- we could use one here
   local lib_str = sdk_lib .. ";" .. vs_root .. "\\VC\\ATLMFC\\lib\\" .. vc_lib_map[host_arch][target_arch] .. ";" .. vc_lib
+
+  if version == "14.0" then
+    -- Windows 10 changed CRT to be split between Windows SDK and VC. It
+    -- appears that when targeting 8.1 with VS2015 you should always use
+    -- use 10.0.10150.0, according to Microsoft.Cpp.Common.props in MSBuild.
+    -- This means we need the Windows 10 SDK directory here ever though 
+    -- we might not be targeting Windows 10
+    local win10_sdk_root = native.reg_query("HKLM", "SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots", "KitsRoot10")
+    assert(win10_sdk_root, "The windows 10 SDK is required when building using Visual studio 2015")
+    include[#include + 1] = win10_sdk_root .. "Include\\10.0.10150.0\\ucrt"
+    lib_str = lib_str .. ";" .. win10_sdk_root .. "Lib\\10.0.10150.0\\ucrt\\" .. post_win8_sdk[host_arch][target_arch]
+  end
+
+  env:set_external_env_var("WindowsSdkDir", sdk_root)
+  env:set_external_env_var("INCLUDE", table.concat(include, ';'))
+
+
   env:set_external_env_var("LIB", lib_str)
   env:set_external_env_var("LIBPATH", lib_str)
 
