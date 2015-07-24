@@ -479,7 +479,7 @@ function msvc_generator:generate_project(project, all_projects)
   -- wizards.
   if VERSION_YEAR == '2015' then
     p:write(' ToolsVersion="14.0"')
-  else if VERSION_YEAR == '2013' then
+  elseif VERSION_YEAR == '2013' then
     p:write(' ToolsVersion="12.0"')
   else
     p:write(' ToolsVersion="4.0"')
