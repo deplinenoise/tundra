@@ -8,7 +8,7 @@ CPPFLAGS = -Ilua/src -Isrc -MMD -MP -DHAVE_GIT_INFO
 CXXFLAGS ?= $(CFLAGS) -fno-exceptions
 
 CXXLIBFLAGS ?=
-LDFLAGS ?= -L$(BUILDDIR) -ltundra
+LDFLAGS += -L$(BUILDDIR) -ltundra
 
 PREFIX ?= /usr/local
 
