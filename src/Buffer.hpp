@@ -29,12 +29,6 @@ namespace t2
   template <typename T>
   void BufferInit(Buffer<T>* buffer)
   {
-    typedef union
-    {
-      T   m_A;
-      int m_B;
-    } CheckPodConstraint;
-
     buffer->m_Storage  = nullptr;
     buffer->m_Size     = 0;
     buffer->m_Capacity = 0;
@@ -49,12 +43,6 @@ namespace t2
   template <typename T>
   void BufferInitWithCapacity(Buffer<T>* buffer, MemAllocHeap* heap, size_t capacity)
   {
-    typedef union
-    {
-      T   m_A;
-      int m_B;
-    } CheckPodConstraint;
-
     buffer->m_Storage  = (T*) HeapAllocate(heap, sizeof(T) * capacity);
     buffer->m_Size     = 0;
     buffer->m_Capacity = capacity;
