@@ -1,6 +1,7 @@
 module(..., package.seeall)
 
 local npath = require "tundra.native.path"
+local native = require "tundra.native"
 
 split             = npath.split
 normalize         = npath.normalize
@@ -11,6 +12,7 @@ get_extension     = npath.get_extension
 drop_suffix       = npath.drop_suffix
 get_filename_base = npath.get_filename_base
 is_absolute       = npath.is_absolute
+digest_guid       = native.digest_guid
 
 function remove_prefix(prefix, fn)
   if fn:find(prefix, 1, true) == 1 then
@@ -42,7 +44,7 @@ function make_object_filename(env, src_fn, suffix)
   -- up clobbering each other (Tundra emits an error for this when checking
   -- the DAG)
   do
-    local relative_name = drop_suffix(object_fn:gsub("%.%.", "dotdot"))
+    local relative_name = digest_guid(drop_suffix(object_fn:gsub("%.%.", "dotdot")))
     object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. relative_name .. "__" .. src_suffix .. suffix
   end
 
