@@ -167,10 +167,7 @@ static int LuaTundraDigestGuid(lua_State* L)
   DoDigest(&digest, L);
   char result[kDigestStringSize];
   DigestToString(result, digest);
-  // Pad to 40 characters for compat between xxfast/SHA1
-  char output[41] = { 0 };
-  memcpy(output, result, kDigestStringSize);
-  lua_pushlstring(L, output, 40);
+  lua_pushstring(L, result);
   return 1;
 }
 
