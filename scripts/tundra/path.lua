@@ -44,8 +44,9 @@ function make_object_filename(env, src_fn, suffix)
   -- up clobbering each other (Tundra emits an error for this when checking
   -- the DAG)
   do
-    local relative_name = digest_guid(drop_suffix(object_fn:gsub("%.%.", "dotdot")))
-    object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. relative_name .. "__" .. src_suffix .. suffix
+    local hashed_name = digest_guid(drop_suffix(object_fn:gsub("%.%.", "dotdot")))
+    local fn = drop_suffix(get_filename(object_fn))
+    object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. fn .. "-" .. src_suffix .. "-" .. hashed_name .. suffix
   end
 
   return object_fn
