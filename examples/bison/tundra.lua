@@ -8,7 +8,7 @@ Build {
 			Env = {
 				BISON = "bison",
 				BISONOPT = "",
-				CPPPATH = "$(OBJECTDIR)", -- pick up generated files
+				CPPPATH = "$(OBJECTROOT)", -- pick up generated files
 			},
       DefaultOnHost = { "macosx" },
 		},

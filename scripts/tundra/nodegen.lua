@@ -852,11 +852,11 @@ function _G.DefRule(ruledef)
     end
   end
 
-  local function make_node(input_files, output_files, env, data, deps, scanner)
+  local function make_node(input_files, output_files, env, data, deps, scanner, action)
     return depgraph.make_node {
       Env            = env,
       Label          = annot,
-      Action         = cmd,
+      Action         = action,
       Pass           = data.Pass or resolve_pass(ruledef.Pass),
       InputFiles     = input_files,
       OutputFiles    = output_files,
@@ -894,7 +894,7 @@ function _G.DefRule(ruledef)
       if cache[key] then
         return cache[key]
       else
-        local node = make_node(input_files, output_files, env, data, deps, setup_data.Scanner)
+        local node = make_node(input_files, output_files, env, data, deps, setup_data.Scanner, setup_data.Command or cmd)
         cache[key] = node
         return node
       end
@@ -904,7 +904,7 @@ function _G.DefRule(ruledef)
       local setup_data = setup_fn(env, data)
       verify_table(setup_data.InputFiles, "InputFiles")
       verify_table(setup_data.OutputFiles, "OutputFiles")
-      return make_node(setup_data.InputFiles, setup_data.OutputFiles, env, data, deps, setup_data.Scanner)
+      return make_node(setup_data.InputFiles, setup_data.OutputFiles, env, data, deps, setup_data.Scanner, setup_data.Command or cmd)
     end
   end
 
