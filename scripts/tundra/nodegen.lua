@@ -481,7 +481,7 @@ function _nodegen:get_dag(parent_env)
 
       local success, result = xpcall(do_it, debug.traceback)
       if not success then
-        croak("Error while generating DAG for unit %s:\n%s", self.Decl.Name or "UNNAMED", result)
+        croak("Error while generating DAG for unit %s:\n%s", self.Decl.Name or "UNNAMED", util.tostring(result))
       end
 
     end
