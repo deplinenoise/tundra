@@ -45,7 +45,7 @@ function make_object_filename(env, src_fn, suffix)
   -- the DAG)
   do
     local hashed_name = digest_guid(drop_suffix(object_fn:gsub("%.%.", "dotdot")))
-    local fn = drop_suffix(get_filename(object_fn))
+    local fn = drop_suffix(get_filename(object_fn):gsub("%.%.", "dotdot"))
     object_fn = "$(OBJECTDIR)/$(UNIT_PREFIX)/" .. fn .. "-" .. src_suffix .. "-" .. hashed_name .. suffix
   end
 
