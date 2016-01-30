@@ -1,0 +1,8 @@
+[package]
+name = "prog"
+version = "0.1.0"
+build = "build.rs"
+
+[dependencies]
+my_crate = { path = "../my_crate" }
+
