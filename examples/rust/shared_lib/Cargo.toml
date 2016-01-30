@@ -1,0 +1,8 @@
+[package]
+name = "shared_lib"
+version = "0.1.0"
+build = "build.rs"
+
+[lib]
+name = "shared_lib"
+crate-type = ["dylib"]
