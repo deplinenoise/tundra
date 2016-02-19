@@ -778,6 +778,76 @@ are supported:
 }
 -------------------------------------------------------------------------------
 
+=== Rust Units
+
+Tundra has basic support for Rust programs, crates and shared libraries. The following unit types
+are supported:
+
+- `RustProgram` - Builds a Rust executable
+- `RustCrate` - Builds a Rust create
+- `RustSharedLibrary` - Builds a Rust library (dll)
+
+.Rust Unit Synopsis
+[source,lua]
+-------------------------------------------------------------------------------
+<unit type> {
+    -- required
+    Name = "...", -- name must match name in Cargo.toml
+    CargoConfig = "...",
+    Sources = { ..., "path/to/project/build.rs" },
+    -- optional
+    Depends = { ... },      -- config filtered
+}
+-------------------------------------------------------------------------------
+
+Tundra will call Cargo to build Rust projects so a Cargo.toml needs to be
+configured (which is the standard way to setup Rust projects) Cargo doesn't support
+command-line args for linking libs so Tundra will set some env variables that
+a Cargo build script that will use to link with the correct libs.
+
+The build.rs will need to look like this (if you use your own the following code
+needs to be added)
+
+.Rust build.rs Synopsis
+[source,rust]
+-------------------------------------------------------------------------------
+use std::env;
+
+fn main() {
+    let tundra_dir = env::var("TUNDRA_OBJECTDIR").unwrap_or("".to_string());
+    let libs = env::var("TUNDRA_STATIC_LIBS").unwrap_or("".to_string());
+
+    let native_libs = libs.split(" ");
+
+    println!("cargo:rustc-link-search=native={}", tundra_dir);
+
+    for lib in native_libs {
+        println!("cargo:rustc-link-lib=static={}", lib);
+        println!("cargo:rerun-if-changed={}", lib);
+    }
+}
+-------------------------------------------------------------------------------
+
+It is also possible to override the Cargo command line 
+
+[source,lua]
+-------------------------------------------------------------------------------
+Env = {
+	RUST_CARGO_OPTS = { 
+		{ "..."; Config = "..." },
+	},
+}
+-------------------------------------------------------------------------------
+
+This can be useful for using Cargo's built-in support for testing or enabling 
+more verbose output for example.
+
+In the examples/rust directory in the Tundra distribution there is examples
+that shows how this is used in practice.
+
+Notice about Windows: Due to a bug that was detected in Cargo when implementing 
+this feature Rust 1.7+ (Beta) is required on Windows.
+
 === Syntax Extensions
 
 Tundra provides a small set of syntax extensions by default. To use syntax
