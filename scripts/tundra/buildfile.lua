@@ -219,7 +219,7 @@ function _G.Build(args)
   }
 end
 
-function run(build_script_fn)
+function run(build_script_fn, globals)
   local f, err = io.open(build_script_fn, 'r')
 
   if not f then
@@ -238,6 +238,12 @@ function run(build_script_fn)
     croak("%s", error_msg)
   end
   setfenv(chunk, script_globals)
+
+  if globals then
+    for k, v in string.gmatch(globals, "([%w%d_]+)=([^,]+)") do
+      rawset(_G, k, v)
+    end
+  end
 
   local success, result = xpcall(chunk, syntax_error_catcher)
 

@@ -35,7 +35,7 @@ end
 --
 -- Usage:
 --   foo = bench("foo", foo) -- benchmark function foo
-function _G.bench(name, fn) 
+function _G.bench(name, fn)
   return function (...)
     local t1 = native.get_timer()
     local result = { fn(...) }
@@ -73,12 +73,12 @@ local function make_default_env(build_data, add_unfiltered_vars)
     mod.apply_host(default_env)
   end
 
-  -- Add any unfiltered entries from the build data's Env and ReplaceEnv to the 
+  -- Add any unfiltered entries from the build data's Env and ReplaceEnv to the
   -- default environment. For config environments, this will be false, because we
   -- want to wait until the config's tools have run before adding any user
   -- customizations.
   if add_unfiltered_vars then
-    if build_data.Env then 
+    if build_data.Env then
       nodegen.append_filtered_env_vars(default_env, build_data.Env, nil, true)
     end
     if build_data.ReplaceEnv then
@@ -89,8 +89,8 @@ local function make_default_env(build_data, add_unfiltered_vars)
   return default_env
 end
 
-function generate_dag_data(build_script_fn)
-  local build_data = buildfile.run(build_script_fn)
+function generate_dag_data(build_script_fn, globals)
+  local build_data = buildfile.run(build_script_fn, globals)
   local env = make_default_env(build_data.BuildData, false)
   local raw_nodes, node_bindings = unitgen.generate_dag(
     build_data.BuildTuples,
@@ -107,7 +107,7 @@ function generate_dag_data(build_script_fn)
     build_data.Options)
 end
 
-function generate_ide_files(build_script_fn, ide_script)
+function generate_ide_files(build_script_fn, ide_script, globals)
   -- We are generating IDE integration files. Load the specified
   -- integration module rather than DAG builders.
   --
@@ -115,7 +115,7 @@ function generate_ide_files(build_script_fn, ide_script)
   -- sources better.
   Options.FullPaths = 1
 
-  local build_data = buildfile.run(build_script_fn)
+  local build_data = buildfile.run(build_script_fn, globals)
   local build_tuples = assert(build_data.BuildTuples)
   local raw_data     = assert(build_data.BuildData)
   local passes       = assert(build_data.Passes)
