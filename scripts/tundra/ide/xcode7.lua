@@ -1033,7 +1033,7 @@ end
 local function write_scheme(s, project, full_config_name, xcodeproj_name)
   local bool_to_truth = { [false] = "NO", [true] = "YES" }
   local is_runnable = is_project_runnable(project)
-  local would_profile = not full_config_name:find("debug")
+  local would_profile = not full_config_name:find("debug") and full_config_name ~= ''
 
   local function write_buildable_reference(s, project, xcodeproj_name, indent)
     s:write(indent, '<BuildableReference\n')
@@ -1051,21 +1051,21 @@ local function write_scheme(s, project, full_config_name, xcodeproj_name)
   s:write('   version = "1.3">\n')
 
   s:write('   <BuildAction>\n')
-  --s:write('      parallelizeBuildables = "YES"\n')
-  --s:write('      buildImplicitDependencies = "YES">\n')
+  s:write('      parallelizeBuildables = "NO"\n')
+  s:write('      buildImplicitDependencies = "NO">\n')
   s:write('      <BuildActionEntries>\n')
   s:write('         <BuildActionEntry\n')
-  --s:write('            buildForTesting = "YES"\n')
-  s:write('            buildForRunning = "', bool_to_truth[is_runnable], '"\n')
+  s:write('            buildForTesting = "NO"\n')
+  s:write('            buildForRunning = "', bool_to_truth[is_runnable or project.IsMeta], '"\n')
   s:write('            buildForProfiling = "', bool_to_truth[is_runnable and would_profile], '">\n')
-  --s:write('            buildForArchiving = "YES"\n')
-  --s:write('            buildForAnalyzing = "YES">\n')
+  s:write('            buildForArchiving = "NO"\n')
+  s:write('            buildForAnalyzing = "', bool_to_truth[is_runnable], '">\n')
   write_buildable_reference(s, project, xcodeproj_name, "            ")
   s:write('         </BuildActionEntry>\n')
   s:write('      </BuildActionEntries>\n')
   s:write('   </BuildAction>\n')
 
-  if is_runnable then
+  if is_runnable or project.IsMeta then
     s:write('   <LaunchAction\n')
     s:write('      buildConfiguration = "', full_config_name, '"\n')
     s:write('      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"\n')
@@ -1108,31 +1108,37 @@ local function write_schemes(schemes_dir, projects, config_tuples, xcodeproj_nam
   m:write('<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n')
   m:write('<plist version="1.0">\n')
   m:write('<dict>\n')
-	m:write('\t<key>SchemeUserState</key>\n')
-	m:write('\t<dict>\n')
+  m:write('\t<key>SchemeUserState</key>\n')
+  m:write('\t<dict>\n')
+
+  local orderHint = 0
+
+  local function do_scheme(project, scheme_name, full_config_name)
+    m:write('\t\t<key>', scheme_name .. '.xcscheme</key>\n')
+    m:write('\t\t<dict>\n')
+    m:write('\t\t\t<key>orderHint</key>\n')
+    m:write('\t\t\t<integer>', orderHint, '</integer>\n')
+    m:write('\t\t</dict>\n')
+
+    orderHint = orderHint + 1
+
+    local s = io.open(path.join(schemes_dir, scheme_name .. ".xcscheme"), 'wb')
+    write_scheme(s, project, full_config_name, xcodeproj_name)
+  end
 
   -- Arbitrarily limited to only runnable projects, because the number of schemes can otherwise balloon!
-  local orderHint = 0
   for _, project in ipairs(projects) do
     if not project.IsMeta and is_project_runnable(project) then
       for _, tuple in ipairs(config_tuples) do
         local full_config_name = get_full_config_name(tuple)
-
         if is_project_enabled(project, full_config_name) then
           local scheme_name = project.Decl.Name .. '-' .. full_config_name
-
-          m:write('\t\t<key>', scheme_name .. '.xcscheme</key>\n')
-          m:write('\t\t<dict>\n')
-          m:write('\t\t\t<key>orderHint</key>\n')
-          m:write('\t\t\t<integer>', orderHint, '</integer>\n')
-          m:write('\t\t</dict>\n')
-
-          orderHint = orderHint + 1
-
-          local s = io.open(path.join(schemes_dir, scheme_name .. ".xcscheme"), 'wb')
-          write_scheme(s, project, full_config_name, xcodeproj_name)
+          do_scheme(project, scheme_name, full_config_name)
         end
       end
+    elseif project.IsMeta then
+      local scheme_name = project.Decl.Name
+      do_scheme(project, scheme_name, "dummy")
     end
   end
 
@@ -1141,13 +1147,13 @@ local function write_schemes(schemes_dir, projects, config_tuples, xcodeproj_nam
   m:write('\t<dict>\n')
 
   for _, project in ipairs(projects) do
-    if not project.IsMeta then
+    --if not project.IsMeta then
       m:write('\t\t<key>', newid(project.Decl.Name .. "Target"), '</key>\n')
       m:write('\t\t<dict>\n')
       m:write('\t\t\t<key>primary</key>\n')
       m:write('\t\t\t<true/>\n')
       m:write('\t\t</dict>\n')
-    end
+    --end
   end
 
   m:write('\t</dict>\n')
