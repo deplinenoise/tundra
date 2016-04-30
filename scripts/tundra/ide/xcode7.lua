@@ -678,12 +678,16 @@ local function write_native_targets(p, projects)
   p:write('/* End PBXNativeTarget section */\n\n')
 end
 
-local function write_shellscripts(p, projects, env, globals)
+local function write_shellscripts(p, projects, env)
   p:write('/* Begin PBXShellScriptBuildPhase section */\n')
 
   -- TODO: Do we really need to repeat this for all projects? seems a bit wasteful
 
   local cwd = native.getcwd()
+
+  local script =
+    'cd ' .. cwd .. '\\n' ..
+    TundraExePath .. ' $CONFIGURATION'
 
   --for _, project in ipairs(projects) do
     --local name = project.Decl.Name
@@ -700,7 +704,7 @@ local function write_shellscripts(p, projects, env, globals)
       p:write('\t\t\t);\n')
       p:write('\t\t\trunOnlyForDeploymentPostprocessing = 0;\n')
       p:write('\t\t\tshellPath = /bin/sh;\n')
-      p:write('\t\t\tshellScript = "cd ' .. cwd .. '\\n' .. TundraExePath .. ' ' .. globals .. ' $CONFIGURATION";\n')
+      p:write('\t\t\tshellScript = "' .. script .. '";\n')
       p:write('\t\t};\n')
     --end
   --end
@@ -751,6 +755,10 @@ local function write_configs(p, projects, config_tuples, env, set_env, base_dir)
 
   -- Each target needs its own set of configs, otherwise Xcode will crash
   for _, project in ipairs(projects) do
+    local projectHints = project.IdeGenerationHints or {}
+    projectHints = projectHints.Xcode or {}
+    local projectEnvVars = projectHints.EnvVars or {}
+
     for _, tuple in ipairs(config_tuples) do
       local full_config_name = get_full_config_name(tuple)
       local is_macosx_native = false
@@ -803,8 +811,13 @@ local function write_configs(p, projects, config_tuples, env, set_env, base_dir)
 
         p:write('\t\t\t\tVARIANT = ', tuple.Variant.Name, ';\n')
 
-        for i, var in ipairs(set_env) do
-          p:write('\t\t\t\t', var, ' = "', os.getenv(var), '";\n')
+        local all_env = util.merge_arrays(set_env, projectEnvVars)
+        local env_set = {}
+        for i, var in ipairs(all_env) do
+          if not env_set[var] then
+            p:write('\t\t\t\t', var, ' = "', os.getenv(var), '";\n')
+            env_set[var] = true
+          end
         end
 
         -- Lifted from msvc-common.lua
@@ -1101,7 +1114,7 @@ local function write_schemes(schemes_dir, projects, config_tuples, xcodeproj_nam
   -- Arbitrarily limited to only runnable projects, because the number of schemes can otherwise balloon!
   local orderHint = 0
   for _, project in ipairs(projects) do
-    if is_project_runnable(project) then
+    if not project.IsMeta and is_project_runnable(project) then
       for _, tuple in ipairs(config_tuples) do
         local full_config_name = get_full_config_name(tuple)
 
@@ -1128,13 +1141,13 @@ local function write_schemes(schemes_dir, projects, config_tuples, xcodeproj_nam
   m:write('\t<dict>\n')
 
   for _, project in ipairs(projects) do
-    --if is_project_runnable(project) then
+    if not project.IsMeta then
       m:write('\t\t<key>', newid(project.Decl.Name .. "Target"), '</key>\n')
       m:write('\t\t<dict>\n')
       m:write('\t\t\t<key>primary</key>\n')
       m:write('\t\t\t<true/>\n')
       m:write('\t\t</dict>\n')
-    --end
+    end
   end
 
   m:write('\t</dict>\n')
@@ -1146,7 +1159,6 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
   assert(config_tuples and #config_tuples > 0)
 
   hints = hints or {}
-  hintGlobals = hints.Globals or {}
   hints = hints.Xcode or {}
   local base_dir = hints.BaseDir and (hints.BaseDir .. '/') or env:interpolate('$(OBJECTROOT)$(SEP)')
   native.mkdir(base_dir)
@@ -1162,20 +1174,6 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
     io.close(units)
   end
 
-  local globals = ''
-  for k,v in pairs(hintGlobals) do
-    if string.len(globals) == 0 then
-      globals = '-E \\"'
-    else
-      globals = globals .. ','
-    end
-    globals = globals .. k .. '=' .. v
-  end
-  if string.len(globals) > 0 then
-    globals = globals .. '\\"'
-  end
-
---[[
   local meta_name = "!UpdateWorkspace"
   local generate_project = {
     Decl = { Name = meta_name, },
@@ -1184,9 +1182,9 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
     Sources = source_list,
     Guid = newid(meta_name .. 'ProjectId'),
     IsMeta = true,
-    MetaData = { BuildArgs = globals .. " -g " .. ide_script, BuildTool = TundraExePath, WorkingDir = pwd },
+    MetaData = { BuildArgs = " -g " .. ide_script, BuildTool = TundraExePath, WorkingDir = native.getcwd() },
   }
-]]--
+
   local solution_hints = hints.Projects
   if not solution_hints then
     print("No IdeGenerationHints.Xcode.Projects specified - using defaults")
@@ -1196,7 +1194,7 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
   end
 
   for name, data in pairs(solution_hints) do
-    local sln_projects = {} --{ generate_project }
+    local sln_projects = { generate_project }
 
     if data.Projects then
       for _, pname in ipairs(data.Projects) do
@@ -1222,10 +1220,10 @@ function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, def
     write_header(p)
     write_file_refs(p, sln_projects, base_dir)
     write_groups(p, sln_projects)
-    --write_legacy_targets(p, sln_projects, env)
+    write_legacy_targets(p, sln_projects, env)
     write_native_targets(p, sln_projects)
     write_project(p, sln_projects)
-    write_shellscripts(p, sln_projects, env, globals)
+    write_shellscripts(p, sln_projects, env)
     write_configs(p, sln_projects, config_tuples, env, hints.EnvVars or {}, base_dir)
     write_config_list(p, sln_projects, config_tuples)
     write_footer(p)
