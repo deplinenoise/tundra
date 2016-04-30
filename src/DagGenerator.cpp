@@ -192,7 +192,7 @@ static bool WriteNodes(
   MemAllocLinearScope scratch_scope(scratch);
 
   size_t node_count = nodes->m_Count;
-
+  
   struct BacklinkRec
   {
     Buffer<int32_t> m_Links;
@@ -273,7 +273,7 @@ static bool WriteNodes(
       BinarySegmentWriteInt32(node_data_seg, 0);
       BinarySegmentWriteNullPointer(node_data_seg);
     }
-
+    
     const Buffer<int32_t>& backlinks = links[i].m_Links;
     if (backlinks.m_Size > 0)
     {
@@ -328,7 +328,7 @@ static bool WriteNodes(
     }
 
     uint32_t flags = 0;
-
+    
     flags |= GetNodeFlag(node, "OverwriteOutputs", NodeData::kFlagOverwriteOutputs);
     flags |= GetNodeFlag(node, "PreciousOutputs",  NodeData::kFlagPreciousOutputs);
     flags |= GetNodeFlag(node, "Expensive",        NodeData::kFlagExpensive);
@@ -459,7 +459,7 @@ static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegme
   }
 
   void* digest_space = BinarySegmentAlloc(seg, sizeof(HashDigest));
-
+  
   if (ScannerType::kGeneric == type)
   {
     uint32_t flags = 0;
@@ -477,7 +477,7 @@ static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegme
     const JsonArrayValue* nofollow_kws = FindArrayValue(data, "KeywordsNoFollow");
 
     size_t kw_count =
-      (follow_kws ? follow_kws->m_Count : 0) +
+      (follow_kws ? follow_kws->m_Count : 0) + 
       (nofollow_kws ? nofollow_kws->m_Count : 0);
 
     BinarySegmentWriteInt32(seg, (int) kw_count);
@@ -529,7 +529,7 @@ bool ComputeNodeGuids(const JsonArrayValue* nodes, int32_t* remap_table, TempNod
       return false;
 
     guid_table[i].m_Node = (int) i;
-
+    
     HashState h;
     HashInit(&h);
 
@@ -592,7 +592,7 @@ bool ComputeNodeGuids(const JsonArrayValue* nodes, int32_t* remap_table, TempNod
 
 static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAllocHeap* heap, MemAllocLinear* scratch)
 {
-  printf("compiling mmapable DAG data..\n");
+  printf("compiling mmapable DAG data..\n"); 
 
   HashTable shared_strings;
   HashTableInit(&shared_strings, heap, 0);
@@ -635,7 +635,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
       }
     }
   }
-
+  
   // Write magic number
   BinarySegmentWriteUint32(main_seg, DagData::MagicNumber);
 
@@ -1007,7 +1007,7 @@ static bool RunExternalTool(const char* options, ...)
   return true;
 }
 
-bool GenerateDag(const char* script_fn, const char* dag_fn, const char* globals)
+bool GenerateDag(const char* script_fn, const char* dag_fn)
 {
   Log(kDebug, "regenerating DAG data");
 
@@ -1019,7 +1019,7 @@ bool GenerateDag(const char* script_fn, const char* dag_fn, const char* globals)
   remove(json_filename);
 
   // Run DAG generator.
-  if (!RunExternalTool("generate-dag %s %s %s", script_fn, json_filename, globals ? globals : ""))
+  if (!RunExternalTool("generate-dag %s %s", script_fn, json_filename))
     return false;
 
   FileInfo json_info = GetFileInfo(json_filename);
@@ -1062,7 +1062,7 @@ bool GenerateDag(const char* script_fn, const char* dag_fn, const char* globals)
   return success;
 }
 
-bool GenerateIdeIntegrationFiles(const char* build_file, int argc, const char** argv, const char* globals)
+bool GenerateIdeIntegrationFiles(const char* build_file, int argc, const char** argv)
 {
   MemAllocHeap heap;
   HeapInit(&heap, MB(1), HeapFlags::kDefault);
@@ -1090,7 +1090,7 @@ bool GenerateIdeIntegrationFiles(const char* build_file, int argc, const char** 
   BufferAppendOne(&args, &heap, '\0');
 
   // Run DAG generator.
-  bool result = RunExternalTool("generate-ide-files %s %s %s", build_file, args.m_Storage, globals ? globals : "");
+  bool result = RunExternalTool("generate-ide-files %s %s", build_file, args.m_Storage);
 
   BufferDestroy(&args, &heap);
   HeapDestroy(&heap);

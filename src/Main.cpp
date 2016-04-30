@@ -67,8 +67,6 @@ static const struct OptionTemplate
     "Display stats" },
   { 'C', "working-dir", OptionType::kString, offsetof(t2::DriverOptions, m_WorkingDir),
     "Set working directory before building" },
-  { 'E', "globals", OptionType::kString, offsetof(t2::DriverOptions, m_Globals),
-    "Global variables to make available to scripts" },
   { 'h', "help", OptionType::kBool, offsetof(t2::DriverOptions, m_ShowHelp),
     "Show help" },
   { 'k', "continue", OptionType::kBool, offsetof(t2::DriverOptions, m_ContinueOnError),
@@ -359,7 +357,7 @@ int main(int argc, char* argv[])
   {
     // FIXME: How to detect build file for other type of generators?
     // FIXME: Wire up remaining arguments on command line to go onto this commmand line
-    GenerateIdeIntegrationFiles("tundra.lua", argc, (const char**) argv, options.m_Globals);
+    GenerateIdeIntegrationFiles("tundra.lua", argc, (const char**) argv);
     return 0;
   }
 

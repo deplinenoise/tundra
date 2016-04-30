@@ -3,15 +3,15 @@ require "strict"
 local boot    = require "tundra.boot"
 
 local actions = {
-  ['generate-dag'] = function(build_script, ignore, globals)
+  ['generate-dag'] = function(build_script)
     assert(build_script, "need a build script name")
-    boot.generate_dag_data(build_script, globals)
+    boot.generate_dag_data(build_script)
   end,
 
-  ['generate-ide-files'] = function(build_script, ide_script, globals)
+  ['generate-ide-files'] = function(build_script, ide_script)
     assert(build_script, "need a build script name")
     assert(ide_script, "need a generator name")
-    boot.generate_ide_files(build_script, ide_script, globals)
+    boot.generate_ide_files(build_script, ide_script)
   end,
 
   ['selftest'] = function()

@@ -71,7 +71,6 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_ContinueOnError = false;
   self->m_ThreadCount     = GetCpuCount();
   self->m_WorkingDir      = nullptr;
-  self->m_Globals         = nullptr;
   #if defined(TUNDRA_WIN32)
   self->m_RunUnprotected  = false;
 #endif
@@ -192,7 +191,7 @@ static bool DriverPrepareDag(Driver* self, const char* dag_fn)
   }
 
   // We need to generate the DAG data
-  if (!GenerateDag(s_BuildFile, dag_fn, self->m_Options.m_Globals))
+  if (!GenerateDag(s_BuildFile, dag_fn))
     return false;
 
   // The DAG had better map in now, or we can give up.
@@ -275,7 +274,7 @@ static bool DriverCheckDagSignatures(Driver* self)
       Buffer<const char*>* target = info.IsDirectory() ? &self->m_Dirs : &self->m_Files;
       BufferAppendOne(target, self->m_Heap, data);
     }
-
+    
     static int SortStringPtrs(const void* l, const void* r)
     {
       return strcmp(*(const char**)l, *(const char**)r);
@@ -487,7 +486,7 @@ static void FindNodesByName(
     }
 
     if (!found)
-    {
+    { 
       Log(kWarning, "unable to map %s to any named node or input/output file", name);
     }
   }
@@ -648,7 +647,7 @@ bool DriverPrepareNodes(Driver* self, const char** targets, int target_count)
     node_remap[global_index] = local_index;
   }
 
-  Log(kDebug, "Node remap: %d src nodes, %d active nodes, using %d bytes of node state buffer space",
+  Log(kDebug, "Node remap: %d src nodes, %d active nodes, using %d bytes of node state buffer space", 
       dag->m_NodeCount, node_count, sizeof(NodeState) * node_count);
 
   BufferDestroy(&node_stack, &self->m_Heap);
@@ -813,7 +812,7 @@ BuildResult::Enum DriverBuild(Driver* self)
   BuildQueueInit(&build_queue, &queue_config);
 
   int global_node_index = 0;
-
+  
   BuildResult::Enum build_result = BuildResult::kOk;
 
   for (int pass = 0; BuildResult::kOk == build_result && pass < pass_count; ++pass)
@@ -1183,7 +1182,7 @@ void DriverRemoveStaleOutputs(Driver* self)
 
   for (uint32_t i = 0, nuke_count = nuke_table.m_RecordCount; i < nuke_count; ++i)
   {
-    Log(kDebug, "cleaning up %s", paths[i]);
+    Log(kDebug, "cleaning up %s", paths[i]); 
     RemoveFileOrDir(paths[i]);
   }
 

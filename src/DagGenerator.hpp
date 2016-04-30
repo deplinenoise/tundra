@@ -8,9 +8,9 @@ struct lua_State;
 namespace t2
 {
 
-bool GenerateDag(const char* build_file, const char* dag_fn, const char* globals);
+bool GenerateDag(const char* build_file, const char* dag_fn);
 
-bool GenerateIdeIntegrationFiles(const char* build_file, int argc, const char** argv, const char* globals);
+bool GenerateIdeIntegrationFiles(const char* build_file, int argc, const char** argv);
 
 }
 
