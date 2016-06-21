@@ -1,3 +1,4 @@
+require 'tundra.syntax.glob'
 
 Program {
 	Name = "testpch",
@@ -16,6 +17,7 @@ Program {
 	SourceDir = "src/",
 	Sources = {
 		-- Note that it is OK to include pch.cpp in the Sources list (eg when using globbing), but it is not necessary
+		--"pch.cpp",
 		"main.cpp",
 		"src1.cpp",
 		"src2.cpp",
@@ -24,5 +26,26 @@ Program {
 		"subdir/src5.cpp",
 	},
 }
-
 Default "testpch"
+
+-- This shows how to use precompiled headers with globbing.
+-- It was initially used as a test to get globbing and precompiled headers working together correctly.
+Program {
+	Name = "testpch_glob",
+	PrecompiledHeader = {
+		Source = "src/pch.cpp",
+		Header = "pch.h",
+		Pass = "PchGen",
+	},
+	Includes = {
+		"src",
+	},
+	Sources = {
+		FGlob {
+			Dir = "src",
+			Extensions = { ".c", ".cpp" },
+			Filters = {},
+		}
+	},
+}
+Default "testpch_glob"

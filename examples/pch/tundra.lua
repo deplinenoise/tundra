@@ -15,7 +15,7 @@ Build {
 		{
 			Name = "win32-msvc",
 			DefaultOnHost = "windows",
-			Tools = { "msvc-winsdk" },
+			Tools = { "msvc-vs2013" },
 		},
 		{
 			Name = "linux-gcc",
