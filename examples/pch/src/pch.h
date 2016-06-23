@@ -22,8 +22,7 @@ struct FibSlow_t<TreePos, 1> {
 };
 
 // Be CAREFUL with high values. 24 is pretty slow on GCC 4.8. Larger amounts will use a ton of RAM
-//inline int SlowDown() { return FibSlow_t<0,24>::value; }
-inline int SlowDown() { return FibSlow_t<0,24>::value; }
+inline int SlowDown() { return FibSlow_t<0,20>::value; }
 
 #include <stdio.h>
 #include "included_in_pch.h"
