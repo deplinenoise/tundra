@@ -12,7 +12,7 @@ LDFLAGS += -L$(BUILDDIR) -ltundra
 
 PREFIX ?= /usr/local
 
-GIT_BRANCH := $(shell (git branch 2>/dev/null) | sed -n '/^\*/s/^\* //p')
+GIT_BRANCH := $(shell (git branch --no-color 2>/dev/null) | sed -n '/^\*/s/^\* //p')
 
 ifeq ($(GIT_BRANCH),)
 GIT_BRANCH := unknown
