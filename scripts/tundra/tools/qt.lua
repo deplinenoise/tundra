@@ -7,6 +7,12 @@ function apply(env, options)
     ["QTMOC"] = "moc",
     ["QTMOCOPTS"] = "",
     ["QTMOCCMD"] = "$(QTMOC) $(QTMOCOPTS) $(CPPPATH:P-I) -o $(@) $(<)",
+    ["QTRCC"] = "rcc",
+    ["QTRCCOPTS"] = "",
+    ["QTRCCCMD"] = "$(QTRCC) $(QTRCCOPTS) -o $(@) $(<)",
+    ["QTUIC"] = "uic",
+    ["QTUICOPTS"] = "",
+    ["QTUICCMD"] = "$(QTUIC) $(QTUICOPTS) -o $(@) $(<)",
   }
 end
 

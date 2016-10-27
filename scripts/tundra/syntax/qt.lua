@@ -2,6 +2,7 @@
 
 module(..., package.seeall)
 
+local scanner = require "tundra.scanner"
 local path = require "tundra.path"
 
 DefRule {
@@ -30,7 +31,53 @@ DefRule {
     end
     return {
       InputFiles = { src },
-      OutputFiles = { "$(OBJECTDIR)$(SEP)" .. pfx .. base_name .. ext },
+      OutputFiles = { "$(OBJECTROOT)$(SEP)" .. pfx .. base_name .. ext },
+      Scanner = scanner.make_cpp_scanner(env:get_list('CPPPATH'))
+    }
+  end,
+}
+
+DefRule {
+  Name = "Rcc",
+  Command = "$(QTRCCCMD)",
+  ConfigInvariant = true,
+  Blueprint = {
+    Source = { Required = true, Type = "string" },
+  },
+
+  Setup = function (env, data)
+    local src = data.Source
+    local base_name = path.drop_suffix(src) 
+    local pfx = 'qrc_'
+    local ext = '.cpp'
+    return {
+      InputFiles = { src },
+      OutputFiles = { "$(OBJECTROOT)$(SEP)" .. pfx .. base_name .. ext },
+      Scanner = scanner.make_generic_scanner {
+        Paths = { "." },
+        KeywordsNoFollow = { "<file" },
+        UseSeparators = true
+      },
+    }
+  end,
+}
+
+DefRule {
+  Name = "Uic",
+  Command = "$(QTUICCMD)",
+  ConfigInvariant = true,
+  Blueprint = {
+    Source = { Required = true, Type = "string" },
+  },
+
+  Setup = function (env, data)
+    local src = data.Source
+    local base_name = path.drop_suffix(src) 
+    local pfx = 'ui_'
+    local ext = '.h'
+    return {
+      InputFiles = { src },
+      OutputFiles = { "$(OBJECTROOT)$(SEP)" .. pfx .. base_name .. ext },
     }
   end,
 }
