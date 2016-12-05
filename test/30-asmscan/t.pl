@@ -21,7 +21,7 @@ Build {
 }
 END
 
-my $obj_file = '__result/foo__asm.o';
+my $obj_file = '__result/foo-asm-541f0091dd54cc51f562e674e41814ab.o';
 
 my $foo_asm = <<END;
 	%include "include1.i" 
@@ -42,7 +42,7 @@ sub run_test($$) {
 
 		run_tundra 'foo-bar';
 		my $sig2 = md5_output_file $obj_file;
-		fail "failed to rebuild when header changed" if $sig1 eq $sig2;
+		fail "failed to rebuild when included file changed" if $sig1 eq $sig2;
 	});
 }
 
