@@ -28,7 +28,7 @@ BEGIN {
 
 our $DEBUG = 0;
 our $tundra_path = 'tundra2';
-our $tundra_options = '-D -v';
+our $tundra_options = '-D -v -w';
 our @tests = ();
 our $testdir = "";
 our $curr_config = "";
