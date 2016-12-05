@@ -27,7 +27,7 @@ BEGIN {
 }
 
 our $DEBUG = 0;
-our $tundra_path = 'tundra';
+our $tundra_path = 'tundra2';
 our $tundra_options = '-D';
 our @tests = ();
 our $testdir = "";
