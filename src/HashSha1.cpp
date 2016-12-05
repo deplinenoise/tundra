@@ -10,7 +10,7 @@ static inline uint32_t SHA1Rotate(uint32_t value, uint32_t bits)
   return ((value) << bits) | (value >> (32 - bits));
 }
 
-void HashBlock(const uint8_t* block, HashStateImpl* state)
+void HashBlock(const uint8_t* block, HashStateImpl* state, void* debug_file_)
 {
   uint32_t w[80];
 
