@@ -190,8 +190,19 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
       if (!f)
         continue;
 
-      fseek(f, 0, SEEK_END);
+      if (0 != fseek(f, 0, SEEK_END))
+      {
+        fclose(f);
+        continue;
+      }
+
       long file_size = ftell(f);
+      if (-1 == file_size || 0 == file_size)
+      {
+        fclose(f);
+        continue;
+      }
+
       rewind(f);
 
       char* buffer = (char*) HeapAllocate(scratch_heap, file_size + 2);
