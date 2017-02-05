@@ -7,7 +7,7 @@ possible incremental build times even for very large software projects.
 
 Tundra is portable and works on
 
-  - Mac OSX (10.6-10.8 tested, but most any version should work)
+  - macOS
   - Linux
   - FreeBSD
   - Windows (XP or later - binary releases require Vista/64 or later - for XP support build from source using MinGW.)
@@ -24,6 +24,8 @@ Binaries
 -----------------------------------------------------------------------------
 
 Windows installers are available for download in the releases tab.
+
+macOS package is available via [Homebrew](http://brew.sh): `brew install tundra`
 
 License and Copyright
 -----------------------------------------------------------------------------
