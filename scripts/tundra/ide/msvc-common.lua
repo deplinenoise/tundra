@@ -477,7 +477,9 @@ function msvc_generator:generate_project(project, all_projects)
   -- This doesn't seem to change any behaviour, but this is the default
   -- value when creating a makefile project from VS2013 and VS2015
   -- wizards.
-  if VERSION_YEAR == '2015' then
+  if VERSION_YEAR == '2017' then
+    p:write(' ToolsVersion="15.0"')
+  elseif VERSION_YEAR == '2015' then
     p:write(' ToolsVersion="14.0"')
   elseif VERSION_YEAR == '2013' then
     p:write(' ToolsVersion="12.0"')
@@ -529,6 +531,8 @@ function msvc_generator:generate_project(project, all_projects)
       p:write('\t\t<PlatformToolset>v120</PlatformToolset>', LF) -- I have no idea what this setting affects
     elseif VERSION_YEAR == '2015' then
       p:write('\t\t<PlatformToolset>v140</PlatformToolset>', LF) -- I have no idea what this setting affects
+    elseif VERSION_YEAR == '2017' then
+      p:write('\t\t<PlatformToolset>v141</PlatformToolset>', LF) -- I have no idea what this setting affects
     end
     p:write('\t</PropertyGroup>', LF)
   end
