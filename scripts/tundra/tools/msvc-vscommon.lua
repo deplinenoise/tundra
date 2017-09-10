@@ -270,9 +270,16 @@ function apply_msvc_visual_studio(version, env, options)
   local vc_tools_root;
 
   if version == "15.0" then
-    -- TODO: read VCToolsVersion from Microsoft.VCToolsVersion.default.txt
-    -- as described in https://blogs.msdn.microsoft.com/vcblog/2016/10/07/compiler-tools-layout-in-visual-studio-15/
-    local vc_tools_version = "14.10.25017"
+    -- Read VCToolsVersion from Microsoft.VCToolsVersion.default.txt
+    -- as described in https://blogs.msdn.microsoft.com/vcblog/2016/10/07/compiler-tools-layout-in-visual-studio-15
+    local vc_tools_version
+    local vc_tools_version_file = io.open(vs_root .. "VC\\Auxiliary\\Build\\Microsoft.VCToolsVersion.default.txt", "r")
+    if vc_tools_version_file then
+      vc_tools_version = vc_tools_version_file:read "*line" -- the file contains the current version string
+      vc_tools_version = vc_tools_version:gsub("^%s*(.-)%s*$", "%1") -- trim any leading or trailing whitespace
+    else
+      error("Compiler tools version for Visual Studio 2017 could not be detected because Microsoft.VCToolsVersion.default.txt does not exist.")
+    end
     vc_tools_root = vs_root .. "VC\\Tools\\MSVC\\" .. vc_tools_version .. "\\"
   else
     vc_tools_root = vs_root .. "VC\\"
@@ -286,7 +293,7 @@ function apply_msvc_visual_studio(version, env, options)
     if not vc_bin then
       errorf("can't build target arch %s on host arch %s", target_arch, host_arch)
     end
-    vc_bin =  vs_root .. "vc\\bin\\" .. vc_bin  
+    vc_bin =  vs_root .. "vc\\bin\\" .. vc_bin
     vc_lib =  vs_root .. "vc\\lib\\" .. vc_lib_map[host_arch][target_arch]
   end
 
@@ -354,7 +361,7 @@ function apply_msvc_visual_studio(version, env, options)
   path[#path + 1] = sdk.root
   path[#path + 1] = vs_root .. "Common7\\IDE"
 
-  -- TODO: handle vs2017
+  -- TODO: how should vs2017 be handled here?
   if "x86" == host_arch then
     path[#path + 1] = vs_root .. "\\VC\\Bin"
   elseif "x64" == host_arch then
