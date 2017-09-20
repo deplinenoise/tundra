@@ -1,8 +1,8 @@
 
 module(..., package.seeall)
 
-local vswhere = require "tundra.tools.msvc-vswhere"
+local vscommon = require "tundra.tools.msvc-vscommon-next"
 
 function apply(env, options)
-  vswhere.apply_msvc_visual_studio("15.0", "[15.0,16.0)", env, options)
+  vscommon.apply_msvc_visual_studio("2017", env, options)
 end
