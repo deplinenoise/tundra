@@ -280,7 +280,7 @@ Build {
     DefaultVariant = "...",
     SubVariants = { ... },
     DefaultSubVariant = "...",
-    ScriptsDirs = { ... },
+    ScriptDirs = { ... },
     SyntaxExtensions = { ... },
     Passes = { ... },
     ContentDigestExtensions { ... },
