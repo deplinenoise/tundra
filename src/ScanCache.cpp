@@ -137,7 +137,7 @@ bool ScanCacheLookup(ScanCache* self, const HashDigest& key, uint64_t timestamp,
         for (int i = 0; i < file_count; ++i)
         {
           output[i].m_Filename = entry->m_IncludedFiles[i].m_Filename;
-          output[i].m_Hash     = entry->m_IncludedFiles[i].m_Hash;
+          output[i].m_FilenameHash = entry->m_IncludedFiles[i].m_FilenameHash;
         }
 
         result_out->m_IncludedFileCount = file_count;
@@ -278,7 +278,7 @@ void ScanCacheInsert(
     for (int i = 0; i < count; ++i)
     {
       record->m_Includes[i].m_Filename = StrDup(self->m_Allocator, included_files[i]);
-      record->m_Includes[i].m_Hash     = Djb2HashPath(included_files[i]);
+      record->m_Includes[i].m_FilenameHash = Djb2HashPath(included_files[i]);
     }
 
     if (is_fresh)
@@ -382,7 +382,7 @@ static void SaveRecord(
   for (int i = 0; i < include_count; ++i)
   {
     BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-    BinarySegmentWriteUint32(array_seg, includes[i].m_Hash);
+    BinarySegmentWriteUint32(array_seg, includes[i].m_FilenameHash);
     BinarySegmentWriteStringData(string_seg, includes[i].m_Filename);
   }
 

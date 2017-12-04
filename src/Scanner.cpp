@@ -173,7 +173,7 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
 
       for (int i = 0; i < file_count; ++i)
       {
-        if (IncludeSetAdd(&incset, files[i].m_Filename, files[i].m_Hash))
+        if (IncludeSetAdd(&incset, files[i].m_Filename, files[i].m_FilenameHash))
         {
           // This was a new file, schedule it for scanning as well. 
           BufferAppendOne(&filename_stack, scratch_heap, files[i].m_Filename);
@@ -244,7 +244,7 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
   FileAndHash* result = LinearAllocateArray<FileAndHash>(scratch_alloc, include_count);
   HashTableWalk(&incset.m_HashTable, [=] (uint32_t index, const HashRecord* r) {
     result[index].m_Filename = r->m_String;
-    result[index].m_Hash     = r->m_Hash;
+    result[index].m_FilenameHash = r->m_Hash;
   });
 
   BufferDestroy(&filename_stack, scratch_heap);

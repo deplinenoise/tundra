@@ -454,7 +454,7 @@ static void FindNodesByName(
 
           for (const FrozenFileAndHash& input : node->m_InputFiles)
           {
-            if (filename_hash == input.m_Hash && 0 == PathCompare(input.m_Filename, filename))
+            if (filename_hash == input.m_FilenameHash && 0 == PathCompare(input.m_Filename, filename))
             {
               BufferAppendOne(out_nodes, heap, node_index);
               Log(kDebug, "mapped %s to node %d (based on input file)", name, node_index);
@@ -468,7 +468,7 @@ static void FindNodesByName(
 
           for (const FrozenFileAndHash& output : node->m_OutputFiles)
           {
-            if (filename_hash == output.m_Hash && 0 == PathCompare(output.m_Filename, filename))
+            if (filename_hash == output.m_FilenameHash && 0 == PathCompare(output.m_Filename, filename))
             {
               BufferAppendOne(out_nodes, heap, node_index);
               Log(kDebug, "mapped %s to node %d (based on output file)", name, node_index);
@@ -1082,7 +1082,7 @@ void DriverRemoveStaleOutputs(Driver* self)
   // Insert all current regular and aux output files into the hash table.
   auto add_file = [&file_table, scratch](const FrozenFileAndHash& p) -> void
   {
-    uint32_t    hash = p.m_Hash;
+    const uint32_t hash = p.m_FilenameHash;
 
     if (nullptr == HashTableLookup(&file_table, hash, p.m_Filename))
     {

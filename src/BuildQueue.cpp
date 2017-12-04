@@ -202,7 +202,7 @@ namespace t2
   {
     for (const FrozenFileAndHash& f : node->m_OutputFiles)
     {
-      FileInfo i = StatCacheStat(stat_cache, f.m_Filename, f.m_Hash);
+      FileInfo i = StatCacheStat(stat_cache, f.m_Filename, f.m_FilenameHash);
 
       if (!i.Exists())
         return true;
@@ -292,7 +292,7 @@ namespace t2
     {
       // Add path and timestamp of every direct input file.
       HashAddString(&sighash, input.m_Filename);
-      ComputeFileSignature(&sighash, stat_cache, digest_cache, input.m_Filename, input.m_Hash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
+      ComputeFileSignature(&sighash, stat_cache, digest_cache, input.m_Filename, input.m_FilenameHash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
 
       if (scanner)
       {
@@ -315,7 +315,7 @@ namespace t2
             // Add path and timestamp of every indirect input file (#includes)
             const FileAndHash& path = scan_output.m_IncludedFiles[i];
             HashAddString(&sighash, path.m_Filename);
-            ComputeFileSignature(&sighash, stat_cache, digest_cache, path.m_Filename, path.m_Hash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
+            ComputeFileSignature(&sighash, stat_cache, digest_cache, path.m_Filename, path.m_FilenameHash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
           }
         }
       }
@@ -439,7 +439,7 @@ namespace t2
       {
         Log(kDebug, "Removing output file %s before running action", output.m_Filename.Get());
         remove(output.m_Filename);
-        StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
+        StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_FilenameHash);
       }
     }
 
@@ -461,7 +461,7 @@ namespace t2
 
     for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
     {
-      StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
+      StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_FilenameHash);
     }
 
     MutexLock(queue_lock);
@@ -484,7 +484,7 @@ namespace t2
         {
           Log(kDebug, "Removing output file %s from failed build", output.m_Filename.Get());
           remove(output.m_Filename);
-          StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_Hash);
+          StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_FilenameHash);
         }
       }
 

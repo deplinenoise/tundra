@@ -174,7 +174,7 @@ inline uint64_t LoadBigEndian64(uint64_t v)
 struct FileAndHash
 {
   const char* m_Filename;
-  uint32_t    m_Hash;
+  uint32_t    m_FilenameHash;
 };
 
 }
