@@ -67,6 +67,8 @@ static const struct OptionTemplate
     "Display stats" },
   { 'C', "working-dir", OptionType::kString, offsetof(t2::DriverOptions, m_WorkingDir),
     "Set working directory before building" },
+  { 'R', "buildfiles-root", OptionType::kString, offsetof(t2::DriverOptions, m_TundraFilesRoot),
+    "directory to read and write tundra's build files into"},
   { 'h', "help", OptionType::kBool, offsetof(t2::DriverOptions, m_ShowHelp),
     "Show help" },
   { 'k', "continue", OptionType::kBool, offsetof(t2::DriverOptions, m_ContinueOnError),
@@ -260,6 +262,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  DriverInitializeTundraFilePaths(&options);
 #if defined(TUNDRA_WIN32)
   if (!options.m_RunUnprotected && nullptr == getenv("_TUNDRA2_PARENT_PROCESS_HANDLE"))
   {

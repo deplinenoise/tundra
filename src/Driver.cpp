@@ -38,18 +38,40 @@ namespace t2
 
 TundraStats g_Stats;
 
-static const char s_BuildFile[]              = "tundra.lua";
-static const char s_DagFileName[]            = ".tundra2.dag";
-static const char s_StateFileName[]          = ".tundra2.state";
-static const char s_ScanCacheFileName[]      = ".tundra2.scancache";
-static const char s_DigestCacheFileName[]    = ".tundra2.digestcache";
-// Temporary filenames where we write data first. These are then renamed to commit.
-static const char s_StateFileNameTmp[]       = ".tundra2.state.tmp";
-static const char s_ScanCacheFileNameTmp[]   = ".tundra2.scancache.tmp";
-static const char s_DigestCacheFileNameTmp[] = ".tundra2.digestcache.tmp";
+static const char* s_BuildFile;
+static const char* s_DagFileName;
+static const char* s_StateFileName;
+static const char* s_ScanCacheFileName;
+static const char* s_DigestCacheFileName;
+static const char* s_StateFileNameTmp;
+static const char* s_ScanCacheFileNameTmp;
+static const char* s_DigestCacheFileNameTmp;
 
 static bool DriverPrepareDag(Driver* self, const char* dag_fn);
 static bool DriverCheckDagSignatures(Driver* self);
+
+static const char* CreatePath(const char* root, const char* filename)
+{
+   root = root == nullptr ? "." : root;
+   char* result = (char*)malloc(strlen(root)+strlen(filename) /*add one for delimiter*/ +1  /*add one for forward slash*/ +1);
+   strcpy(result,root);
+   strcat(result,"/");
+   strcat(result,filename);
+   return result;
+}
+
+void DriverInitializeTundraFilePaths(DriverOptions* driverOptions)
+{
+    s_BuildFile               = CreatePath(driverOptions->m_TundraFilesRoot, "tundra.lua");
+    s_DagFileName             = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.dag");
+    s_StateFileName           = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.state");
+    s_ScanCacheFileName       = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.scancache");
+    s_DigestCacheFileName     = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.digestcache");
+    // Temporary filenames where we write data first. These are then renamed to commit.
+    s_StateFileNameTmp        = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.state.tmp");
+    s_ScanCacheFileNameTmp    = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.scancache.tmp");
+    s_DigestCacheFileNameTmp  = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.digestcache.tmp");
+}
 
 // Set default options.
 void DriverOptionsInit(DriverOptions* self)
@@ -71,6 +93,7 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_ContinueOnError = false;
   self->m_ThreadCount     = GetCpuCount();
   self->m_WorkingDir      = nullptr;
+  self->m_TundraFilesRoot = nullptr;
   #if defined(TUNDRA_WIN32)
   self->m_RunUnprotected  = false;
 #endif
