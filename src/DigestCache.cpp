@@ -9,13 +9,6 @@
 namespace t2
 {
 
-struct DigestCacheRecord : HashRecord
-{
-  HashDigest m_ContentDigest;
-  uint64_t   m_Timestamp;
-  uint64_t   m_AccessTime;
-};
-
 void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
 {
   ReadWriteLockInit(&self->m_Lock);
@@ -26,7 +19,7 @@ void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
   HeapInit(&self->m_Heap, heap_size, HeapFlags::kDefault);
   LinearAllocInit(&self->m_Allocator, &self->m_Heap, heap_size / 2, "digest allocator");
   MmapFileInit(&self->m_StateFile);
-  HashTableInit(&self->m_Table, &self->m_Heap, HashTable::kFlagPathStrings);
+  HashTableInit(&self->m_Table, &self->m_Heap);
 
   self->m_AccessTime = time(nullptr);
 
@@ -50,14 +43,11 @@ void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
         if (record.m_AccessTime < cutoff_time)
           continue;
 
-        DigestCacheRecord* r = LinearAllocate<DigestCacheRecord>(&self->m_Allocator);
-        r->m_Hash          = record.m_FilenameHash;
-        r->m_ContentDigest = record.m_ContentDigest;
-        r->m_Next          = nullptr;
-        r->m_String        = record.m_Filename.Get();
-        r->m_Timestamp     = record.m_Timestamp;
-        r->m_AccessTime    = record.m_AccessTime;
-        HashTableInsert(&self->m_Table, r);
+        DigestCacheRecord r;
+        r.m_ContentDigest = record.m_ContentDigest;
+        r.m_Timestamp     = record.m_Timestamp;
+        r.m_AccessTime    = record.m_AccessTime;
+        HashTableInsert(&self->m_Table, record.m_FilenameHash, record.m_Filename.Get(), r);
       }
       Log(kDebug, "digest cache initialized -- %d entries", state->m_Records.GetCount());
     }
@@ -89,16 +79,14 @@ bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const 
   BinarySegment *string_seg = BinaryWriterAddSegment(&writer);
   BinaryLocator  array_ptr  = BinarySegmentPosition(array_seg);
 
-  auto save_record = [=](size_t index, const HashRecord* hr)
+  auto save_record = [=](size_t index, uint32_t hash, const char* path, const DigestCacheRecord& r)
   {
-    const DigestCacheRecord* r = (const DigestCacheRecord*) hr;
-
-    BinarySegmentWriteUint64(array_seg, r->m_Timestamp);
-    BinarySegmentWriteUint64(array_seg, r->m_AccessTime);
-    BinarySegmentWriteUint32(array_seg, r->m_Hash);
-    BinarySegmentWrite(array_seg, &r->m_ContentDigest, sizeof(r->m_ContentDigest));
+    BinarySegmentWriteUint64(array_seg, r.m_Timestamp);
+    BinarySegmentWriteUint64(array_seg, r.m_AccessTime);
+    BinarySegmentWriteUint32(array_seg, hash);
+    BinarySegmentWrite(array_seg, &r.m_ContentDigest, sizeof(r.m_ContentDigest));
     BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-    BinarySegmentWriteStringData(string_seg, r->m_String);
+    BinarySegmentWriteStringData(string_seg, path);
     BinarySegmentWriteUint32(array_seg, 0); // m_Padding
 #if ENABLED(USE_FAST_HASH)
     BinarySegmentWriteUint32(array_seg, 0); // m_Padding
@@ -167,14 +155,11 @@ void DigestCacheSet(DigestCache* self, const char* filename, uint32_t hash, uint
   }
   else
   {
-    r = LinearAllocate<DigestCacheRecord>(&self->m_Allocator);
-    r->m_Hash          = hash;
-    r->m_ContentDigest = digest;
-    r->m_Next          = nullptr;
-    r->m_String        = StrDup(&self->m_Allocator, filename);
-    r->m_Timestamp     = timestamp;
-    r->m_AccessTime    = self->m_AccessTime;
-    HashTableInsert(&self->m_Table, r);
+    DigestCacheRecord r;
+    r.m_ContentDigest = digest;
+    r.m_Timestamp     = timestamp;
+    r.m_AccessTime    = self->m_AccessTime;
+    HashTableInsert(&self->m_Table, hash, StrDup(&self->m_Allocator, filename), r);
   }
 
   ReadWriteUnlockWrite(&self->m_Lock);

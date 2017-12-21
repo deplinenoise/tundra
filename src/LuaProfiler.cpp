@@ -19,10 +19,11 @@ namespace t2
 
 // Data about our idea of a Lua/C function.
 // To save on heap space we try to store these uniquely in a hash table.
-struct FunctionMeta : HashRecord
+struct FunctionMeta
 {
 };
 
+const char s_TopLevelString[] = "toplevel;global;;0";
 static FunctionMeta s_TopLevel;
 
 // Data about an invocation of a function.
@@ -52,7 +53,7 @@ static struct LuaProfilerState
   MemAllocLinear* m_Allocator;
 
   // We stash functions in here as we first encounter them.
-  HashTable       m_Functions;
+  HashTable<FunctionMeta*, kFlagCaseSensitive> m_Functions;
 
   // A custom hash table of invocations
   uint32_t        m_InvocationCount;
@@ -63,7 +64,7 @@ static struct LuaProfilerState
   Invocation*     m_CurrentInvocation;
 } s_Profiler;
 
-static FunctionMeta* FindFunction(lua_State* L, lua_Debug* ar)
+static FunctionMeta* FindFunction(lua_State* L, lua_Debug* ar, uint32_t* hash_out)
 {
   // This is slow, it involves string formatting. It's mostly OK, because we're
   // careful not to include this in the timings. It will of course affect cache
@@ -78,17 +79,16 @@ static FunctionMeta* FindFunction(lua_State* L, lua_Debug* ar)
   buffer[(sizeof buffer)-1] = 0;
 
   const uint32_t hash = Djb2Hash(buffer);
-  HashRecord* r = HashTableLookup(&s_Profiler.m_Functions, hash, buffer);
+  *hash_out = hash;
+  FunctionMeta** r = HashTableLookup(&s_Profiler.m_Functions, hash, buffer);
 
   if (!r) {
-    r = LinearAllocate<FunctionMeta>(s_Profiler.m_Allocator);
-    r->m_Hash   = hash;
-    r->m_String = StrDup(s_Profiler.m_Allocator, buffer);
-    r->m_Next   = nullptr;
-    HashTableInsert(&s_Profiler.m_Functions, r);
+    FunctionMeta* meta = LinearAllocate<FunctionMeta>(s_Profiler.m_Allocator);
+    HashTableInsert(&s_Profiler.m_Functions, hash, StrDup(s_Profiler.m_Allocator, buffer), meta);
+    return meta;
   }
   
-  return static_cast<FunctionMeta*>(r);
+  return *r;
 }
 
 static void RehashInvocationTable(uint32_t new_size)
@@ -130,10 +130,8 @@ static bool MatchInvocation(Invocation* l, Invocation* r)
   return l == r;
 }
 
-static Invocation* PushInvocation(FunctionMeta* f)
+static Invocation* PushInvocation(FunctionMeta* f, uint32_t hash)
 {
-  uint32_t hash = f->m_Hash;
-
   Invocation* parent = s_Profiler.m_CurrentInvocation;
   if (parent)
     hash ^= parent->m_Hash;
@@ -191,9 +189,10 @@ static void ProfilerLuaEvent(lua_State* L, lua_Debug* ar)
     // We're calling a new function.
     // Figure out what function it is.
 
-    FunctionMeta* f = FindFunction(L, ar);
+    uint32_t hash;
+    FunctionMeta* f = FindFunction(L, ar, &hash);
 
-    s_Profiler.m_CurrentInvocation = PushInvocation(f);
+    s_Profiler.m_CurrentInvocation = PushInvocation(f, hash);
     s_Profiler.m_CurrentInvocation->m_CallCount += 1;
   }
   else
@@ -217,15 +216,13 @@ void LuaProfilerInit(MemAllocHeap* heap, MemAllocLinear* alloc, lua_State* L)
   self->m_Heap                = heap;
   self->m_Allocator           = alloc;
 
-  HashTableInit(&self->m_Functions, heap, 0);
+  HashTableInit(&self->m_Functions, heap);
 
   RehashInvocationTable(1024);
 
-  s_TopLevel.m_Hash   = 0;
-  s_TopLevel.m_String = "toplevel;global;;0";
-  s_TopLevel.m_Next   = nullptr;
+  uint32_t toplevel_hash = Djb2Hash(s_TopLevelString);
 
-  s_Profiler.m_CurrentInvocation = PushInvocation(&s_TopLevel);
+  s_Profiler.m_CurrentInvocation = PushInvocation(&s_TopLevel, toplevel_hash);
   s_Profiler.m_CurrentInvocation->m_StartTick = TimerGet();
 
   // Install debug hook.
@@ -249,11 +246,11 @@ static void DumpReport(FILE* f)
 {
   fprintf(f, "Functions:\n");
 
-  fprintf(f, " %p %s\n", &s_TopLevel, s_TopLevel.m_String);
+  fprintf(f, " %p %s\n", &s_TopLevel, s_TopLevelString);
 
-  HashTableWalk(&s_Profiler.m_Functions, [=](uint32_t, const HashRecord* r) -> void
+  HashTableWalk(&s_Profiler.m_Functions, [=](uint32_t, uint32_t, const char* str, FunctionMeta* p) -> void
   {
-    fprintf(f, " %p %s\n", r, r->m_String);
+    fprintf(f, " %p %s\n", p, str);
   });
 
   fprintf(f, "Invocations:\n");

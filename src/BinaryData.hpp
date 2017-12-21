@@ -78,9 +78,8 @@ private:
 struct FrozenFileAndHash
 {
   FrozenString  m_Filename;
-  uint32_t      m_Hash;
+  uint32_t      m_FilenameHash;
 };
-
 
 }
 
