@@ -980,27 +980,39 @@ static bool RunExternalTool(const char* options, ...)
     PathFormat(dag_gen_path, &pbuf);
   }
 
-  char option_str[1024];
-  va_list args;
-  va_start(args, options);
-  vsnprintf(option_str, sizeof option_str, options, args);
-  va_end(args);
-  option_str[sizeof(option_str)-1] = '\0';
 
-  const char* quotes = "";
-  if (strchr(dag_gen_path, ' '))
-    quotes = "\"";
+  const char* cmdline_to_use;
 
-  char cmdline[1024];
-  snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
-  cmdline[sizeof(cmdline)-1] = '\0';
+  if (const char* env_option = getenv("TUNDRA_DAGTOOL_FULLCOMMANDLINE"))
+  {
+    cmdline_to_use = env_option;
+  }
+  else
+  {
+    char option_str[1024];
+    va_list args;
+    va_start(args, options);
+    vsnprintf(option_str, sizeof option_str, options, args);
+    va_end(args);
+    option_str[sizeof(option_str)-1] = '\0';
 
+    const char* quotes = "";
+    if (strchr(dag_gen_path, ' '))
+      quotes = "\"";
+
+    char cmdline[1024];
+    snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
+    cmdline[sizeof(cmdline)-1] = '\0';
+    
+    cmdline_to_use = cmdline;
+  }
+  
   const bool echo = (GetLogFlags() & kDebug) ? true : false;
-  ExecResult result = ExecuteProcess(cmdline, 0, nullptr, 0, echo, nullptr);
+  ExecResult result = ExecuteProcess(cmdline_to_use, 0, nullptr, 0, echo, nullptr);
 
   if (0 != result.m_ReturnCode)
   {
-    Log(kError, "DAG generator driver failed: %s", cmdline);
+    Log(kError, "DAG generator driver failed: %s", cmdline_to_use);
     return false;
   }
 
