@@ -915,6 +915,7 @@ bool DriverSaveBuildState(Driver* self)
   BinarySegment *state_seg  = BinaryWriterAddSegment(&writer);
   BinarySegment *array_seg  = BinaryWriterAddSegment(&writer);
   BinarySegment *string_seg = BinaryWriterAddSegment(&writer);
+  BinarySegment *modification_seg = BinaryWriterAddSegment(&writer);
 
   BinaryLocator guid_ptr  = BinarySegmentPosition(guid_seg);
   BinaryLocator state_ptr = BinarySegmentPosition(state_seg);
@@ -959,6 +960,14 @@ bool DriverSaveBuildState(Driver* self)
       BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i].m_Filename);
     }
 
+    BinarySegmentWriteInt32(state_seg, file_count);
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(modification_seg));
+    for (int32_t i = 0; i < file_count; ++i)
+    {
+      FileInfo file_info = GetFileInfo(src_node->m_OutputFiles[i].m_Filename);
+      BinarySegmentWriteInt64(modification_seg, file_info.m_Timestamp);
+    }
+
     file_count = src_node->m_AuxOutputFiles.GetCount();
     BinarySegmentWriteInt32(state_seg, file_count);
     BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
@@ -983,6 +992,14 @@ bool DriverSaveBuildState(Driver* self)
     {
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
       BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i]);
+    }
+
+    BinarySegmentWriteInt32(state_seg, file_count);
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(modification_seg));
+    for (int32_t i = 0; i < file_count; ++i)
+    {
+      FileInfo file_info = GetFileInfo(src_node->m_OutputFiles[i]);
+      BinarySegmentWriteInt64(modification_seg, file_info.m_Timestamp);
     }
 
     file_count = src_node->m_AuxOutputFiles.GetCount();
