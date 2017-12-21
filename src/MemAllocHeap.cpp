@@ -64,7 +64,7 @@ void* HeapAllocate(MemAllocHeap* heap, size_t size)
   return ptr;
 }
 
-void HeapFree(MemAllocHeap* heap, void *ptr)
+void HeapFree(MemAllocHeap* heap, const void *ptr)
 {
   bool thread_safe = 0 != (heap->m_Flags & HeapFlags::kThreadSafe);
 
@@ -74,9 +74,9 @@ void HeapFree(MemAllocHeap* heap, void *ptr)
   }
 
 #if ENABLED(USE_DLMALLOC)
-  mspace_free(heap->m_MemSpace, ptr);
+  mspace_free(heap->m_MemSpace, (void*) ptr);
 #else
-  free(ptr);
+  free((void*) ptr);
 #endif
 
   if (thread_safe)

@@ -39,6 +39,14 @@ namespace t2
     FrozenArray<FrozenDigestRecord> m_Records;
   };
 
+  struct DigestCacheRecord
+  {
+    HashDigest m_ContentDigest;
+    uint64_t   m_Timestamp;
+    uint64_t   m_AccessTime;
+  };
+
+
   struct DigestCache
   {
     ReadWriteLock           m_Lock;
@@ -47,7 +55,7 @@ namespace t2
     MemAllocHeap            m_Heap;
     MemAllocLinear          m_Allocator;
     MemoryMappedFile        m_StateFile;
-    HashTable               m_Table;
+    HashTable<DigestCacheRecord, kFlagPathStrings> m_Table;
     uint64_t                m_AccessTime;
   };
 

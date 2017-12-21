@@ -109,7 +109,7 @@ uint32_t Djb2Hash(const char *str_)
 		hash = (hash * 33) + c;
 	}
 
-	return hash;
+	return hash ? hash : 1;
 }
 
 uint64_t Djb2Hash64(const char *str_)
@@ -123,7 +123,7 @@ uint64_t Djb2Hash64(const char *str_)
 		hash = (hash * 33) + c;
 	}
 
-	return hash;
+	return hash ? hash : 1;
 }
 
 uint32_t Djb2HashNoCase(const char *str_)
@@ -142,7 +142,7 @@ uint32_t Djb2HashNoCase(const char *str_)
 		hash = (hash * 33) + nocase_c;
 	}
 
-	return hash;
+	return hash ? hash : 1;
 }
 
 uint64_t Djb2HashNoCase64(const char *str_)
@@ -161,7 +161,7 @@ uint64_t Djb2HashNoCase64(const char *str_)
 		hash = (hash * 33) + nocase_c;
 	}
 
-	return hash;
+	return hash ? hash : 1;
 }
 
 static int s_LogFlags = 0;

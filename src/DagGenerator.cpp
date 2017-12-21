@@ -136,26 +136,27 @@ struct TempNodeGuid
   }
 };
 
-struct CommonStringRecord : HashRecord
+struct CommonStringRecord
 {
   BinaryLocator m_Pointer;
 };
 
-void WriteCommonStringPtr(BinarySegment* segment, BinarySegment* str_seg, const char* ptr, HashTable* table, MemAllocLinear* scratch)
+void WriteCommonStringPtr(BinarySegment* segment, BinarySegment* str_seg, const char* ptr, HashTable<CommonStringRecord, 0>* table, MemAllocLinear* scratch)
 {
   uint32_t hash = Djb2Hash(ptr);
   CommonStringRecord* r;
-  if (nullptr == (r = static_cast<CommonStringRecord*>(HashTableLookup(table, hash, ptr))))
+  if (nullptr == (r = HashTableLookup(table, hash, ptr)))
   {
-    r = LinearAllocate<CommonStringRecord>(scratch);
-    r->m_Hash = hash;
-    r->m_String = ptr;
-    r->m_Next = nullptr;
-    r->m_Pointer = BinarySegmentPosition(str_seg);
+    CommonStringRecord r;
+    r.m_Pointer = BinarySegmentPosition(str_seg);
+    HashTableInsert(table, hash, ptr, r);
     BinarySegmentWriteStringData(str_seg, ptr);
+    BinarySegmentWritePointer(segment, r.m_Pointer);
   }
-
-  BinarySegmentWritePointer(segment, r->m_Pointer);
+  else
+  {
+    BinarySegmentWritePointer(segment, r->m_Pointer);
+  }
 }
 
 static uint32_t GetNodeFlag(const JsonObjectValue* node, const char* name, uint32_t value)
@@ -182,7 +183,7 @@ static bool WriteNodes(
     BinarySegment* str_seg,
     BinaryLocator scanner_ptrs[],
     MemAllocHeap* heap,
-    HashTable* shared_strings,
+    HashTable<CommonStringRecord, kFlagCaseSensitive>* shared_strings,
     MemAllocLinear* scratch,
     const TempNodeGuid* order,
     const int32_t* remap_table)
@@ -421,7 +422,7 @@ static bool GetBoolean(const JsonObjectValue* obj, const char* name)
   return false;
 }
 
-static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegment* array_seg, BinarySegment* str_seg, const JsonObjectValue* data, HashTable* shared_strings, MemAllocLinear* scratch)
+static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegment* array_seg, BinarySegment* str_seg, const JsonObjectValue* data, HashTable<CommonStringRecord, kFlagCaseSensitive>* shared_strings, MemAllocLinear* scratch)
 {
   if (!data)
     return false;
@@ -594,8 +595,8 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 {
   printf("compiling mmapable DAG data..\n"); 
 
-  HashTable shared_strings;
-  HashTableInit(&shared_strings, heap, 0);
+  HashTable<CommonStringRecord, kFlagCaseSensitive> shared_strings;
+  HashTableInit(&shared_strings, heap);
 
   BinarySegment         *main_seg      = BinaryWriterAddSegment(writer);
   BinarySegment         *node_guid_seg = BinaryWriterAddSegment(writer);

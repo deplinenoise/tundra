@@ -19,34 +19,42 @@ namespace t2
 struct IncludeSet
 {
   MemAllocLinear *m_LinearAlloc;
-  HashTable       m_HashTable;
+  HashSet<kFlagPathStrings> m_HashTable;
 };
 
 static void IncludeSetInit(IncludeSet *self, MemAllocHeap *heap, MemAllocLinear* linear_alloc)
 {
   self->m_LinearAlloc = linear_alloc;
-  HashTableInit(&self->m_HashTable, heap, HashTable::kFlagPathStrings);
+  HashSetInit(&self->m_HashTable, heap);
 }
 
 static void IncludeSetDestroy(IncludeSet* self)
 {
-  HashTableDestroy(&self->m_HashTable);
+  HashSetDestroy(&self->m_HashTable);
 }
 
-static bool IncludeSetAdd(IncludeSet* self, const char* string, uint32_t hash)
+static bool IncludeSetAddNoDuplicateString(IncludeSet* self, const char* string, uint32_t hash)
 {
-  if (HashTableLookup(&self->m_HashTable, hash, string))
+  if (HashSetLookup(&self->m_HashTable, hash, string))
   {
     return false;
   }
 
   // Allocate a new cell
-  HashRecord* record = LinearAllocate<HashRecord>(self->m_LinearAlloc);
-  record->m_Hash   = hash;
-  record->m_String = StrDup(self->m_LinearAlloc, string);
-  record->m_Next   = nullptr;
+  HashSetInsert(&self->m_HashTable, hash, string);
 
-  HashTableInsert(&self->m_HashTable, record);
+  return true;
+}
+
+static bool IncludeSetAddDuplicateString(IncludeSet* self, const char* string, uint32_t hash)
+{
+  if (HashSetLookup(&self->m_HashTable, hash, string))
+  {
+    return false;
+  }
+
+  // Allocate a new cell
+  HashSetInsert(&self->m_HashTable, hash, StrDup(self->m_LinearAlloc, string));
 
   return true;
 }
@@ -173,7 +181,7 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
 
       for (int i = 0; i < file_count; ++i)
       {
-        if (IncludeSetAdd(&incset, files[i].m_Filename, files[i].m_FilenameHash))
+        if (IncludeSetAddNoDuplicateString(&incset, files[i].m_Filename, files[i].m_FilenameHash))
         {
           // This was a new file, schedule it for scanning as well. 
           BufferAppendOne(&filename_stack, scratch_heap, files[i].m_Filename);
@@ -227,7 +235,7 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
 
       for (const char* file : found_includes)
       {
-        if (IncludeSetAdd(&incset, file, Djb2HashPath(file)))
+        if (IncludeSetAddDuplicateString(&incset, file, Djb2HashPath(file)))
         {
           // This was a new file, schedule it for scanning as well. 
           BufferAppendOne(&filename_stack, scratch_heap, file);
@@ -242,9 +250,9 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
   // Allocate space for output array. String data is already in scratch allocator.
   int include_count = incset.m_HashTable.m_RecordCount;
   FileAndHash* result = LinearAllocateArray<FileAndHash>(scratch_alloc, include_count);
-  HashTableWalk(&incset.m_HashTable, [=] (uint32_t index, const HashRecord* r) {
-    result[index].m_Filename = r->m_String;
-    result[index].m_FilenameHash = r->m_Hash;
+  HashSetWalk(&incset.m_HashTable, [=] (uint32_t index, uint32_t hash, const char* path) {
+    result[index].m_Filename = path;
+    result[index].m_FilenameHash = hash;
   });
 
   BufferDestroy(&filename_stack, scratch_heap);

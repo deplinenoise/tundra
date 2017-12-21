@@ -32,7 +32,7 @@ void HeapDestroy(MemAllocHeap* heap);
 void* HeapAllocate(MemAllocHeap* heap, size_t size);
 void* HeapAllocateAligned(MemAllocHeap* heap, size_t size, size_t alignment);
 
-void HeapFree(MemAllocHeap* heap, void *ptr);
+void HeapFree(MemAllocHeap* heap, const void *ptr);
 
 void* HeapReallocate(MemAllocHeap* heap, void *ptr, size_t size);
 

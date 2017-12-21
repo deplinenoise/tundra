@@ -680,15 +680,9 @@ bool DriverInit(Driver* self, const DriverOptions* options)
   LinearAllocInit(&self->m_ScanCacheAllocator, &self->m_Heap, MB(64), "scan cache");
   ScanCacheInit(&self->m_ScanCache, &self->m_Heap, &self->m_ScanCacheAllocator);
 
-#if defined(TUNDRA_WIN32) || defined(TUNDRA_APPLE)
-  const uint32_t stat_cache_flags = 0;
-#else
-  const uint32_t stat_cache_flags = StatCache::kFlagCaseSensitive;
-#endif
-
   // This linear allocator is only accessed when the state cache is locked.
   LinearAllocInit(&self->m_StatCacheAllocator, &self->m_Heap, MB(64), "stat cache");
-  StatCacheInit(&self->m_StatCache, &self->m_StatCacheAllocator, &self->m_Heap, stat_cache_flags);
+  StatCacheInit(&self->m_StatCache, &self->m_StatCacheAllocator, &self->m_Heap);
 
   memset(&self->m_PassNodeCount, 0, sizeof self->m_PassNodeCount);
 
@@ -1076,21 +1070,17 @@ void DriverRemoveStaleOutputs(Driver* self)
     return;
   }
 
-  HashTable file_table;
-  HashTableInit(&file_table, &self->m_Heap, HashTable::kFlagPathStrings);
+  HashSet<kFlagPathStrings> file_table;
+  HashSetInit(&file_table, &self->m_Heap);
 
   // Insert all current regular and aux output files into the hash table.
   auto add_file = [&file_table, scratch](const FrozenFileAndHash& p) -> void
   {
     const uint32_t hash = p.m_FilenameHash;
 
-    if (nullptr == HashTableLookup(&file_table, hash, p.m_Filename))
+    if (!HashSetLookup(&file_table, hash, p.m_Filename))
     {
-      HashRecord* record = LinearAllocate<HashRecord>(scratch);
-      record->m_Hash   = hash;
-      record->m_String = p.m_Filename;
-      record->m_Next   = nullptr;
-      HashTableInsert(&file_table, record);
+      HashSetInsert(&file_table, hash, p.m_Filename);
     }
   };
 
@@ -1109,8 +1099,8 @@ void DriverRemoveStaleOutputs(Driver* self)
     }
   }
 
-  HashTable nuke_table;
-  HashTableInit(&nuke_table, &self->m_Heap, HashTable::kFlagPathStrings);
+  HashSet<kFlagPathStrings> nuke_table;
+  HashSetInit(&nuke_table, &self->m_Heap);
 
   // Check all output files in the state if they're still around.
   // Otherwise schedule them (and all their parent dirs) for nuking.
@@ -1119,15 +1109,11 @@ void DriverRemoveStaleOutputs(Driver* self)
   {
     uint32_t path_hash = Djb2HashPath(path);
 
-    if (nullptr == HashTableLookup(&file_table, path_hash, path))
+    if (!HashSetLookup(&file_table, path_hash, path))
     {
-      if (nullptr == HashTableLookup(&nuke_table, path_hash, path))
+      if (!HashSetLookup(&nuke_table, path_hash, path))
       {
-        HashRecord* record = LinearAllocate<HashRecord>(scratch);
-        record->m_Hash   = path_hash;
-        record->m_String = path;
-        record->m_Next   = nullptr;
-        HashTableInsert(&nuke_table, record);
+        HashSetInsert(&nuke_table, path_hash, path);
       }
 
       PathBuffer buffer;
@@ -1142,13 +1128,9 @@ void DriverRemoveStaleOutputs(Driver* self)
         PathFormat(dir, &buffer);
         uint32_t dir_hash = Djb2HashPath(dir);
 
-        if (nullptr == HashTableLookup(&nuke_table, dir_hash, dir))
+        if (!HashSetLookup(&nuke_table, dir_hash, dir))
         {
-          HashRecord* record = LinearAllocate<HashRecord>(scratch);
-          record->m_Hash   = dir_hash;
-          record->m_String = StrDup(scratch, dir);
-          record->m_Next   = nullptr;
-          HashTableInsert(&nuke_table, record);
+          HashSetInsert(&nuke_table, dir_hash, StrDup(scratch, dir));
         }
       }
     }
@@ -1172,8 +1154,8 @@ void DriverRemoveStaleOutputs(Driver* self)
   // Create list of files and dirs, sort descending by path length. This sorts
   // files and subdirectories before their parent directories.
   const char** paths = LinearAllocateArray<const char*>(scratch, nuke_table.m_RecordCount);
-  HashTableWalk(&nuke_table, [paths](uint32_t index, const HashRecord* record) {
-    paths[index] = record->m_String;
+  HashSetWalk(&nuke_table, [paths](uint32_t index, uint32_t hash, const char* str) {
+    paths[index] = str;
   });
 
   std::sort(paths, paths + nuke_table.m_RecordCount, [](const char* l, const char* r) {
@@ -1186,8 +1168,8 @@ void DriverRemoveStaleOutputs(Driver* self)
     RemoveFileOrDir(paths[i]);
   }
 
-  HashTableDestroy(&nuke_table);
-  HashTableDestroy(&file_table);
+  HashSetDestroy(&nuke_table);
+  HashSetDestroy(&file_table);
 }
 
 void DriverCleanOutputs(Driver* self)
