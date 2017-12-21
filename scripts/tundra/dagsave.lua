@@ -355,7 +355,7 @@ local function check_deps(nodes)
   end
 end
 
-function save_dag_data(bindings, default_variant, default_subvariant, content_digest_exts, misc_options)
+function save_dag_data(bindings, default_variant, default_subvariant, content_digest_exts, misc_options, json_file)
 
   -- Call builtin function to get at accessed file table
   local accessed_lua_files = util.table_keys(get_accessed_files())
@@ -383,7 +383,7 @@ function save_dag_data(bindings, default_variant, default_subvariant, content_di
   -- Find scanners
   local scanners, scanner_to_index = get_scanners(nodes)
 
-  local w = njson.new('.tundra2.dag.json')
+  local w = njson.new(json_file)
 
   w:begin_object()
   save_configs(w, bindings, default_variant, default_subvariant)
