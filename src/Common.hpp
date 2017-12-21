@@ -76,6 +76,12 @@ void Log(LogLevel level, const char* fmt, ...);
 // String hashing
 //-----------------------------------------------------------------------------
 
+inline int FoldCase(int c)
+{
+  int y = c | 0x20;
+  return (c >= 'A' && c <= 'Z') ? y : c;
+}
+
 // Compute 32-bit DJB-2 hash of a string.
 uint32_t Djb2Hash(const char *str);
 
