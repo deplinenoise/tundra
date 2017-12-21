@@ -79,8 +79,9 @@ void Log(LogLevel level, const char* fmt, ...);
 inline int FoldCase(int c)
 {
   // This generates branch-free code on GCC, Clang and MSVC
-  int adjust = (c >= 'A' && c <= 'Z') ? 0x20 : 0;
-  return c | adjust;
+  unsigned int x = (unsigned int) c - 'A';
+  int d = c + 0x20;
+  return (x < 26 ? d : c);
 }
 
 // Compute 32-bit DJB-2 hash of a string.
