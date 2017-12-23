@@ -159,9 +159,16 @@ useful for DIY installs or to check into source control.
 === Installing from source
 
 Tundra can be obtained from the official GIT repository:
-`git://github.com:deplinenoise/tundra.git`.
+`git://github.com:deplinenoise/tundra.git`. Tundra uses Google's test framework
+for the unit tests, which must be made available via the Git submodule
+mechanism:
 
-* On Windows, there are two options:
+-------------------------------------------------------------------------------
+$ git submodule init
+$ git submodule update
+-------------------------------------------------------------------------------
+
+* On Windows, there are two options for building:
 
   ** Use Visual Studio 2012. The solution file is `vs2012/Tundra.sln`.
 	 After building you will need to copy `vs2012/x64/Release/*.exe` to a `bin`

@@ -4,68 +4,59 @@
 
 using namespace t2;
 
-BEGIN_TEST_CASE("MemAllocLinear/init")
+class MemAllocLinearTest : public ::testing::Test
 {
+public:
   MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-    
   MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
 
-  ASSERT_EQUAL(alloc.m_Offset, 0);
+protected:
+  void SetUp() override
+  {
+    HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
+    LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
+  }
 
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  void TearDown() override
+  {
+    LinearAllocDestroy(&alloc);
+    HeapDestroy(&heap);
+  }
+};
+
+
+TEST_F(MemAllocLinearTest, Init)
+{
+  ASSERT_EQ(0, alloc.m_Offset);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("MemAllocLinear/alignment")
+TEST_F(MemAllocLinearTest, Alignmenment)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-    
-  MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
-
-  // Should start out at position 0
-  ASSERT_EQUAL(alloc.m_Offset, 0);
-
   // Allocate an int, check alignment.
   int* iptr = LinearAllocate<int>(&alloc);
-  ASSERT_EQUAL(alloc.m_Offset, sizeof(int));
-  ASSERT_EQUAL(uintptr_t(iptr) & 3, 0);
+  ASSERT_EQ(sizeof(int), alloc.m_Offset);
+  ASSERT_EQ(0, uintptr_t(iptr) & 3);
 
   // Allocate a character.
   LinearAllocate<char>(&alloc);
-  ASSERT_EQUAL(alloc.m_Offset, sizeof(int) + sizeof(char));
+  ASSERT_EQ(sizeof(int) + sizeof(char), alloc.m_Offset);
 
   // Allocate another int, check alignment.
   iptr = LinearAllocate<int>(&alloc);
-  ASSERT_EQUAL(alloc.m_Offset, sizeof(int) * 3);
-  ASSERT_EQUAL(uintptr_t(iptr) & 3, 0);
-
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(sizeof(int) * 3, alloc.m_Offset);
+  ASSERT_EQ(0, uintptr_t(iptr) & 3);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("MemAllocLinear/reset")
+TEST_F(MemAllocLinearTest, Reset)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-    
-  MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
-
-  ASSERT_EQUAL(alloc.m_Offset, 0);
+  ASSERT_EQ(0, alloc.m_Offset);
   LinearAllocate<int>(&alloc);
-  ASSERT_EQUAL(alloc.m_Offset, sizeof(int));
+
+  ASSERT_EQ(sizeof(int), alloc.m_Offset);
   LinearAllocReset(&alloc);
-  ASSERT_EQUAL(alloc.m_Offset, 0);
-  LinearAllocate<int>(&alloc);
-  ASSERT_EQUAL(alloc.m_Offset, sizeof(int));
 
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(0, alloc.m_Offset);
+  LinearAllocate<int>(&alloc);
+
+  ASSERT_EQ(sizeof(int), alloc.m_Offset);
 }
-END_TEST_CASE

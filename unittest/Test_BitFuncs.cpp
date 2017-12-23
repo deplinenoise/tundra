@@ -3,16 +3,15 @@
 
 using namespace t2;
 
-BEGIN_TEST_CASE("PopLsb")
+TEST(BitFuncs, PopLsb)
 {
-  ASSERT_EQUAL(CountTrailingZeroes(0), 32);
+  ASSERT_EQ(32, CountTrailingZeroes(0));
 
-  ASSERT_EQUAL(CountTrailingZeroes(2), 1);
+  ASSERT_EQ(1, CountTrailingZeroes(2));
 
-  ASSERT_EQUAL(CountTrailingZeroes(1), 0);
+  ASSERT_EQ(0, CountTrailingZeroes(1));
 
-  ASSERT_EQUAL(CountTrailingZeroes(0xffffffff), 0);
-  ASSERT_EQUAL(CountTrailingZeroes(0xfffffffe), 1);
-  ASSERT_EQUAL(CountTrailingZeroes(0x80000000), 31);
+  ASSERT_EQ(0, CountTrailingZeroes(0xffffffff));
+  ASSERT_EQ(1, CountTrailingZeroes(0xfffffffe));
+  ASSERT_EQ(31, CountTrailingZeroes(0x80000000));
 }
-END_TEST_CASE

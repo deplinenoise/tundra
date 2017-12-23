@@ -3,7 +3,7 @@
 
 using namespace t2;
 
-BEGIN_TEST_CASE("PathUtil/init")
+TEST(PathUtil, Init)
 {
   static const struct
   {
@@ -57,22 +57,21 @@ BEGIN_TEST_CASE("PathUtil/init")
   {
     PathBuffer path;
     PathInit(&path, test_data[i].input, test_data[i].type);
-    ASSERT_EQUAL(PathIsAbsolute(&path), test_data[i].expect_absolute);
-    ASSERT_EQUAL(path.m_SegCount, test_data[i].expect_segs);
+    ASSERT_EQ(test_data[i].expect_absolute, PathIsAbsolute(&path));
+    ASSERT_EQ(test_data[i].expect_segs, path.m_SegCount);
 
     for (int s = 0; s < path.m_SegCount; ++s)
     {
-      ASSERT_EQUAL(path.SegLength(s), test_data[i].expect_seg_lens[s]);
+      ASSERT_EQ(test_data[i].expect_seg_lens[s], path.SegLength(s));
     }
 
     char buffer[kMaxPathLength];
     PathFormat(buffer, &path);
-    ASSERT_EQUAL_STRING(buffer, test_data[i].expected_output);
+    ASSERT_STREQ(test_data[i].expected_output, buffer);
   }
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("PathUtil/concat")
+TEST(PathUtil, Concat)
 {
   static const struct
   {
@@ -107,7 +106,6 @@ BEGIN_TEST_CASE("PathUtil/concat")
 
     char buffer[kMaxPathLength];
     PathFormat(buffer, &a);
-    ASSERT_EQUAL_STRING(buffer, test_data[i].expected_output);
+    ASSERT_STREQ(test_data[i].expected_output, buffer);
   }
 }
-END_TEST_CASE
