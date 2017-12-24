@@ -128,6 +128,7 @@ If we now run Tundra on this input, it will build our +HelloWorld+ executable.
 The output path shows that tundra has defaulted the variant to `debug` and the
 subvariant to `default`.
 
+[source, sh]
 -------------------------------------------------------------------------------
 $ tundra2
 Cc hello.c
@@ -137,6 +138,7 @@ Program t2-output/macosx-gcc-debug-default/HelloWorld
 
 The next mandatory step is of course to display the famous greeting:
 
+[source, sh]
 -------------------------------------------------------------------------------
 $ t2-output/macosx-gcc-debug-default/HelloWorld
 hello, world
@@ -163,6 +165,7 @@ Tundra can be obtained from the official GIT repository:
 for the unit tests, which must be made available via the Git submodule
 mechanism:
 
+[source, sh]
 -------------------------------------------------------------------------------
 $ git submodule init
 $ git submodule update
@@ -816,7 +819,6 @@ The build.rs will need to look like this (if you use your own the following code
 needs to be added)
 
 .Rust build.rs Synopsis
-[source,rust]
 -------------------------------------------------------------------------------
 use std::env;
 
