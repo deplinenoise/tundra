@@ -81,6 +81,8 @@ local function get_arch_tuple(host_arch, target_arch)
   return host_arch2 .. "_" .. target_arch2
 end
 
+local vcvars_cache = {}
+
 function apply_msvc_visual_studio(version, env, options)
   if native.host_platform ~= "windows" then
     error("the msvc toolset only works on windows hosts")
@@ -161,21 +163,23 @@ function apply_msvc_visual_studio(version, env, options)
 
   local vcvars = {}
 
-  local command = "\"" .. vcvarsall_bat .. "\" " .. table.concat(vcvars_args, " ") .. " 1>NUL && set"
-  print(command)
-  local vcvars_p = io.popen(command)
-  while true do
-    local ln = vcvars_p:read()
-    if ln == nil then
-      break
+  local vcvars_a = table.concat(vcvars_args, " ")
+  local vcvars_key = vcvarsall_bat .. vcvars_a
+  if not vcvars_cache[vcvars_key] then
+    local command = "\"" .. vcvarsall_bat .. "\" " .. vcvars_a .. " 1>NUL && set"
+    local vcvars_p = io.popen(command)
+    for ln in vcvars_p:lines() do
+      local split_at = ln:find("=")
+      local k = ln:sub(1, split_at-1):upper()
+      local v = ln:sub(split_at+1)
+      vcvars[k] = v
     end
-    local split_at = ln:find("=")
-    local k = ln:sub(1, split_at-1):upper()
-    local v = ln:sub(split_at+1)
-    vcvars[k] = v
+    vcvars_p:close()
+    vcvars_cache[vcvars_key] = vcvars
+  else
+    vcvars = vcvars_cache[vcvars_key]
   end
-  vcvars_p:close()
-
+ 
   --print(table.concat(keys(vcvars), " "))
 
   -- Force MSPDBSRV.EXE (fixes issues with cl.exe running in parallel and corrupting PDB files)
