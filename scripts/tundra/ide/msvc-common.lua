@@ -540,7 +540,11 @@ function msvc_generator:generate_project(project, all_projects)
     p:write('\t\t<VCProjectVersion>15.0</VCProjectVersion>', LF)
   end
   p:write('\t\t<ProjectGuid>{', project.Guid, '}</ProjectGuid>', LF)
-  p:write('\t\t<Keyword>MakeFileProj</Keyword>', LF)
+  if VERSION_YEAR == '2017' then
+    p:write('\t\t<Keyword>Win32Proj</Keyword>', LF)
+  else
+    p:write('\t\t<Keyword>MakefileProj</Keyword>', LF)
+  end
   if project.FriendlyName then
     p:write('\t\t<ProjectName>', project.FriendlyName, '</ProjectName>', LF)
   end
