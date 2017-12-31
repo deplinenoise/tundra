@@ -332,6 +332,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
       Name               = "00-tundra-idegen-" .. path.drop_suffix(name),
       FriendlyName       = "Regenerate Solutions and Projects",
       BuildCommand       = project_regen_commandline(ide_script),
+      Env                = env,
     })
     
     -- Create meta project to build solution
@@ -341,6 +342,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
       BuildByDefault     = true,
       Sources            = source_list,
       BuildProjects      = util.clone_array(sln_projects),
+      Env                = env,
     })
 
     sln_projects[#sln_projects + 1] = regen_meta_proj
@@ -621,17 +623,28 @@ function msvc_generator:generate_project(project, all_projects)
     local clean_cmd   = base .. "--clean " .. build_id
     local rebuild_cmd = base .. "--rebuild " .. build_id
 
+    -- This is needed in the case where a project maps to a different name using OutputProject
+    local function get_project_actual_name(proj)
+      if proj.Unit and proj.Unit.Decl then
+        return proj.Unit.Decl.Name
+      else
+        return proj.Name
+      end
+    end
+
+    project_name = get_project_actual_name(project)
+
     if project.BuildCommand then
       build_cmd = project.BuildCommand
       clean_cmd = ""
       rebuild_cmd = ""
     elseif not project.IsMeta then
-      build_cmd   = build_cmd .. " " .. project.Name
-      clean_cmd   = clean_cmd .. " " .. project.Name
-      rebuild_cmd = rebuild_cmd .. " " .. project.Name
+      build_cmd   = build_cmd .. " " .. project_name
+      clean_cmd   = clean_cmd .. " " .. project_name
+      rebuild_cmd = rebuild_cmd .. " " .. project_name
     else
       local all_projs_str = table.concat(
-        util.map(assert(project.BuildProjects), function (p) return p.Name end), ' ')
+        util.map(assert(project.BuildProjects), function (p) return get_project_actual_name(p) end), ' ')
       build_cmd   = build_cmd .. " " .. all_projs_str
       clean_cmd   = clean_cmd .. " " .. all_projs_str
       rebuild_cmd = rebuild_cmd .. " " .. all_projs_str
@@ -644,9 +657,26 @@ function msvc_generator:generate_project(project, all_projects)
     p:write('\t\t<NMakePreprocessorDefinitions>', defines, ';$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>', LF)
     p:write('\t\t<NMakeIncludeSearchPath>', include_paths, ';$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>', LF)
     p:write('\t\t<NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>', LF)
+    local env
+    if dag_node then
+      env = dag_node.src_env
+    else
+      env = project.Env
+    end
+    local out_dir = path.join(env:interpolate('$(OBJECTROOT)'), build_id)
+    p:write('\t\t<OutDir>', out_dir, '</OutDir>', LF)
+    p:write('\t\t<IntDir>$(OutDir)\\__', project_name, '</IntDir>', LF)
     p:write('\t</PropertyGroup>', LF)
   end
 
+  for _, tuple in ipairs(self.config_tuples) do
+    p:write('\t<ItemDefinitionGroup Condition="\'$(Configuration)|$(Platform)\'==\'', tuple.MsvcName, '\'">', LF)
+    p:write('\t\t<BuildLog>', LF)
+    p:write('\t\t\t<Path>$(IntDir)\\', project_name, '-vs.log</Path>', LF)
+    p:write('\t\t</BuildLog>', LF)
+    p:write('\t</ItemDefinitionGroup>', LF)
+  end
+  
   if HOOKS.pre_sources then
     HOOKS.pre_sources(p, project)
   end
@@ -842,8 +872,11 @@ function msvc_generator:generate_project_user(project)
         end
       end
       if exe then
+        if not path.is_absolute(exe) then
+          exe = path.join(native.getcwd(), exe)
+        end
         p:write('\t<PropertyGroup Condition="\'$(Configuration)|$(Platform)\'==\'', tuple.MsvcName, '\'">', LF)
-        p:write('\t\t<LocalDebuggerCommand>', native.getcwd() .. '\\' .. exe, '</LocalDebuggerCommand>', LF)
+        p:write('\t\t<LocalDebuggerCommand>', exe, '</LocalDebuggerCommand>', LF)
         p:write('\t\t<DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>', LF)
         p:write('\t\t<LocalDebuggerWorkingDirectory>', native.getcwd(), '</LocalDebuggerWorkingDirectory>', LF)
         p:write('\t</PropertyGroup>', LF)
