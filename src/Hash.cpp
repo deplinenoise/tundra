@@ -133,12 +133,27 @@ DigestToString(char (&buffer)[kDigestStringSize], const HashDigest& digest)
 {
   static const char hex[] = "0123456789abcdef";
 
+#if ENABLED(USE_FAST_HASH)
+  int i = 0;
+  for (int k = 0; k < 2; ++k)
+  {
+    uint64_t w = digest.m_Words64[k];
+    for (int b = 0; b < 8; ++b)
+    {
+      uint8_t byte = w >> 56;
+      buffer[i++] = hex[byte>>4];
+      buffer[i++] = hex[byte & 0xf];
+      w <<= 8;
+    }
+  }
+#else
   for (size_t i = 0; i < sizeof(digest.m_Data); ++i)
   {
     uint8_t byte = digest.m_Data[i];
     buffer[2 * i + 0] = hex[byte>>4];
     buffer[2 * i + 1] = hex[byte & 0xf];
   }
+#endif
 
   buffer[kDigestStringSize - 1] = '\0';
 }
