@@ -453,6 +453,10 @@ static void FindNodesByName(
         filename = path_fmt + cwd_len + 1;
         Log(kDebug, "Mapped %s to %s for DAG searching", path_fmt, filename);
       }
+      else
+      {
+        filename = path_fmt;
+      }
 
       const uint32_t filename_hash = Djb2HashPath(filename);
 
