@@ -23,7 +23,8 @@ namespace t2
         const EnvVariable*  env_vars,
         int                 job_id,
         int                 echo_cmdline,
-        const char*         annotation);
+        const char*         annotation,
+        bool                force_use_tty = false);
 }
 
 #endif

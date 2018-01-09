@@ -71,7 +71,8 @@ ExecuteProcess(
 		const EnvVariable *env_vars,
 		int job_id,
 		int echo_cmdline,
-		const char *annotation)
+		const char *annotation,
+        bool force_use_tty,
 {
   ExecResult result;
 
@@ -81,6 +82,9 @@ ExecuteProcess(
 	pid_t child;
 	const int pipe_read = 0;
 	const int pipe_write = 1;
+
+    if (force_use_tty)
+        perror("force_use_tty is not yet implemented for unix");
 
 	/* Create a pair of pipes to read back stdout, stderr */
 	int stdout_pipe[2], stderr_pipe[2];

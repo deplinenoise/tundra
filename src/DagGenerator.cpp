@@ -1008,7 +1008,10 @@ static bool RunExternalTool(const char* options, ...)
   }
   
   const bool echo = (GetLogFlags() & kDebug) ? true : false;
-  ExecResult result = ExecuteProcess(cmdline_to_use, 0, nullptr, 0, echo, nullptr);
+
+  //on win32, we force the dag generator to use tty, so slow frontends get a chance to give some feedback to the user that something is happening
+  const bool force_use_tty = TUNDRA_WIN32;
+  ExecResult result = ExecuteProcess(cmdline_to_use, 0, nullptr, 0, echo, nullptr, force_use_tty);
 
   if (0 != result.m_ReturnCode)
   {
