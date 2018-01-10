@@ -2,6 +2,12 @@ use File::Path qw(mkpath);
 
 mkpath("artifacts/$^O");
 
+#if ($^O eq "linux")
+{
+  $ENV{"CXX"} = "g++";
+  $ENV{"CC"} = "gcc";
+}
+
 if ($^O eq "MSWin32")
 {
     system("msbuild vs2012\\Tundra.sln /P:Configuration=Release") eq 0 or die("failed msbuild");
