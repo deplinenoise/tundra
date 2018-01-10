@@ -72,7 +72,7 @@ ExecuteProcess(
 		int job_id,
 		int echo_cmdline,
 		const char *annotation,
-        bool force_use_tty,
+        bool force_use_tty)
 {
   ExecResult result;
 
