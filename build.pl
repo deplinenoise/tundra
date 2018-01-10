@@ -2,7 +2,7 @@ use File::Path qw(mkpath);
 
 mkpath("artifacts/$^O");
 
-#if ($^O eq "linux")
+if ($^O eq "linux")
 {
   $ENV{"CXX"} = "g++";
   $ENV{"CC"} = "gcc";
