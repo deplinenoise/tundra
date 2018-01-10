@@ -400,6 +400,10 @@ static void FindReachableNodes(uint32_t* node_bits, const DagData* dag, const Bu
   }
 }
 
+
+//searching in inputs prevents useful single object builds, as the requested object gets found as an input of the linker
+#define SUPPORT_SEARCHING_IN_INPUTS 0
+
 // Match their source files and output files against the names specified.
 static void FindNodesByName(
     const DagData*          dag,
@@ -453,6 +457,10 @@ static void FindNodesByName(
         filename = path_fmt + cwd_len + 1;
         Log(kDebug, "Mapped %s to %s for DAG searching", path_fmt, filename);
       }
+      else
+      {
+        filename = path_fmt;
+      }
 
       const uint32_t filename_hash = Djb2HashPath(filename);
 
@@ -475,6 +483,7 @@ static void FindNodesByName(
           size_t node_index = base_index + bit;
           const NodeData* node = dag->m_NodeData + node_index;
 
+#if SUPPORT_SEARCHING_IN_INPUTS
           for (const FrozenFileAndHash& input : node->m_InputFiles)
           {
             if (filename_hash == input.m_FilenameHash && 0 == PathCompare(input.m_Filename, filename))
@@ -488,7 +497,7 @@ static void FindNodesByName(
 
           if (found)
             break;
-
+#endif
           for (const FrozenFileAndHash& output : node->m_OutputFiles)
           {
             if (filename_hash == output.m_FilenameHash && 0 == PathCompare(output.m_Filename, filename))

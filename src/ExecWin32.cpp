@@ -313,7 +313,7 @@ PrintLineToHandle(HANDLE h, const char *str)
    addition to whatever is already set, not replace everything.
  */
 
-static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_vars, int env_count, const char *annotation, const char* echo_cmdline)
+static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_vars, int env_count, const char *annotation, const char* echo_cmdline, bool force_use_tty)
 {
   char buffer[8192];
   char env_block[128*1024];
@@ -349,14 +349,18 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
   _snprintf(buffer, sizeof(buffer), "cmd.exe /c \"%s\"", cmd_line);
   buffer[sizeof(buffer)-1] = '\0';
 
-  output_handle = AllocFd(job_id);
+  if (!force_use_tty)
+    output_handle = AllocFd(job_id);
+  else
+    output_handle = NULL;
 
   memset(&pinfo, 0, sizeof(pinfo));
   memset(&sinfo, 0, sizeof(sinfo));
   sinfo.cb = sizeof(sinfo);
   sinfo.hStdInput = NULL;
   sinfo.hStdOutput = sinfo.hStdError = output_handle;
-  sinfo.dwFlags = STARTF_USESTDHANDLES;
+  if (!force_use_tty)
+    sinfo.dwFlags = STARTF_USESTDHANDLES;
 
   HANDLE job_object = CreateJobObject(NULL, NULL);
   if (!job_object)
@@ -368,6 +372,9 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
   }
 
   DWORD result_code = 1;
+
+  if (force_use_tty)
+    MutexLock(&s_FdMutex);
 
   if (CreateProcessA(NULL, buffer, NULL, NULL, TRUE, CREATE_SUSPENDED, env_block, NULL, &sinfo, &pinfo))
   {
@@ -406,7 +413,10 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
 
   CloseHandle(job_object);
 
-  FreeFd(job_id, output_handle);
+  if (force_use_tty)
+    MutexUnlock(&s_FdMutex);
+  else
+    FreeFd(job_id, output_handle);
 
   return (int) result_code;
 }
@@ -417,7 +427,8 @@ ExecResult ExecuteProcess(
       const EnvVariable*  env_vars,
       int                 job_id,
       int                 echo_cmdline,
-      const char*         annotation)
+      const char*         annotation,
+      bool                force_use_tty)
 {
   static const char response_prefix[] = "@RESPONSE|";
   static const char response_suffix_char = '|';
@@ -523,7 +534,7 @@ ExecResult ExecuteProcess(
       _snprintf(new_cmd, sizeof(new_cmd), "%s %s%s", command_buf, option_buf, response_file);
       new_cmd[sizeof(new_cmd)-1] = '\0';
 
-      cmd_result = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL);
+      cmd_result = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL, force_use_tty);
 
       remove(response_file);
       result.m_ReturnCode = cmd_result;
@@ -548,7 +559,7 @@ ExecResult ExecuteProcess(
         }
       }
 
-      result.m_ReturnCode = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL);
+      result.m_ReturnCode = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL, force_use_tty);
       return result;
     }
   }
@@ -569,7 +580,7 @@ ExecResult ExecuteProcess(
       }
     }
 
-    result.m_ReturnCode = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL);
+    result.m_ReturnCode = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL, force_use_tty);
     return result;
   }
 }
