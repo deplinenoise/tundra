@@ -198,16 +198,13 @@ namespace t2
     return false;
   }
 
-  static bool OutputFilesMissingOrChanged(StatCache* stat_cache, const NodeData* node, const NodeStateData* prev_state)
+  static bool OutputFilesMissing(StatCache* stat_cache, const NodeData* node)
   {
-    int counter=0;
     for (const FrozenFileAndHash& f : node->m_OutputFiles)
     {
       FileInfo i = StatCacheStat(stat_cache, f.m_Filename, f.m_FilenameHash);
 
       if (!i.Exists())
-        return true;
-      if (i.m_Timestamp != prev_state->m_OutputFilesTimeStamps[counter++])
         return true;
     }
 
@@ -364,10 +361,10 @@ namespace t2
       Log(kSpam, "T=%d: building %s - output files have changed", thread_state->m_ThreadIndex, node_data->m_Annotation.Get());
       next_state = BuildProgress::kRunAction;
     }
-    else if (OutputFilesMissingOrChanged(stat_cache, node_data, prev_state))
+    else if (OutputFilesMissing(stat_cache, node_data))
     {
-      // One or more output files are missing or changed- need to rebuild.
-      Log(kSpam, "T=%d: building %s - output files are missing or changed", thread_state->m_ThreadIndex, node_data->m_Annotation.Get());
+      // One or more output files are missing - need to rebuild.
+      Log(kSpam, "T=%d: building %s - output files are missing", thread_state->m_ThreadIndex, node_data->m_Annotation.Get());
       next_state = BuildProgress::kRunAction;
     }
     else

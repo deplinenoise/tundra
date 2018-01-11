@@ -64,11 +64,11 @@ void DriverInitializeTundraFilePaths(DriverOptions* driverOptions)
 {
     s_BuildFile               = CreatePath(driverOptions->m_TundraFilesRoot, "tundra.lua");
     s_DagFileName             = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.dag");
-    s_StateFileName           = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.state");
+    s_StateFileName           = ".tundra2.state";
     s_ScanCacheFileName       = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.scancache");
     s_DigestCacheFileName     = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.digestcache");
     // Temporary filenames where we write data first. These are then renamed to commit.
-    s_StateFileNameTmp        = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.state.tmp");
+    s_StateFileNameTmp        = ".tundra2.state.tmp";
     s_ScanCacheFileNameTmp    = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.scancache.tmp");
     s_DigestCacheFileNameTmp  = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.digestcache.tmp");
 }
