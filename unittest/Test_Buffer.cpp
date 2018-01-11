@@ -4,77 +4,78 @@
 
 using namespace t2;
 
-BEGIN_TEST_CASE("Buffer/init")
+class BufferTest : public ::testing::Test
 {
+protected:
   MemAllocHeap heap;
-  HeapInit(&heap, 10 * 1024 * 1024, HeapFlags::kDefault);
+
+protected:
+  void SetUp() override
+  {
+    HeapInit(&heap, 10 * 1024 * 1024, HeapFlags::kDefault);
+  }
+
+  void TearDown() override
+  {
+    HeapDestroy(&heap);
+  }
+
+};
+
+TEST_F(BufferTest, Init)
+{
   Buffer<int> b;
 
   BufferInit(&b);
-  ASSERT_EQUAL(b.m_Storage, nullptr);
-  ASSERT_EQUAL(b.m_Size, 0);
+  ASSERT_EQ(nullptr, b.m_Storage);
+  ASSERT_EQ(0, b.m_Size);
 
   BufferDestroy(&b, &heap);
-  ASSERT_EQUAL(b.m_Storage, nullptr);
-
-  HeapDestroy(&heap);
+  ASSERT_EQ(nullptr, b.m_Storage);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("Buffer/append")
+TEST_F(BufferTest, Append)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 10 * 1024 * 1024, HeapFlags::kDefault);
-
   Buffer<int> b;
 
   BufferInit(&b);
   int* ptr = BufferAlloc(&b, &heap, 3);
-  ASSERT_EQUAL(b.m_Size, 3);
+
+  ASSERT_EQ(3, b.m_Size);
+
   ptr[0] = 1;
   ptr[1] = 2;
   ptr[2] = 3;
+
   BufferDestroy(&b, &heap);
-  ASSERT_EQUAL(b.m_Storage, nullptr);
 
-  HeapDestroy(&heap);
+  ASSERT_EQ(nullptr, b.m_Storage);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("Buffer/zero")
+TEST_F(BufferTest, Zero)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 10 * 1024 * 1024, HeapFlags::kDefault);
   Buffer<int> b;
 
   BufferInit(&b);
   int* ptr = BufferAllocZero(&b, &heap, 3);
-  ASSERT_EQUAL(b.m_Size, 3);
-  ASSERT_EQUAL(ptr[0], 0);
-  ASSERT_EQUAL(ptr[1], 0);
-  ASSERT_EQUAL(ptr[2], 0);
+  ASSERT_EQ(3, b.m_Size);
+  ASSERT_EQ(0, ptr[0]);
+  ASSERT_EQ(0, ptr[1]);
+  ASSERT_EQ(0, ptr[2]);
   BufferDestroy(&b, &heap);
-  ASSERT_EQUAL(b.m_Storage, nullptr);
-
-  HeapDestroy(&heap);
+  ASSERT_EQ(nullptr, b.m_Storage);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("Buffer/fill")
+TEST_F(BufferTest, Fill)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 10 * 1024 * 1024, HeapFlags::kDefault);
   Buffer<int> b;
 
   BufferInit(&b);
   int* ptr = BufferAllocFill(&b, &heap, 3, -1);
-  ASSERT_EQUAL(b.m_Size, 3);
-  ASSERT_EQUAL(ptr[0], -1);
-  ASSERT_EQUAL(ptr[1], -1);
-  ASSERT_EQUAL(ptr[2], -1);
+  ASSERT_EQ(3, b.m_Size);
+  ASSERT_EQ(-1, ptr[0]);
+  ASSERT_EQ(-1, ptr[1]);
+  ASSERT_EQ(-1, ptr[2]);
   BufferDestroy(&b, &heap);
-  ASSERT_EQUAL(b.m_Storage, nullptr);
-
-  HeapDestroy(&heap);
+  ASSERT_EQ(nullptr, b.m_Storage);
 }
-END_TEST_CASE

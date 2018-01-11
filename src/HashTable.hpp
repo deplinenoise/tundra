@@ -90,16 +90,6 @@ namespace t2
     HashSetInit(self, self->m_Heap);
   }
 
-  inline int FoldCase(int c)
-  {
-    // Branch free case folding for ASCII
-    const int is_upper     = -(uint32_t(c - 'A') <= uint32_t('Z' - 'A'));
-    const int lower_case_c = c | 0x20;
-    const int nocase_c     = (lower_case_c & is_upper) | (c & ~is_upper);
-
-    return nocase_c;
-  }
-
   inline int FastCompareNoCase(const char* lhs, const char* rhs)
   {
     for (;;)
