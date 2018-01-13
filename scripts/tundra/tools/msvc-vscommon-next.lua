@@ -1,6 +1,8 @@
 -- for usage with Visual Studio 2017 and later, 
 -- does not work with earlier versions of Visual Studio
 
+-- see https://blogs.msdn.microsoft.com/vcblog/2016/10/07/compiler-tools-layout-in-visual-studio-15/
+
 module(..., package.seeall)
 
 local native = require "tundra.native"
@@ -13,7 +15,7 @@ local vs_products = {
   "Enterprise"
 }
 
-local function find_vc_tools(installation_path, version, vs_product)
+local function find_vc_tools(installation_path, version, vs_product, search_set)
   local path, stat
 
   path = native_path.join(installation_path, version)
@@ -24,6 +26,7 @@ local function find_vc_tools(installation_path, version, vs_product)
   if stat.exists then
     return path
   end
+  search_set[#search_set+1] = path
   return nil
 end
 
@@ -90,42 +93,46 @@ function apply_msvc_visual_studio(version, env, options)
   
   tundra.unitgen.load_toolset('msvc', env)
 
-  -- this variable will be applicable to versions after Visual Studio 2017 as well
-  -- env:set("TUNDRA_VS2017_ROOT", "C:\\Program Files (x86)\\Microsoft Visual Studio\\" .. version)
-
   options = options or {}
 
+  -- these control how vcvarsall.bat is invoked
   local target_arch = options.TargetArch or "x64"
   local host_arch = options.HostArch or "x64"
   local arch_tuple = get_arch_tuple(host_arch, target_arch)
-  local platform_type = options.PlatformType --default empty
-  local sdk_version = options.SdkVersion --default from vcvarsall.bat
+  local platform_type = options.PlatformType --default empty ({empty} | store | uwp)
+  local sdk_version = options.SdkVersion --default from vcvarsall.bat (otherwise request a specific version through this option)
   local installation_path = options.InstallationPath or "C:\\Program Files (x86)\\Microsoft Visual Studio"
   local vs_product = options.Product
+  local vcvarsall_bat = options.VCVarsPath --override the search strategy and use a specific 'vcvars' bat file
+  local search_set = {}
   
   if arch_tuple == nil then
     error("unsupported host/target architecture " .. arch_tuple)
   end
 
-  -- don't assume that everyone is using the same edition of Visual Studio
-  -- unless a specific edition (i.e. product) has been requested, look for
-  -- the first setup that has Visual C++ tooling installed
-
-  local vcvarsall_bat
-
-  if vs_product == nil then
-    for _, vs_product in pairs(vs_products) do
-      vcvarsall_bat = find_vc_tools(installation_path, version, vs_product)
-      if vcvarsall_bat ~= nil then
-        break
+  if vcvarsall_bat == nil then
+    -- don't assume that everyone is using the same edition of Visual Studio
+    -- unless a specific edition (i.e. product) has been requested, look for
+    -- the first setup that has Visual C++ compiler toolset installed
+    if vs_product == nil then
+      for _, vs_product in pairs(vs_products) do
+        vcvarsall_bat = find_vc_tools(installation_path, version, vs_product, search_set)
+        if vcvarsall_bat ~= nil then
+          break
+        end
       end
+    else
+      vcvarsall_bat = find_vc_tools(installation_path, version, vs_product, search_set)
     end
   else
-    vcvarsall_bat = find_vc_tools(installation_path, version, vs_product)
+    local stat = native.stat_file(vcvarsall_bat)
+    if not stat.exists then
+      error("cannot find the vcvars batch file: " .. vcvarsall_bat)
+    end
   end
 
   if vcvarsall_bat == nil then
-    error("cannot find installation of Visual Studio")
+    error("cannot find the Visual C++ compiler toolset in any of the following locations: \n  " .. table.concat(search_set, "\n  ") .. "\nCheck that either Desktop development with C++ or Visual C++ build tools is installed. You can customize the InstallationPath or Product options to load a specific instance of Visual Studio " .. version .. " from a specific location. If Product is not specified it will look for the first instance of the Visual C++ compiler toolset in the default installation path 'C:\\Program Files (x86)\\Microsoft Visual Studio' in the following order " .. table.concat(vs_products, ", ") .. " using the tripplet (InstallationPath, '" .. version .. "', Product)")
   end
 
   -- now to the fun part, the vcvarsall.bat script is quite customizable
