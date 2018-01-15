@@ -1,5 +1,6 @@
 #include "TestHarness.hpp"
 #include "HashTable.hpp"
+#include "MemAllocLinear.hpp"
 
 using namespace t2;
 
@@ -7,15 +8,18 @@ class HashTableTest : public ::testing::Test
 {
 protected:
   MemAllocHeap heap;
+  MemAllocLinear alloc;
 
 protected:
   void SetUp() override
   {
     HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
+    LinearAllocInit(&alloc, &heap, 1024*1024, "strings");
   }
 
   void TearDown() override
   {
+    LinearAllocDestroy(&alloc);
     HeapDestroy(&heap);
   }
 };
@@ -24,15 +28,18 @@ class HashSetTest : public ::testing::Test
 {
 protected:
   MemAllocHeap heap;
+  MemAllocLinear alloc;
 
 protected:
   void SetUp() override
   {
     HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
+    LinearAllocInit(&alloc, &heap, 1024*1024, "strings");
   }
 
   void TearDown() override
   {
+    LinearAllocDestroy(&alloc);
     HeapDestroy(&heap);
   }
 };
@@ -67,7 +74,7 @@ TEST_F(HashTableTest, MultiDistinct)
   {
     char str[128];
     sprintf(str, "foo%d", i);
-    HashTableInsert(&tbl, Djb2Hash(str), str, i);
+    HashTableInsert(&tbl, Djb2Hash(str), StrDup(&alloc, str), i);
   }
   EXPECT_EQ(2048, tbl.m_RecordCount);
 
@@ -91,7 +98,7 @@ TEST_F(HashTableTest, MultiDistinctCaseFolded)
   {
     char str[128];
     sprintf(str, "foo%d", i);
-    HashTableInsert(&tbl, Djb2HashNoCase(str), str, i);
+    HashTableInsert(&tbl, Djb2HashNoCase(str), StrDup(&alloc, str), i);
   }
   EXPECT_EQ(2048, tbl.m_RecordCount);
 
@@ -133,7 +140,7 @@ TEST_F(HashSetTest, MultiDistinct)
   {
     char str[128];
     sprintf(str, "foo%d", i);
-    HashSetInsert(&tbl, Djb2Hash(str), str);
+    HashSetInsert(&tbl, Djb2Hash(str), StrDup(&alloc, str));
   }
   EXPECT_EQ(2048, tbl.m_RecordCount);
 
@@ -155,15 +162,15 @@ TEST_F(HashSetTest, MultiDistinctCaseFolded)
   {
     char str[128];
     sprintf(str, "foo%d", i);
-    HashSetInsert(&tbl, Djb2HashNoCase(str), str);
+    HashSetInsert(&tbl, Djb2HashNoCase(str), StrDup(&alloc, str));
   }
-  EXPECT_EQ(2048, tbl.m_RecordCount);
+  ASSERT_EQ(2048, tbl.m_RecordCount);
 
   for (int i = 0; i < 2048; ++i)
   {
     char str[128];
     sprintf(str, "fOO%d", i);
-    EXPECT_TRUE(HashSetLookup(&tbl, Djb2HashNoCase(str), str));
+    ASSERT_TRUE(HashSetLookup(&tbl, Djb2HashNoCase(str), str));
   }
   HashSetDestroy(&tbl);
 }
