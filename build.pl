@@ -8,6 +8,8 @@ if ($^O eq "linux")
   $ENV{"CC"} = "gcc";
 }
 
+system("git submodule init && git submodule update") eq 0 or die("failed git submodule setup");
+
 if ($^O eq "MSWin32")
 {
     system("msbuild vs2012\\Tundra.sln /P:Configuration=Release") eq 0 or die("failed msbuild");
