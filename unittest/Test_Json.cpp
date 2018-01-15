@@ -5,221 +5,148 @@
 
 using namespace t2;
 
-BEGIN_TEST_CASE("JsonSimple")
+class JsonTest : public ::testing::Test
+{
+protected:
+  MemAllocHeap heap;
+  MemAllocLinear alloc;
+  MemAllocLinear scratch;
+  char error_msg[1024];
+
+protected:
+  void SetUp() override
+  {
+    HeapInit(&heap, MB(4), HeapFlags::kDefault);
+    LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
+    LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
+  }
+
+  void TearDown() override
+  {
+    LinearAllocDestroy(&scratch);
+    LinearAllocDestroy(&alloc);
+    HeapDestroy(&heap);
+  }
+
+};
+
+TEST_F(JsonTest, Simple)
 {
   char input[] = "  { \"foo\" : 8, \"bar\" : true }  ";
-  MemAllocHeap heap;
-  HeapInit(&heap, MB(4), HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  MemAllocLinear scratch;
-  LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
-  LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
-
-  char error_msg[1024];
   const JsonValue* v = JsonParse(input, &alloc, &scratch, error_msg);
 
-  ASSERT_EQUAL_STRING(error_msg, "");
-  ASSERT_NOT_EQUAL(v, nullptr);
+  ASSERT_STREQ("", error_msg);
+  ASSERT_NE(nullptr, v);
 
   const JsonObjectValue* obj = v->AsObject();
-  ASSERT_NOT_EQUAL(obj, nullptr);
-  ASSERT_EQUAL(obj->m_Count, 2);
-  ASSERT_EQUAL_STRING(obj->m_Names[0], "foo");
-  ASSERT_EQUAL_STRING(obj->m_Names[1], "bar");
-  ASSERT_EQUAL(obj->m_Values[0]->m_Type, JsonValue::kNumber);
-  ASSERT_EQUAL(int(obj->m_Values[0]->AsNumber()->m_Number), 8);
-  ASSERT_EQUAL(obj->m_Values[1]->m_Type, JsonValue::kBoolean);
-  ASSERT_EQUAL(int(obj->m_Values[1]->AsBoolean()->m_Boolean), 1);
-
-  LinearAllocDestroy(&scratch);
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_NE(nullptr, obj);
+  ASSERT_EQ(2, obj->m_Count);
+  ASSERT_STREQ("foo", obj->m_Names[0]);
+  ASSERT_STREQ("bar", obj->m_Names[1]);
+  ASSERT_EQ(JsonValue::kNumber, obj->m_Values[0]->m_Type);
+  ASSERT_EQ(8, int(obj->m_Values[0]->AsNumber()->m_Number));
+  ASSERT_EQ(JsonValue::kBoolean, obj->m_Values[1]->m_Type);
+  ASSERT_EQ(1, int(obj->m_Values[1]->AsBoolean()->m_Boolean));
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("JsonEmptyObject")
+TEST_F(JsonTest, EmptyObject)
 {
   char input[] = "{}";
-  MemAllocHeap heap;
-  HeapInit(&heap, MB(4), HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  MemAllocLinear scratch;
-  LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
-  LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
-
-  char error_msg[1024];
   const JsonValue* v = JsonParse(input, &alloc, &scratch, error_msg);
 
-  ASSERT_EQUAL_STRING(error_msg, "");
-  ASSERT_NOT_EQUAL(v, nullptr);
+  ASSERT_STREQ("", error_msg);
+  ASSERT_NE(nullptr, v);
 
-  ASSERT_EQUAL(v->m_Type, JsonValue::kObject);
-  ASSERT_EQUAL(v->AsObject()->m_Count, 0);
-
-  LinearAllocDestroy(&scratch);
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(JsonValue::kObject, v->m_Type);
+  ASSERT_EQ(0, v->AsObject()->m_Count);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("JsonEmptyArray")
+TEST_F(JsonTest, EmptyArray)
 {
   char input[] = "[]";
-  MemAllocHeap heap;
-  HeapInit(&heap, MB(4), HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  MemAllocLinear scratch;
-  LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
-  LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
-
-  char error_msg[1024];
   const JsonValue* v = JsonParse(input, &alloc, &scratch, error_msg);
 
-  ASSERT_EQUAL_STRING(error_msg, "");
-  ASSERT_NOT_EQUAL(v, nullptr);
+  ASSERT_STREQ("", error_msg);
+  ASSERT_NE(nullptr, v);
 
-  ASSERT_EQUAL(v->m_Type, JsonValue::kArray);
-  ASSERT_EQUAL(v->AsArray()->m_Count, 0);
-
-  LinearAllocDestroy(&scratch);
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(JsonValue::kArray, v->m_Type);
+  ASSERT_EQ(0, v->AsArray()->m_Count);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("JsonArraySingle")
+TEST_F(JsonTest, ArraySingle)
 {
   char input[] = "[\"foo\"]";
-  MemAllocHeap heap;
-  HeapInit(&heap, MB(4), HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  MemAllocLinear scratch;
-  LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
-  LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
-
-  char error_msg[1024];
   const JsonValue* v = JsonParse(input, &alloc, &scratch, error_msg);
 
-  ASSERT_EQUAL_STRING(error_msg, "");
-  ASSERT_NOT_EQUAL(v, nullptr);
+  ASSERT_STREQ("", error_msg);
+  ASSERT_NE(nullptr, v);
 
-  ASSERT_EQUAL(v->m_Type, JsonValue::kArray);
-  ASSERT_EQUAL(v->AsArray()->m_Count, 1);
-  ASSERT_EQUAL(v->Elem(0)->m_Type, JsonValue::kString);
-  ASSERT_EQUAL_STRING(v->Elem(0)->AsString()->m_String, "foo");
-
-  LinearAllocDestroy(&scratch);
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(JsonValue::kArray, v->m_Type);
+  ASSERT_EQ(1, v->AsArray()->m_Count);
+  ASSERT_EQ(JsonValue::kString, v->Elem(0)->m_Type);
+  ASSERT_STREQ("foo", v->Elem(0)->AsString()->m_String);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("JsonArrayMulti")
+TEST_F(JsonTest, ArrayMulti)
 {
   char input[] = "[false, null, true]";
-  MemAllocHeap heap;
-  HeapInit(&heap, MB(4), HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  MemAllocLinear scratch;
-  LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
-  LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
-
-  char error_msg[1024];
   const JsonValue* v = JsonParse(input, &alloc, &scratch, error_msg);
 
-  ASSERT_EQUAL_STRING(error_msg, "");
-  ASSERT_NOT_EQUAL(v, nullptr);
+  ASSERT_STREQ("", error_msg);
+  ASSERT_NE(nullptr, v);
 
   const JsonArrayValue* array = v->AsArray();
 
-  ASSERT_NOT_EQUAL(array, nullptr);
-  ASSERT_EQUAL(array->m_Count, 3);
-  ASSERT_EQUAL(array->m_Values[0]->m_Type, JsonValue::kBoolean);
-  ASSERT_EQUAL(array->m_Values[0]->AsBoolean()->m_Boolean, false);
-  ASSERT_EQUAL(array->m_Values[1]->m_Type, JsonValue::kNull);
-  ASSERT_EQUAL(array->m_Values[2]->m_Type, JsonValue::kBoolean);
-  ASSERT_EQUAL(array->m_Values[2]->AsBoolean()->m_Boolean, true);
-
-  LinearAllocDestroy(&scratch);
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_NE(nullptr, array);
+  ASSERT_EQ(3, array->m_Count);
+  ASSERT_EQ(JsonValue::kBoolean, array->m_Values[0]->m_Type);
+  ASSERT_EQ(false, array->m_Values[0]->AsBoolean()->m_Boolean);
+  ASSERT_EQ(JsonValue::kNull, array->m_Values[1]->m_Type);
+  ASSERT_EQ(JsonValue::kBoolean, array->m_Values[2]->m_Type);
+  ASSERT_EQ(true, array->m_Values[2]->AsBoolean()->m_Boolean);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("JsonStringEscapes")
+TEST_F(JsonTest, StringEscapes)
 {
   char input[] = "[\" foo \", \"\\\\\", \"\\n\\r\\t\\f\\b\\/\", \"\\u004C\\u004c\"]";
-  MemAllocHeap heap;
-  HeapInit(&heap, MB(4), HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  MemAllocLinear scratch;
-  LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
-  LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
-
-  char error_msg[1024];
   const JsonValue* v = JsonParse(input, &alloc, &scratch, error_msg);
 
-  ASSERT_EQUAL_STRING(error_msg, "");
-  ASSERT_NOT_EQUAL(v, nullptr);
+  ASSERT_STREQ("", error_msg);
+  ASSERT_NE(nullptr, v);
 
   const JsonArrayValue* array = v->AsArray();
-  ASSERT_NOT_EQUAL(array, nullptr);
+  ASSERT_NE(nullptr, array);
 
-  ASSERT_EQUAL(array->m_Count, 4);
-  ASSERT_EQUAL(array->m_Values[0]->m_Type, JsonValue::kString);
-  ASSERT_EQUAL(array->m_Values[1]->m_Type, JsonValue::kString);
-  ASSERT_EQUAL(array->m_Values[2]->m_Type, JsonValue::kString);
-  ASSERT_EQUAL(array->m_Values[3]->m_Type, JsonValue::kString);
-  ASSERT_EQUAL_STRING(array->m_Values[0]->AsString()->m_String, " foo ");
-  ASSERT_EQUAL_STRING(array->m_Values[1]->AsString()->m_String, "\\");
-  ASSERT_EQUAL_STRING(array->m_Values[2]->AsString()->m_String, "\n\r\t\f\b/");
-  ASSERT_EQUAL_STRING(array->m_Values[3]->AsString()->m_String, "LL");
-
-  LinearAllocDestroy(&scratch);
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(4, array->m_Count);
+  ASSERT_EQ(JsonValue::kString, array->m_Values[0]->m_Type);
+  ASSERT_EQ(JsonValue::kString, array->m_Values[1]->m_Type);
+  ASSERT_EQ(JsonValue::kString, array->m_Values[2]->m_Type);
+  ASSERT_EQ(JsonValue::kString, array->m_Values[3]->m_Type);
+  ASSERT_STREQ(" foo ", array->m_Values[0]->AsString()->m_String);
+  ASSERT_STREQ("\\", array->m_Values[1]->AsString()->m_String);
+  ASSERT_STREQ("\n\r\t\f\b/", array->m_Values[2]->AsString()->m_String);
+  ASSERT_STREQ("LL", array->m_Values[3]->AsString()->m_String);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("JsonDoubles")
+TEST_F(JsonTest, Doubles)
 {
   char input[] = "[123.456, -100.10, -1.0e10, 5e7]";
-  MemAllocHeap heap;
-  HeapInit(&heap, MB(4), HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  MemAllocLinear scratch;
-  LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
-  LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
-
-  char error_msg[1024];
   const JsonValue* v = JsonParse(input, &alloc, &scratch, error_msg);
 
-  ASSERT_EQUAL_STRING(error_msg, "");
-  ASSERT_NOT_EQUAL(v, nullptr);
+  ASSERT_STREQ("", error_msg);
+  ASSERT_NE(nullptr, v);
 
   const JsonArrayValue* array = v->AsArray();
-  ASSERT_NOT_EQUAL(array, nullptr);
+  ASSERT_NE(nullptr, array);
 
-  ASSERT_EQUAL(v->m_Type, JsonValue::kArray);
-  ASSERT_EQUAL(array->m_Count, 4);
-  ASSERT_EQUAL(array->m_Values[0]->m_Type, JsonValue::kNumber);
-  ASSERT_EQUAL(array->m_Values[1]->m_Type, JsonValue::kNumber);
-  ASSERT_EQUAL(array->m_Values[2]->m_Type, JsonValue::kNumber);
-  ASSERT_EQUAL(array->m_Values[3]->m_Type, JsonValue::kNumber);
-  ASSERT_EQUAL_FLOAT(array->m_Values[0]->AsNumber()->m_Number, 123.456, 0.0001);
-  ASSERT_EQUAL_FLOAT(array->m_Values[1]->AsNumber()->m_Number, -100.10, 0.0001);
-  ASSERT_EQUAL_FLOAT(array->m_Values[2]->AsNumber()->m_Number, -1.0e10, 0.001);
-  ASSERT_EQUAL_FLOAT(array->m_Values[3]->AsNumber()->m_Number, 5e7, 0.001);
-
-  LinearAllocDestroy(&scratch);
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(JsonValue::kArray, v->m_Type);
+  ASSERT_EQ(4, array->m_Count);
+  ASSERT_EQ(JsonValue::kNumber, array->m_Values[0]->m_Type);
+  ASSERT_EQ(JsonValue::kNumber, array->m_Values[1]->m_Type);
+  ASSERT_EQ(JsonValue::kNumber, array->m_Values[2]->m_Type);
+  ASSERT_EQ(JsonValue::kNumber, array->m_Values[3]->m_Type);
+  ASSERT_DOUBLE_EQ(array->m_Values[0]->AsNumber()->m_Number, 123.456);
+  ASSERT_DOUBLE_EQ(array->m_Values[1]->AsNumber()->m_Number, -100.10);
+  ASSERT_DOUBLE_EQ(array->m_Values[2]->AsNumber()->m_Number, -1.0e10);
+  ASSERT_DOUBLE_EQ(array->m_Values[3]->AsNumber()->m_Number, 5e7);
 }
-END_TEST_CASE

@@ -5,150 +5,112 @@
 
 using namespace t2;
 
-BEGIN_TEST_CASE("IncludeScanner/empty_file")
+class IncludeScannerTest : public ::testing::Test
+{
+protected:
+  MemAllocHeap heap;
+  MemAllocLinear alloc;
+
+protected:
+  void SetUp() override
+  {
+    HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
+    LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
+  }
+
+  void TearDown() override
+  {
+    LinearAllocDestroy(&alloc);
+    HeapDestroy(&heap);
+  }
+
+};
+
+
+TEST_F(IncludeScannerTest, EmptyFile)
 {
   char data[1] = { '\0' };
-  MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
-
   IncludeData* incs = ScanIncludesCpp(data, &alloc);
-  ASSERT_EQUAL(incs, nullptr);
-
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(nullptr, incs);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("MemAllocLinear/single_include_newline")
+TEST_F(IncludeScannerTest, SingleIncludeNewline)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
-
   char data[] = "#include \"foo.h\"\n";
-
   IncludeData* incs = ScanIncludesCpp(data, &alloc);
-  ASSERT_NOT_EQUAL(incs, nullptr);
+  ASSERT_NE(nullptr, incs);
 
-  ASSERT_EQUAL_STRING(incs->m_String, "foo.h");
-  ASSERT_EQUAL(incs->m_StringLen, 5);
-  ASSERT_EQUAL(incs->m_IsSystemInclude, false);
-  ASSERT_EQUAL(incs->m_ShouldFollow, true);
-  ASSERT_EQUAL(incs->m_Next, nullptr);
-
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_STREQ("foo.h", incs->m_String);
+  ASSERT_EQ(5, incs->m_StringLen);
+  ASSERT_EQ(false, incs->m_IsSystemInclude);
+  ASSERT_EQ(true, incs->m_ShouldFollow);
+  ASSERT_EQ(nullptr, incs->m_Next);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("MemAllocLinear/no_closing_terminator")
+TEST_F(IncludeScannerTest, NoClosingTerminator)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
-
   char data[] = "#include <bar.h\n";
-
   IncludeData* incs = ScanIncludesCpp(data, &alloc);
-  ASSERT_EQUAL(incs, nullptr);
-
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_EQ(nullptr, incs);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("MemAllocLinear/single_include_nonewline")
+TEST_F(IncludeScannerTest, SingleIncludeNoNewLine)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
-
   char data[] = "#include <bar.h>";
 
   IncludeData* incs = ScanIncludesCpp(data, &alloc);
-  ASSERT_NOT_EQUAL(data, nullptr);
+  ASSERT_NE(nullptr, data);
 
-  ASSERT_EQUAL_STRING(incs->m_String, "bar.h");
-  ASSERT_EQUAL(incs->m_StringLen, 5);
-  ASSERT_EQUAL(incs->m_IsSystemInclude, true);
-  ASSERT_EQUAL(incs->m_ShouldFollow, true);
-  ASSERT_EQUAL(incs->m_Next, nullptr);
-
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_STREQ("bar.h", incs->m_String);
+  ASSERT_EQ(5, incs->m_StringLen);
+  ASSERT_EQ(true, incs->m_IsSystemInclude);
+  ASSERT_EQ(true, incs->m_ShouldFollow);
+  ASSERT_EQ(nullptr, incs->m_Next);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("MemAllocLinear/max_whitespace")
+TEST_F(IncludeScannerTest, MaxWhitespace)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
-
   char data[] = "\n\n   #      include     <bar.h>  \n\n";
 
   IncludeData* incs = ScanIncludesCpp(data, &alloc);
-  ASSERT_NOT_EQUAL(data, nullptr);
+  ASSERT_NE(nullptr, data);
 
-  ASSERT_EQUAL_STRING(incs->m_String, "bar.h");
-  ASSERT_EQUAL(incs->m_StringLen, 5);
-  ASSERT_EQUAL(incs->m_IsSystemInclude, true);
-  ASSERT_EQUAL(incs->m_ShouldFollow, true);
-  ASSERT_EQUAL(incs->m_Next, nullptr);
-
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_STREQ("bar.h", incs->m_String);
+  ASSERT_EQ(5, incs->m_StringLen);
+  ASSERT_EQ(true, incs->m_IsSystemInclude);
+  ASSERT_EQ(true, incs->m_ShouldFollow);
+  ASSERT_EQ(nullptr, incs->m_Next);
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("MemAllocLinear/multi_includes")
+TEST_F(IncludeScannerTest, MultiIncludes)
 {
-  MemAllocHeap heap;
-  HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
-
-  MemAllocLinear alloc;
-  LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
-
   char data[] =
     "#include <foo.h>\n"
     "#include \"a.h\"\n"
     "#include <foo/bar/baz.h>\n";
 
   IncludeData* incs = ScanIncludesCpp(data, &alloc);
-  ASSERT_NOT_EQUAL(data, nullptr);
+  ASSERT_NE(nullptr, data);
 
-  ASSERT_EQUAL_STRING(incs->m_String, "foo.h");
-  ASSERT_EQUAL(incs->m_StringLen, 5);
-  ASSERT_EQUAL(incs->m_IsSystemInclude, true);
-  ASSERT_EQUAL(incs->m_ShouldFollow, true);
-  ASSERT_NOT_EQUAL(incs->m_Next, nullptr);
-
-  incs = incs->m_Next;
-  ASSERT_EQUAL_STRING(incs->m_String, "a.h");
-  ASSERT_EQUAL(incs->m_StringLen, 3);
-  ASSERT_EQUAL(incs->m_IsSystemInclude, false);
-  ASSERT_EQUAL(incs->m_ShouldFollow, true);
-  ASSERT_NOT_EQUAL(incs->m_Next, nullptr);
+  ASSERT_STREQ("foo.h", incs->m_String);
+  ASSERT_EQ(5, incs->m_StringLen);
+  ASSERT_EQ(true, incs->m_IsSystemInclude);
+  ASSERT_EQ(true, incs->m_ShouldFollow);
+  ASSERT_NE(nullptr, incs->m_Next);
 
   incs = incs->m_Next;
-  ASSERT_EQUAL_STRING(incs->m_String, "foo/bar/baz.h");
-  ASSERT_EQUAL(incs->m_StringLen, 13);
-  ASSERT_EQUAL(incs->m_IsSystemInclude, true);
-  ASSERT_EQUAL(incs->m_ShouldFollow, true);
-  ASSERT_EQUAL(incs->m_Next, nullptr);
 
-  LinearAllocDestroy(&alloc);
-  HeapDestroy(&heap);
+  ASSERT_STREQ("a.h", incs->m_String);
+  ASSERT_EQ(3, incs->m_StringLen);
+  ASSERT_EQ(false, incs->m_IsSystemInclude);
+  ASSERT_EQ(true, incs->m_ShouldFollow);
+  ASSERT_NE(nullptr, incs->m_Next);
+
+  incs = incs->m_Next;
+
+  ASSERT_STREQ("foo/bar/baz.h", incs->m_String);
+  ASSERT_EQ(13, incs->m_StringLen);
+  ASSERT_EQ(true, incs->m_IsSystemInclude);
+  ASSERT_EQ(true, incs->m_ShouldFollow);
+  ASSERT_EQ(nullptr, incs->m_Next);
 }
-END_TEST_CASE

@@ -909,6 +909,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
   }
 
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "MaxExpensiveCount", -1));
+  BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "DaysToKeepUnferencedNodesAround", 0));
 
   HashTableDestroy(&shared_strings);
 

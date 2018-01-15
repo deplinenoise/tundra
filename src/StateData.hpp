@@ -12,8 +12,8 @@ struct NodeStateData
   int32_t                   m_BuildResult;
   HashDigest                m_InputSignature;
   FrozenArray<FrozenString> m_OutputFiles;
-  FrozenArray<uint64_t>     m_OutputFilesTimeStamps;
   FrozenArray<FrozenString> m_AuxOutputFiles;
+  uint32_t                  m_TimeStampOfLastUseInDays;
 };
 
 struct StateData

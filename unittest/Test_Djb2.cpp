@@ -4,16 +4,14 @@
 
 using namespace t2;
 
-BEGIN_TEST_CASE("Djb2")
+TEST(Djb2, Vanilla)
 {
-  ASSERT_EQUAL(Djb2Hash("FooBar"), 3007235198);
+  ASSERT_EQ(3007235198, Djb2Hash("FooBar"));
 }
-END_TEST_CASE
 
-BEGIN_TEST_CASE("Djb2NoCase")
+TEST(Djb2, NoCase)
 {
-  ASSERT_EQUAL(Djb2HashNoCase("FooBar"), Djb2Hash("foobar"));
-  ASSERT_EQUAL(Djb2HashNoCase("foobar"), Djb2Hash("foobar"));
+  ASSERT_EQ(Djb2Hash("foobar"), Djb2HashNoCase("FooBar"));
+  ASSERT_EQ(Djb2Hash("foobar"), Djb2HashNoCase("foobar"));
 }
-END_TEST_CASE
 

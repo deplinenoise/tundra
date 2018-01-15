@@ -158,6 +158,7 @@ struct DagData
   FrozenArray<uint32_t>         m_ShaExtensionHashes;
 
   int32_t                       m_MaxExpensiveCount;
+  int32_t                       m_DaysToKeepUnreferencedNodesAround;
 };
 
 }

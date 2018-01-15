@@ -431,7 +431,9 @@ int main(int argc, char* argv[])
     goto leave;
   }
 
-  DriverRemoveStaleOutputs(&driver);
+  //we dont remove stale outputs for now, as buildstate is shared between multiple dags. at some point
+  //we should implement deleting artifacts when we drop old nodes from the buildstate
+  //DriverRemoveStaleOutputs(&driver);
 
   // Prepare list of nodes to build/clean/rebuild
   if (!DriverPrepareNodes(&driver, (const char**) argv, argc))
