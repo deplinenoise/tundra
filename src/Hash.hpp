@@ -7,6 +7,8 @@
 namespace t2
 {
 
+struct MemAllocLinear;
+
 #if ENABLED(USE_SHA1_HASH)
 
 enum
@@ -173,6 +175,9 @@ inline void HashAddString(HashState* self, const char* s)
 {
   HashUpdate(self, s, strlen(s));
 }
+
+//Add a path to be hashed. on case sensitive filesystems, we fold the case
+void HashAddPath(HashState* self, const char* path, MemAllocLinear* scratch);
 
 // Add binary integer data to be hashed.
 void HashAddInteger(HashState* h, uint64_t value);
