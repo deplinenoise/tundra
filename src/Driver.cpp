@@ -1001,7 +1001,7 @@ bool DriverSaveBuildState(Driver* self)
       BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i].m_Filename);
     }
 
-    BinarySegmentWriteUint32(state_seg, now/millisecondsInADay);
+    BinarySegmentWriteUint32(state_seg, (uint32_t)now/millisecondsInADay);
   };
 
   auto save_node_state_old = [=](int build_result, const HashDigest* input_signature, const NodeStateData* src_node, const HashDigest* guid) -> void
