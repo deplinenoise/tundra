@@ -35,18 +35,18 @@ static void WriteStringPtr(BinarySegment* seg, BinarySegment *str_seg, const cha
   }
 }
 
-static const char* FindStringValue(const JsonValue* obj, const char* key)
+static const char* FindStringValue(const JsonValue* obj, const char* key, const char* def_value = nullptr)
 {
   if (JsonValue::kObject != obj->m_Type)
-    return nullptr;
+    return def_value;
 
   const JsonValue *node = obj->Find(key);
 
   if (!node)
-    return nullptr;
+    return def_value;
 
   if (JsonValue::kString != node->m_Type)
-    return nullptr;
+    return def_value;
 
   return static_cast<const JsonStringValue*>(node)->m_String;
 }
@@ -910,6 +910,15 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "MaxExpensiveCount", -1));
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "DaysToKeepUnferencedNodesAround", 0));
+
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileName", ".tundra2.state"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileNameTmp", ".tundra2.state.tmp"));
+
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "ScanCacheFileName", ".tundra2.scancache"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "ScanCacheFileNameTmp", ".tundra2.scancache.tmp"));
+
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileName", ".tundra2.digestcache"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileNameTmp", ".tundra2.digestcache.tmp"));
 
   HashTableDestroy(&shared_strings);
 

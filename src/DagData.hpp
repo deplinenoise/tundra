@@ -159,6 +159,13 @@ struct DagData
 
   int32_t                       m_MaxExpensiveCount;
   int32_t                       m_DaysToKeepUnreferencedNodesAround;
+
+  FrozenString                  m_StateFileName;
+  FrozenString                  m_StateFileNameTmp;
+  FrozenString                  m_ScanCacheFileName;
+  FrozenString                  m_ScanCacheFileNameTmp;
+  FrozenString                  m_DigestCacheFileName;
+  FrozenString                  m_DigestCacheFileNameTmp;
 };
 
 }

@@ -40,7 +40,7 @@ struct DriverOptions
 #endif
   int         m_ThreadCount;
   const char *m_WorkingDir;
-  const char *m_TundraFilesRoot;
+  const char *m_DAGFileName;
 };
 
 void DriverOptionsInit(DriverOptions* self);

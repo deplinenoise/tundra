@@ -42,38 +42,15 @@ TundraStats g_Stats;
 
 static const char* s_BuildFile;
 static const char* s_DagFileName;
-static const char* s_StateFileName;
-static const char* s_ScanCacheFileName;
-static const char* s_DigestCacheFileName;
-static const char* s_StateFileNameTmp;
-static const char* s_ScanCacheFileNameTmp;
-static const char* s_DigestCacheFileNameTmp;
 
 static bool DriverPrepareDag(Driver* self, const char* dag_fn);
 static bool DriverCheckDagSignatures(Driver* self);
 const int millisecondsInADay = 1000 * 60 * 60 * 24;
 
-static const char* CreatePath(const char* root, const char* filename)
-{
-   root = root == nullptr ? "." : root;
-   char* result = (char*)malloc(strlen(root)+strlen(filename) /*add one for delimiter*/ +1  /*add one for forward slash*/ +1);
-   strcpy(result,root);
-   strcat(result,"/");
-   strcat(result,filename);
-   return result;
-}
-
 void DriverInitializeTundraFilePaths(DriverOptions* driverOptions)
 {
-    s_BuildFile               = CreatePath(driverOptions->m_TundraFilesRoot, "tundra.lua");
-    s_DagFileName             = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.dag");
-    s_StateFileName           = ".tundra2.state";
-    s_ScanCacheFileName       = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.scancache");
-    s_DigestCacheFileName     = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.digestcache");
-    // Temporary filenames where we write data first. These are then renamed to commit.
-    s_StateFileNameTmp        = ".tundra2.state.tmp";
-    s_ScanCacheFileNameTmp    = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.scancache.tmp");
-    s_DigestCacheFileNameTmp  = CreatePath(driverOptions->m_TundraFilesRoot, ".tundra2.digestcache.tmp");
+    s_BuildFile               = "tundra.lua";
+    s_DagFileName             = driverOptions->m_DAGFileName;
 }
 
 // Set default options.
@@ -96,7 +73,7 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_ContinueOnError = false;
   self->m_ThreadCount     = GetCpuCount();
   self->m_WorkingDir      = nullptr;
-  self->m_TundraFilesRoot = nullptr;
+  self->m_DAGFileName     = ".tundra2.dag";
   #if defined(TUNDRA_WIN32)
   self->m_RunUnprotected  = false;
 #endif
@@ -193,9 +170,11 @@ bool DriverInitData(Driver* self)
   if (!DriverPrepareDag(self, s_DagFileName))
     return false;
 
-  LoadFrozenData<StateData>(s_StateFileName, &self->m_StateFile, &self->m_StateData);
+  DigestCacheInit(&self->m_DigestCache, MB(128), self->m_DagData->m_DigestCacheFileName);
 
-  LoadFrozenData<ScanData>(s_ScanCacheFileName, &self->m_ScanFile, &self->m_ScanData);
+  LoadFrozenData<StateData>(self->m_DagData->m_StateFileName, &self->m_StateFile, &self->m_StateData);
+
+  LoadFrozenData<ScanData>(self->m_DagData->m_ScanCacheFileName, &self->m_ScanFile, &self->m_ScanData);
 
   ScanCacheSetCache(&self->m_ScanCache, self->m_ScanData);
 
@@ -228,7 +207,8 @@ static bool DriverPrepareDag(Driver* self, const char* dag_fn)
   }
 
   // In checked builds, make sure signatures are valid.
-  CHECK(DriverCheckDagSignatures(self));
+  // For Unity, our frontend is so slow, that we'll happily take a tiny extra hit to ensure our signatures are correct.
+  DriverCheckDagSignatures(self);
 
   return true;
 }
@@ -721,8 +701,6 @@ bool DriverInit(Driver* self, const DriverOptions* options)
 
   memset(&self->m_PassNodeCount, 0, sizeof self->m_PassNodeCount);
 
-  DigestCacheInit(&self->m_DigestCache, MB(128), s_DigestCacheFileName);
-
   return true;
 }
 
@@ -882,18 +860,18 @@ bool DriverSaveScanCache(Driver* self)
   // This will be invalidated.
   self->m_ScanData = nullptr;
 
-  bool success = ScanCacheSave(scan_cache, s_ScanCacheFileNameTmp, &self->m_Heap);
+  bool success = ScanCacheSave(scan_cache, self->m_DagData->m_ScanCacheFileNameTmp, &self->m_Heap);
 
   // Unmap the file so we can overwrite it (on Windows.)
   MmapFileDestroy(&self->m_ScanFile);
 
   if (success)
   {
-    success = RenameFile(s_ScanCacheFileNameTmp, s_ScanCacheFileName);
+    success = RenameFile(self->m_DagData->m_ScanCacheFileNameTmp, self->m_DagData->m_ScanCacheFileName);
   }
   else
   {
-    remove(s_ScanCacheFileNameTmp);
+    remove(self->m_DagData->m_ScanCacheFileNameTmp);
   }
 
   return success;
@@ -903,7 +881,7 @@ bool DriverSaveScanCache(Driver* self)
 bool DriverSaveDigestCache(Driver* self)
 {
   // This will be invalidated.
-  return DigestCacheSave(&self->m_DigestCache, &self->m_Heap, s_DigestCacheFileNameTmp);
+  return DigestCacheSave(&self->m_DigestCache, &self->m_Heap, self->m_DagData->m_DigestCacheFileName, self->m_DagData->m_DigestCacheFileNameTmp);
 }
 
 
@@ -1188,16 +1166,16 @@ bool DriverSaveBuildState(Driver* self)
   MmapFileUnmap(&self->m_StateFile);
   self->m_StateData = nullptr;
 
-  bool success = BinaryWriterFlush(&writer, s_StateFileNameTmp);
+  bool success = BinaryWriterFlush(&writer, self->m_DagData->m_StateFileNameTmp);
 
   if (success)
   {
     // Commit atomically with a file rename.
-    success = RenameFile(s_StateFileNameTmp, s_StateFileName);
+    success = RenameFile(self->m_DagData->m_StateFileNameTmp, self->m_DagData->m_StateFileName);
   }
   else
   {
-    remove(s_StateFileNameTmp);
+    remove(self->m_DagData->m_StateFileNameTmp);
   }
 
   BinaryWriterDestroy(&writer);
