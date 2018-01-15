@@ -12,6 +12,9 @@ indent_size = 2
 insert_final_newline = false
 trim_trailing_whitespace = true
 
+[*.{cpp,hpp,c,h}]
+indent_size=2
+
 # Solution Files
 [*.sln]
 indent_style = tab
