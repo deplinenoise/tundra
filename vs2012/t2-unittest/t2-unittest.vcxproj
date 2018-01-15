@@ -73,7 +73,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\lua\src;$(SolutionDir)..\src;..\..\unittest\googletest\googletest\include;..\..\unittest\googletest\googletest</
+      <AdditionalIncludeDirectories>$(SolutionDir)..\lua\src;$(SolutionDir)..\src;..\..\unittest\googletest\googletest\include;..\..\unittest\googletest\googletest</AdditionalIncludeDirectories>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
