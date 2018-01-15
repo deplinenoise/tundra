@@ -15,6 +15,7 @@
 #include "Stats.hpp"
 #include "TargetSelect.hpp"
 #include "HashTable.hpp"
+#include "Hash.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,6 +50,7 @@ static const char* s_DigestCacheFileNameTmp;
 
 static bool DriverPrepareDag(Driver* self, const char* dag_fn);
 static bool DriverCheckDagSignatures(Driver* self);
+const int millisecondsInADay = 1000 * 60 * 60 * 24;
 
 static const char* CreatePath(const char* root, const char* filename)
 {
@@ -909,6 +911,9 @@ bool DriverSaveBuildState(Driver* self)
   TimingScope timing_scope(nullptr, &g_Stats.m_StateSaveTimeCycles);
 
   MemAllocLinearScope alloc_scope(&self->m_Allocator);
+  const uint64_t now = time(nullptr);
+
+  uint64_t timeToKeepNonReferencedNodesAround = self->m_DagData->m_DaysToKeepUnreferencedNodesAround * millisecondsInADay;
 
   BinaryWriter writer;
   BinaryWriterInit(&writer, &self->m_Heap);
@@ -918,7 +923,6 @@ bool DriverSaveBuildState(Driver* self)
   BinarySegment *state_seg  = BinaryWriterAddSegment(&writer);
   BinarySegment *array_seg  = BinaryWriterAddSegment(&writer);
   BinarySegment *string_seg = BinaryWriterAddSegment(&writer);
-  BinarySegment *modification_seg = BinaryWriterAddSegment(&writer);
 
   BinaryLocator guid_ptr  = BinarySegmentPosition(guid_seg);
   BinaryLocator state_ptr = BinarySegmentPosition(state_seg);
@@ -945,6 +949,52 @@ bool DriverSaveBuildState(Driver* self)
     old_count      = state_data->m_NodeCount;
   }
 
+  HashSet<kFlagPathStrings> file_table;
+  HashSetInit(&file_table, &self->m_Heap);
+  const DagData* dag = self->m_DagData;
+  MemAllocLinear* scratch = &self->m_Allocator;
+
+  // Insert all current regular and aux output files into the hash table.
+  auto add_file = [&file_table, scratch](const FrozenFileAndHash& p) -> void
+  {
+    const uint32_t hash = p.m_FilenameHash;
+
+    if (!HashSetLookup(&file_table, hash, p.m_Filename))
+    {
+      HashSetInsert(&file_table, hash, p.m_Filename);
+    }
+  };
+
+  for (int i = 0, node_count = dag->m_NodeCount; i < node_count; ++i)
+  {
+    const NodeData* node = dag->m_NodeData + i;
+
+    for (const FrozenFileAndHash& p : node->m_OutputFiles)
+      add_file(p);
+
+    for (const FrozenFileAndHash& p : node->m_AuxOutputFiles)
+      add_file(p);
+  }
+
+  auto does_a_new_node_exist_that_shares_an_output_path_with = [&file_table, scratch](const NodeStateData* node) -> bool
+  {
+    auto check_file = [&file_table, scratch](const char* path) -> bool
+    {
+      uint32_t path_hash = Djb2HashPath(path);
+      return HashSetLookup(&file_table, path_hash, path);
+    };
+
+    for (const char* path : node->m_OutputFiles)
+      if (check_file(path))
+        return true;
+    
+    for (const char* path : node->m_AuxOutputFiles)
+      if (check_file(path))
+        return true;
+    
+    return false;
+  };
+
   int entry_count = 0;
 
   auto save_node_state = [=](int build_result, const HashDigest* input_signature, const NodeData* src_node, const HashDigest* guid) -> void
@@ -953,7 +1003,7 @@ bool DriverSaveBuildState(Driver* self)
 
     BinarySegmentWriteInt32(state_seg, build_result);
     BinarySegmentWrite(state_seg, (const char*) input_signature, sizeof(HashDigest));
-
+    
     int32_t file_count = src_node->m_OutputFiles.GetCount();
     BinarySegmentWriteInt32(state_seg, file_count);
     BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
@@ -961,14 +1011,6 @@ bool DriverSaveBuildState(Driver* self)
     {
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
       BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i].m_Filename);
-    }
-
-    BinarySegmentWriteInt32(state_seg, file_count);
-    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(modification_seg));
-    for (int32_t i = 0; i < file_count; ++i)
-    {
-      FileInfo file_info = GetFileInfo(src_node->m_OutputFiles[i].m_Filename);
-      BinarySegmentWriteInt64(modification_seg, file_info.m_Timestamp);
     }
 
     file_count = src_node->m_AuxOutputFiles.GetCount();
@@ -979,6 +1021,8 @@ bool DriverSaveBuildState(Driver* self)
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
       BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i].m_Filename);
     }
+
+    BinarySegmentWriteUint32(state_seg, now/millisecondsInADay);
   };
 
   auto save_node_state_old = [=](int build_result, const HashDigest* input_signature, const NodeStateData* src_node, const HashDigest* guid) -> void
@@ -987,7 +1031,7 @@ bool DriverSaveBuildState(Driver* self)
 
     BinarySegmentWriteInt32(state_seg, build_result);
     BinarySegmentWrite(state_seg, (const char*) input_signature, sizeof(HashDigest));
-
+    
     int32_t file_count = src_node->m_OutputFiles.GetCount();
     BinarySegmentWriteInt32(state_seg, file_count);
     BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
@@ -995,14 +1039,6 @@ bool DriverSaveBuildState(Driver* self)
     {
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
       BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i]);
-    }
-
-    BinarySegmentWriteInt32(state_seg, file_count);
-    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(modification_seg));
-    for (int32_t i = 0; i < file_count; ++i)
-    {
-      FileInfo file_info = GetFileInfo(src_node->m_OutputFiles[i]);
-      BinarySegmentWriteInt64(modification_seg, file_info.m_Timestamp);
     }
 
     file_count = src_node->m_AuxOutputFiles.GetCount();
@@ -1013,6 +1049,8 @@ bool DriverSaveBuildState(Driver* self)
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
       BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i]);
     }
+
+    BinarySegmentWriteUint32(state_seg, src_node->m_TimeStampOfLastUseInDays);
   };
 
   auto save_new = [=, &entry_count](size_t index) {
@@ -1042,9 +1080,43 @@ bool DriverSaveBuildState(Driver* self)
     }
   };
 
+  HashSet<kFlagPathStrings> nuke_table;
+  HashSetInit(&nuke_table, &self->m_Heap);
+
+  // Check all output files in the state if they're still around.
+  // Otherwise schedule them (and all their parent dirs) for nuking.
+  // We will rely on the fact that we can't rmdir() non-empty directories.
+  auto schedule_file_nuke = [&nuke_table, scratch](const char* path)
+  {
+    uint32_t path_hash = Djb2HashPath(path);
+
+    if (!HashSetLookup(&nuke_table, path_hash, path))
+    {
+      HashSetInsert(&nuke_table, path_hash, path);
+    }
+
+    PathBuffer buffer;
+    PathInit(&buffer, path);
+
+    while (PathStripLast(&buffer))
+    {
+      if (buffer.m_SegCount == 0)
+        break;
+
+      char dir[kMaxPathLength];
+      PathFormat(dir, &buffer);
+      uint32_t dir_hash = Djb2HashPath(dir);
+
+      if (!HashSetLookup(&nuke_table, dir_hash, dir))
+      {
+        HashSetInsert(&nuke_table, dir_hash, StrDup(scratch, dir));
+      }
+    }
+  };
+
   auto save_old = [=, &entry_count](size_t index) {
     const HashDigest    *guid = old_guids + index;
-
+    
     // Make sure this node is still relevant before saving.
     if (const HashDigest* new_version = BinarySearch(src_guids, src_count, *guid))
     {
@@ -1055,12 +1127,41 @@ bool DriverSaveBuildState(Driver* self)
       save_node_state(data->m_BuildResult, &data->m_InputSignature, src_elem, guid);
       ++entry_count;
       ++g_Stats.m_StateSaveOld;
+      return;
     }
-    else
+
+    if (timeToKeepNonReferencedNodesAround == 0)
     {
-      // Drop this node.
       ++g_Stats.m_StateSaveDropped;
+      return;
     }
+    
+    if (const HashDigest* old_guid = BinarySearch(old_guids, old_count, *guid))
+    {
+      size_t old_index = old_guid - old_guids;
+      const NodeStateData* old_state_data = old_state + old_index;
+
+      uint64_t timeStampOfLastUse = old_state_data->m_TimeStampOfLastUseInDays * (millisecondsInADay);
+
+      if ((now - timeStampOfLastUse) >= timeToKeepNonReferencedNodesAround)
+      {
+        ++g_Stats.m_StateSaveDropped;
+        return;
+      }
+
+      //ok, our policy is to keep unreferenced nodes around in the state for a while, and this node is fresh enough to keep,
+      //however we only want to do that if there are no new nodes that share any of its output files
+      if (!does_a_new_node_exist_that_shares_an_output_path_with(old_state_data))
+      {
+        save_node_state_old(old_state_data->m_BuildResult, &old_state_data->m_InputSignature, old_state_data, guid);
+        ++entry_count;
+        return;
+      }
+    }
+    
+    //assert?
+    ++g_Stats.m_StateSaveDropped;
+    return;
   };
 
   auto key_new = [=](size_t index) -> const HashDigest* {
@@ -1068,7 +1169,7 @@ bool DriverSaveBuildState(Driver* self)
     return src_guids + dag_index;
   };
 
-  auto key_old = [=](size_t index) {
+  auto key_old = [=](size_t index) -> const HashDigest* {
     return old_guids + index;
   };
 
@@ -1103,6 +1204,7 @@ bool DriverSaveBuildState(Driver* self)
   return success;
 }
 
+
 void DriverRemoveStaleOutputs(Driver* self)
 {
   TimingScope timing_scope(nullptr, &g_Stats.m_StaleCheckTimeCycles);
@@ -1118,7 +1220,7 @@ void DriverRemoveStaleOutputs(Driver* self)
     Log(kDebug, "unable to clean up stale output files - no previous build state");
     return;
   }
-
+ 
   HashSet<kFlagPathStrings> file_table;
   HashSetInit(&file_table, &self->m_Heap);
 

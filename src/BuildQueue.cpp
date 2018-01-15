@@ -11,6 +11,7 @@
 #include "Stats.hpp"
 #include "StatCache.hpp"
 #include "FileSign.hpp"
+#include "Hash.hpp"
 
 #include <stdio.h>
 
@@ -346,7 +347,12 @@ namespace t2
     {
       // The input signature has changed (either direct inputs or includes)
       // We need to rebuild this node.
-      Log(kSpam, "T=%d: building %s - input signature changed", thread_state->m_ThreadIndex, node_data->m_Annotation.Get());
+      char oldDigest[kDigestStringSize];
+      char newDigest[kDigestStringSize];
+      DigestToString(oldDigest, prev_state->m_InputSignature);
+      DigestToString(newDigest, node->m_InputSignature);
+
+      Log(kSpam, "T=%d: building %s - input signature changed. was:%s now:%s", thread_state->m_ThreadIndex, node_data->m_Annotation.Get(), oldDigest, newDigest);
       next_state = BuildProgress::kRunAction;
     }
     else if (prev_state->m_BuildResult != 0)
