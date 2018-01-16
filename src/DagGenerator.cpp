@@ -978,6 +978,13 @@ static bool CreateDagFromJsonData(char* json_memory, const char* dag_fn)
   return result;
 }
 
+#if TUNDRA_WIN32
+static int setenv(const char *name, const char *value, int overwrite)
+{
+    return _putenv_s(name, value);
+}
+#endif
+
 static bool RunExternalTool(const char* options, ...)
 {
   char dag_gen_path[kMaxPathLength];
