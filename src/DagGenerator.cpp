@@ -994,19 +994,20 @@ static bool RunExternalTool(const char* options, ...)
 
   const char* cmdline_to_use;
 
+  char option_str[1024];
+  va_list args;
+  va_start(args, options);
+  vsnprintf(option_str, sizeof option_str, options, args);
+  va_end(args);
+  option_str[sizeof(option_str)-1] = '\0';
+
   if (const char* env_option = getenv("TUNDRA_DAGTOOL_FULLCOMMANDLINE"))
   {
+    setenv("TUNDRA_FRONTEND_OPTIONS", option_str, true);
     cmdline_to_use = env_option;
   }
   else
   {
-    char option_str[1024];
-    va_list args;
-    va_start(args, options);
-    vsnprintf(option_str, sizeof option_str, options, args);
-    va_end(args);
-    option_str[sizeof(option_str)-1] = '\0';
-
     const char* quotes = "";
     if (strchr(dag_gen_path, ' '))
       quotes = "\"";
