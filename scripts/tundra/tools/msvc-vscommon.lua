@@ -96,7 +96,8 @@ local vs_sdk_map = {
   ["12.0"] = "v8.1",
   -- The current visual studio 2015 download does not include the full windows
   -- 10 SDK, and new Win32 apps created in VS2015 default to using the 8.1 SDK
-  ["14.0"] = "v8.1" 
+  ["14.0"] = "v8.1",
+  ["15.0"] = "v8.1",
 }
 
 -- Each quadruplet specifies a registry key value that gets us the SDK location, 
@@ -175,9 +176,9 @@ function get_pre_win10_sdk(sdk_version, vs_version, target_arch)
   -- Windows 10 changed CRT to be split between Windows SDK and VC. It
   -- appears that when targeting pre-win10 with VS2015 you should always use
   -- use 10.0.10150.0, according to Microsoft.Cpp.Common.props in MSBuild.
-  if vs_version == "14.0" then
+  if vs_version == "14.0" or vs_version == "15.0" then
     local win10_sdk_root = native.reg_query("HKLM", win10_sdk[1], win10_sdk[2])
-    assert(win10_sdk_root, "The windows 10 UCRT is required when building using Visual studio 2015")
+    assert(win10_sdk_root, "The windows 10 UCRT is required when building using Visual Studio 2015 or 2017")
     result.include[#result.include + 1] = win10_sdk_root .. "Include\\10.0.10150.0\\ucrt"
     result.lib_str = result.lib_str .. ";" .. win10_sdk_root .. "Lib\\10.0.10150.0\\ucrt\\" .. post_win8_sdk[target_arch].lib
   end
@@ -266,21 +267,41 @@ function apply_msvc_visual_studio(version, env, options)
 
   local vc_lib
   local vc_bin
-  
-  vc_bin =  vc_bin_map[host_arch][target_arch]
-  if not vc_bin then
-    errorf("can't build target arch %s on host arch %s", target_arch, host_arch)
+  local vc_tools_root;
+
+  if version == "15.0" then
+    -- Read VCToolsVersion from Microsoft.VCToolsVersion.default.txt
+    -- as described in https://blogs.msdn.microsoft.com/vcblog/2016/10/07/compiler-tools-layout-in-visual-studio-15
+    local vc_tools_version
+    local vc_tools_version_file = io.open(vs_root .. "VC\\Auxiliary\\Build\\Microsoft.VCToolsVersion.default.txt", "r")
+    if vc_tools_version_file then
+      vc_tools_version = vc_tools_version_file:read "*line" -- the file contains the current version string
+      vc_tools_version = vc_tools_version:gsub("^%s*(.-)%s*$", "%1") -- trim any leading or trailing whitespace
+    else
+      error("Compiler tools version for Visual Studio 2017 could not be detected because Microsoft.VCToolsVersion.default.txt does not exist.")
+    end
+    vc_tools_root = vs_root .. "VC\\Tools\\MSVC\\" .. vc_tools_version .. "\\"
+  else
+    vc_tools_root = vs_root .. "VC\\"
   end
-  vc_bin =  vs_root .. "vc\\bin\\" .. vc_bin
-  
-  vc_lib =  vs_root .. "vc\\lib\\" .. vc_lib_map[host_arch][target_arch]
+
+  if version == "15.0" then
+    vc_bin =  vc_tools_root .. "bin\\Host" .. string.upper(host_arch) .. "\\" .. target_arch
+    vc_lib =  vc_tools_root .. "lib\\" .. target_arch
+  else
+    vc_bin =  vc_bin_map[host_arch][target_arch]
+    if not vc_bin then
+      errorf("can't build target arch %s on host arch %s", target_arch, host_arch)
+    end
+    vc_bin =  vs_root .. "vc\\bin\\" .. vc_bin
+    vc_lib =  vs_root .. "vc\\lib\\" .. vc_lib_map[host_arch][target_arch]
+  end
 
   --
   -- Now fix up the SDK
   --
   local sdk = get_sdk(sdk_version, version, target_arch)  
 
-  
   --
   -- Tools
   --
@@ -299,7 +320,7 @@ function apply_msvc_visual_studio(version, env, options)
     env:set("RCOPTS", "") -- clear the "/nologo" option (it was first added in VS2010)
   end
  
-  if version == "12.0" or version == "14.0" then
+  if version == "12.0" or version == "14.0" or version == "15.0" then
     -- Force MSPDBSRV.EXE
     env:set("CCOPTS", "/FS")
     env:set("CXXOPTS", "/FS")
@@ -308,7 +329,7 @@ function apply_msvc_visual_studio(version, env, options)
   -- Wire-up the external environment
 
   env:set_external_env_var('VSINSTALLDIR', vs_root)
-  env:set_external_env_var('VCINSTALLDIR', vs_root .. "\\vc")
+  env:set_external_env_var('VCINSTALLDIR', vc_tools_root)
   env:set_external_env_var('DevEnvDir', vs_root .. "Common7\\IDE")
 
   local include = {}
@@ -317,15 +338,14 @@ function apply_msvc_visual_studio(version, env, options)
     include[#include + 1] = v
   end
 
-  include[#include + 1] = vs_root .. "VC\\ATLMFC\\INCLUDE"
-  include[#include + 1] = vs_root .. "VC\\INCLUDE"
-
+  include[#include + 1] = vc_tools_root .. "ATLMFC\\INCLUDE"
+  include[#include + 1] = vc_tools_root .. "INCLUDE"
 
   -- if MFC isn't installed with VS
   -- the linker will throw an error when looking for libs
   -- Lua does not have a "does directory exist function"
   -- we could use one here
-  local lib_str = sdk.lib_str .. ";" .. vs_root .. "\\VC\\ATLMFC\\lib\\" .. vc_lib_map[host_arch][target_arch] .. ";" .. vc_lib
+  local lib_str = sdk.lib_str .. ";" .. vc_tools_root .. "ATLMFC\\lib\\" .. vc_lib_map[host_arch][target_arch] .. ";" .. vc_lib
 
   env:set_external_env_var("WindowsSdkDir", sdk.root)
   env:set_external_env_var("INCLUDE", table.concat(include, ';'))
@@ -341,6 +361,7 @@ function apply_msvc_visual_studio(version, env, options)
   path[#path + 1] = sdk.root
   path[#path + 1] = vs_root .. "Common7\\IDE"
 
+  -- TODO: how should vs2017 be handled here?
   if "x86" == host_arch then
     path[#path + 1] = vs_root .. "\\VC\\Bin"
   elseif "x64" == host_arch then
