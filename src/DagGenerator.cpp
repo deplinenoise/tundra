@@ -455,7 +455,7 @@ static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegme
     const char* path = incpaths->m_Values[i]->GetString();
     if (!path)
       return false;
-    HashAddString(&h, path);
+    HashAddPath(&h, path, scratch);
     WriteCommonStringPtr(array_seg, str_seg, path, shared_strings, scratch);
   }
 
@@ -854,13 +854,13 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 
         for (size_t i = 0, count = subdirs->m_Count; i < count; ++i)
         {
-          HashAddString(&h, subdirs->m_Values[i]->GetString());
+          HashAddPath(&h, subdirs->m_Values[i]->GetString(), scratch);
           HashAddSeparator(&h);
         }
 
         for (size_t i = 0, count = files->m_Count; i < count; ++i)
         {
-          HashAddString(&h, files->m_Values[i]->GetString());
+          HashAddPath(&h, files->m_Values[i]->GetString(), scratch);
           HashAddSeparator(&h);
         }
 
@@ -909,7 +909,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
   }
 
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "MaxExpensiveCount", -1));
-  BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "DaysToKeepUnferencedNodesAround", 0));
+  BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "DaysToKeepUnreferencedNodesAround", 0));
 
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileName", ".tundra2.state"));
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileNameTmp", ".tundra2.state.tmp"));
@@ -946,6 +946,12 @@ static bool CreateDagFromJsonData(char* json_memory, const char* dag_fn)
   {
     if (const JsonObjectValue* obj = value->AsObject())
     {
+      if (obj->m_Count == 0)
+      {
+        Log(kInfo, "Nothing to do");
+        exit(0);
+      }
+      
       BinaryWriter writer;
       BinaryWriterInit(&writer, &heap);
 
@@ -972,6 +978,13 @@ static bool CreateDagFromJsonData(char* json_memory, const char* dag_fn)
   return result;
 }
 
+#if TUNDRA_WIN32
+static int setenv(const char *name, const char *value, int overwrite)
+{
+    return _putenv_s(name, value);
+}
+#endif
+
 static bool RunExternalTool(const char* options, ...)
 {
   char dag_gen_path[kMaxPathLength];
@@ -994,19 +1007,20 @@ static bool RunExternalTool(const char* options, ...)
 
   const char* cmdline_to_use;
 
+  char option_str[1024];
+  va_list args;
+  va_start(args, options);
+  vsnprintf(option_str, sizeof option_str, options, args);
+  va_end(args);
+  option_str[sizeof(option_str)-1] = '\0';
+
   if (const char* env_option = getenv("TUNDRA_DAGTOOL_FULLCOMMANDLINE"))
   {
+    setenv("TUNDRA_FRONTEND_OPTIONS", option_str, true);
     cmdline_to_use = env_option;
   }
   else
   {
-    char option_str[1024];
-    va_list args;
-    va_start(args, options);
-    vsnprintf(option_str, sizeof option_str, options, args);
-    va_end(args);
-    option_str[sizeof(option_str)-1] = '\0';
-
     const char* quotes = "";
     if (strchr(dag_gen_path, ' '))
       quotes = "\"";
