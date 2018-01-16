@@ -62,11 +62,11 @@ void HashAddStringFoldCase(HashState* self, const char* path, MemAllocLinear* sc
 {
    MemAllocLinearScope scope(scratch);
 
-   int len = strlen(path);
+   size_t len = strlen(path);
    char* foldBuffer = LinearAllocateArray<char>(scratch, len);
 
    strcpy(foldBuffer, path);
-   for (int i=0; i!=len;i++)
+   for (size_t i=0; i!=len;i++)
    {
      foldBuffer[i] = FoldCase(foldBuffer[i]);
    }
