@@ -946,6 +946,12 @@ static bool CreateDagFromJsonData(char* json_memory, const char* dag_fn)
   {
     if (const JsonObjectValue* obj = value->AsObject())
     {
+      if (obj->m_Count == 0)
+      {
+        Log(kInfo, "Nothing to do");
+        exit(0);
+      }
+      
       BinaryWriter writer;
       BinaryWriterInit(&writer, &heap);
 
