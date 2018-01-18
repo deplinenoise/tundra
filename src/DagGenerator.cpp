@@ -978,13 +978,6 @@ static bool CreateDagFromJsonData(char* json_memory, const char* dag_fn)
   return result;
 }
 
-#if TUNDRA_WIN32
-static int setenv(const char *name, const char *value, int overwrite)
-{
-    return _putenv_s(name, value);
-}
-#endif
-
 static bool RunExternalTool(const char* options, ...)
 {
   char dag_gen_path[kMaxPathLength];
@@ -1014,9 +1007,12 @@ static bool RunExternalTool(const char* options, ...)
   va_end(args);
   option_str[sizeof(option_str)-1] = '\0';
 
+  EnvVariable env_var;
+  env_var.m_Name = "TUNDRA_FRONTEND_OPTIONS";
+  env_var.m_Value = option_str;
+
   if (const char* env_option = getenv("TUNDRA_DAGTOOL_FULLCOMMANDLINE"))
   {
-    setenv("TUNDRA_FRONTEND_OPTIONS", option_str, true);
     cmdline_to_use = env_option;
   }
   else
@@ -1040,7 +1036,7 @@ static bool RunExternalTool(const char* options, ...)
 #else
   const bool force_use_tty = false;
 #endif
-  ExecResult result = ExecuteProcess(cmdline_to_use, 0, nullptr, 0, echo, nullptr, force_use_tty);
+  ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, 0, echo, nullptr, force_use_tty);
 
   if (0 != result.m_ReturnCode)
   {

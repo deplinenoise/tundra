@@ -244,7 +244,7 @@ static bool DriverCheckDagSignatures(Driver* self)
 
     if (info.m_Timestamp != timestamp)
     {
-      Log(kInfo, "DAG out of date: timestamp change for %s. was: %lu now: %lu", path, info.m_Timestamp, timestamp);
+      Log(kInfo, "DAG out of date: timestamp change for %s. was: %lu now: %lu", path, timestamp, info.m_Timestamp);
       return false;
     }
   }
