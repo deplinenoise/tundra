@@ -388,7 +388,7 @@ int main(int argc, char* argv[])
       *o++ = ch;
     } while(ch);
 
-    _snprintf(mutex_name, sizeof mutex_name, "Global\\Tundra--%s", cwd_nerfed);
+    _snprintf(mutex_name, sizeof mutex_name, "Global\\Tundra--%s-%s", cwd_nerfed, options.m_DAGFileName);
     mutex_name[sizeof(mutex_name)-1] = '\0';
     bool warning_printed = false;
     HANDLE mutex = CreateMutexA(nullptr, false, mutex_name);
