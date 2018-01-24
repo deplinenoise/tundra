@@ -12,7 +12,11 @@ LDFLAGS += -L$(BUILDDIR) -ltundra
 
 PREFIX ?= /usr/local
 
+ifndef NO_GIT_FILE
 GIT_BRANCH := $(shell (git branch --no-color 2>/dev/null) | sed -n '/^\*/s/^\* //p')
+else
+GIT_BRANCH :=
+endif
 
 ifeq ($(GIT_BRANCH),)
 GIT_BRANCH := unknown
@@ -39,7 +43,7 @@ CROSS ?= x86_64-w64-mingw32-
 CC := $(CROSS)gcc
 CXX := $(CROSS)g++
 AR := $(CROSS)ar rcus
-CXXFLAGS += -std=gnu++11 
+CXXFLAGS += -std=gnu++11
 CPPFLAGS += -D_WIN32 -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -D__MSVCRT_VERSION__=0x0601 -DFORCEINLINE='__inline __attribute__((always_inline))'
 BUILDDIR := build.mingw
 EXESUFFIX := .exe
@@ -53,27 +57,27 @@ UNAME := $(shell uname)
 ifeq ($(UNAME), $(filter $(UNAME), FreeBSD NetBSD OpenBSD))
 CC := clang
 CXX := clang++
-CXXFLAGS += -std=c++11 
+CXXFLAGS += -std=c++11
 LDFLAGS += -lpthread
 else
 ifeq ($(UNAME), $(filter $(UNAME), Linux))
 CC := clang
 CXX := clang++
-CXXFLAGS += -std=c++11 
+CXXFLAGS += -std=c++11
 LDFLAGS += -pthread
 else
 ifeq ($(UNAME), $(filter $(UNAME), Darwin))
-CXXFLAGS += -std=c++11 
+CXXFLAGS += -std=c++11
 CXXFLAGS += -stdlib=libc++
 LDFLAGS += -stdlib=libc++
 else
 ifeq ($(UNAME), $(filter $(UNAME), MINGW32_NT-5.1))
-CXXFLAGS += -std=gnu++11 
+CXXFLAGS += -std=gnu++11
 CPPFLAGS += -D_WIN32 -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -U__STRICT_ANSI__
 EXESUFFIX := .exe
 else
 ifeq (MINGW32_NT, $(findstring MINGW32_NT, $(UNAME)))
-CXXFLAGS += -std=gnu++11 
+CXXFLAGS += -std=gnu++11
 CPPFLAGS += -D_WIN32 -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -D__MSVCRT_VERSION__=0x0601 -U__STRICT_ANSI__
 EXESUFFIX := .exe
 else
@@ -135,7 +139,7 @@ ALL_SOURCES = \
 						 	$(LUA_SOURCES) \
 							$(T2LUA_SOURCES) \
 							$(T2INSPECT_SOURCES) \
-							$(PATHCONTROL_SOURCES) 
+							$(PATHCONTROL_SOURCES)
 
 ALL_DEPS    = $(ALL_SOURCES:.cpp=.d)
 ALL_DEPS   := $(addprefix $(BUILDDIR)/,$(ALL_DEPS:.c=.d))

@@ -6,4 +6,4 @@ compiler:
 env:
   - CHECKED=no
   - CHECKED=yes
-script: make
+script: make NO_GIT_FILE=1
