@@ -1,9 +1,18 @@
 language: cpp
+
 os: linux
+
 compiler:
   - clang
   - gcc
+
 env:
   - CHECKED=no
   - CHECKED=yes
+
 script: make NO_GIT_FILE=1
+
+addons:
+  apt:
+    packages:
+      valgrind
