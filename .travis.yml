@@ -7,10 +7,15 @@ compiler:
   - gcc
 
 env:
-  - CHECKED=no
-  - CHECKED=yes
+  - CHECKED=no BUILD_DIR=build
+  - CHECKED=yes BUILD_DIR=build.checked
 
-script: make NO_GIT_FILE=1
+script:
+  - make NO_GIT_FILE=1
+  - $(BUILD_DIR)/t2-unittest
+
+  # This needs some more work
+  #- perl run-tests.pl $(BUILD_DIR)/tundra2
 
 addons:
   apt:
