@@ -15,4 +15,5 @@ if (@ARGV) {
 @tests = @ARGV;
 
 load_tests "test";
-run_tests $tundra_exe, @ARGV;
+my $rc = run_tests $tundra_exe, @ARGV;
+exit $rc;

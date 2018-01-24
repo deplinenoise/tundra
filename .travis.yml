@@ -11,12 +11,10 @@ env:
   - CHECKED=yes
 
 script:
-  - make NO_GIT_FILE=1 all run-test
-
-  # This needs some more work
-  #- perl run-tests.pl $(BUILD_DIR)/tundra2
+  - make NO_GIT_FILE=1 all run-all-tests
 
 addons:
   apt:
     packages:
       valgrind
+      yasm

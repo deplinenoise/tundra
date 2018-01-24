@@ -259,6 +259,8 @@ sub run_tests($\@) {
   } else {
     print "\nNo tests were run. Maybe your filter was too good?\n";
   }
+
+  return $pass_count == $test_count ? 0 : 1;
 }
 
 1;
