@@ -7,12 +7,11 @@ compiler:
   - gcc
 
 env:
-  - CHECKED=no BUILD_DIR=build
-  - CHECKED=yes BUILD_DIR=build.checked
+  - CHECKED=no
+  - CHECKED=yes
 
 script:
-  - make NO_GIT_FILE=1
-  - $(BUILD_DIR)/t2-unittest
+  - make NO_GIT_FILE=1 all run-test
 
   # This needs some more work
   #- perl run-tests.pl $(BUILD_DIR)/tundra2

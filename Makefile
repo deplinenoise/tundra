@@ -266,6 +266,9 @@ $(BUILDDIR)/Tundra-Setup.exe: \
 	windows-installer/tundra.nsi
 	makensis -NOCD -DBUILDDIR=$(BUILDDIR) windows-installer/tundra.nsi > $(BUILDDIR)/nsis.log 2>&1
 
-.PHONY: clean all install uninstall installer win-zip
+.PHONY: clean all install uninstall installer win-zip run-test
+
+run-test: $(BUILDDIR)/t2-unittest$(EXESUFFIX)
+	$(BUILDDIR)/t2-unittest$(EXESUFFIX)
 
 -include $(ALL_DEPS)
