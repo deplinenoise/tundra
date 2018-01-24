@@ -1,0 +1,9 @@
+language: cpp
+os: linux
+compiler:
+  - clang
+  - gcc
+env:
+  - CHECKED=no
+  - CHECKED=yes
+script: make
