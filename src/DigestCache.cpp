@@ -16,7 +16,7 @@ void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
   self->m_State = nullptr;
   self->m_StateFilename = filename;
 
-  HeapInit(&self->m_Heap, heap_size, HeapFlags::kDefault);
+  HeapInit(&self->m_Heap);
   LinearAllocInit(&self->m_Allocator, &self->m_Heap, heap_size / 2, "digest allocator");
   MmapFileInit(&self->m_StateFile);
   HashTableInit(&self->m_Table, &self->m_Heap);

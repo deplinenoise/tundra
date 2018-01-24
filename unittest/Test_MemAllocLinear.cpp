@@ -13,7 +13,7 @@ public:
 protected:
   void SetUp() override
   {
-    HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
+    HeapInit(&heap);
     LinearAllocInit(&alloc, &heap, 10 * 1024 * 1024, "Test Allocator");
   }
 

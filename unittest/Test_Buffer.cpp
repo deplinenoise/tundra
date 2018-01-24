@@ -12,7 +12,7 @@ protected:
 protected:
   void SetUp() override
   {
-    HeapInit(&heap, 10 * 1024 * 1024, HeapFlags::kDefault);
+    HeapInit(&heap);
   }
 
   void TearDown() override

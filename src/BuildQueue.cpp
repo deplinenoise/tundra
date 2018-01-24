@@ -28,9 +28,9 @@ namespace t2
   }
 
 
-  static void ThreadStateInit(ThreadState* self, BuildQueue* queue, size_t heap_size, size_t scratch_size, int index)
+  static void ThreadStateInit(ThreadState* self, BuildQueue* queue, size_t scratch_size, int index)
   {
-    HeapInit(&self->m_LocalHeap, heap_size, HeapFlags::kDefault);
+    HeapInit(&self->m_LocalHeap);
     LinearAllocInit(&self->m_ScratchAlloc, &self->m_LocalHeap, scratch_size, "thread-local scratch");
     self->m_ThreadIndex = index;
     self->m_Queue       = queue;
@@ -188,7 +188,7 @@ namespace t2
 
     if (file_count != prev_state->m_OutputFiles.GetCount())
       return true;
-    
+
     for (int i = 0; i < file_count; ++i)
     {
       if (0 != strcmp(node_data->m_OutputFiles[i].m_Filename, prev_state->m_OutputFiles[i]))
@@ -656,7 +656,7 @@ namespace t2
     // If we're a worker thread, keep running until we quit.
     if (0 != thread_index)
       return true;
-    
+
     // We're the main thread. Just loop until there's no more nodes and then move on to the next pass.
     return queue->m_PendingNodeCount > 0;
   }
@@ -691,7 +691,7 @@ namespace t2
     ThreadState *thread_state = static_cast<ThreadState*>(param);
 
     LinearAllocSetOwner(&thread_state->m_ScratchAlloc, ThreadCurrent());
-    
+
     BuildLoop(thread_state);
 
     return 0;
@@ -745,7 +745,7 @@ namespace t2
     {
       ThreadState* thread_state = &queue->m_ThreadState[i];
 
-      ThreadStateInit(thread_state, queue, MB(64), MB(32), i);
+      ThreadStateInit(thread_state, queue, MB(32), i);
 
       if (i > 0)
       {

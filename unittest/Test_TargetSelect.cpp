@@ -23,11 +23,11 @@ protected:
 
   static bool RunTest(
       const char** names, int name_count,
-      const TargetSpec* expected_specs, size_t expected_spec_count, 
+      const TargetSpec* expected_specs, size_t expected_spec_count,
       const char** expected_names, size_t expected_name_count)
   {
     MemAllocHeap heap;
-    HeapInit(&heap, MB(1), HeapFlags::kDefault);
+    HeapInit(&heap);
 
     uint32_t config_hashes[ARRAY_SIZE(s_Configs)]         = { Djb2Hash(s_Configs[0]), Djb2Hash(s_Configs[1]), Djb2Hash(s_Configs[2]) };
     uint32_t variant_hashes[ARRAY_SIZE(s_Variants)]       = { Djb2Hash(s_Variants[0]), Djb2Hash(s_Variants[1]), Djb2Hash(s_Variants[2]) };

@@ -107,7 +107,7 @@ LIBTUNDRA_SOURCES = \
 	IncludeScanner.cpp JsonParse.cpp MemAllocHeap.cpp \
 	MemAllocLinear.cpp MemoryMappedFile.cpp PathUtil.cpp \
 	ScanCache.cpp Scanner.cpp SignalHandler.cpp StatCache.cpp \
-	TargetSelect.cpp Thread.cpp dlmalloc.c TerminalIo.cpp \
+	TargetSelect.cpp Thread.cpp TerminalIo.cpp \
 	ExecUnix.cpp ExecWin32.cpp DigestCache.cpp FileSign.cpp \
 	HashSha1.cpp HashFast.cpp ConditionVar.cpp ReadWriteLock.cpp
 
