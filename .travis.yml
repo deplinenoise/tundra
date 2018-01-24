@@ -11,6 +11,7 @@ env:
   - CHECKED=yes
 
 script:
+  - sudo cpanm File::Slurp Digest::MD5
   - make NO_GIT_FILE=1 all run-all-tests
 
 addons:
@@ -18,3 +19,4 @@ addons:
     packages:
       valgrind
       yasm
+      cpanminus
