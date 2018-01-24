@@ -10,9 +10,12 @@ env:
   - CHECKED=no
   - CHECKED=yes
 
-script:
+install:
   - sudo cpanm File::Slurp Digest::MD5
+
+script:
   - make NO_GIT_FILE=1 all run-all-tests
+  - make NO_GIT_FILE=1 CROSSMINGW=yes all
 
 addons:
   apt:
@@ -20,3 +23,5 @@ addons:
       valgrind
       yasm
       cpanminus
+      mingw-w64
+      g++-mingw-w64-x86-64
