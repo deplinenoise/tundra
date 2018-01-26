@@ -12,6 +12,7 @@
 #include "StatCache.hpp"
 #include "FileSign.hpp"
 #include "Hash.hpp"
+#include "Atomic.hpp"
 
 #include <stdio.h>
 
@@ -381,7 +382,9 @@ namespace t2
     }
 
     MutexLock(queue_lock);
-
+    if (BuildProgress::kUpToDate == next_state)
+      queue->m_ProcessedNodeCount++;
+    
     return next_state;
   }
 
@@ -392,7 +395,10 @@ namespace t2
     const char        *pre_cmd_line = node_data->m_PreAction;
 
     if (!cmd_line || cmd_line[0] == '\0')
+    {
+      queue->m_ProcessedNodeCount++;
       return BuildProgress::kSucceeded;
+    }
 
     if (node->m_MmapData->m_Flags & NodeData::kFlagExpensive)
     {
@@ -461,7 +467,10 @@ namespace t2
     {
       Log(kSpam, "Launching process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
-      result = ExecuteProcess(cmd_line, env_count, env_vars, job_id, echo_cmdline, annotation);
+      int processedNodeCount = AtomicIncrement(&queue->m_ProcessedNodeCount);
+      char counterWithAnnotation[1024];
+      snprintf(counterWithAnnotation, sizeof counterWithAnnotation, "[%d/%d] %s", processedNodeCount, queue->m_Config.m_MaxNodes, annotation);
+      result = ExecuteProcess(cmd_line, env_count, env_vars, job_id, echo_cmdline, counterWithAnnotation);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -585,8 +594,8 @@ namespace t2
           }
           break;
 
-        case BuildProgress::kSucceeded:
         case BuildProgress::kUpToDate:
+        case BuildProgress::kSucceeded:
           node->m_BuildResult = 0;
           node->m_Progress    = BuildProgress::kCompleted;
           break;
@@ -725,6 +734,7 @@ namespace t2
     queue->m_Config             = *config;
     queue->m_PendingNodeCount   = 0;
     queue->m_FailedNodeCount    = 0;
+    queue->m_ProcessedNodeCount = 0;
     queue->m_QuitSignalled      = false;
     queue->m_ExpensiveRunning   = 0;
     queue->m_ExpensiveWaitCount = 0;

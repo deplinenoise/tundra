@@ -72,6 +72,7 @@ namespace t2
     BuildQueueConfig   m_Config;
     int32_t            m_PendingNodeCount;
     int32_t            m_FailedNodeCount;
+    uint32_t            m_ProcessedNodeCount;
     int32_t            m_CurrentPassIndex;
     ThreadId           m_Threads[kMaxBuildThreads];
     ThreadState        m_ThreadState[kMaxBuildThreads];
