@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -11,21 +11,21 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{C6D59FC4-A965-43AF-A7A5-E78FC4A25563}</ProjectGuid>
+    <ProjectGuid>{833695AD-C1E4-4A3B-B924-9C049C0EE1A4}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>tundra2</RootNamespace>
+    <RootNamespace>t2unittest</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -57,6 +57,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\lua\src;$(SolutionDir)..\src;$(SolutionDir)..\unittest\googletest\googletest\include;$(SolutionDir)..\unittest\googletest\googletest</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -73,17 +74,30 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\lua\src;$(SolutionDir)..\src;$(SolutionDir)..\unittest\googletest\googletest\include;$(SolutionDir)..\unittest\googletest\googletest</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\Main.cpp" />
+    <ClCompile Include="..\..\unittest\TestHarness.cpp" />
+    <ClCompile Include="..\..\unittest\Test_BitFuncs.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Buffer.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Djb2.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Hash.cpp" />
+    <ClCompile Include="..\..\unittest\Test_IncludeScanner.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Json.cpp" />
+    <ClCompile Include="..\..\unittest\Test_MemAllocLinear.cpp" />
+    <ClCompile Include="..\..\unittest\test_PathUtil.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Pow2.cpp" />
+    <ClCompile Include="..\..\unittest\Test_TargetSelect.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\unittest\TestHarness.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\libtundra\libtundra.vcxproj">
