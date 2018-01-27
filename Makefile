@@ -12,17 +12,17 @@ LDFLAGS += -L$(BUILDDIR) -ltundra
 
 PREFIX ?= /usr/local
 
-ifndef NO_GIT_FILE
-GIT_BRANCH := $(shell (git branch --no-color 2>/dev/null) | sed -n '/^\*/s/^\* //p')
+# Handle travis builds specially - just trust what the CI tells us.
+ifdef TRAVIS_BRANCH
+GIT_BRANCH := $(TRAVIS_BRANCH)
 else
-GIT_BRANCH :=
-endif
-
+GIT_BRANCH := $(shell (git branch --no-color 2>/dev/null) | sed -n '/^\*/s/^\* //p')
 ifeq ($(GIT_BRANCH),)
 GIT_BRANCH := unknown
 GIT_FILE := dummy_version_file
 else
 GIT_FILE := .git/refs/heads/$(GIT_BRANCH)
+endif
 endif
 
 CHECKED ?= no
@@ -158,9 +158,15 @@ all: $(BUILDDIR)/tundra2$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-unittest$(EXESUFFIX)
 
+ifdef TRAVIS_COMMIT
+$(BUILDDIR)/git_version_$(GIT_BRANCH).c:
+	echo "const char g_GitVersion[] = \"$(TRAVIS_COMMIT)\";" > $@ && \
+	echo "const char g_GitBranch[] = \"$(TRAVIS_BRANCH)\";" >> $@
+else
 $(BUILDDIR)/git_version_$(GIT_BRANCH).c: $(GIT_FILE)
 	sed 's/^\(.*\)/const char g_GitVersion[] = "\1";/' < $^ > $@ && \
 	echo 'const char g_GitBranch[] ="'$(GIT_BRANCH)'";' >> $@
+endif
 
 $(BUILDDIR)/git_version_$(GIT_BRANCH).o: $(BUILDDIR)/git_version_$(GIT_BRANCH).c
 
