@@ -57,8 +57,6 @@ CXXFLAGS += -std=c++11
 LDFLAGS += -lpthread
 else
 ifeq ($(UNAME), $(filter $(UNAME), Linux))
-CC := clang
-CXX := clang++
 CXXFLAGS += -std=c++11 
 LDFLAGS += -pthread
 else
