@@ -9,3 +9,4 @@ Release
 *.vsp
 *.vspx
 **/*.user
+.vs
