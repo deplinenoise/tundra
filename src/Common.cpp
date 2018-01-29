@@ -81,7 +81,16 @@ void NORETURN CroakErrno(const char* fmt, ...)
   vfprintf(stderr, fmt, args);
   va_end(args);
   fprintf(stderr, "\n");
+#if TUNDRA_WIN32
+  wchar_t buf[256];
+  DWORD lastError = GetLastError();
+  FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+               NULL, lastError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
+               buf, sizeof(buf), NULL);
+  fprintf(stderr, "errno: %d (%s) GetLastError %d (%s)\n", errno, strerror(errno), lastError, buf);
+#else
   fprintf(stderr, "errno: %d (%s)\n", errno, strerror(errno));
+#endif
   if (DebuggerAttached())
     abort();
   else
