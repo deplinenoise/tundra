@@ -9,6 +9,7 @@
 #include "MemoryMappedFile.hpp"
 #include "SortedArrayUtil.hpp"
 #include "HashTable.hpp"
+#include "Profiler.hpp"
 
 #include <algorithm>
 #include <time.h>
@@ -416,6 +417,7 @@ static void SaveRecord(
 bool ScanCacheSave(ScanCache* self, const char* fn, MemAllocHeap* heap)
 {
   TimingScope timing_scope(nullptr, &g_Stats.m_ScanCacheSaveTime);
+  ProfilerScope prof_scope("Tundra SaveScanCache", 0);
 
   MemAllocLinear* scratch = self->m_Allocator;
 

@@ -4,6 +4,7 @@
 #include "Exec.hpp"
 #include "SignalHandler.hpp"
 #include "DagGenerator.hpp"
+#include "Profiler.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,6 +66,8 @@ static const struct OptionTemplate
     "Generate an extensive log of signature generation" },
   { 's', "stats", OptionType::kBool, offsetof(t2::DriverOptions, m_DisplayStats),
     "Display stats" },
+  { 'p', "profile", OptionType::kString, offsetof(t2::DriverOptions, m_ProfileOutput),
+    "Output build profile" },
   { 'C', "working-dir", OptionType::kString, offsetof(t2::DriverOptions, m_WorkingDir),
     "Set working directory before building" },
   { 'h', "help", OptionType::kBool, offsetof(t2::DriverOptions, m_ShowHelp),
@@ -408,6 +411,11 @@ int main(int argc, char* argv[])
   if (!DriverInit(&driver, &options))
     return 1;
 
+  // Initialize profiler if needed
+  if (driver.m_Options.m_ProfileOutput)
+    ProfilerInit(driver.m_Options.m_ProfileOutput, driver.m_Options.m_ThreadCount);
+
+
   BuildResult::Enum build_result = BuildResult::kSetupError;
 
   if (!DriverInitData(&driver))
@@ -461,6 +469,10 @@ int main(int argc, char* argv[])
 
 leave:
   DriverDestroy(&driver);
+
+  // Dump/close profiler
+  if (driver.m_Options.m_ProfileOutput)
+    ProfilerDestroy();
 
   // Dump stats
   if (options.m_DisplayStats)

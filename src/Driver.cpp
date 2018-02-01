@@ -15,6 +15,7 @@
 #include "Stats.hpp"
 #include "TargetSelect.hpp"
 #include "HashTable.hpp"
+#include "Profiler.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,6 +72,7 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_ContinueOnError = false;
   self->m_ThreadCount     = GetCpuCount();
   self->m_WorkingDir      = nullptr;
+  self->m_ProfileOutput   = nullptr;
   #if defined(TUNDRA_WIN32)
   self->m_RunUnprotected  = false;
 #endif
@@ -164,6 +166,8 @@ void DriverShowTargets(Driver* self)
 
 bool DriverInitData(Driver* self)
 {
+  ProfilerScope prof_scope("Tundra InitData", 0);
+
   if (!DriverPrepareDag(self, s_DagFileName))
     return false;
 
@@ -548,6 +552,8 @@ static void DriverSelectNodes(const DagData* dag, const char** targets, int targ
 
 bool DriverPrepareNodes(Driver* self, const char** targets, int target_count)
 {
+  ProfilerScope prof_scope("Tundra PrepareNodes", 0);
+
   const DagData    *dag       = self->m_DagData;
   const NodeData   *src_nodes = dag->m_NodeData;
   const HashDigest *src_guids = dag->m_NodeGuids;
@@ -724,6 +730,7 @@ BuildResult::Enum DriverBuild(Driver* self)
   // Do some paranoia checking of the node state to make sure pass indices are
   // set up correctly.
   {
+    ProfilerScope prof_scope("Tundra DebugCheckPassIndices", 0);
     int i = 0;
     for (int pass = 0; pass < pass_count; ++pass)
     {
@@ -790,14 +797,17 @@ BuildResult::Enum DriverBuild(Driver* self)
   }
 
 #if ENABLED(CHECKED_BUILD)
-  // Paranoia - double check node remapping table
-  for (size_t i = 0, count = self->m_Nodes.m_Size; i < count; ++i)
   {
-    const NodeState* state = self->m_Nodes.m_Storage + i;
-    const NodeData* src = state->m_MmapData;
-    const int src_index = int(src - self->m_DagData->m_NodeData);
-    int remapped_index = self->m_NodeRemap[src_index];
-    CHECK(size_t(remapped_index) == i);
+    ProfilerScope prof_scope("Tundra DebugCheckRemap", 0);
+    // Paranoia - double check node remapping table
+    for (size_t i = 0, count = self->m_Nodes.m_Size; i < count; ++i)
+    {
+      const NodeState* state = self->m_Nodes.m_Storage + i;
+      const NodeData* src = state->m_MmapData;
+      const int src_index = int(src - self->m_DagData->m_NodeData);
+      int remapped_index = self->m_NodeRemap[src_index];
+      CHECK(size_t(remapped_index) == i);
+    }
   }
 #endif
 
@@ -875,6 +885,7 @@ bool DriverSaveDigestCache(Driver* self)
 bool DriverSaveBuildState(Driver* self)
 {
   TimingScope timing_scope(nullptr, &g_Stats.m_StateSaveTimeCycles);
+  ProfilerScope prof_scope("Tundra SaveState", 0);
 
   MemAllocLinearScope alloc_scope(&self->m_Allocator);
 
@@ -1057,6 +1068,7 @@ bool DriverSaveBuildState(Driver* self)
 void DriverRemoveStaleOutputs(Driver* self)
 {
   TimingScope timing_scope(nullptr, &g_Stats.m_StaleCheckTimeCycles);
+  ProfilerScope prof_scope("Tundra RemoveStaleOutputs", 0);
 
   const DagData* dag = self->m_DagData;
   const StateData* state = self->m_StateData;
@@ -1174,6 +1186,7 @@ void DriverRemoveStaleOutputs(Driver* self)
 
 void DriverCleanOutputs(Driver* self)
 {
+  ProfilerScope prof_scope("Tundra Clean", 0);
   int count = 0;
   for (NodeState& state : self->m_Nodes)
   {

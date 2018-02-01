@@ -40,6 +40,7 @@ struct DriverOptions
 #endif
   int         m_ThreadCount;
   const char *m_WorkingDir;
+  const char *m_ProfileOutput;
 };
 
 void DriverOptionsInit(DriverOptions* self);
