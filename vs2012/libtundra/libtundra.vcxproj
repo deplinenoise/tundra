@@ -108,6 +108,7 @@
     <ClInclude Include="..\..\src\Mutex.hpp" />
     <ClInclude Include="..\..\src\NodeState.hpp" />
     <ClInclude Include="..\..\src\PathUtil.hpp" />
+    <ClInclude Include="..\..\src\Profiler.hpp" />
     <ClInclude Include="..\..\src\ReadWriteLock.hpp" />
     <ClInclude Include="..\..\src\ScanCache.hpp" />
     <ClInclude Include="..\..\src\ScanData.hpp" />
@@ -146,6 +147,7 @@
     <ClCompile Include="..\..\src\MemAllocLinear.cpp" />
     <ClCompile Include="..\..\src\MemoryMappedFile.cpp" />
     <ClCompile Include="..\..\src\PathUtil.cpp" />
+    <ClCompile Include="..\..\src\Profiler.cpp" />
     <ClCompile Include="..\..\src\ReadWriteLock.cpp" />
     <ClCompile Include="..\..\src\ScanCache.cpp" />
     <ClCompile Include="..\..\src\Scanner.cpp" />

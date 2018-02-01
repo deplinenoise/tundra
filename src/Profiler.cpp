@@ -107,12 +107,10 @@ namespace t2
     // JSON does not support comments, so emit "how to use this" as a fake string value    
     fputs("\"instructions_readme\": \"1) Open Chrome, 2) go to chrome://tracing, 3) click Load, 4) navigate to this file.\",\n", f);
     fputs("\"traceEvents\":[\n", f);
+    fputs("{ \"cat\":\"\", \"pid\":1, \"tid\":0, \"ts\":0, \"ph\":\"M\", \"name\":\"process_name\", \"args\": { \"name\":\"tundra\" } }\n", f);
     for (int i = 0; i < s_ProfilerState.m_ThreadCount; ++i)
     {
       const ProfilerThread& thread = s_ProfilerState.m_Threads[i];
-      if (i != 0)
-        fputs(",", f);
-      fprintf(f, "{ \"pid\":1, \"tid\":%d, \"ph\":\"M\", \"name\":\"thread_name\", \"args\": { \"name\":\"%d\" } }\n", i, i);
       for (int j = 0; j < thread.m_EventCount; ++j)
       {
         const ProfilerEvent& evt = thread.m_Events[j];
