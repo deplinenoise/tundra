@@ -94,7 +94,6 @@
     <ClInclude Include="..\..\src\DagData.hpp" />
     <ClInclude Include="..\..\src\DagGenerator.hpp" />
     <ClInclude Include="..\..\src\DigestCache.hpp" />
-    <ClInclude Include="..\..\src\dlmalloc.h" />
     <ClInclude Include="..\..\src\Driver.hpp" />
     <ClInclude Include="..\..\src\Exec.hpp" />
     <ClInclude Include="..\..\src\FileInfo.hpp" />
@@ -129,7 +128,6 @@
     <ClCompile Include="..\..\src\ConditionVar.cpp" />
     <ClCompile Include="..\..\src\DagGenerator.cpp" />
     <ClCompile Include="..\..\src\DigestCache.cpp" />
-    <ClCompile Include="..\..\src\dlmalloc.c" />
     <ClCompile Include="..\..\src\Driver.cpp" />
     <ClCompile Include="..\..\src\ExecUnix.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
