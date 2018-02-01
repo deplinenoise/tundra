@@ -12,3 +12,4 @@ build.checked
 build.mingw
 dists
 .DS_Store
+.vs
