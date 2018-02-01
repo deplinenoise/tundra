@@ -11,6 +11,7 @@
 #include "Stats.hpp"
 #include "StatCache.hpp"
 #include "FileSign.hpp"
+#include "Profiler.hpp"
 
 #include <stdio.h>
 
@@ -447,6 +448,7 @@ namespace t2
     {
       Log(kSpam, "Launching pre-action process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
+      ProfilerScope prof_scope("Pre-build", job_id);
       result = ExecuteProcess(pre_cmd_line, env_count, env_vars, job_id, echo_cmdline, "(pre-build command)");
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
@@ -455,6 +457,7 @@ namespace t2
     {
       Log(kSpam, "Launching process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
+      ProfilerScope prof_scope(annotation, job_id);
       result = ExecuteProcess(cmd_line, env_count, env_vars, job_id, echo_cmdline, annotation);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
@@ -699,6 +702,7 @@ namespace t2
 
   void BuildQueueInit(BuildQueue* queue, const BuildQueueConfig* config)
   {
+    ProfilerScope prof_scope("Tundra BuildQueueInit", 0);
     CHECK(config->m_MaxExpensiveCount > 0 && config->m_MaxExpensiveCount <= config->m_ThreadCount);
 
     MutexInit(&queue->m_Lock);
@@ -757,6 +761,7 @@ namespace t2
 
   void BuildQueueDestroy(BuildQueue* queue)
   {
+    ProfilerScope prof_scope("Tundra BuildQueueDestroy", 0);
     Log(kDebug, "destroying build queue");
     const BuildQueueConfig* config = &queue->m_Config;
 
