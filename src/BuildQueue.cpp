@@ -13,6 +13,7 @@
 #include "FileSign.hpp"
 #include "Hash.hpp"
 #include "Atomic.hpp"
+#include "Profiler.hpp"
 
 #include <stdio.h>
 
@@ -30,9 +31,9 @@ namespace t2
   }
 
 
-  static void ThreadStateInit(ThreadState* self, BuildQueue* queue, size_t heap_size, size_t scratch_size, int index)
+  static void ThreadStateInit(ThreadState* self, BuildQueue* queue, size_t scratch_size, int index)
   {
-    HeapInit(&self->m_LocalHeap, heap_size, HeapFlags::kDefault);
+    HeapInit(&self->m_LocalHeap);
     LinearAllocInit(&self->m_ScratchAlloc, &self->m_LocalHeap, scratch_size, "thread-local scratch");
     self->m_ThreadIndex = index;
     self->m_Queue       = queue;
@@ -190,7 +191,7 @@ namespace t2
 
     if (file_count != prev_state->m_OutputFiles.GetCount())
       return true;
-    
+
     for (int i = 0; i < file_count; ++i)
     {
       if (0 != strcmp(node_data->m_OutputFiles[i].m_Filename, prev_state->m_OutputFiles[i]))
@@ -459,6 +460,7 @@ namespace t2
     {
       Log(kSpam, "Launching pre-action process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
+      ProfilerScope prof_scope("Pre-build", job_id);
       result = ExecuteProcess(pre_cmd_line, env_count, env_vars, job_id, echo_cmdline, "(pre-build command)");
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
@@ -470,6 +472,7 @@ namespace t2
       int processedNodeCount = AtomicIncrement(&queue->m_ProcessedNodeCount);
       char counterWithAnnotation[1024];
       snprintf(counterWithAnnotation, sizeof counterWithAnnotation, "[%d/%d] %s", processedNodeCount, queue->m_Config.m_MaxNodes, annotation);
+      ProfilerScope prof_scope(annotation, job_id);
       result = ExecuteProcess(cmd_line, env_count, env_vars, job_id, echo_cmdline, counterWithAnnotation);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
@@ -671,7 +674,7 @@ namespace t2
     // If we're a worker thread, keep running until we quit.
     if (0 != thread_index)
       return true;
-    
+
     // We're the main thread. Just loop until there's no more nodes and then move on to the next pass.
     return queue->m_PendingNodeCount > 0;
   }
@@ -706,7 +709,7 @@ namespace t2
     ThreadState *thread_state = static_cast<ThreadState*>(param);
 
     LinearAllocSetOwner(&thread_state->m_ScratchAlloc, ThreadCurrent());
-    
+
     BuildLoop(thread_state);
 
     return 0;
@@ -714,6 +717,7 @@ namespace t2
 
   void BuildQueueInit(BuildQueue* queue, const BuildQueueConfig* config)
   {
+    ProfilerScope prof_scope("Tundra BuildQueueInit", 0);
     CHECK(config->m_MaxExpensiveCount > 0 && config->m_MaxExpensiveCount <= config->m_ThreadCount);
 
     MutexInit(&queue->m_Lock);
@@ -761,7 +765,7 @@ namespace t2
     {
       ThreadState* thread_state = &queue->m_ThreadState[i];
 
-      ThreadStateInit(thread_state, queue, MB(64), MB(32), i);
+      ThreadStateInit(thread_state, queue, MB(32), i);
 
       if (i > 0)
       {
@@ -773,6 +777,7 @@ namespace t2
 
   void BuildQueueDestroy(BuildQueue* queue)
   {
+    ProfilerScope prof_scope("Tundra BuildQueueDestroy", 0);
     Log(kDebug, "destroying build queue");
     const BuildQueueConfig* config = &queue->m_Config;
 

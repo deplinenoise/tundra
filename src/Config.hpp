@@ -14,17 +14,15 @@
 #define USE_FAST_HASH YES
 
 #if defined(_DEBUG)
-#define USE_DLMALLOC NO
 #define CHECKED_BUILD YES
 #else
-#define USE_DLMALLOC YES
 #define CHECKED_BUILD NO
 #endif
 
 // Platform macros.
 #if defined(__GNUC__)
 #define RESTRICT __restrict
-#define NORETURN __attribute__((noreturn)) 
+#define NORETURN __attribute__((noreturn))
 #define ALIGNOF(t) __alignof(t)
 #define ALIGN(n) __attribute__((aligned(n)))
 #elif defined(_MSC_VER)

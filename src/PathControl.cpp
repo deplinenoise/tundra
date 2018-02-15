@@ -2,7 +2,7 @@
 // This is a command-line utility used by the Windows installer to manipulate
 // the system path.
 
-#include <Windows.h>
+#include <windows.h>
 #include <stdlib.h>
 
 const WCHAR g_UsageText[] =

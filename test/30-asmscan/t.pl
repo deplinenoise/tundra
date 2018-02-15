@@ -25,11 +25,12 @@ Build {
 }
 END
 
-my $obj_file = '__result/foo-asm-541f0091dd54cc51f562e674e41814ab.o';
+
+my $obj_file = '__result/foo-asm-51cc54dd91001f54ab1418e474e662f5.o';
 #my $obj_file = '__result/foo-asm-0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33.o'; # SHA-1
 
 my $foo_asm = <<END;
-  %include "include1.i" 
+  %include "include1.i"
   global _main
 _main:
   mov eax, RETURN_CODE

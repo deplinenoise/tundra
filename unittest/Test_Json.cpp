@@ -16,7 +16,7 @@ protected:
 protected:
   void SetUp() override
   {
-    HeapInit(&heap, MB(4), HeapFlags::kDefault);
+    HeapInit(&heap);
     LinearAllocInit(&alloc, &heap, MB(1), "json alloc");
     LinearAllocInit(&scratch, &heap, MB(1), "json scratch");
   }

@@ -13,3 +13,4 @@ build.mingw
 dists
 artifacts
 .DS_Store
+.vs

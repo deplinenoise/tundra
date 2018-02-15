@@ -12,13 +12,17 @@ LDFLAGS += -L$(BUILDDIR) -ltundra
 
 PREFIX ?= /usr/local
 
+# Handle travis builds specially - just trust what the CI tells us.
+ifdef TRAVIS_BRANCH
+GIT_BRANCH := $(TRAVIS_BRANCH)
+else
 GIT_BRANCH := $(shell (git branch --no-color 2>/dev/null) | sed -n '/^\*/s/^\* //p')
-
 ifeq ($(GIT_BRANCH),)
 GIT_BRANCH := unknown
 GIT_FILE := dummy_version_file
 else
 GIT_FILE := .git/refs/heads/$(GIT_BRANCH)
+endif
 endif
 
 CHECKED ?= no
@@ -39,7 +43,7 @@ CROSS ?= x86_64-w64-mingw32-
 CC := $(CROSS)gcc
 CXX := $(CROSS)g++
 AR := $(CROSS)ar rcus
-CXXFLAGS += -std=gnu++11 
+CXXFLAGS += -std=gnu++11
 CPPFLAGS += -D_WIN32 -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -D__MSVCRT_VERSION__=0x0601 -DFORCEINLINE='__inline __attribute__((always_inline))'
 BUILDDIR := build.mingw
 EXESUFFIX := .exe
@@ -53,7 +57,7 @@ UNAME := $(shell uname)
 ifeq ($(UNAME), $(filter $(UNAME), FreeBSD NetBSD OpenBSD))
 CC := clang
 CXX := clang++
-CXXFLAGS += -std=c++11 
+CXXFLAGS += -std=c++11
 LDFLAGS += -lpthread
 else
 ifeq ($(UNAME), $(filter $(UNAME), Linux))
@@ -61,17 +65,17 @@ CXXFLAGS += -std=c++11
 LDFLAGS += -pthread
 else
 ifeq ($(UNAME), $(filter $(UNAME), Darwin))
-CXXFLAGS += -std=c++11 
+CXXFLAGS += -std=c++11
 CXXFLAGS += -stdlib=libc++
 LDFLAGS += -stdlib=libc++
 else
 ifeq ($(UNAME), $(filter $(UNAME), MINGW32_NT-5.1))
-CXXFLAGS += -std=gnu++11 
+CXXFLAGS += -std=gnu++11
 CPPFLAGS += -D_WIN32 -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -U__STRICT_ANSI__
 EXESUFFIX := .exe
 else
 ifeq (MINGW32_NT, $(findstring MINGW32_NT, $(UNAME)))
-CXXFLAGS += -std=gnu++11 
+CXXFLAGS += -std=gnu++11
 CPPFLAGS += -D_WIN32 -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -D__MSVCRT_VERSION__=0x0601 -U__STRICT_ANSI__
 EXESUFFIX := .exe
 else
@@ -99,9 +103,9 @@ LIBTUNDRA_SOURCES = \
 	BinaryWriter.cpp BuildQueue.cpp Common.cpp DagGenerator.cpp \
 	Driver.cpp FileInfo.cpp Hash.cpp HashTable.cpp \
 	IncludeScanner.cpp JsonParse.cpp MemAllocHeap.cpp \
-	MemAllocLinear.cpp MemoryMappedFile.cpp PathUtil.cpp \
+	MemAllocLinear.cpp MemoryMappedFile.cpp PathUtil.cpp Profiler.cpp \
 	ScanCache.cpp Scanner.cpp SignalHandler.cpp StatCache.cpp \
-	TargetSelect.cpp Thread.cpp dlmalloc.c TerminalIo.cpp \
+	TargetSelect.cpp Thread.cpp TerminalIo.cpp \
 	ExecUnix.cpp ExecWin32.cpp DigestCache.cpp FileSign.cpp \
 	HashSha1.cpp HashFast.cpp ConditionVar.cpp ReadWriteLock.cpp
 
@@ -133,7 +137,7 @@ ALL_SOURCES = \
 						 	$(LUA_SOURCES) \
 							$(T2LUA_SOURCES) \
 							$(T2INSPECT_SOURCES) \
-							$(PATHCONTROL_SOURCES) 
+							$(PATHCONTROL_SOURCES)
 
 ALL_DEPS    = $(ALL_SOURCES:.cpp=.d)
 ALL_DEPS   := $(addprefix $(BUILDDIR)/,$(ALL_DEPS:.c=.d))
@@ -152,9 +156,15 @@ all: $(BUILDDIR)/tundra2$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-unittest$(EXESUFFIX)
 
+ifdef TRAVIS_COMMIT
+$(BUILDDIR)/git_version_$(GIT_BRANCH).c:
+	echo "const char g_GitVersion[] = \"$(TRAVIS_COMMIT)\";" > $@ && \
+	echo "const char g_GitBranch[] = \"$(TRAVIS_BRANCH)\";" >> $@
+else
 $(BUILDDIR)/git_version_$(GIT_BRANCH).c: $(GIT_FILE)
 	sed 's/^\(.*\)/const char g_GitVersion[] = "\1";/' < $^ > $@ && \
 	echo 'const char g_GitBranch[] ="'$(GIT_BRANCH)'";' >> $@
+endif
 
 $(BUILDDIR)/git_version_$(GIT_BRANCH).o: $(BUILDDIR)/git_version_$(GIT_BRANCH).c
 
@@ -260,6 +270,14 @@ $(BUILDDIR)/Tundra-Setup.exe: \
 	windows-installer/tundra.nsi
 	makensis -NOCD -DBUILDDIR=$(BUILDDIR) windows-installer/tundra.nsi > $(BUILDDIR)/nsis.log 2>&1
 
-.PHONY: clean all install uninstall installer win-zip
+.PHONY: clean all install uninstall installer win-zip run-unit-tests run-functional-tests run-all-tests
+
+run-unit-tests: $(BUILDDIR)/t2-unittest$(EXESUFFIX)
+	$(BUILDDIR)/t2-unittest$(EXESUFFIX)
+
+run-functional-tests: $(BUILDDIR)/tundra2$(EXESUFFIX)
+	perl run-tests.pl $(BUILDDIR)/tundra2$(EXESUFFIX)
+
+run-all-tests: run-unit-tests run-functional-tests
 
 -include $(ALL_DEPS)

@@ -13,7 +13,7 @@ protected:
 protected:
   void SetUp() override
   {
-    HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
+    HeapInit(&heap);
     LinearAllocInit(&alloc, &heap, 1024*1024, "strings");
   }
 
@@ -33,7 +33,7 @@ protected:
 protected:
   void SetUp() override
   {
-    HeapInit(&heap, 16 * 1024 * 1024, HeapFlags::kDefault);
+    HeapInit(&heap);
     LinearAllocInit(&alloc, &heap, 1024*1024, "strings");
   }
 
