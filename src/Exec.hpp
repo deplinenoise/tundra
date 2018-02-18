@@ -1,30 +1,47 @@
 #ifndef EXEC_HPP
 #define EXEC_HPP
 
+#include "stddef.h"
+
 namespace t2
 {
+  struct NodeData;
+  struct MemAllocHeap;
+  struct BuildQueue;
+
   struct EnvVariable
   {
     const char *m_Name;
     const char *m_Value;
   };
 
-  struct ExecResult
+  struct OutputBufferData
   {
-    int     m_ReturnCode;
-    bool    m_WasSignalled;
+     char* buffer;
+     size_t buffer_size;
+     int cursor;
+     MemAllocHeap* heap;
   };
 
-  void ExecInit(void);
+  struct ExecResult
+  {
+    int               m_ReturnCode;
+    bool              m_WasSignalled;
+    NodeData*         m_FrozenNodeData;
+    OutputBufferData  m_StdOutBuffer;
+    OutputBufferData  m_StdErrBuffer;
+  };
+
+  void InitOutputBuffer(OutputBufferData* data, MemAllocHeap* heap);
+  void ExecResultFreeMemory(ExecResult* result);
 
   ExecResult ExecuteProcess(
         const char*         cmd_line,
         int                 env_count,
         const EnvVariable*  env_vars,
-        int                 job_id,
-        int                 echo_cmdline,
-        const char*         annotation,
-        bool                force_use_tty = false);
+        MemAllocHeap*       heap,
+        bool                stream_output_to_stdout=false
+        ); 
 }
 
 #endif

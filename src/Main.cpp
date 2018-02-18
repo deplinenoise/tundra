@@ -334,8 +334,6 @@ int main(int argc, char* argv[])
 
   uint64_t start_time = TimerGet();
 
-  ExecInit();
-
   if (options.m_WorkingDir)
   {
     if (!SetCwd(options.m_WorkingDir))

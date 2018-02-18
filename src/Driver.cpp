@@ -17,6 +17,7 @@
 #include "HashTable.hpp"
 #include "Hash.hpp"
 #include "Profiler.hpp"
+#include "NodeResultPrinting.hpp"
 
 #include <time.h>
 #include <stdio.h>
@@ -683,6 +684,8 @@ bool DriverInit(Driver* self, const DriverOptions* options)
   LinearAllocInit(&self->m_Allocator, &self->m_Heap, MB(64), "Driver Linear Allocator");
 
   LinearAllocSetOwner(&self->m_Allocator, ThreadCurrent());
+
+  InitNodeResultPrinting();
 
   MmapFileInit(&self->m_DagFile);
   MmapFileInit(&self->m_StateFile);

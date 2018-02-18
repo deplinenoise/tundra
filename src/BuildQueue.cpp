@@ -14,6 +14,7 @@
 #include "Hash.hpp"
 #include "Atomic.hpp"
 #include "Profiler.hpp"
+#include "NodeResultPrinting.hpp"
 
 #include <stdio.h>
 
@@ -420,7 +421,7 @@ namespace t2
     const char        *annotation   = node_data->m_Annotation;
     int                job_id       = thread_state->m_ThreadIndex;
     int                echo_cmdline = 0 != (queue->m_Config.m_Flags & BuildQueueConfig::kFlagEchoCommandLines);
-
+    const char        *last_cmd_line;
     // Repack frozen env to pointers on the stack.
     int                env_count    = node_data->m_EnvVars.GetCount();
     EnvVariable*       env_vars     = (EnvVariable*) alloca(env_count * sizeof(EnvVariable));
@@ -461,7 +462,8 @@ namespace t2
       Log(kSpam, "Launching pre-action process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope("Pre-build", job_id);
-      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, job_id, echo_cmdline, "(pre-build command)");
+      last_cmd_line = pre_cmd_line;
+      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -469,11 +471,9 @@ namespace t2
     {
       Log(kSpam, "Launching process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
-      int processedNodeCount = AtomicIncrement(&queue->m_ProcessedNodeCount);
-      char counterWithAnnotation[1024];
-      snprintf(counterWithAnnotation, sizeof counterWithAnnotation, "[%d/%d] %s", processedNodeCount, queue->m_Config.m_MaxNodes, annotation);
       ProfilerScope prof_scope(annotation, job_id);
-      result = ExecuteProcess(cmd_line, env_count, env_vars, job_id, echo_cmdline, counterWithAnnotation);
+      last_cmd_line = cmd_line;
+      result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -483,6 +483,8 @@ namespace t2
     }
 
     MutexLock(queue_lock);
+    PrintNodeResult(&result, node_data, last_cmd_line, thread_state->m_Queue, echo_cmdline);
+    ExecResultFreeMemory(&result);
 
     if (result.m_WasSignalled)
     {

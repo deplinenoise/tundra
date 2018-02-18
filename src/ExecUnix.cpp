@@ -3,6 +3,7 @@
 #include "Exec.hpp"
 #include "Common.hpp"
 #include "TerminalIo.hpp"
+#include "MemAllocHeap.hpp"
 
 #if defined(TUNDRA_UNIX)
 
@@ -36,13 +37,38 @@ static void SetFdNonBlocking(int fd)
 		CroakErrno("couldn't unblock fd %d", fd);
 }
 
-void ExecInit(void)
+static void EmitOutputBytesToDestination(ExecResult* execResult, int is_stderr, const char* text, size_t count)
 {
-	TerminalIoInit();
+	OutputBufferData* data = is_stderr == 0 ? &execResult->m_StdOutBuffer : &execResult->m_StdErrBuffer;
+
+	if (data->buffer == nullptr)
+	{
+		//if there's no buffer to buffer into, we'll output straight to stdout.
+		fwrite(text, sizeof(char), count, stdout);
+		return;
+	}
+
+	if (data->cursor + count > data->buffer_size)
+	{
+		int newSize = data->buffer_size * 2;
+		if (newSize < data->cursor + count)
+			newSize = data->cursor+count;
+		char* newBuffer = static_cast<char*>(HeapReallocate(data->heap, static_cast<void*>(data->buffer), newSize));
+		if (newBuffer == data->buffer)
+		{
+			CroakErrno("out of memory allocating %d bytes for output buffer", newSize);
+			return;
+		}
+		data->buffer = newBuffer;
+		data->buffer_size = newSize;
+	}
+
+	memcpy(data->buffer+data->cursor, text, count);
+	data->cursor += count;
 }
 
 static int
-EmitData(int job_id, int is_stderr, int sort_key, int fd)
+EmitData(ExecResult* execResult, int is_stderr, int fd)
 {
 	char text[8192];
 	ssize_t count;
@@ -59,7 +85,7 @@ EmitData(int job_id, int is_stderr, int sort_key, int fd)
 
 	text[count] = '\0';
 
-	TerminalIoEmit(job_id, is_stderr, sort_key, text, count);
+	EmitOutputBytesToDestination(execResult, is_stderr, text, count);
 
 	return 0;
 }
@@ -69,22 +95,28 @@ ExecuteProcess(
 		const char* cmd_line,
 		int env_count,
 		const EnvVariable *env_vars,
-		int job_id,
-		int echo_cmdline,
-		const char *annotation,
-        bool force_use_tty)
+		MemAllocHeap* heap,
+		bool stream_to_stdout)
 {
   ExecResult result;
 
   result.m_ReturnCode   = 1;
   result.m_WasSignalled = false;
+  result.m_StdOutBuffer.buffer = nullptr;
+  result.m_StdErrBuffer.buffer = nullptr;
+
+  if ((heap == nullptr && !stream_to_stdout) || (heap != nullptr && stream_to_stdout))
+	CroakErrno("Either pass in a heap so we can allocate buffers to store stdout, or ask to stream directly to stdout");
+
+  if (heap != nullptr)
+  {
+	InitOutputBuffer(&result.m_StdOutBuffer, heap);
+	InitOutputBuffer(&result.m_StdErrBuffer, heap);
+  }
 
 	pid_t child;
 	const int pipe_read = 0;
 	const int pipe_write = 1;
-
-    if (force_use_tty)
-        perror("force_use_tty is not yet implemented for unix");
 
 	/* Create a pair of pipes to read back stdout, stderr */
 	int stdout_pipe[2], stderr_pipe[2];
@@ -146,7 +178,6 @@ ExecuteProcess(
 	{
 		pid_t p;
 		int return_code = 0;
-		int sort_key = 0;
 		int rfd_count = 2;
 		int rfds[2];
 		fd_set read_fds;
@@ -160,12 +191,6 @@ ExecuteProcess(
 		/* Close write end of the pipe, we're just going to be reading */
 		close(stdout_pipe[pipe_write]);
 		close(stderr_pipe[pipe_write]);
-
-		if (annotation)
-			TerminalIoPrintf(job_id, -200, "%s\n", annotation);
-
-		if (echo_cmdline)
-			TerminalIoPrintf(job_id, -199, "%s\n", cmd_line);
 
 		/* Sit in a select loop over the two fds */
 		
@@ -205,7 +230,7 @@ ExecuteProcess(
 				{
 					if (0 != rfds[fd] && FD_ISSET(rfds[fd], &read_fds))
 					{
-						if (0 != EmitData(job_id, /*is_stderr:*/ 1 == fd, sort_key++, rfds[fd]))
+						if (0 != EmitData(&result, /*is_stderr:*/ 1 == fd, rfds[fd]))
 						{
 							/* Done with this FD. */
 							rfds[fd] = 0;
@@ -242,8 +267,6 @@ ExecuteProcess(
 
 		close(stdout_pipe[pipe_read]);
 		close(stderr_pipe[pipe_read]);
-
-		TerminalIoJobExit(job_id);
 	
 		if (WIFSIGNALED(return_code))
     {

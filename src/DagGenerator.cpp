@@ -1030,13 +1030,10 @@ static bool RunExternalTool(const char* options, ...)
   
   const bool echo = (GetLogFlags() & kDebug) ? true : false;
 
-  //on win32, we force the dag generator to use tty, so slow frontends get a chance to give some feedback to the user that something is happening
-#if TUNDRA_WIN32
-  const bool force_use_tty = true;
-#else
-  const bool force_use_tty = false;
-#endif
-  ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, 0, echo, nullptr, force_use_tty);
+  if (echo)
+    printf("Invoking frontend with cmdline: %s\n",cmdline_to_use);
+  ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, nullptr, true);
+  ExecResultFreeMemory(&result);
 
   if (0 != result.m_ReturnCode)
   {

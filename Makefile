@@ -105,9 +105,10 @@ LIBTUNDRA_SOURCES = \
 	IncludeScanner.cpp JsonParse.cpp MemAllocHeap.cpp \
 	MemAllocLinear.cpp MemoryMappedFile.cpp PathUtil.cpp Profiler.cpp \
 	ScanCache.cpp Scanner.cpp SignalHandler.cpp StatCache.cpp \
-	TargetSelect.cpp Thread.cpp TerminalIo.cpp \
+	TargetSelect.cpp Thread.cpp \
 	ExecUnix.cpp ExecWin32.cpp DigestCache.cpp FileSign.cpp \
-	HashSha1.cpp HashFast.cpp ConditionVar.cpp ReadWriteLock.cpp
+	HashSha1.cpp HashFast.cpp ConditionVar.cpp ReadWriteLock.cpp \
+	Exec.cpp NodeResultPrinting.cpp
 
 T2LUA_SOURCES = LuaMain.cpp LuaInterface.cpp LuaInterpolate.cpp LuaJsonWriter.cpp \
 								LuaPath.cpp LuaProfiler.cpp
