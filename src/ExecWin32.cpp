@@ -171,6 +171,8 @@ static struct Win32EnvBinding
   size_t      m_NameLength;
 } g_Win32Env[1024];
 
+static char UTF8_WindowsEnvironment[128*1024];
+
 static size_t g_Win32EnvCount;
 
 void ExecInit(void)
@@ -185,7 +187,17 @@ void ExecInit(void)
   // Initialize win32 env block. We're going to let it leak.
   // This block contains a series of nul-terminated strings, with a double nul
   // terminator to indicated the end of the data.
-  const char* env = GetEnvironmentStringsA();
+
+  // Since all our operations are in UTF8 space, we're going to convert the windows environment once on startup into utf8 as well,
+  // so that all follow up operations are fast.
+  WCHAR* widecharenv = GetEnvironmentStringsW();
+  WCHAR* searchForDoubleNull = widecharenv;
+  int len = 0;
+  while ((*(searchForDoubleNull + len)) != 0 || (*(searchForDoubleNull + len + 1)) != 0) len++;
+  len += 2;
+  WideCharToMultiByte(CP_UTF8, 0, widecharenv, len, UTF8_WindowsEnvironment, sizeof UTF8_WindowsEnvironment, NULL, NULL);
+
+  const char* env = UTF8_WindowsEnvironment;
   size_t env_count = 0;
 
   while (*env && env_count < ARRAY_SIZE(g_Win32Env))
@@ -235,7 +247,7 @@ AppendEnvVar(char* block, size_t block_size, size_t *cursor, const char *name, s
 extern char* s_Win32EnvBlock;
 
 static bool
-MakeEnvBlock(char* env_block, size_t block_size, const EnvVariable *env_vars, int env_count)
+MakeEnvBlock(char* env_block, size_t block_size, const EnvVariable *env_vars, int env_count, size_t* out_env_block_length)
 {
   size_t cursor = 0;
   size_t env_var_len[ARRAY_SIZE(g_Win32Env)];
@@ -287,8 +299,9 @@ MakeEnvBlock(char* env_block, size_t block_size, const EnvVariable *env_vars, in
       return false;
   }
 
-  env_block[cursor] = '\0';
-  env_block[cursor+1] = '\0';
+  env_block[cursor++] = '\0';
+  env_block[cursor++] = '\0';
+  *out_env_block_length = cursor;
   return true;
 }
 
@@ -317,6 +330,7 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
 {
   char buffer[8192];
   char env_block[128*1024];
+  WCHAR env_block_wide[128 * 1024];
   HANDLE output_handle;
   STARTUPINFO sinfo;
   PROCESS_INFORMATION pinfo;
@@ -339,10 +353,16 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
   }
   MutexUnlock(&s_FdMutex);
 
-
-  if (!MakeEnvBlock(env_block, sizeof(env_block) - 2, env_vars, env_count))
+  size_t env_block_length = 0;
+  if (!MakeEnvBlock(env_block, sizeof(env_block) - 2, env_vars, env_count, &env_block_length))
   {
     fprintf(stderr, "%d: env block error; too big?\n", job_id);
+    return 1;
+  }
+
+  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, env_block_length, env_block_wide, sizeof(env_block_wide)))
+  {
+    fprintf(stderr, "%d: Failed converting environment block to wide char\n", job_id);
     return 1;
   }
 
@@ -376,7 +396,7 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
   if (force_use_tty)
     MutexLock(&s_FdMutex);
 
-  if (CreateProcessA(NULL, buffer, NULL, NULL, TRUE, CREATE_SUSPENDED, env_block, NULL, &sinfo, &pinfo))
+  if (CreateProcessA(NULL, buffer, NULL, NULL, TRUE, CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT, env_block_wide, NULL, &sinfo, &pinfo))
   {
     AssignProcessToJobObject(job_object, pinfo.hProcess);
     ResumeThread(pinfo.hThread);
