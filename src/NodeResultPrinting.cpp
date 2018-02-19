@@ -6,6 +6,7 @@
 #include <sstream>
 #if TUNDRA_UNIX
 #include <unistd.h>
+#include <stdarg.h>
 #endif
 
 
