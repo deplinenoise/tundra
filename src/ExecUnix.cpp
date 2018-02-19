@@ -100,6 +100,7 @@ ExecuteProcess(
 		int env_count,
 		const EnvVariable *env_vars,
 		MemAllocHeap* heap,
+		int job_id,
 		bool stream_to_stdout)
 {
   ExecResult result;
