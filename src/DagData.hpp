@@ -111,6 +111,7 @@ struct NodeData
   FrozenArray<FrozenFileAndHash>  m_InputFiles;
   FrozenArray<FrozenFileAndHash>  m_OutputFiles;
   FrozenArray<FrozenFileAndHash>  m_AuxOutputFiles;
+  FrozenArray<FrozenFileAndHash>  m_FrontendResponseFiles;
   FrozenArray<EnvVarData>         m_EnvVars;
   FrozenPtr<ScannerData>          m_Scanner;
   uint32_t                        m_Flags;

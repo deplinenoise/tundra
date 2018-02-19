@@ -244,6 +244,8 @@ static bool WriteNodes(
     const JsonArrayValue *aux_outputs   = FindArrayValue(node, "AuxOutputs");
     const JsonArrayValue *env_vars      = FindArrayValue(node, "Env");
     const int             scanner_index = (int) FindIntValue(node, "ScannerIndex", -1);
+    const JsonArrayValue *frontend_rsps = FindArrayValue(node, "FrontendResponseFiles");
+
 
     WriteStringPtr(node_data_seg, str_seg, action);
     WriteStringPtr(node_data_seg, str_seg, preaction);
@@ -294,6 +296,7 @@ static bool WriteNodes(
     WriteFileArray(node_data_seg, array2_seg, str_seg, inputs);
     WriteFileArray(node_data_seg, array2_seg, str_seg, outputs);
     WriteFileArray(node_data_seg, array2_seg, str_seg, aux_outputs);
+    WriteFileArray(node_data_seg, array2_seg, str_seg, frontend_rsps);
 
     // Environment variables
     if (env_vars && env_vars->m_Count > 0)
@@ -1032,7 +1035,7 @@ static bool RunExternalTool(const char* options, ...)
 
   if (echo)
     printf("Invoking frontend with cmdline: %s\n",cmdline_to_use);
-  ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, nullptr, true);
+  ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, nullptr, 0, true);
   ExecResultFreeMemory(&result);
 
   if (0 != result.m_ReturnCode)

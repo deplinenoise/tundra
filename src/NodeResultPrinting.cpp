@@ -112,6 +112,21 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     if (verbose)
     {
         PrintDiagnostic("CommandLine", cmd_line);
+        for (int i=0; i!= node_data->m_FrontendResponseFiles.GetCount(); i++)
+        {
+            char titleBuffer[1024];
+            const char* file = node_data->m_FrontendResponseFiles[i].m_Filename;
+            snprintf(titleBuffer, sizeof titleBuffer, "Contents of %s", file);
+
+            char content_buffer[50*1024];
+            FILE* f = fopen(file, "rb");
+            if (!f)
+                snprintf(content_buffer, sizeof content_buffer, "couldn't open %s for reading", file);
+            else
+                fread(content_buffer, 1, sizeof content_buffer - 1, f);
+
+            PrintDiagnostic(titleBuffer, content_buffer);
+        }
         PrintDiagnostic("ExitCode", result->m_ReturnCode);
     }
 
