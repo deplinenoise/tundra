@@ -54,9 +54,9 @@ static void EmitOutputBytesToDestination(ExecResult* execResult, int is_stderr, 
 		if (newSize < data->cursor + count)
 			newSize = data->cursor+count;
 		char* newBuffer = static_cast<char*>(HeapReallocate(data->heap, static_cast<void*>(data->buffer), newSize));
-		if (newBuffer == data->buffer)
+		if (newBuffer == nullptr)
 		{
-			CroakErrno("out of memory allocating %d bytes for output buffer", newSize);
+			CroakAbort("out of memory allocating %d bytes for output buffer", newSize);
 			return;
 		}
 		data->buffer = newBuffer;
@@ -111,7 +111,7 @@ ExecuteProcess(
   result.m_StdErrBuffer.buffer = nullptr;
 
   if ((heap == nullptr && !stream_to_stdout) || (heap != nullptr && stream_to_stdout))
-	CroakErrno("Either pass in a heap so we can allocate buffers to store stdout, or ask to stream directly to stdout");
+	CroakAbort("Either pass in a heap so we can allocate buffers to store stdout, or ask to stream directly to stdout");
 
   if (heap != nullptr)
   {

@@ -17,6 +17,8 @@ void InitOutputBuffer(OutputBufferData* data, MemAllocHeap* heap)
 
 void DestroyOutputBuffer(t2::OutputBufferData* data)
 {
+  if (data->buffer == nullptr)
+    return;
   HeapFree(data->heap, data->buffer);
   data->buffer_size = -1;
   data->cursor = 0;
