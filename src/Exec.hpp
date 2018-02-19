@@ -34,12 +34,14 @@ namespace t2
 
   void InitOutputBuffer(OutputBufferData* data, MemAllocHeap* heap);
   void ExecResultFreeMemory(ExecResult* result);
+  void ExecInit();
 
   ExecResult ExecuteProcess(
         const char*         cmd_line,
         int                 env_count,
         const EnvVariable*  env_vars,
         MemAllocHeap*       heap,
+        int                 job_id,
         bool                stream_output_to_stdout=false
         ); 
 }

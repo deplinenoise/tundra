@@ -67,6 +67,10 @@ static void EmitOutputBytesToDestination(ExecResult* execResult, int is_stderr, 
 	data->cursor += count;
 }
 
+void ExecInit()
+{
+}
+
 static int
 EmitData(ExecResult* execResult, int is_stderr, int fd)
 {

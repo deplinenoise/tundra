@@ -130,6 +130,7 @@
     <ClCompile Include="..\..\src\DagGenerator.cpp" />
     <ClCompile Include="..\..\src\DigestCache.cpp" />
     <ClCompile Include="..\..\src\Driver.cpp" />
+    <ClCompile Include="..\..\src\Exec.cpp" />
     <ClCompile Include="..\..\src\ExecUnix.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -146,6 +147,7 @@
     <ClCompile Include="..\..\src\MemAllocHeap.cpp" />
     <ClCompile Include="..\..\src\MemAllocLinear.cpp" />
     <ClCompile Include="..\..\src\MemoryMappedFile.cpp" />
+    <ClCompile Include="..\..\src\NodeResultPrinting.cpp" />
     <ClCompile Include="..\..\src\PathUtil.cpp" />
     <ClCompile Include="..\..\src\Profiler.cpp" />
     <ClCompile Include="..\..\src\ReadWriteLock.cpp" />
@@ -154,10 +156,6 @@
     <ClCompile Include="..\..\src\SignalHandler.cpp" />
     <ClCompile Include="..\..\src\StatCache.cpp" />
     <ClCompile Include="..\..\src\TargetSelect.cpp" />
-    <ClCompile Include="..\..\src\TerminalIo.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\..\src\Thread.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

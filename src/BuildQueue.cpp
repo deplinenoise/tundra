@@ -420,8 +420,8 @@ namespace t2
     StatCache         *stat_cache   = queue->m_Config.m_StatCache;
     const char        *annotation   = node_data->m_Annotation;
     int                job_id       = thread_state->m_ThreadIndex;
-    int                echo_cmdline = 0 != (queue->m_Config.m_Flags & BuildQueueConfig::kFlagEchoCommandLines);
-    const char        *last_cmd_line;
+    bool               echo_cmdline = 0 != (queue->m_Config.m_Flags & BuildQueueConfig::kFlagEchoCommandLines);
+    const char        *last_cmd_line = nullptr;
     // Repack frozen env to pointers on the stack.
     int                env_count    = node_data->m_EnvVars.GetCount();
     EnvVariable*       env_vars     = (EnvVariable*) alloca(env_count * sizeof(EnvVariable));
@@ -463,7 +463,7 @@ namespace t2
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope("Pre-build", job_id);
       last_cmd_line = pre_cmd_line;
-      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap);
+      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -473,7 +473,7 @@ namespace t2
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope(annotation, job_id);
       last_cmd_line = cmd_line;
-      result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap);
+      result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 

@@ -1,4 +1,4 @@
-/* exec-win32.c -- Windows subprocess handling
+﻿/* exec-win32.c -- Windows subprocess handling
  *
  * This module is complicated due to how Win32 handles child I/O and because
  * its command processor cannot handle long command lines, requiring tools to
@@ -45,18 +45,27 @@ static char              s_TemporaryDir[MAX_PATH];
 static DWORD             s_TundraPid;
 static Mutex             s_FdMutex;
 
-static HANDLE s_TempFiles[kMaxBuildThreads];
+//allocate one stdout and one stderr handle per job
+static HANDLE s_TempFiles[kMaxBuildThreads*2];
 
-static HANDLE AllocFd(int job_id)
+enum Stream
 {
-  HANDLE result = s_TempFiles[job_id];
+  StdOut = 0,
+  StdErr = 1
+};
+
+static HANDLE GetOrCreateTempFileFor(int job_id, Stream stream)
+{
+  int tempFilesIndex = job_id * 2 + stream;
+
+  HANDLE result = s_TempFiles[tempFilesIndex];
 
   if (!result)
   {
     char temp_dir[MAX_PATH + 1];
     DWORD access, sharemode, disp, flags;
 
-    _snprintf(temp_dir, MAX_PATH, "%stundra.%u.%d", s_TemporaryDir, s_TundraPid, job_id);
+    _snprintf(temp_dir, MAX_PATH, "%stundra.%u.%d.%d", s_TemporaryDir, s_TundraPid, job_id, stream);
     temp_dir[MAX_PATH] = '\0';
 
     access    = GENERIC_WRITE | GENERIC_READ;
@@ -74,94 +83,43 @@ static HANDLE AllocFd(int job_id)
 
     SetHandleInformation(result, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
 
-    s_TempFiles[job_id] = result;
+    s_TempFiles[tempFilesIndex] = result;
   }
 
   return result;
 }
 
-static void FreeFd(int job_id, HANDLE h)
+static void CopyTempFileContentsIntoBufferAndPrepareFileForReuse(int job_id, Stream stream, OutputBufferData* outputBuffer, MemAllocHeap* heap)
 {
-  char buf[1024];
-  HANDLE target = GetStdHandle(STD_OUTPUT_HANDLE);
+  HANDLE tempFile = s_TempFiles[job_id * 2 + stream];
 
-  DWORD fsize = SetFilePointer(h, 0, NULL, FILE_CURRENT);
+  //get the filesize
+  DWORD fsize = SetFilePointer(tempFile, 0, NULL, FILE_CURRENT);
 
   // Rewind file position of the temporary file.
-  SetFilePointer(h, 0, NULL, FILE_BEGIN);
+  SetFilePointer(tempFile, 0, NULL, FILE_BEGIN);
 
-  // Wait until we can take the TTY.
-  MutexLock(&s_FdMutex);
-  
-  // Win32-specific hack to get rid of "Foo.cpp" output from visual studio's cl.exe
-  if (fsize < sizeof(buf) - 1)
+  assert(outputBuffer->buffer == nullptr);
+  assert(outputBuffer->heap == nullptr);
+  outputBuffer->buffer = static_cast<char*>(HeapAllocate(heap, fsize));
+  outputBuffer->heap = heap;
+  outputBuffer->cursor = 0;
+  outputBuffer->buffer_size = fsize;
+
+  DWORD processed = 0;
+  while (processed < fsize)
   {
-    DWORD rb;
-    if (ReadFile(h, buf, sizeof(buf) - 1, &rb, NULL))
-    {
-      buf[rb] = '\0';
-      static const struct { const char* text; size_t len; } exts[] =
-      {
-        { ".cpp\r\n", 6 },
-        { ".c++\r\n", 6 },
-        { ".c\r\n",   4 },
-        { ".CC\r\n",  5 }
-      };
-
-      int ext_index = -1;
-      for (size_t i = 0; -1 == ext_index && i < ARRAY_SIZE(exts); ++i)
-      {
-        if (rb > exts[i].len && 0 == memcmp(buf + rb - exts[i].len, exts[i].text, exts[i].len))
-        {
-          ext_index = (int) i;
-          break;
-        }
-      }
-
-      bool is_src_file = false;
-      if (ext_index >= 0)
-      {
-        is_src_file = true;
-        for (DWORD i = 0; i < rb - exts[ext_index].len; ++i)
-        {
-          if (!isalnum(buf[i]))
-          {
-            is_src_file = false;
-            break;
-          }
-        }
-      }
-
-      if (!is_src_file)
-      {
-        DWORD wb;
-        WriteFile(target, buf, rb, &wb, NULL);
-      }
-      else
-      {
-        // Be silent
-      }
-    }
+    DWORD spaceRemaining = (DWORD)outputBuffer->buffer_size - outputBuffer->cursor;
+    DWORD amountRead = 0;
+    if (!ReadFile(tempFile, outputBuffer->buffer + outputBuffer->cursor, spaceRemaining, &amountRead, NULL) || amountRead == 0)
+      CroakAbort("ReadFile from temporary file failed before we read all of its data");
+    processed += amountRead;
+    outputBuffer->cursor += amountRead;
   }
-  else
-  {
-    // Dump the contents of the temporary file to the TTY.
-    for (;;)
-    {
-      DWORD rb, wb;
-      if (!ReadFile(h, buf, sizeof(buf), &rb, NULL) || rb == 0)
-        break;
-      if (!WriteFile(target, buf, rb, &wb, NULL))
-        break;
-    }
-  }
-
-  // Mark the TTY as free again and wake waiters.
-  MutexUnlock(&s_FdMutex);
 
   // Truncate the temporary file for reuse
-  SetFilePointer(h, 0, NULL, FILE_BEGIN);
-  SetEndOfFile(h);
+  SetFilePointer(tempFile, 0, NULL, FILE_BEGIN);
+  SetEndOfFile(tempFile);
 }
 
 static struct Win32EnvBinding
@@ -305,150 +263,8 @@ MakeEnvBlock(char* env_block, size_t block_size, const EnvVariable *env_vars, in
   return true;
 }
 
-static void
-PrintLineToHandle(HANDLE h, const char *str)
-{
-  DWORD bw;
-  WriteFile(h, str, (DWORD) strlen(str), &bw, NULL);
-  WriteFile(h, "\r\n", 2, &bw, NULL);
-}
 
-/*
-   Win32Spawn -- spawn and wait for a a sub-process on Windows.
-
-   We would like to say:
-
-    return (int) _spawnlpe(_P_WAIT, "cmd", "/c", cmd_line, NULL, env);
-
-   but it turns out spawnlpe() isn't thread-safe (MSVC2008) when setting
-   environment data!  So we're doing it the hard way. It also would set the
-   environment in the right way as we want to define our environment strings in
-   addition to whatever is already set, not replace everything.
- */
-
-static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_vars, int env_count, const char *annotation, const char* echo_cmdline, bool force_use_tty)
-{
-  char buffer[8192];
-  char env_block[128*1024];
-  WCHAR env_block_wide[128 * 1024];
-  HANDLE output_handle;
-  STARTUPINFO sinfo;
-  PROCESS_INFORMATION pinfo;
-
-  MutexLock(&s_FdMutex);
-  {
-    HANDLE target = GetStdHandle(STD_OUTPUT_HANDLE);
-    const char crlf[] = "\r\n";
-    DWORD wb;
-    if (annotation)
-    {
-      WriteFile(target, annotation, (DWORD) strlen(annotation), &wb, NULL);
-      WriteFile(target, crlf, 2, &wb, NULL);
-    }
-    if (echo_cmdline)
-    {
-      WriteFile(target, echo_cmdline, (DWORD) strlen(echo_cmdline), &wb, NULL);
-      WriteFile(target, crlf, 2, &wb, NULL);
-    }
-  }
-  MutexUnlock(&s_FdMutex);
-
-  size_t env_block_length = 0;
-  if (!MakeEnvBlock(env_block, sizeof(env_block) - 2, env_vars, env_count, &env_block_length))
-  {
-    fprintf(stderr, "%d: env block error; too big?\n", job_id);
-    return 1;
-  }
-
-  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, env_block_length, env_block_wide, sizeof(env_block_wide)))
-  {
-    fprintf(stderr, "%d: Failed converting environment block to wide char\n", job_id);
-    return 1;
-  }
-
-  _snprintf(buffer, sizeof(buffer), "cmd.exe /c \"%s\"", cmd_line);
-  buffer[sizeof(buffer)-1] = '\0';
-
-  if (!force_use_tty)
-    output_handle = AllocFd(job_id);
-  else
-    output_handle = NULL;
-
-  memset(&pinfo, 0, sizeof(pinfo));
-  memset(&sinfo, 0, sizeof(sinfo));
-  sinfo.cb = sizeof(sinfo);
-  sinfo.hStdInput = NULL;
-  sinfo.hStdOutput = sinfo.hStdError = output_handle;
-  if (!force_use_tty)
-    sinfo.dwFlags = STARTF_USESTDHANDLES;
-
-  HANDLE job_object = CreateJobObject(NULL, NULL);
-  if (!job_object)
-  {
-    char error[256];
-    _snprintf(error, sizeof error, "ERROR: Couldn't create job object. Win32 error = %d", (int) GetLastError());
-    PrintLineToHandle(output_handle, error);
-    return 1;
-  }
-
-  DWORD result_code = 1;
-
-  if (force_use_tty)
-    MutexLock(&s_FdMutex);
-
-  if (CreateProcessA(NULL, buffer, NULL, NULL, TRUE, CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT, env_block_wide, NULL, &sinfo, &pinfo))
-  {
-    AssignProcessToJobObject(job_object, pinfo.hProcess);
-    ResumeThread(pinfo.hThread);
-
-    CloseHandle(pinfo.hThread);
-
-    HANDLE handles[2];
-    handles[0] = pinfo.hProcess;
-    handles[1] = SignalGetHandle();
-
-    switch (WaitForMultipleObjects(2, handles, FALSE, INFINITE))
-    {
-    case WAIT_OBJECT_0:
-      // OK - command ran to completion.
-      GetExitCodeProcess(pinfo.hProcess, &result_code);
-      break;
-
-    case WAIT_OBJECT_0 + 1:
-      // We have been interrupted - kill the program.
-      TerminateJobObject(job_object, 1);
-      WaitForSingleObject(pinfo.hProcess, INFINITE);
-      // Leave result_code at 1 to indicate failed build.
-      break;
-    }
-
-    CloseHandle(pinfo.hProcess);
-  }
-  else
-  {
-    char error[256];
-    _snprintf(error, sizeof error, "ERROR: Couldn't launch process. Win32 error = %d", (int) GetLastError());
-    PrintLineToHandle(output_handle, error);
-  }
-
-  CloseHandle(job_object);
-
-  if (force_use_tty)
-    MutexUnlock(&s_FdMutex);
-  else
-    FreeFd(job_id, output_handle);
-
-  return (int) result_code;
-}
-
-ExecResult ExecuteProcess(
-      const char*         cmd_line,
-      int                 env_count,
-      const EnvVariable*  env_vars,
-      int                 job_id,
-      int                 echo_cmdline,
-      const char*         annotation,
-      bool                force_use_tty)
+static bool SetupResponseFile(const char* cmd_line, char* out_new_cmd_line, int new_cmdline_max_length, char* out_responsefile, int response_file_max_length)
 {
   static const char response_prefix[] = "@RESPONSE|";
   static const char response_suffix_char = '|';
@@ -458,10 +274,9 @@ ExecResult ExecuteProcess(
   static const size_t response_prefix_len = sizeof(response_prefix) - 1;
   char command_buf[512];
   char option_buf[32];
-  char new_cmd[8192];
   char response_suffix = response_suffix_char;
   const char* response;
-  
+
   if (NULL == (response = strstr(cmd_line, response_prefix)))
   {
     if (NULL != (response = strstr(cmd_line, always_response_prefix)))
@@ -469,10 +284,6 @@ ExecResult ExecuteProcess(
       response_suffix = always_response_suffix_char;
     }
   }
-
-  ExecResult result;
-  result.m_WasSignalled = false;
-  result.m_ReturnCode   = 1;
 
   /* scan for a @RESPONSE|<option>|.... section at the end of the command line */
   if (NULL != response)
@@ -485,124 +296,196 @@ ExecResult ExecuteProcess(
     if (NULL == (option_end = strchr(option, response_suffix)))
     {
       fprintf(stderr, "badly formatted @RESPONSE section; missing %c after option: %s\n", response_suffix, cmd_line);
-      return result;
+      return false;
     }
 
     /* Limit on XP and later is 8191 chars; but play it safe */
     if (response_suffix == always_response_suffix_char || cmd_len > 8000)
     {
       char tmp_dir[MAX_PATH];
-      char response_file[MAX_PATH];
-      int cmd_result;
       DWORD rc;
 
       rc = GetTempPath(sizeof(tmp_dir), tmp_dir);
       if (rc >= sizeof(tmp_dir) || 0 == rc)
       {
-        fprintf(stderr, "couldn't get temporary directory for response file; win32 error=%d", (int) GetLastError());
-        return result;
+        fprintf(stderr, "couldn't get temporary directory for response file; win32 error=%d", (int)GetLastError());
+        return false;
       }
 
-      if ('\\' == tmp_dir[rc-1])
-        tmp_dir[rc-1] = '\0';
+      if ('\\' == tmp_dir[rc - 1])
+        tmp_dir[rc - 1] = '\0';
 
       static uint32_t foo = 0;
       uint32_t sequence = AtomicIncrement(&foo);
 
-      _snprintf(response_file, sizeof response_file, "%s\\tundra.resp.%u.%u", tmp_dir, GetCurrentProcessId(), sequence);
-      response_file[sizeof(response_file)-1] = '\0';
+      _snprintf(out_responsefile, response_file_max_length, "%s\\tundra.resp.%u.%u", tmp_dir, GetCurrentProcessId(), sequence);
+      out_responsefile[response_file_max_length] = '\0';
 
       {
-        HANDLE hf = CreateFileA(response_file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        HANDLE hf = CreateFileA(out_responsefile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         if (INVALID_HANDLE_VALUE == hf)
         {
-          fprintf(stderr, "couldn't create response file %s; @err=%u", response_file, (unsigned int) GetLastError());
-          return result;
+          fprintf(stderr, "couldn't create response file %s; @err=%u", out_responsefile, (unsigned int)GetLastError());
+          return false;
         }
 
         DWORD written;
-        WriteFile(hf, option_end + 1, (DWORD) strlen(option_end + 1), &written, NULL);
+        WriteFile(hf, option_end + 1, (DWORD)strlen(option_end + 1), &written, NULL);
 
         if (!CloseHandle(hf))
         {
-          fprintf(stderr, "couldn't close response file %s: errno=%d", response_file, errno);
-          return result;
+          fprintf(stderr, "couldn't close response file %s: errno=%d", out_responsefile, errno);
+          return false;
         }
         hf = NULL;
       }
 
       {
         const int pre_suffix_len = (int)(response - cmd_line);
-        int copy_len = std::min(pre_suffix_len, (int) (sizeof(command_buf) - 1));
+        int copy_len = std::min(pre_suffix_len, (int)(sizeof(command_buf) - 1));
         if (copy_len != pre_suffix_len)
         {
-            char truncated_cmd[sizeof(command_buf)];
-            _snprintf(truncated_cmd, sizeof(truncated_cmd) - 1, "%s", cmd_line);
-            truncated_cmd[sizeof(truncated_cmd)-1] = '\0';
+          char truncated_cmd[sizeof(command_buf)];
+          _snprintf(truncated_cmd, sizeof(truncated_cmd) - 1, "%s", cmd_line);
+          truncated_cmd[sizeof(truncated_cmd) - 1] = '\0';
 
-            fprintf(stderr, "Couldn't copy command (%s...) before response file suffix. "
-                "Move the response file suffix closer to the command starting position.\n", truncated_cmd);
-            return result;
+          fprintf(stderr, "Couldn't copy command (%s...) before response file suffix. "
+            "Move the response file suffix closer to the command starting position.\n", truncated_cmd);
+          return false;
         }
         strncpy(command_buf, cmd_line, copy_len);
         command_buf[copy_len] = '\0';
-        copy_len = std::min((int) (option_end - option), (int) (sizeof(option_buf) - 1));
+        copy_len = std::min((int)(option_end - option), (int)(sizeof(option_buf) - 1));
         strncpy(option_buf, option, copy_len);
         option_buf[copy_len] = '\0';
       }
 
-      _snprintf(new_cmd, sizeof(new_cmd), "%s %s%s", command_buf, option_buf, response_file);
-      new_cmd[sizeof(new_cmd)-1] = '\0';
-
-      cmd_result = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL, force_use_tty);
-
-      remove(response_file);
-      result.m_ReturnCode = cmd_result;
-      return result;
+      _snprintf(out_new_cmd_line, new_cmdline_max_length, "%s %s%s", command_buf, option_buf, out_responsefile);
+      out_new_cmd_line[new_cmdline_max_length - 1] = '\0';
     }
     else
     {
       size_t i, len;
-      int copy_len = std::min((int) (response - cmd_line), (int) (sizeof(command_buf) - 1));
+      int copy_len = std::min((int)(response - cmd_line), (int)(sizeof(command_buf) - 1));
       strncpy(command_buf, cmd_line, copy_len);
       command_buf[copy_len] = '\0';
-      _snprintf(new_cmd, sizeof(new_cmd), "%s%s", command_buf, option_end + 1);
-      new_cmd[sizeof(new_cmd)-1] = '\0';
+      _snprintf(out_new_cmd_line, new_cmdline_max_length, "%s%s", command_buf, option_end + 1);
+      out_new_cmd_line[new_cmdline_max_length - 1] = '\0';
 
       /* Drop any newlines in the command line. They are needed for response
-       * files only to make sure the max length doesn't exceed 128 kb */
-      for (i = 0, len = strlen(new_cmd); i < len; ++i)
+      * files only to make sure the max length doesn't exceed 128 kb */
+      for (i = 0, len = strlen(out_new_cmd_line); i < len; ++i)
       {
-        if (new_cmd[i] == '\n')
+        if (out_new_cmd_line[i] == '\n')
         {
-          new_cmd[i] = ' ';
+          out_new_cmd_line[i] = ' ';
         }
       }
-
-      result.m_ReturnCode = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL, force_use_tty);
-      return result;
     }
   }
-  else
+  return true;
+}
+
+static void CleanupResponseFile(const char* responseFile)
+{
+  if (*responseFile != 0)
+    remove(responseFile);
+}
+
+ExecResult ExecuteProcess(
+  const char*         cmd_line,
+  int                 env_count,
+  const EnvVariable*  env_vars,
+  MemAllocHeap*       heap,
+  int                 job_id,
+  bool                stream_to_stdout)
+{
+  STARTUPINFO sinfo;
+  ZeroMemory(&sinfo, sizeof(STARTUPINFO));
+
+  sinfo.cb = sizeof(STARTUPINFO);
+
+  if (!stream_to_stdout)
   {
-    size_t i, len;
-
-    /* Drop any newlines in the command line. They are needed for response
-     * files only to make sure the max length doesn't exceed 128 kb */
-    strncpy(new_cmd, cmd_line, sizeof(new_cmd));
-    new_cmd[sizeof(new_cmd)-1] = '\0';
-
-    for (i = 0, len = strlen(new_cmd); i < len; ++i)
-    {
-      if (new_cmd[i] == '\n')
-      {
-        new_cmd[i] = ' ';
-      }
-    }
-
-    result.m_ReturnCode = Win32Spawn(job_id, new_cmd, env_vars, env_count, annotation, echo_cmdline ? cmd_line : NULL, force_use_tty);
-    return result;
+    sinfo.hStdOutput = GetOrCreateTempFileFor(job_id, Stream::StdOut);
+    sinfo.hStdError = GetOrCreateTempFileFor(job_id, Stream::StdErr);
+    sinfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    sinfo.dwFlags |= STARTF_USESTDHANDLES;
   }
+
+  char buffer[8192];
+  char env_block[128 * 1024];
+  WCHAR env_block_wide[128 * 1024];
+  size_t env_block_length = 0;
+  if (!MakeEnvBlock(env_block, sizeof(env_block) - 2, env_vars, env_count, &env_block_length))
+    CroakAbort("env block error; too big?\n");
+
+  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, (int)env_block_length, env_block_wide, sizeof(env_block_wide)))
+    CroakAbort("Failed converting environment block to wide char\n");
+
+  ExecResult result;  
+  char new_cmd[8192];
+  char responseFile[MAX_PATH];
+  ZeroMemory(&result, sizeof(ExecResult));
+  ZeroMemory(&responseFile, sizeof(responseFile));
+  ZeroMemory(&new_cmd, sizeof(new_cmd));
+
+  if (!SetupResponseFile(cmd_line, new_cmd, sizeof new_cmd, responseFile, sizeof responseFile))
+    return result;
+
+  const char* cmd_to_use = new_cmd[0] == 0 ? cmd_line : new_cmd;
+  _snprintf(buffer, sizeof(buffer), "cmd.exe /c \"%s\"", cmd_to_use);
+  buffer[sizeof(buffer) - 1] = '\0';
+
+  HANDLE job_object = CreateJobObject(NULL, NULL);
+  if (!job_object)
+    CroakErrno("ERROR: Couldn't create job object.");
+  
+  PROCESS_INFORMATION pinfo;
+
+  if (!CreateProcessA(NULL, buffer, NULL, NULL, TRUE, CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT, env_block_wide, NULL, &sinfo, &pinfo))
+    CroakAbort("ERROR: Couldn't launch process. Win32 error = %d", (int)GetLastError());
+
+  AssignProcessToJobObject(job_object, pinfo.hProcess);
+  ResumeThread(pinfo.hThread);
+  CloseHandle(pinfo.hThread);
+
+  HANDLE handles[2];
+  handles[0] = pinfo.hProcess;
+  handles[1] = SignalGetHandle();
+  
+  DWORD result_code = 1;
+  DWORD waitResult = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+
+  switch (waitResult)
+  {
+
+  case WAIT_OBJECT_0:
+    // OK - command ran to completion.
+    GetExitCodeProcess(pinfo.hProcess, &result_code);
+    break;
+
+  case WAIT_OBJECT_0 + 1:
+    // We have been interrupted - kill the program.
+    //TerminateJobObject(job_object, 1);
+    WaitForSingleObject(pinfo.hProcess, INFINITE);
+    // Leave result_code at 1 to indicate failed build.
+    break;
+  }
+
+  CleanupResponseFile(responseFile);
+
+  result.m_ReturnCode = result_code;
+  if (!stream_to_stdout)
+  {
+    CopyTempFileContentsIntoBufferAndPrepareFileForReuse(job_id, Stream::StdOut, &result.m_StdOutBuffer, heap);
+    CopyTempFileContentsIntoBufferAndPrepareFileForReuse(job_id, Stream::StdErr, &result.m_StdErrBuffer, heap);
+  }
+
+  CloseHandle(pinfo.hProcess);
+  CloseHandle(job_object);
+
+  return result;
 }
 
 }

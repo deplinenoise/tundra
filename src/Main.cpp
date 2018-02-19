@@ -408,6 +408,8 @@ int main(int argc, char* argv[])
   }
 #endif
 
+  ExecInit();
+
   // Initialize driver
   if (!DriverInit(&driver, &options))
     return 1;

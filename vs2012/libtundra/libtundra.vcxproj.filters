@@ -182,9 +182,6 @@
     <ClCompile Include="..\..\src\SignalHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\TerminalIo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\StatCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -219,6 +216,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\Profiler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\NodeResultPrinting.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\Exec.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
