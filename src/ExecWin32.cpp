@@ -149,9 +149,8 @@ void ExecInit(void)
   // Since all our operations are in UTF8 space, we're going to convert the windows environment once on startup into utf8 as well,
   // so that all follow up operations are fast.
   WCHAR* widecharenv = GetEnvironmentStringsW();
-  WCHAR* searchForDoubleNull = widecharenv;
   int len = 0;
-  while ((*(searchForDoubleNull + len)) != 0 || (*(searchForDoubleNull + len + 1)) != 0) len++;
+  while ((*(widecharenv + len)) != 0 || (*(widecharenv + len + 1)) != 0) len++;
   len += 2;
   WideCharToMultiByte(CP_UTF8, 0, widecharenv, len, UTF8_WindowsEnvironment, sizeof UTF8_WindowsEnvironment, NULL, NULL);
 
@@ -420,7 +419,7 @@ ExecResult ExecuteProcess(
   if (!MakeEnvBlock(env_block, sizeof(env_block) - 2, env_vars, env_count, &env_block_length))
     CroakAbort("env block error; too big?\n");
 
-  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, (int)env_block_length, env_block_wide, sizeof(env_block_wide)))
+  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, (int)env_block_length, env_block_wide, sizeof(env_block_wide)/sizeof(WCHAR)))
     CroakAbort("Failed converting environment block to wide char\n");
 
   ExecResult result;  
