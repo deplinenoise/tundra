@@ -37,12 +37,7 @@ void InitNodeResultPrinting()
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
     if (GetConsoleMode(hOut, &dwMode))
-    {
-      static int ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
-      dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-      SetConsoleMode(hOut, dwMode);
       EmitColors = true;
-    }
 #endif
 
     char* value = getenv("DOWNSTREAM_STDOUT_CONSUMER_SUPPORTS_COLOR");
@@ -55,10 +50,30 @@ void InitNodeResultPrinting()
       EmitColors = false;
 }
 
+
+static void EnsureConsoleCanHandleColors()
+{
+  //We invoke this function before every printf that wants to emit a color, because it looks like child processes that tundra invokes
+  //can and do SetConsoleMode() which affects our console. Sometimes a child process will set the consolemode to no longer have our flag
+  //which makes all color output suddenly screw up.
+  HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD dwMode = 0;
+  if (GetConsoleMode(hOut, &dwMode))
+  {
+    const int ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
+    DWORD newMode = dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (newMode != dwMode)
+      SetConsoleMode(hOut, newMode);
+  }
+}
+
 static void EmitColor(const char* colorsequence)
 {
-    if (EmitColors)
-        printf("%s",colorsequence);
+  if (EmitColors)
+  {
+    EnsureConsoleCanHandleColors();
+    printf("%s", colorsequence);
+  }
 }
 
 #define RED   "\x1B[31m"
@@ -100,26 +115,33 @@ static void PrintDiagnostic(const char* title, int content)
 
 static void PrintBufferTrimmed(OutputBufferData* buffer)
 {
-  auto isNewLine = [](char c) {return c == '\n' || c == '\r'; };
+  auto isNewLine = [](char c) {return c == 0x0A || c == 0x0D; };
 
   int trimmedCursor = buffer->cursor;
   while (isNewLine(*(buffer->buffer + trimmedCursor -1)) && trimmedCursor > 0)
     trimmedCursor--;
-  fwrite(buffer->buffer, 1, trimmedCursor +1, stdout);
+
+  fwrite(buffer->buffer, 1, trimmedCursor, stdout);
   printf("\n");
 }
+
 
 void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* cmd_line, BuildQueue* queue, bool always_verbose, time_t time_exec_started)
 {
     int processedNodeCount = ++queue->m_ProcessedNodeCount;
-    bool failed = result->m_ReturnCode != 0;
-    bool verbose = failed || always_verbose;
+    bool failed = result->m_ReturnCode != 0 || result->m_WasSignalled;
+    bool verbose = (failed && ! result->m_WasSignalled) || always_verbose;
 
     time_t now = time(0);
     int duration = int(now - time_exec_started);
+    
     EmitColor(failed ? RED : GRN);
-    printf("[%d/%d %ds] ", processedNodeCount, queue->m_Config.m_MaxNodes, duration);
+    printf("[%d/%d", processedNodeCount, queue->m_Config.m_MaxNodes);
+    if (duration > 5)
+      printf(" %ds", duration);
+    printf("] ");
     EmitColor(RESET); 
+    
     printf("%s\n", (const char*)node_data->m_Annotation);   
     if (verbose)
     {
@@ -134,6 +156,7 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
             FILE* f = fopen(file, "rb");
             if (!f)
             {
+
               int buffersize = 512;
               content_buffer = (char*)HeapAllocate(queue->m_Config.m_Heap, buffersize);
               snprintf(content_buffer, buffersize, "couldn't open %s for reading", file);
@@ -171,6 +194,7 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     
     total_number_node_results_printed++;
     last_progress_message_of_any_job = now;
+    last_progress_message_job = node_data;
 }
 
 int PrintNodeInProgress(const NodeData* node_data, time_t time_of_start)
@@ -184,7 +208,10 @@ int PrintNodeInProgress(const NodeData* node_data, time_t time_of_start)
 
   if (seconds_since_last_progress_message_of_any_job > acceptable_time_since_last_message && seconds_job_has_been_running_for > only_print_if_slower_than)
   {
-    printf(YEL "[BUSY %ds] " RESET "%s\n", seconds_job_has_been_running_for, (const char*)node_data->m_Annotation);
+    EmitColor(YEL);
+    printf("[BUSY %ds]", seconds_job_has_been_running_for);
+    EmitColor(RESET);
+    printf("%s\n", (const char*)node_data->m_Annotation);
     last_progress_message_of_any_job = now;
     last_progress_message_job = node_data;
   }

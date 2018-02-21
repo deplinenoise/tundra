@@ -392,7 +392,7 @@ static void CleanupResponseFile(const char* responseFile)
     remove(responseFile);
 }
 
-static int WaitForFinish(HANDLE processHandle, std::function<int()>* callback_on_slow, int time_until_first_callback)
+static int WaitForFinish(HANDLE processHandle, std::function<int()>* callback_on_slow, int time_until_first_callback, bool* out_wassignaled)
 {
   HANDLE handles[2];
   handles[0] = processHandle;
@@ -408,12 +408,14 @@ static int WaitForFinish(HANDLE processHandle, std::function<int()>* callback_on
     case WAIT_OBJECT_0:
       // OK - command ran to completion.
       GetExitCodeProcess(processHandle, &result_code);
+      *out_wassignaled = false;
       return result_code;
 
     case WAIT_OBJECT_0 + 1:
       // We have been interrupted - kill the program.
       WaitForSingleObject(processHandle, INFINITE);
       // Leave result_code at 1 to indicate failed build.
+      *out_wassignaled = true;
       return 1;
 
     case WAIT_TIMEOUT:
@@ -484,7 +486,7 @@ ExecResult ExecuteProcess(
   CloseHandle(pinfo.hThread);
 
     
-  result.m_ReturnCode = WaitForFinish(pinfo.hProcess, callback_on_slow, time_until_first_callback);
+  result.m_ReturnCode = WaitForFinish(pinfo.hProcess, callback_on_slow, time_until_first_callback, &result.m_WasSignalled);
 
   CleanupResponseFile(responseFile);
 
