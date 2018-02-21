@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+#include <thread>
 
 namespace t2
 {
@@ -391,13 +392,46 @@ static void CleanupResponseFile(const char* responseFile)
     remove(responseFile);
 }
 
+static int WaitForFinish(HANDLE processHandle, std::function<int()>* callback_on_slow, int time_until_first_callback)
+{
+  HANDLE handles[2];
+  handles[0] = processHandle;
+  handles[1] = SignalGetHandle();
+  DWORD timeUntilNextSlowCallbackInvoke = callback_on_slow != nullptr ? time_until_first_callback : INFINITE;
+
+  while (true)
+  {
+    DWORD waitResult = WaitForMultipleObjects(2, handles, FALSE, timeUntilNextSlowCallbackInvoke);
+    DWORD result_code = 0;
+    switch (waitResult)
+    {
+    case WAIT_OBJECT_0:
+      // OK - command ran to completion.
+      GetExitCodeProcess(processHandle, &result_code);
+      return result_code;
+
+    case WAIT_OBJECT_0 + 1:
+      // We have been interrupted - kill the program.
+      WaitForSingleObject(processHandle, INFINITE);
+      // Leave result_code at 1 to indicate failed build.
+      return 1;
+
+    case WAIT_TIMEOUT:
+      timeUntilNextSlowCallbackInvoke = (*callback_on_slow)();
+    }
+  }
+}
+
 ExecResult ExecuteProcess(
   const char*         cmd_line,
   int                 env_count,
   const EnvVariable*  env_vars,
   MemAllocHeap*       heap,
   int                 job_id,
-  bool                stream_to_stdout)
+  bool                stream_to_stdout = false,
+  std::function<int()>*     callback_on_slow = nullptr,
+  int                 time_until_first_callback
+  )
 {
   STARTUPINFO sinfo;
   ZeroMemory(&sinfo, sizeof(STARTUPINFO));
@@ -449,32 +483,11 @@ ExecResult ExecuteProcess(
   ResumeThread(pinfo.hThread);
   CloseHandle(pinfo.hThread);
 
-  HANDLE handles[2];
-  handles[0] = pinfo.hProcess;
-  handles[1] = SignalGetHandle();
-  
-  DWORD result_code = 1;
-  DWORD waitResult = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
-
-  switch (waitResult)
-  {
-
-  case WAIT_OBJECT_0:
-    // OK - command ran to completion.
-    GetExitCodeProcess(pinfo.hProcess, &result_code);
-    break;
-
-  case WAIT_OBJECT_0 + 1:
-    // We have been interrupted - kill the program.
-    //TerminateJobObject(job_object, 1);
-    WaitForSingleObject(pinfo.hProcess, INFINITE);
-    // Leave result_code at 1 to indicate failed build.
-    break;
-  }
+    
+  result.m_ReturnCode = WaitForFinish(pinfo.hProcess, callback_on_slow, time_until_first_callback);
 
   CleanupResponseFile(responseFile);
 
-  result.m_ReturnCode = result_code;
   if (!stream_to_stdout)
   {
     CopyTempFileContentsIntoBufferAndPrepareFileForReuse(job_id, Stream::StdOut, &result.m_StdOutBuffer, heap);

@@ -2,6 +2,7 @@
 #define EXEC_HPP
 
 #include "stddef.h"
+#include <thread>
 
 namespace t2
 {
@@ -42,7 +43,9 @@ namespace t2
         const EnvVariable*  env_vars,
         MemAllocHeap*       heap,
         int                 job_id,
-        bool                stream_output_to_stdout=false
+        bool                stream_output_to_stdout,
+        std::function<int()>* callback_on_slow,
+        int                 time_until_first_callback = 1000
         ); 
 }
 

@@ -1,4 +1,4 @@
-#include "BuildQueue.hpp"
+﻿#include "BuildQueue.hpp"
 #include "DagData.hpp"
 #include "MemAllocHeap.hpp"
 #include "MemAllocLinear.hpp"
@@ -457,13 +457,22 @@ namespace t2
       }
     }
 
+    time_t time_of_start = time(0);
+
+    std::function<int()> slowCallback = [&]() -> int {
+      MutexLock(queue_lock);
+      int sendNextCallbackIn = PrintNodeInProgress(node_data, time_of_start);
+      MutexUnlock(queue_lock);
+      return sendNextCallbackIn;
+    };
+
     if (pre_cmd_line)
     {
       Log(kSpam, "Launching pre-action process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope("Pre-build", job_id);
       last_cmd_line = pre_cmd_line;
-      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id);
+      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, &slowCallback, 1000);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -473,7 +482,7 @@ namespace t2
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope(annotation, job_id);
       last_cmd_line = cmd_line;
-      result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id);
+      result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, &slowCallback);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -483,7 +492,7 @@ namespace t2
     }
 
     MutexLock(queue_lock);
-    PrintNodeResult(&result, node_data, last_cmd_line, thread_state->m_Queue, echo_cmdline);
+    PrintNodeResult(&result, node_data, last_cmd_line, thread_state->m_Queue, echo_cmdline, time_of_start);
     ExecResultFreeMemory(&result);
 
     if (result.m_WasSignalled)

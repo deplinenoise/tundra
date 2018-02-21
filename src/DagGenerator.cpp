@@ -1035,7 +1035,7 @@ static bool RunExternalTool(const char* options, ...)
 
   if (echo)
     printf("Invoking frontend with cmdline: %s\n",cmdline_to_use);
-  ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, nullptr, 0, true);
+  ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, nullptr, 0, true, nullptr);
   ExecResultFreeMemory(&result);
 
   if (0 != result.m_ReturnCode)
