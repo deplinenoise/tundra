@@ -472,7 +472,7 @@ namespace t2
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope("Pre-build", job_id);
       last_cmd_line = pre_cmd_line;
-      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, &slowCallback, 1000);
+      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, &slowCallback, 1);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 

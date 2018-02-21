@@ -53,6 +53,7 @@ void InitNodeResultPrinting()
 
 static void EnsureConsoleCanHandleColors()
 {
+#if TUNDRA_WIN32
   //We invoke this function before every printf that wants to emit a color, because it looks like child processes that tundra invokes
   //can and do SetConsoleMode() which affects our console. Sometimes a child process will set the consolemode to no longer have our flag
   //which makes all color output suddenly screw up.
@@ -65,6 +66,7 @@ static void EnsureConsoleCanHandleColors()
     if (newMode != dwMode)
       SetConsoleMode(hOut, newMode);
   }
+#endif
 }
 
 static void EmitColor(const char* colorsequence)
@@ -136,10 +138,9 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     int duration = int(now - time_exec_started);
     
     EmitColor(failed ? RED : GRN);
-    printf("[%d/%d", processedNodeCount, queue->m_Config.m_MaxNodes);
+    printf("[%d/%d] ", processedNodeCount, queue->m_Config.m_MaxNodes);
     if (duration > 5)
-      printf(" %ds", duration);
-    printf("] ");
+      printf("[%ds] ", duration);
     EmitColor(RESET); 
     
     printf("%s\n", (const char*)node_data->m_Annotation);   
@@ -209,13 +210,13 @@ int PrintNodeInProgress(const NodeData* node_data, time_t time_of_start)
   if (seconds_since_last_progress_message_of_any_job > acceptable_time_since_last_message && seconds_job_has_been_running_for > only_print_if_slower_than)
   {
     EmitColor(YEL);
-    printf("[BUSY %ds]", seconds_job_has_been_running_for);
+    printf("[BUSY] [%ds] ", seconds_job_has_been_running_for);
     EmitColor(RESET);
     printf("%s\n", (const char*)node_data->m_Annotation);
     last_progress_message_of_any_job = now;
     last_progress_message_job = node_data;
   }
 
-  return 1000;
+  return 1;
 }
 }

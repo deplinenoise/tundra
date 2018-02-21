@@ -45,7 +45,7 @@ namespace t2
         int                 job_id,
         bool                stream_output_to_stdout,
         std::function<int()>* callback_on_slow,
-        int                 time_until_first_callback = 1000
+        int                 time_until_first_callback = 1
         ); 
 }
 

@@ -101,7 +101,9 @@ ExecuteProcess(
 		const EnvVariable *env_vars,
 		MemAllocHeap* heap,
 		int job_id,
-		bool stream_to_stdout)
+		bool stream_to_stdout,
+		std::function<int()>* callback_on_slow,
+		int time_to_first_slow_callback)
 {
   ExecResult result;
 
@@ -199,6 +201,11 @@ ExecuteProcess(
 
 		/* Sit in a select loop over the two fds */
 		
+//		int time_until_next_slow_callback = time_to_first_slow_callback;
+		
+		time_t now = time(0);
+		time_t next_callback_at = now + time_to_first_slow_callback;
+
 		for (;;)
 		{
 			int fd;
@@ -223,11 +230,19 @@ ExecuteProcess(
 
 				++max_fd;
 
-				timeout.tv_sec = 0;
-				timeout.tv_usec = 500000;
+				now = time(0);
+				timeout.tv_sec = next_callback_at - (int)now;
+				if (timeout.tv_sec<0)
+					timeout.tv_sec = 0;
+				timeout.tv_usec = 0;
 
 				count = select(max_fd, &read_fds, NULL, NULL, &timeout);
 
+				if (callback_on_slow != nullptr)
+				{
+					if (time(0) > next_callback_at)
+						next_callback_at = time(0) + (*callback_on_slow)();
+				}
 				if (-1 == count) // happens in gdb due to syscall interruption
 					continue;
 

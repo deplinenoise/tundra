@@ -401,7 +401,7 @@ static int WaitForFinish(HANDLE processHandle, std::function<int()>* callback_on
 
   while (true)
   {
-    DWORD waitResult = WaitForMultipleObjects(2, handles, FALSE, timeUntilNextSlowCallbackInvoke);
+    DWORD waitResult = WaitForMultipleObjects(2, handles, FALSE, timeUntilNextSlowCallbackInvoke * 1000);
     DWORD result_code = 0;
     switch (waitResult)
     {
