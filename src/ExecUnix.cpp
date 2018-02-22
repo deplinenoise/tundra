@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -30,7 +31,7 @@ namespace t2
 static void SetFdNonBlocking(int fd)
 {
 	int flags;
-	
+
 	flags = fcntl(fd, F_GETFL);
 	flags |= O_NONBLOCK;
 	if (-1 == fcntl(fd, F_SETFL, flags))
@@ -287,15 +288,29 @@ ExecuteProcess(
 
 		close(stdout_pipe[pipe_read]);
 		close(stderr_pipe[pipe_read]);
+<<<<<<< HEAD
 	
+=======
+
+		TerminalIoJobExit(job_id);
+
+>>>>>>> various_unity
 		if (WIFSIGNALED(return_code))
     {
 			result.m_ReturnCode   = 1;
 			result.m_WasSignalled = true;
+
+			int sig = WTERMSIG(return_code);
+			TerminalIoPrintf(job_id, INT_MAX, "child process exited on signal %d: %s\n", sig, cmd_line);
 		}
 		else
     {
 			result.m_ReturnCode   = WEXITSTATUS(return_code);
+
+			if (0 != result.m_ReturnCode && !echo_cmdline)
+			{
+				TerminalIoPrintf(job_id, INT_MAX, "child process failed with exit code %d: %s\n", result.m_ReturnCode, cmd_line);
+			}
     }
 
 		return result;
