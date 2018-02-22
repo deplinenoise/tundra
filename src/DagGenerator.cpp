@@ -35,18 +35,18 @@ static void WriteStringPtr(BinarySegment* seg, BinarySegment *str_seg, const cha
   }
 }
 
-static const char* FindStringValue(const JsonValue* obj, const char* key, const char* def_value = nullptr)
+static const char* FindStringValue(const JsonValue* obj, const char* key, const char* default_value = nullptr)
 {
   if (JsonValue::kObject != obj->m_Type)
-    return def_value;
+    return default_value;
 
   const JsonValue *node = obj->Find(key);
 
   if (!node)
-    return def_value;
+    return default_value;
 
   if (JsonValue::kString != node->m_Type)
-    return def_value;
+    return default_value;
 
   return static_cast<const JsonStringValue*>(node)->m_String;
 }
@@ -455,7 +455,7 @@ static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegme
     const char* path = incpaths->m_Values[i]->GetString();
     if (!path)
       return false;
-    HashAddPath(&h, path, scratch);
+    HashAddPath(&h, path);
     WriteCommonStringPtr(array_seg, str_seg, path, shared_strings, scratch);
   }
 
@@ -855,13 +855,13 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 
         for (size_t i = 0, count = subdirs->m_Count; i < count; ++i)
         {
-          HashAddPath(&h, subdirs->m_Values[i]->GetString(), scratch);
+          HashAddPath(&h, subdirs->m_Values[i]->GetString());
           HashAddSeparator(&h);
         }
 
         for (size_t i = 0, count = files->m_Count; i < count; ++i)
         {
-          HashAddPath(&h, files->m_Values[i]->GetString(), scratch);
+          HashAddPath(&h, files->m_Values[i]->GetString());
           HashAddSeparator(&h);
         }
 
@@ -911,6 +911,15 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "MaxExpensiveCount", -1));
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "DaysToKeepUnreferencedNodesAround", 0));
+
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileName", ".tundra2.state"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileNameTmp", ".tundra2.state.tmp"));
+
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "ScanCacheFileName", ".tundra2.scancache"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "ScanCacheFileNameTmp", ".tundra2.scancache.tmp"));
+
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileName", ".tundra2.digestcache"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileNameTmp", ".tundra2.digestcache.tmp"));
 
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileName", ".tundra2.state"));
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileNameTmp", ".tundra2.state.tmp"));

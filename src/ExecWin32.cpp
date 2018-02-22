@@ -360,7 +360,7 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
     return 1;
   }
 
-  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, env_block_length, env_block_wide, sizeof(env_block_wide)))
+  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, env_block_length, env_block_wide, sizeof(env_block_wide)/sizeof(WCHAR)))
   {
     fprintf(stderr, "%d: Failed converting environment block to wide char\n", job_id);
     return 1;

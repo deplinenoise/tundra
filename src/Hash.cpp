@@ -58,28 +58,16 @@ void HashSingleString(HashDigest* digest_out, const char* string)
   HashFinalize(&h, digest_out);
 }
 
-void HashAddStringFoldCase(HashState* self, const char* path, MemAllocLinear* scratch)
+void HashAddStringFoldCase(HashState* self, const char* path)
 {
-   MemAllocLinearScope scope(scratch);
-
-   size_t len = strlen(path);
-   char* foldBuffer = LinearAllocateArray<char>(scratch, len);
-
-   strcpy(foldBuffer, path);
-   for (size_t i=0; i!=len;i++)
-   {
-     foldBuffer[i] = FoldCase(foldBuffer[i]);
-   }
-   HashUpdate(self, foldBuffer,len);
-}
-
-void HashAddPath(HashState* self, const char* path, MemAllocLinear* scratch)
-{
-#if ENABLED(TUNDRA_CASE_INSENSITIVE_FILESYSTEM)
-  HashAddStringFoldCase(self,path,scratch);
-#else
-  HashAddString(self,path);  
-#endif
+  while (true)
+  {
+    char c = *path++;
+    if (c == 0)
+      return;
+      c = FoldCase(c);
+      HashUpdate(self, &c, 1);
+  }
 }
 
 void HashAddInteger(HashState* self, uint64_t value)
