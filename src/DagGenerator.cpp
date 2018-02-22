@@ -552,8 +552,9 @@ bool ComputeNodeGuids(const JsonArrayValue* nodes, int32_t* remap_table, TempNod
     }
 
     const char *annotation = FindStringValue(nobj, "Annotation");
-	if (annotation)
-		HashAddString(&h, annotation);
+
+    if (annotation)
+      HashAddString(&h, annotation);
 
     if ((!action || action[0] == '\0') && !inputs && !annotation)
     {

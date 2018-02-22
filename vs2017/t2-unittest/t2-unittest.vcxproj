@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -11,21 +11,21 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{026A21C3-022C-42C2-B30B-E2B5DA97BD46}</ProjectGuid>
+    <ProjectGuid>{833695AD-C1E4-4A3B-B924-9C049C0EE1A4}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>t2lua</RootNamespace>
+    <RootNamespace>t2unittest</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -56,6 +56,8 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\lua\src;$(SolutionDir)..\src;$(SolutionDir)..\unittest\googletest\googletest\include;$(SolutionDir)..\unittest\googletest\googletest</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -71,26 +73,31 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\lua\src;$(SolutionDir)..\src;$(SolutionDir)..\unittest\googletest\googletest\include;$(SolutionDir)..\unittest\googletest\googletest</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\LuaInterface.cpp" />
-    <ClCompile Include="..\..\src\LuaInterpolate.cpp" />
-    <ClCompile Include="..\..\src\LuaJsonWriter.cpp" />
-    <ClCompile Include="..\..\src\LuaPath.cpp" />
-    <ClCompile Include="..\..\src\LuaMain.cpp" />
-    <ClCompile Include="..\..\src\LuaProfiler.cpp" />
+    <ClCompile Include="..\..\unittest\TestHarness.cpp" />
+    <ClCompile Include="..\..\unittest\Test_BitFuncs.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Buffer.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Djb2.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Hash.cpp" />
+    <ClCompile Include="..\..\unittest\Test_IncludeScanner.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Json.cpp" />
+    <ClCompile Include="..\..\unittest\Test_MemAllocLinear.cpp" />
+    <ClCompile Include="..\..\unittest\test_PathUtil.cpp" />
+    <ClCompile Include="..\..\unittest\Test_Pow2.cpp" />
+    <ClCompile Include="..\..\unittest\Test_TargetSelect.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\LuaInterface.hpp" />
-    <ClInclude Include="..\..\src\LuaProfiler.hpp" />
+    <ClInclude Include="..\..\unittest\TestHarness.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\libtundra\libtundra.vcxproj">
