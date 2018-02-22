@@ -158,6 +158,13 @@ struct DagData
   FrozenArray<uint32_t>         m_ShaExtensionHashes;
 
   int32_t                       m_MaxExpensiveCount;
+
+  FrozenString                  m_StateFileName;
+  FrozenString                  m_StateFileNameTmp;
+  FrozenString                  m_ScanCacheFileName;
+  FrozenString                  m_ScanCacheFileNameTmp;
+  FrozenString                  m_DigestCacheFileName;
+  FrozenString                  m_DigestCacheFileNameTmp;
 };
 
 }

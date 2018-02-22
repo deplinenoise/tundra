@@ -14,7 +14,6 @@ void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
   ReadWriteLockInit(&self->m_Lock);
 
   self->m_State = nullptr;
-  self->m_StateFilename = filename;
 
   HeapInit(&self->m_Heap);
   LinearAllocInit(&self->m_Allocator, &self->m_Heap, heap_size / 2, "digest allocator");
@@ -67,7 +66,7 @@ void DigestCacheDestroy(DigestCache* self)
   ReadWriteLockDestroy(&self->m_Lock);
 }
 
-bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const char* tmp_filename)
+bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const char* filename, const char* tmp_filename)
 {
   TimingScope timing_scope(nullptr, &g_Stats.m_DigestCacheSaveTimeCycles);
 
@@ -107,7 +106,7 @@ bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const 
 
   if (success)
   {
-    success = RenameFile(tmp_filename, self->m_StateFilename);
+    success = RenameFile(tmp_filename, filename);
   }
   else
   {

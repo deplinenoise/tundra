@@ -70,6 +70,8 @@ static const struct OptionTemplate
     "Output build profile" },
   { 'C', "working-dir", OptionType::kString, offsetof(t2::DriverOptions, m_WorkingDir),
     "Set working directory before building" },
+  { 'R', "dagfile", OptionType::kString, offsetof(t2::DriverOptions, m_DAGFileName),
+    "filename of where tundra should store the mmapped dag file"},
   { 'h', "help", OptionType::kBool, offsetof(t2::DriverOptions, m_ShowHelp),
     "Show help" },
   { 'k', "continue", OptionType::kBool, offsetof(t2::DriverOptions, m_ContinueOnError),
@@ -263,6 +265,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  DriverInitializeTundraFilePaths(&options);
 #if defined(TUNDRA_WIN32)
   if (!options.m_RunUnprotected && nullptr == getenv("_TUNDRA2_PARENT_PROCESS_HANDLE"))
   {
@@ -388,7 +391,7 @@ int main(int argc, char* argv[])
       *o++ = ch;
     } while(ch);
 
-    _snprintf(mutex_name, sizeof mutex_name, "Global\\Tundra--%s", cwd_nerfed);
+    _snprintf(mutex_name, sizeof mutex_name, "Global\\Tundra--%s-%s", cwd_nerfed, options.m_DAGFileName);
     mutex_name[sizeof(mutex_name)-1] = '\0';
     bool warning_printed = false;
     HANDLE mutex = CreateMutexA(nullptr, false, mutex_name);

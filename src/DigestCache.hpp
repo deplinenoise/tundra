@@ -51,7 +51,6 @@ namespace t2
   {
     ReadWriteLock           m_Lock;
     const DigestCacheState* m_State;
-    const char*             m_StateFilename;
     MemAllocHeap            m_Heap;
     MemAllocLinear          m_Allocator;
     MemoryMappedFile        m_StateFile;
@@ -63,7 +62,7 @@ namespace t2
 
   void DigestCacheDestroy(DigestCache* self);
 
-  bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const char* tmp_filename);
+  bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const char* filename, const char* tmp_filename);
 
   bool DigestCacheGet(DigestCache* self, const char* filename, uint32_t hash, uint64_t timestamp, HashDigest* digest_out);
 
