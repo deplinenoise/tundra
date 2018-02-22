@@ -1,4 +1,5 @@
 #include "Hash.hpp"
+#include "MemAllocLinear.hpp"
 
 #include <cstring>
 #include <cstdio>
@@ -55,6 +56,30 @@ void HashSingleString(HashDigest* digest_out, const char* string)
   HashInit(&h);
   HashUpdate(&h, string, strlen(string));
   HashFinalize(&h, digest_out);
+}
+
+void HashAddStringFoldCase(HashState* self, const char* path, MemAllocLinear* scratch)
+{
+   MemAllocLinearScope scope(scratch);
+
+   size_t len = strlen(path);
+   char* foldBuffer = LinearAllocateArray<char>(scratch, len);
+
+   strcpy(foldBuffer, path);
+   for (size_t i=0; i!=len;i++)
+   {
+     foldBuffer[i] = FoldCase(foldBuffer[i]);
+   }
+   HashUpdate(self, foldBuffer,len);
+}
+
+void HashAddPath(HashState* self, const char* path, MemAllocLinear* scratch)
+{
+#if ENABLED(TUNDRA_CASE_INSENSITIVE_FILESYSTEM)
+  HashAddStringFoldCase(self,path,scratch);
+#else
+  HashAddString(self,path);  
+#endif
 }
 
 void HashAddInteger(HashState* self, uint64_t value)

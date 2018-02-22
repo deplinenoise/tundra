@@ -15,6 +15,7 @@
 #include "Stats.hpp"
 #include "TargetSelect.hpp"
 #include "HashTable.hpp"
+#include "Hash.hpp"
 #include "Profiler.hpp"
 
 #include <stdio.h>
@@ -311,13 +312,13 @@ static bool DriverCheckDagSignatures(Driver* self)
     HashInit(&h);
     for (const char* p : ctx.m_Dirs)
     {
-      HashAddString(&h, p);
+      HashAddPath(&h, p, &self->m_Allocator);
       HashAddSeparator(&h);
     }
 
     for (const char* p : ctx.m_Files)
     {
-      HashAddString(&h, p);
+      HashAddPath(&h, p, &self->m_Allocator);
       HashAddSeparator(&h);
     }
 

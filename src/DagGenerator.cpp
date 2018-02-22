@@ -455,7 +455,7 @@ static bool WriteScanner(BinaryLocator* ptr_out, BinarySegment* seg, BinarySegme
     const char* path = incpaths->m_Values[i]->GetString();
     if (!path)
       return false;
-    HashAddString(&h, path);
+    HashAddPath(&h, path, scratch);
     WriteCommonStringPtr(array_seg, str_seg, path, shared_strings, scratch);
   }
 
@@ -855,13 +855,13 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 
         for (size_t i = 0, count = subdirs->m_Count; i < count; ++i)
         {
-          HashAddString(&h, subdirs->m_Values[i]->GetString());
+          HashAddPath(&h, subdirs->m_Values[i]->GetString(), scratch);
           HashAddSeparator(&h);
         }
 
         for (size_t i = 0, count = files->m_Count; i < count; ++i)
         {
-          HashAddString(&h, files->m_Values[i]->GetString());
+          HashAddPath(&h, files->m_Values[i]->GetString(), scratch);
           HashAddSeparator(&h);
         }
 
