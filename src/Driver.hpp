@@ -40,6 +40,7 @@ struct DriverOptions
 #endif
   int         m_ThreadCount;
   const char *m_WorkingDir;
+  const char *m_DAGFileName;
   const char *m_ProfileOutput;
 };
 
@@ -109,6 +110,8 @@ bool DriverInitData(Driver* self);
 bool DriverSaveScanCache(Driver* self);
 bool DriverSaveBuildState(Driver* self);
 bool DriverSaveDigestCache(Driver* self);
+
+void DriverInitializeTundraFilePaths(DriverOptions* driverOptions);
 
 }
 

@@ -39,18 +39,16 @@ namespace t2
 
 TundraStats g_Stats;
 
-static const char s_BuildFile[]              = "tundra.lua";
-static const char s_DagFileName[]            = ".tundra2.dag";
-static const char s_StateFileName[]          = ".tundra2.state";
-static const char s_ScanCacheFileName[]      = ".tundra2.scancache";
-static const char s_DigestCacheFileName[]    = ".tundra2.digestcache";
-// Temporary filenames where we write data first. These are then renamed to commit.
-static const char s_StateFileNameTmp[]       = ".tundra2.state.tmp";
-static const char s_ScanCacheFileNameTmp[]   = ".tundra2.scancache.tmp";
-static const char s_DigestCacheFileNameTmp[] = ".tundra2.digestcache.tmp";
+static const char* s_BuildFile;
+static const char* s_DagFileName;
 
 static bool DriverPrepareDag(Driver* self, const char* dag_fn);
 static bool DriverCheckDagSignatures(Driver* self);
+void DriverInitializeTundraFilePaths(DriverOptions* driverOptions)
+{
+    s_BuildFile               = "tundra.lua";
+    s_DagFileName             = driverOptions->m_DAGFileName;
+}
 
 // Set default options.
 void DriverOptionsInit(DriverOptions* self)
@@ -72,6 +70,7 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_ContinueOnError = false;
   self->m_ThreadCount     = GetCpuCount();
   self->m_WorkingDir      = nullptr;
+  self->m_DAGFileName     = ".tundra2.dag";
   self->m_ProfileOutput   = nullptr;
   #if defined(TUNDRA_WIN32)
   self->m_RunUnprotected  = false;
@@ -171,9 +170,11 @@ bool DriverInitData(Driver* self)
   if (!DriverPrepareDag(self, s_DagFileName))
     return false;
 
-  LoadFrozenData<StateData>(s_StateFileName, &self->m_StateFile, &self->m_StateData);
+  DigestCacheInit(&self->m_DigestCache, MB(128), self->m_DagData->m_DigestCacheFileName);
 
-  LoadFrozenData<ScanData>(s_ScanCacheFileName, &self->m_ScanFile, &self->m_ScanData);
+  LoadFrozenData<StateData>(self->m_DagData->m_StateFileName, &self->m_StateFile, &self->m_StateData);
+
+  LoadFrozenData<ScanData>(self->m_DagData->m_ScanCacheFileName, &self->m_ScanFile, &self->m_ScanData);
 
   ScanCacheSetCache(&self->m_ScanCache, self->m_ScanData);
 
@@ -692,8 +693,6 @@ bool DriverInit(Driver* self, const DriverOptions* options)
 
   memset(&self->m_PassNodeCount, 0, sizeof self->m_PassNodeCount);
 
-  DigestCacheInit(&self->m_DigestCache, MB(128), s_DigestCacheFileName);
-
   return true;
 }
 
@@ -857,18 +856,18 @@ bool DriverSaveScanCache(Driver* self)
   // This will be invalidated.
   self->m_ScanData = nullptr;
 
-  bool success = ScanCacheSave(scan_cache, s_ScanCacheFileNameTmp, &self->m_Heap);
+  bool success = ScanCacheSave(scan_cache, self->m_DagData->m_ScanCacheFileNameTmp, &self->m_Heap);
 
   // Unmap the file so we can overwrite it (on Windows.)
   MmapFileDestroy(&self->m_ScanFile);
 
   if (success)
   {
-    success = RenameFile(s_ScanCacheFileNameTmp, s_ScanCacheFileName);
+    success = RenameFile(self->m_DagData->m_ScanCacheFileNameTmp, self->m_DagData->m_ScanCacheFileName);
   }
   else
   {
-    remove(s_ScanCacheFileNameTmp);
+    remove(self->m_DagData->m_ScanCacheFileNameTmp);
   }
 
   return success;
@@ -878,7 +877,7 @@ bool DriverSaveScanCache(Driver* self)
 bool DriverSaveDigestCache(Driver* self)
 {
   // This will be invalidated.
-  return DigestCacheSave(&self->m_DigestCache, &self->m_Heap, s_DigestCacheFileNameTmp);
+  return DigestCacheSave(&self->m_DigestCache, &self->m_Heap, self->m_DagData->m_DigestCacheFileName, self->m_DagData->m_DigestCacheFileNameTmp);
 }
 
 
@@ -1048,16 +1047,16 @@ bool DriverSaveBuildState(Driver* self)
   MmapFileUnmap(&self->m_StateFile);
   self->m_StateData = nullptr;
 
-  bool success = BinaryWriterFlush(&writer, s_StateFileNameTmp);
+  bool success = BinaryWriterFlush(&writer, self->m_DagData->m_StateFileNameTmp);
 
   if (success)
   {
     // Commit atomically with a file rename.
-    success = RenameFile(s_StateFileNameTmp, s_StateFileName);
+    success = RenameFile(self->m_DagData->m_StateFileNameTmp, self->m_DagData->m_StateFileName);
   }
   else
   {
-    remove(s_StateFileNameTmp);
+    remove(self->m_DagData->m_StateFileNameTmp);
   }
 
   BinaryWriterDestroy(&writer);

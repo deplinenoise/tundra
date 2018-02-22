@@ -35,18 +35,18 @@ static void WriteStringPtr(BinarySegment* seg, BinarySegment *str_seg, const cha
   }
 }
 
-static const char* FindStringValue(const JsonValue* obj, const char* key)
+static const char* FindStringValue(const JsonValue* obj, const char* key, const char* default_value = nullptr)
 {
   if (JsonValue::kObject != obj->m_Type)
-    return nullptr;
+    return default_value;
 
   const JsonValue *node = obj->Find(key);
 
   if (!node)
-    return nullptr;
+    return default_value;
 
   if (JsonValue::kString != node->m_Type)
-    return nullptr;
+    return default_value;
 
   return static_cast<const JsonStringValue*>(node)->m_String;
 }
@@ -911,6 +911,15 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "MaxExpensiveCount", -1));
 
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileName", ".tundra2.state"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileNameTmp", ".tundra2.state.tmp"));
+
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "ScanCacheFileName", ".tundra2.scancache"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "ScanCacheFileNameTmp", ".tundra2.scancache.tmp"));
+
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileName", ".tundra2.digestcache"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileNameTmp", ".tundra2.digestcache.tmp"));
+
   HashTableDestroy(&shared_strings);
 
   return true;
@@ -982,6 +991,9 @@ static bool RunExternalTool(const char* options, ...)
     PathFormat(dag_gen_path, &pbuf);
   }
 
+
+  const char* cmdline_to_use;
+
   char option_str[1024];
   va_list args;
   va_start(args, options);
@@ -989,20 +1001,34 @@ static bool RunExternalTool(const char* options, ...)
   va_end(args);
   option_str[sizeof(option_str)-1] = '\0';
 
-  const char* quotes = "";
-  if (strchr(dag_gen_path, ' '))
-    quotes = "\"";
+  EnvVariable env_var;
+  env_var.m_Name = "TUNDRA_FRONTEND_OPTIONS";
+  env_var.m_Value = option_str;
 
-  char cmdline[1024];
-  snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
-  cmdline[sizeof(cmdline)-1] = '\0';
+  if (const char* env_option = getenv("TUNDRA_DAGTOOL_FULLCOMMANDLINE"))
+  {
+    cmdline_to_use = env_option;
+  }
+  else
+  {
+    const char* quotes = "";
+    if (strchr(dag_gen_path, ' '))
+      quotes = "\"";
 
+    char cmdline[1024];
+    snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
+    cmdline[sizeof(cmdline)-1] = '\0';
+    
+    cmdline_to_use = cmdline;
+  }
+  
   const bool echo = (GetLogFlags() & kDebug) ? true : false;
-  ExecResult result = ExecuteProcess(cmdline, 0, nullptr, 0, echo, nullptr);
+
+  ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, 0, echo, nullptr);
 
   if (0 != result.m_ReturnCode)
   {
-    Log(kError, "DAG generator driver failed: %s", cmdline);
+    Log(kError, "DAG generator driver failed: %s", cmdline_to_use);
     return false;
   }
 
