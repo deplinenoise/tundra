@@ -312,13 +312,13 @@ static bool DriverCheckDagSignatures(Driver* self)
     HashInit(&h);
     for (const char* p : ctx.m_Dirs)
     {
-      HashAddPath(&h, p, &self->m_Allocator);
+      HashAddPath(&h, p);
       HashAddSeparator(&h);
     }
 
     for (const char* p : ctx.m_Files)
     {
-      HashAddPath(&h, p, &self->m_Allocator);
+      HashAddPath(&h, p);
       HashAddSeparator(&h);
     }
 

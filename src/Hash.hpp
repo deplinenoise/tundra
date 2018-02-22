@@ -176,8 +176,16 @@ inline void HashAddString(HashState* self, const char* s)
   HashUpdate(self, s, strlen(s));
 }
 
-//Add a path to be hashed. on case sensitive filesystems, we fold the case
-void HashAddPath(HashState* self, const char* path, MemAllocLinear* scratch);
+void HashAddStringFoldCase(HashState* self, const char* path);
+
+inline void HashAddPath(HashState* self, const char* path)
+{
+#if ENABLED(TUNDRA_CASE_INSENSITIVE_FILESYSTEM)
+  HashAddStringFoldCase(self,path);
+#else
+  HashAddString(self,path);  
+#endif
+}
 
 // Add binary integer data to be hashed.
 void HashAddInteger(HashState* h, uint64_t value);
