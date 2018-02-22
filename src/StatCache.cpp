@@ -25,9 +25,7 @@ void StatCacheDestroy(StatCache* self)
 static void StatCacheInsert(StatCache* self, uint32_t hash, const char* path, const FileInfo& info)
 {
   ReadWriteLockWrite(&self->m_HashLock);
-
-  HashTableInsert(&self->m_Files, hash, path, info);
-
+  HashTableInsert(&self->m_Files, hash, StrDup(self->m_Allocator, path), info);
   ReadWriteUnlockWrite(&self->m_HashLock);
 }
 
