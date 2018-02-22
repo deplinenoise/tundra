@@ -7,6 +7,8 @@
 namespace t2
 {
 
+struct MemAllocLinear;
+
 #if ENABLED(USE_SHA1_HASH)
 
 enum
@@ -172,6 +174,17 @@ void HashUpdate(HashState* h, const void* data, size_t size);
 inline void HashAddString(HashState* self, const char* s)
 {
   HashUpdate(self, s, strlen(s));
+}
+
+void HashAddStringFoldCase(HashState* self, const char* path);
+
+inline void HashAddPath(HashState* self, const char* path)
+{
+#if ENABLED(TUNDRA_CASE_INSENSITIVE_FILESYSTEM)
+  HashAddStringFoldCase(self,path);
+#else
+  HashAddString(self,path);  
+#endif
 }
 
 // Add binary integer data to be hashed.

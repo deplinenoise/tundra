@@ -1,4 +1,5 @@
 #include "Hash.hpp"
+#include "MemAllocLinear.hpp"
 
 #include <cstring>
 #include <cstdio>
@@ -55,6 +56,18 @@ void HashSingleString(HashDigest* digest_out, const char* string)
   HashInit(&h);
   HashUpdate(&h, string, strlen(string));
   HashFinalize(&h, digest_out);
+}
+
+void HashAddStringFoldCase(HashState* self, const char* path)
+{
+  while (true)
+  {
+    char c = *path++;
+    if (c == 0)
+      return;
+      c = FoldCase(c);
+      HashUpdate(self, &c, 1);
+  }
 }
 
 void HashAddInteger(HashState* self, uint64_t value)
