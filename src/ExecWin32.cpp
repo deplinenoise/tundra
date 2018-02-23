@@ -58,7 +58,7 @@ static HANDLE GetOrCreateTempFileFor(int job_id)
     char temp_dir[MAX_PATH + 1];
     DWORD access, sharemode, disp, flags;
 
-    _snprintf(temp_dir, MAX_PATH, "%stundra.%u.%d.%d", s_TemporaryDir, s_TundraPid, job_id, stream);
+    _snprintf(temp_dir, MAX_PATH, "%stundra.%u.%d", s_TemporaryDir, s_TundraPid, job_id);
     temp_dir[MAX_PATH] = '\0';
 
     access    = GENERIC_WRITE | GENERIC_READ;
@@ -82,9 +82,9 @@ static HANDLE GetOrCreateTempFileFor(int job_id)
   return result;
 }
 
-static void CopyTempFileContentsIntoBufferAndPrepareFileForReuse(int job_id, Stream stream, OutputBufferData* outputBuffer, MemAllocHeap* heap)
+static void CopyTempFileContentsIntoBufferAndPrepareFileForReuse(int job_id, OutputBufferData* outputBuffer, MemAllocHeap* heap)
 {
-  HANDLE tempFile = s_TempFiles[job_id * 2 + stream];
+  HANDLE tempFile = s_TempFiles[job_id];
 
   //get the filesize
   DWORD fsize = SetFilePointer(tempFile, 0, NULL, FILE_CURRENT);
@@ -477,7 +477,7 @@ ExecResult ExecuteProcess(
   CloseHandle(pinfo.hThread);
 
     
-  result.m_ReturnCode = WaitForFinish(pinfo.hProcess, callback_on_slow, time_until_first_callback, &result.m_WasSignalled);
+  result.m_ReturnCode = WaitForFinish(pinfo.hProcess, callback_on_slow, time_until_first_callback, &result.m_WasAborted);
 
   CleanupResponseFile(responseFile);
 
