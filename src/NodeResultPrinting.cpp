@@ -132,7 +132,7 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
 {
     int processedNodeCount = ++queue->m_ProcessedNodeCount;
     bool failed = result->m_ReturnCode != 0 || result->m_WasSignalled;
-    bool verbose = (failed && ! result->m_WasSignalled) || always_verbose;
+    bool verbose = (failed && !result->m_WasAborted) || always_verbose;
 
     time_t now = time(0);
     int duration = int(now - time_exec_started);
@@ -175,7 +175,9 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
             HeapFree(queue->m_Config.m_Heap, content_buffer);
         }
         if (result->m_WasSignalled)
-          PrintDiagnostic("Was Interrupted", "Yes");
+          PrintDiagnostic("Was Signaled", "Yes");
+        else if (result->m_WasAborted)
+          PrintDiagnostic("Was Aborted", "Yes");
         else
           PrintDiagnostic("ExitCode", result->m_ReturnCode);
     }

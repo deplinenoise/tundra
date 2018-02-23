@@ -28,6 +28,7 @@ namespace t2
   {
     int               m_ReturnCode;
     bool              m_WasSignalled;
+    bool              m_WasAborted;
     NodeData*         m_FrozenNodeData;
     OutputBufferData  m_OutputBuffer;
   };

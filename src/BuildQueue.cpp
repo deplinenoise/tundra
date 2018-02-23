@@ -495,9 +495,9 @@ namespace t2
     PrintNodeResult(&result, node_data, last_cmd_line, thread_state->m_Queue, echo_cmdline, time_of_start);
     ExecResultFreeMemory(&result);
 
-    if (result.m_WasSignalled)
+    if (result.m_WasAborted)
     {
-      SignalSet("child processes signalled");
+      SignalSet("child processes was aborted");
     }
 
     if (0 == result.m_ReturnCode)

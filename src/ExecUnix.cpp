@@ -110,6 +110,7 @@ ExecuteProcess(
 
   result.m_ReturnCode   = 1;
   result.m_WasSignalled = false;
+  result.m_WasAborted = false;
   result.m_OutputBuffer.buffer = nullptr;
 
   if ((heap == nullptr && !stream_to_stdout) || (heap != nullptr && stream_to_stdout))
@@ -286,19 +287,19 @@ ExecuteProcess(
 		close(stderr_pipe[pipe_read]);
 	
 		if (WIFSIGNALED(return_code))
-    {
+    	{
 			result.m_ReturnCode   = 1;
-			result.m_WasSignalled = true;
-
-//			int sig = WTERMSIG(return_code);
-//			TerminalIoPrintf(job_id, INT_MAX, "child process exited on signal %d: %s\n", sig, cmd_line);
+			
+			int sig = WTERMSIG(return_code);
+			if (sig == SIGKILL)
+				result.m_WasAborted = true;
+			else
+				result.m_WasSignalled = true;
 		}
 		else
-    {
+		{
 			result.m_ReturnCode   = WEXITSTATUS(return_code);
-
-//				TerminalIoPrintf(job_id, INT_MAX, "child process failed with exit code %d: %s\n", result.m_ReturnCode, cmd_line);
-    }
+	    }
 
 		return result;
 	}
