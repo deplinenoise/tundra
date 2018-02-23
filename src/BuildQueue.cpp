@@ -295,7 +295,7 @@ namespace t2
     for (const FrozenFileAndHash& input : node_data->m_InputFiles)
     {
       // Add path and timestamp of every direct input file.
-      HashAddPath(&sighash, input.m_Filename, &thread_state->m_ScratchAlloc);
+      HashAddPath(&sighash, input.m_Filename);
       ComputeFileSignature(&sighash, stat_cache, digest_cache, input.m_Filename, input.m_FilenameHash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
 
       if (scanner)
@@ -318,7 +318,7 @@ namespace t2
           {
             // Add path and timestamp of every indirect input file (#includes)
             const FileAndHash& path = scan_output.m_IncludedFiles[i];
-            HashAddPath(&sighash, path.m_Filename, &thread_state->m_ScratchAlloc);
+            HashAddPath(&sighash, path.m_Filename);
             ComputeFileSignature(&sighash, stat_cache, digest_cache, path.m_Filename, path.m_FilenameHash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
           }
         }
