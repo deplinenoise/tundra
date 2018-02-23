@@ -47,19 +47,11 @@ static DWORD             s_TundraPid;
 static Mutex             s_FdMutex;
 
 //allocate one stdout and one stderr handle per job
-static HANDLE s_TempFiles[kMaxBuildThreads*2];
+static HANDLE s_TempFiles[kMaxBuildThreads];
 
-enum Stream
+static HANDLE GetOrCreateTempFileFor(int job_id)
 {
-  StdOut = 0,
-  StdErr = 1
-};
-
-static HANDLE GetOrCreateTempFileFor(int job_id, Stream stream)
-{
-  int tempFilesIndex = job_id * 2 + stream;
-
-  HANDLE result = s_TempFiles[tempFilesIndex];
+  HANDLE result = s_TempFiles[job_id];
 
   if (!result)
   {
@@ -84,7 +76,7 @@ static HANDLE GetOrCreateTempFileFor(int job_id, Stream stream)
 
     SetHandleInformation(result, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
 
-    s_TempFiles[tempFilesIndex] = result;
+    s_TempFiles[job_id] = result;
   }
 
   return result;
@@ -442,8 +434,7 @@ ExecResult ExecuteProcess(
 
   if (!stream_to_stdout)
   {
-    sinfo.hStdOutput = GetOrCreateTempFileFor(job_id, Stream::StdOut);
-    sinfo.hStdError = GetOrCreateTempFileFor(job_id, Stream::StdErr);
+    sinfo.hStdOutput = sinfo.hStdError = GetOrCreateTempFileFor(job_id);
     sinfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
     sinfo.dwFlags |= STARTF_USESTDHANDLES;
   }
@@ -491,10 +482,7 @@ ExecResult ExecuteProcess(
   CleanupResponseFile(responseFile);
 
   if (!stream_to_stdout)
-  {
-    CopyTempFileContentsIntoBufferAndPrepareFileForReuse(job_id, Stream::StdOut, &result.m_StdOutBuffer, heap);
-    CopyTempFileContentsIntoBufferAndPrepareFileForReuse(job_id, Stream::StdErr, &result.m_StdErrBuffer, heap);
-  }
+    CopyTempFileContentsIntoBufferAndPrepareFileForReuse(job_id, &result.m_OutputBuffer, heap);
 
   CloseHandle(pinfo.hProcess);
   CloseHandle(job_object);

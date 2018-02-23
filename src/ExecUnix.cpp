@@ -40,7 +40,7 @@ static void SetFdNonBlocking(int fd)
 
 static void EmitOutputBytesToDestination(ExecResult* execResult, int is_stderr, const char* text, size_t count)
 {
-	OutputBufferData* data = is_stderr == 0 ? &execResult->m_StdOutBuffer : &execResult->m_StdErrBuffer;
+	OutputBufferData* data = &execResult->m_OutputBuffer;
 
 	if (data->buffer == nullptr)
 	{
@@ -110,17 +110,13 @@ ExecuteProcess(
 
   result.m_ReturnCode   = 1;
   result.m_WasSignalled = false;
-  result.m_StdOutBuffer.buffer = nullptr;
-  result.m_StdErrBuffer.buffer = nullptr;
+  result.m_OutputBuffer.buffer = nullptr;
 
   if ((heap == nullptr && !stream_to_stdout) || (heap != nullptr && stream_to_stdout))
 	CroakAbort("Either pass in a heap so we can allocate buffers to store stdout, or ask to stream directly to stdout");
 
   if (heap != nullptr)
-  {
-	InitOutputBuffer(&result.m_StdOutBuffer, heap);
-	InitOutputBuffer(&result.m_StdErrBuffer, heap);
-  }
+	InitOutputBuffer(&result.m_OutputBuffer, heap);
 
 	pid_t child;
 	const int pipe_read = 0;
@@ -288,29 +284,20 @@ ExecuteProcess(
 
 		close(stdout_pipe[pipe_read]);
 		close(stderr_pipe[pipe_read]);
-<<<<<<< HEAD
 	
-=======
-
-		TerminalIoJobExit(job_id);
-
->>>>>>> various_unity
 		if (WIFSIGNALED(return_code))
     {
 			result.m_ReturnCode   = 1;
 			result.m_WasSignalled = true;
 
-			int sig = WTERMSIG(return_code);
-			TerminalIoPrintf(job_id, INT_MAX, "child process exited on signal %d: %s\n", sig, cmd_line);
+//			int sig = WTERMSIG(return_code);
+//			TerminalIoPrintf(job_id, INT_MAX, "child process exited on signal %d: %s\n", sig, cmd_line);
 		}
 		else
     {
 			result.m_ReturnCode   = WEXITSTATUS(return_code);
 
-			if (0 != result.m_ReturnCode && !echo_cmdline)
-			{
-				TerminalIoPrintf(job_id, INT_MAX, "child process failed with exit code %d: %s\n", result.m_ReturnCode, cmd_line);
-			}
+//				TerminalIoPrintf(job_id, INT_MAX, "child process failed with exit code %d: %s\n", result.m_ReturnCode, cmd_line);
     }
 
 		return result;

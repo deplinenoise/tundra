@@ -180,19 +180,13 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
           PrintDiagnostic("ExitCode", result->m_ReturnCode);
     }
 
-    bool anyStdOut = result->m_StdOutBuffer.cursor>0;
-    bool anyStdErr = result->m_StdErrBuffer.cursor>0;
+    bool anyOutput = result->m_OutputBuffer.cursor>0;
   
-    if (anyStdOut && verbose)
-        PrintDiagnosticPrefix("stdout");
-    if (anyStdOut)
-      PrintBufferTrimmed(&result->m_StdOutBuffer);
+    if (anyOutput && verbose)
+        PrintDiagnosticPrefix("Output");
+    if (anyOutput)
+      PrintBufferTrimmed(&result->m_OutputBuffer);
 
-    if (anyStdErr && verbose)
-        PrintDiagnosticPrefix("stderr");
-    if (anyStdErr)
-      PrintBufferTrimmed(&result->m_StdErrBuffer);
-    
     total_number_node_results_printed++;
     last_progress_message_of_any_job = now;
     last_progress_message_job = node_data;

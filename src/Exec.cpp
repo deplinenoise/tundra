@@ -28,8 +28,7 @@ void DestroyOutputBuffer(t2::OutputBufferData* data)
 
 void ExecResultFreeMemory(ExecResult* result)
 {
-    DestroyOutputBuffer(&result->m_StdOutBuffer);
-    DestroyOutputBuffer(&result->m_StdErrBuffer);
+    DestroyOutputBuffer(&result->m_OutputBuffer);
 }
 
 }

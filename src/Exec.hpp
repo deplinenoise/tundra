@@ -29,8 +29,7 @@ namespace t2
     int               m_ReturnCode;
     bool              m_WasSignalled;
     NodeData*         m_FrozenNodeData;
-    OutputBufferData  m_StdOutBuffer;
-    OutputBufferData  m_StdErrBuffer;
+    OutputBufferData  m_OutputBuffer;
   };
 
   void InitOutputBuffer(OutputBufferData* data, MemAllocHeap* heap);
