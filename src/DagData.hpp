@@ -99,7 +99,10 @@ struct NodeData
     // for incremental linking.
     kFlagPreciousOutputs    = 1 << 1,
 
-    kFlagExpensive          = 1 << 2
+    kFlagExpensive          = 1 << 2,
+
+    //if not set, we fail the build when a command prints anything unexpected to stdout or stderr
+    kFlagAllowUnexpectedOutput = 1 << 3,
   };
 
   FrozenString                    m_Action;
@@ -112,6 +115,7 @@ struct NodeData
   FrozenArray<FrozenFileAndHash>  m_OutputFiles;
   FrozenArray<FrozenFileAndHash>  m_AuxOutputFiles;
   FrozenArray<FrozenFileAndHash>  m_FrontendResponseFiles;
+  FrozenArray<FrozenString>       m_AllowedOutputSubstrings;
   FrozenArray<EnvVarData>         m_EnvVars;
   FrozenPtr<ScannerData>          m_Scanner;
   uint32_t                        m_Flags;

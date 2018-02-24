@@ -12,6 +12,7 @@ void InitOutputBuffer(OutputBufferData* data, MemAllocHeap* heap)
   data->buffer_size = initial_buffer_size;
   data->cursor = 0;
   data->buffer = static_cast<char*>(HeapAllocate(heap, initial_buffer_size));
+  data->buffer[0] = 0;
   data->heap = heap;
 }
 

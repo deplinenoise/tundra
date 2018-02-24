@@ -15,6 +15,7 @@
 #include "Atomic.hpp"
 #include "Profiler.hpp"
 #include "NodeResultPrinting.hpp"
+#include "OutputValidation.hpp"
 
 #include <stdio.h>
 
@@ -325,7 +326,13 @@ namespace t2
       }
     }
 
+    for (const FrozenString& input : node_data->m_AllowedOutputSubstrings)
+      HashAddString(&sighash, (const char*)input);
+
+    HashAddInteger(&sighash, (node_data->m_Flags & NodeData::kFlagAllowUnexpectedOutput) ? 1 : 0);
+
     HashFinalize(&sighash, &node->m_InputSignature);
+
 
     if (debug_log)
     {
@@ -476,6 +483,7 @@ namespace t2
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
+    bool passedOutputValidation = true;
     if (0 == result.m_ReturnCode)
     {
       Log(kSpam, "Launching process");
@@ -483,6 +491,9 @@ namespace t2
       ProfilerScope prof_scope(annotation, job_id);
       last_cmd_line = cmd_line;
       result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, &slowCallback);
+
+      passedOutputValidation = ValidateExecResultAgainstAllowedOutput(&result, node_data);
+
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -492,7 +503,7 @@ namespace t2
     }
 
     MutexLock(queue_lock);
-    PrintNodeResult(&result, node_data, last_cmd_line, thread_state->m_Queue, echo_cmdline, time_of_start);
+    PrintNodeResult(&result, node_data, last_cmd_line, thread_state->m_Queue, echo_cmdline, time_of_start, passedOutputValidation);
     ExecResultFreeMemory(&result);
 
     if (result.m_WasAborted)
@@ -500,7 +511,7 @@ namespace t2
       SignalSet("child processes was aborted");
     }
 
-    if (0 == result.m_ReturnCode)
+    if (0 == result.m_ReturnCode && passedOutputValidation)
     {
       return BuildProgress::kSucceeded;
     }

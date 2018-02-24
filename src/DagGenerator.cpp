@@ -159,16 +159,16 @@ void WriteCommonStringPtr(BinarySegment* segment, BinarySegment* str_seg, const 
   }
 }
 
-static uint32_t GetNodeFlag(const JsonObjectValue* node, const char* name, uint32_t value)
+static uint32_t GetNodeFlag(const JsonObjectValue* node, const char* name, uint32_t value, bool defaultValue = false)
 {
-  uint32_t result = 0;
+  uint32_t result = defaultValue ? value : 0;
 
   if (const JsonValue* val = node->Find(name))
   {
     if (const JsonBooleanValue* flag = val->AsBoolean())
     {
       if (flag->m_Boolean)
-        result = value;
+         result = value;
     }
   }
 
@@ -245,6 +245,7 @@ static bool WriteNodes(
     const JsonArrayValue *env_vars      = FindArrayValue(node, "Env");
     const int             scanner_index = (int) FindIntValue(node, "ScannerIndex", -1);
     const JsonArrayValue *frontend_rsps = FindArrayValue(node, "FrontendResponseFiles");
+    const JsonArrayValue *allowedOutputSubstrings = FindArrayValue(node, "AllowedOutputSubstrings");
 
 
     WriteStringPtr(node_data_seg, str_seg, action);
@@ -298,6 +299,20 @@ static bool WriteNodes(
     WriteFileArray(node_data_seg, array2_seg, str_seg, aux_outputs);
     WriteFileArray(node_data_seg, array2_seg, str_seg, frontend_rsps);
 
+    if (allowedOutputSubstrings)
+    {
+      int count = allowedOutputSubstrings->m_Count;
+      BinarySegmentWriteInt32(node_data_seg, count);
+      BinarySegmentAlign(array2_seg, 4);
+      BinarySegmentWritePointer(node_data_seg, BinarySegmentPosition(array2_seg));
+      for (int i=0; i!=count; i++)
+        WriteCommonStringPtr(array2_seg, str_seg, allowedOutputSubstrings->m_Values[i]->AsString()->m_String, shared_strings, scratch);
+    } else
+    {
+      BinarySegmentWriteInt32(node_data_seg, 0);
+      BinarySegmentWriteNullPointer(node_data_seg);
+    }
+
     // Environment variables
     if (env_vars && env_vars->m_Count > 0)
     {
@@ -336,6 +351,7 @@ static bool WriteNodes(
     flags |= GetNodeFlag(node, "OverwriteOutputs", NodeData::kFlagOverwriteOutputs);
     flags |= GetNodeFlag(node, "PreciousOutputs",  NodeData::kFlagPreciousOutputs);
     flags |= GetNodeFlag(node, "Expensive",        NodeData::kFlagExpensive);
+    flags |= GetNodeFlag(node, "AllowUnexpectedOutput",  NodeData::kFlagAllowUnexpectedOutput, false);
 
     BinarySegmentWriteUint32(node_data_seg, flags);
   }

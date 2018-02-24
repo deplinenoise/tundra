@@ -88,9 +88,9 @@ static void EmitColor(const char* colorsequence)
 #define WHT   "\x1B[37m"
 #define RESET "\x1B[0m"
 
-static void PrintDiagnosticPrefix(const char* title)
+static void PrintDiagnosticPrefix(const char* title, const char* color = YEL)
 {
-    EmitColor(YEL);
+    EmitColor(color);
     printf("##### %s\n",title);
     EmitColor(RESET);
 }
@@ -128,10 +128,10 @@ static void PrintBufferTrimmed(OutputBufferData* buffer)
 }
 
 
-void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* cmd_line, BuildQueue* queue, bool always_verbose, time_t time_exec_started)
+void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* cmd_line, BuildQueue* queue, bool always_verbose, time_t time_exec_started, bool passedOutputValidation)
 {
     int processedNodeCount = ++queue->m_ProcessedNodeCount;
-    bool failed = result->m_ReturnCode != 0 || result->m_WasSignalled;
+    bool failed = result->m_ReturnCode != 0 || result->m_WasSignalled || !passedOutputValidation;
     bool verbose = (failed && !result->m_WasAborted) || always_verbose;
 
     time_t now = time(0);
@@ -174,21 +174,34 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
             PrintDiagnostic(titleBuffer, content_buffer);
             HeapFree(queue->m_Config.m_Heap, content_buffer);
         }
+
+        if (!passedOutputValidation && result->m_ReturnCode == 0 && !result->m_WasSignalled)
+        {
+          PrintDiagnosticPrefix("Failed because this command wrote something to the output that wasnt expected. We were expecting any of the following strings:", RED);
+          int count = node_data->m_AllowedOutputSubstrings.GetCount();
+          for (int i=0; i!=count ; i++)
+            printf("%s\n", (const char*)node_data->m_AllowedOutputSubstrings[i]);
+          if (count == 0)
+            printf("<< no allowed strings >>\n");
+        }
+
         if (result->m_WasSignalled)
           PrintDiagnostic("Was Signaled", "Yes");
-        else if (result->m_WasAborted)
+        if (result->m_WasAborted)
           PrintDiagnostic("Was Aborted", "Yes");
-        else
+        if (result->m_ReturnCode !=0)
           PrintDiagnostic("ExitCode", result->m_ReturnCode);
     }
 
     bool anyOutput = result->m_OutputBuffer.cursor>0;
   
     if (anyOutput && verbose)
-        PrintDiagnosticPrefix("Output");
-    if (anyOutput)
+    {
+      PrintDiagnosticPrefix("Output");
       PrintBufferTrimmed(&result->m_OutputBuffer);
-
+    } else if (anyOutput && 0 != (node_data->m_Flags & NodeData::kFlagAllowUnexpectedOutput))
+        PrintBufferTrimmed(&result->m_OutputBuffer);
+    
     total_number_node_results_printed++;
     last_progress_message_of_any_job = now;
     last_progress_message_job = node_data;
