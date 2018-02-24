@@ -240,8 +240,6 @@ ExecuteProcess(
 		close(stdout_pipe[pipe_read]);
 		close(stderr_pipe[pipe_read]);
 
-		TerminalIoJobExit(job_id);
-
 		if (WIFSIGNALED(return_code))
     {
 			result.m_ReturnCode   = 1;
@@ -259,6 +257,8 @@ ExecuteProcess(
 				TerminalIoPrintf(job_id, INT_MAX, "child process failed with exit code %d: %s\n", result.m_ReturnCode, cmd_line);
 			}
     }
+
+		TerminalIoJobExit(job_id);
 
 		return result;
 	}
