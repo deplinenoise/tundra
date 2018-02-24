@@ -94,7 +94,7 @@ static void CopyTempFileContentsIntoBufferAndPrepareFileForReuse(int job_id, Out
 
   assert(outputBuffer->buffer == nullptr);
   assert(outputBuffer->heap == nullptr);
-  outputBuffer->buffer = static_cast<char*>(HeapAllocate(heap, fsize));
+  outputBuffer->buffer = static_cast<char*>(HeapAllocate(heap, fsize+1));
   outputBuffer->heap = heap;
   outputBuffer->cursor = 0;
   outputBuffer->buffer_size = fsize;
@@ -109,6 +109,7 @@ static void CopyTempFileContentsIntoBufferAndPrepareFileForReuse(int job_id, Out
     processed += amountRead;
     outputBuffer->cursor += amountRead;
   }
+  outputBuffer->buffer[outputBuffer->cursor] = 0;
 
   // Truncate the temporary file for reuse
   SetFilePointer(tempFile, 0, NULL, FILE_BEGIN);
