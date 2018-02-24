@@ -291,7 +291,7 @@ ExecuteProcess(
 			result.m_ReturnCode   = 1;
 			
 			int sig = WTERMSIG(return_code);
-			if (sig == SIGKILL)
+			if (sig == SIGINT)
 				result.m_WasAborted = true;
 			else
 				result.m_WasSignalled = true;
