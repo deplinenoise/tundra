@@ -138,11 +138,9 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     int duration = int(now - time_exec_started);
     
     EmitColor(failed ? RED : GRN);
-    printf("[%d/%d] ", processedNodeCount, queue->m_Config.m_MaxNodes);
-    if (duration > 5)
-      printf("[%ds] ", duration);
+    printf("[%d/%d ", processedNodeCount, queue->m_Config.m_MaxNodes);
+    printf("%ds] ", duration);
     EmitColor(RESET); 
-    
     printf("%s\n", (const char*)node_data->m_Annotation);   
     if (verbose)
     {
