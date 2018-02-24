@@ -217,7 +217,7 @@ int PrintNodeInProgress(const NodeData* node_data, time_t time_of_start)
   if (seconds_since_last_progress_message_of_any_job > acceptable_time_since_last_message && seconds_job_has_been_running_for > only_print_if_slower_than)
   {
     EmitColor(YEL);
-    printf("[BUSY] [%ds] ", seconds_job_has_been_running_for);
+    printf("[BUSY %ds] ", seconds_job_has_been_running_for);
     EmitColor(RESET);
     printf("%s\n", (const char*)node_data->m_Annotation);
     last_progress_message_of_any_job = now;
