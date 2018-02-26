@@ -45,6 +45,7 @@ void ComputeScanCacheKey(
     
 void ScanCacheInit(ScanCache* self, MemAllocHeap* heap, MemAllocLinear* allocator)
 {
+  self->m_Initialized      = true;
   self->m_FrozenData       = nullptr;
   self->m_Heap             = heap;
   self->m_Allocator        = allocator;
@@ -58,6 +59,8 @@ void ScanCacheInit(ScanCache* self, MemAllocHeap* heap, MemAllocLinear* allocato
 
 void ScanCacheDestroy(ScanCache* self)
 {
+  if (!self->m_Initialized)
+    return;
   HeapFree(self->m_Heap, self->m_FrozenAccess);
   HeapFree(self->m_Heap, self->m_Table);
   ReadWriteLockDestroy(&self->m_Lock);

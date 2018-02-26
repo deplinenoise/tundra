@@ -49,6 +49,7 @@ namespace t2
 
   struct DigestCache
   {
+    bool                    m_Initialized;
     ReadWriteLock           m_Lock;
     const DigestCacheState* m_State;
     MemAllocHeap            m_Heap;

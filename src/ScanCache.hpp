@@ -35,7 +35,7 @@ namespace t2
     uint32_t        m_RecordCount;
     uint32_t        m_TableSize;
     Record**        m_Table;
-
+    bool            m_Initialized;
     // Table of bits to track whether frozen records have been accessed.
     uint8_t*        m_FrozenAccess;
   };

@@ -13,6 +13,7 @@ void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
 {
   ReadWriteLockInit(&self->m_Lock);
 
+  self->m_Initialized = true;
   self->m_State = nullptr;
 
   HeapInit(&self->m_Heap);
@@ -59,6 +60,8 @@ void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
 
 void DigestCacheDestroy(DigestCache* self)
 {
+  if (!self->m_Initialized)
+    return;
   HashTableDestroy(&self->m_Table);
   MmapFileDestroy(&self->m_StateFile);
   LinearAllocDestroy(&self->m_Allocator);
