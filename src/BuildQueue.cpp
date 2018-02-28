@@ -397,6 +397,22 @@ namespace t2
     return next_state;
   }
 
+  struct SlowCallbackData
+  {
+    Mutex* queue_lock;
+    const NodeData* node_data;
+    time_t time_of_start;
+  };
+
+  static int SlowCallback(void* user_data)
+  {
+      SlowCallbackData* data = (SlowCallbackData*) user_data;
+      MutexLock(data->queue_lock);
+      int sendNextCallbackIn = PrintNodeInProgress(data->node_data, data->time_of_start);
+      MutexUnlock(data->queue_lock);
+      return sendNextCallbackIn;
+  }
+
   static BuildProgress::Enum RunAction(BuildQueue* queue, ThreadState* thread_state, NodeState* node, Mutex* queue_lock)
   {
     const NodeData    *node_data    = node->m_MmapData;
@@ -466,12 +482,10 @@ namespace t2
 
     time_t time_of_start = time(0);
 
-    std::function<int()> slowCallback = [&]() -> int {
-      MutexLock(queue_lock);
-      int sendNextCallbackIn = PrintNodeInProgress(node_data, time_of_start);
-      MutexUnlock(queue_lock);
-      return sendNextCallbackIn;
-    };
+    SlowCallbackData slowCallbackData;
+    slowCallbackData.node_data = node_data;
+    slowCallbackData.time_of_start = time_of_start;
+    slowCallbackData.queue_lock = queue_lock;
 
     if (pre_cmd_line)
     {
@@ -479,7 +493,7 @@ namespace t2
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope("Pre-build", job_id);
       last_cmd_line = pre_cmd_line;
-      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, &slowCallback, 1);
+      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, SlowCallback, &slowCallbackData, 1);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -490,7 +504,7 @@ namespace t2
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope(annotation, job_id);
       last_cmd_line = cmd_line;
-      result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, &slowCallback);
+      result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, SlowCallback, &slowCallbackData);
 
       passedOutputValidation = ValidateExecResultAgainstAllowedOutput(&result, node_data);
 

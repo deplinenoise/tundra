@@ -103,7 +103,8 @@ ExecuteProcess(
 		MemAllocHeap* heap,
 		int job_id,
 		bool stream_to_stdout,
-		std::function<int()>* callback_on_slow,
+		int (*callback_on_slow)(void* user_data),
+        void* callback_on_slow_userdata,
 		int time_to_first_slow_callback)
 {
   ExecResult result;
@@ -239,7 +240,7 @@ ExecuteProcess(
 				if (callback_on_slow != nullptr)
 				{
 					if (time(0) > next_callback_at)
-						next_callback_at = time(0) + (*callback_on_slow)();
+						next_callback_at = time(0) + (*callback_on_slow)(callback_on_slow_userdata);
 				}
 				if (-1 == count) // happens in gdb due to syscall interruption
 					continue;

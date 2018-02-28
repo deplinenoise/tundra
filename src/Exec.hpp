@@ -44,9 +44,11 @@ namespace t2
         MemAllocHeap*       heap,
         int                 job_id,
         bool                stream_output_to_stdout,
-        std::function<int()>* callback_on_slow,
+        int (*callback_on_slow)(void* user_data) = nullptr,
+        void*               callback_on_slow_userdata = nullptr,
         int                 time_until_first_callback = 1
-        ); 
+        );
+
 }
 
 #endif
