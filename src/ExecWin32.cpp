@@ -385,7 +385,7 @@ static void CleanupResponseFile(const char* responseFile)
     remove(responseFile);
 }
 
-static int WaitForFinish(HANDLE processHandle, std::function<int()>* callback_on_slow, int time_until_first_callback, bool* out_wassignaled)
+static int WaitForFinish(HANDLE processHandle, int(*callback_on_slow)(void* user_data), void* callback_on_slow_userdata, int time_until_first_callback, bool* out_wassignaled)
 {
   HANDLE handles[2];
   handles[0] = processHandle;
@@ -412,7 +412,7 @@ static int WaitForFinish(HANDLE processHandle, std::function<int()>* callback_on
       return 1;
 
     case WAIT_TIMEOUT:
-      timeUntilNextSlowCallbackInvoke = (*callback_on_slow)();
+      timeUntilNextSlowCallbackInvoke = (*callback_on_slow)(callback_on_slow_userdata);
     }
   }
 }
@@ -424,7 +424,8 @@ ExecResult ExecuteProcess(
   MemAllocHeap*       heap,
   int                 job_id,
   bool                stream_to_stdout = false,
-  std::function<int()>*     callback_on_slow = nullptr,
+  int(*callback_on_slow)(void* user_data),
+  void* callback_on_slow_userdata,
   int                 time_until_first_callback
   )
 {
@@ -478,7 +479,7 @@ ExecResult ExecuteProcess(
   CloseHandle(pinfo.hThread);
 
     
-  result.m_ReturnCode = WaitForFinish(pinfo.hProcess, callback_on_slow, time_until_first_callback, &result.m_WasAborted);
+  result.m_ReturnCode = WaitForFinish(pinfo.hProcess, callback_on_slow, callback_on_slow_userdata, time_until_first_callback, &result.m_WasAborted);
 
   CleanupResponseFile(responseFile);
 
