@@ -519,7 +519,7 @@ namespace t2
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
-    bool passedOutputValidation = true;
+    ValidationResult passedOutputValidation = ValidationResult::Pass;
     if (0 == result.m_ReturnCode)
     {
       Log(kSpam, "Launching process");
@@ -550,7 +550,7 @@ namespace t2
       SignalSet("child processes was aborted");
     }
 
-    if (0 == result.m_ReturnCode && passedOutputValidation)
+    if (0 == result.m_ReturnCode && passedOutputValidation != ValidationResult::Fail)
     {
       return BuildProgress::kSucceeded;
     }

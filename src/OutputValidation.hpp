@@ -5,7 +5,14 @@ namespace t2
 {
     struct ExecResult;
     struct NodeData;
-    
-    bool ValidateExecResultAgainstAllowedOutput(ExecResult* result, const NodeData* node_data);
+
+    enum ValidationResult
+    {
+        Pass,
+        SwallowStdout,
+        Fail
+    };
+
+    ValidationResult ValidateExecResultAgainstAllowedOutput(ExecResult* result, const NodeData* node_data);
 }
 #endif

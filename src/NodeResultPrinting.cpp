@@ -129,10 +129,10 @@ static void PrintBufferTrimmed(OutputBufferData* buffer)
 }
 
 
-void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* cmd_line, BuildQueue* queue, bool always_verbose, time_t time_exec_started, bool passedOutputValidation)
+void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* cmd_line, BuildQueue* queue, bool always_verbose, time_t time_exec_started, ValidationResult validationResult)
 {
     int processedNodeCount = ++queue->m_ProcessedNodeCount;
-    bool failed = result->m_ReturnCode != 0 || result->m_WasSignalled || !passedOutputValidation;
+    bool failed = result->m_ReturnCode != 0 || result->m_WasSignalled || validationResult == ValidationResult::Fail;
     bool verbose = (failed && !result->m_WasAborted) || always_verbose;
 
     int maxDigits = ceil(log10(queue->m_Config.m_MaxNodes+1)); 
@@ -176,7 +176,7 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
             HeapFree(queue->m_Config.m_Heap, content_buffer);
         }
 
-        if (!passedOutputValidation && result->m_ReturnCode == 0 && !result->m_WasSignalled)
+        if (validationResult == ValidationResult::Fail && result->m_ReturnCode == 0 && !result->m_WasSignalled)
         {
           PrintDiagnosticPrefix("Failed because this command wrote something to the output that wasnt expected. We were expecting any of the following strings:", RED);
           int count = node_data->m_AllowedOutputSubstrings.GetCount();
@@ -195,12 +195,12 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     }
 
     bool anyOutput = result->m_OutputBuffer.cursor>0;
-  
+
     if (anyOutput && verbose)
     {
       PrintDiagnosticPrefix("Output");
       PrintBufferTrimmed(&result->m_OutputBuffer);
-    } else if (anyOutput && 0 != (node_data->m_Flags & NodeData::kFlagAllowUnexpectedOutput))
+    } else if (anyOutput && 0 != (validationResult != ValidationResult::SwallowStdout))
         PrintBufferTrimmed(&result->m_OutputBuffer);
     
     total_number_node_results_printed++;
