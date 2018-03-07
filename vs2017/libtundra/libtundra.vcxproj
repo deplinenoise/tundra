@@ -158,6 +158,7 @@
     <ClCompile Include="..\..\src\TargetSelect.cpp" />
     <ClCompile Include="..\..\src\Thread.cpp" />
     <ClCompile Include="..\..\src\OutputValidation.cpp" />
+    <ClCompile Include="..\..\src\re.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

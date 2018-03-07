@@ -129,6 +129,9 @@
     <ClInclude Include="..\..\src\Profiler.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\re.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\BinaryWriter.cpp">
@@ -225,6 +228,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\OutputValidation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\re.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
