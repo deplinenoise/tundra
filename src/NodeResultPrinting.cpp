@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <sstream>
 #include <ctime>
+#include <math.h>
 #if TUNDRA_UNIX
 #include <unistd.h>
 #include <stdarg.h>
@@ -134,12 +135,14 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     bool failed = result->m_ReturnCode != 0 || result->m_WasSignalled || !passedOutputValidation;
     bool verbose = (failed && !result->m_WasAborted) || always_verbose;
 
+    int maxDigits = ceil(log10(queue->m_Config.m_MaxNodes+1)); 
+
     time_t now = time(0);
     int duration = int(now - time_exec_started);
     
     EmitColor(failed ? RED : GRN);
-    printf("[%d/%d ", processedNodeCount, queue->m_Config.m_MaxNodes);
-    printf("%ds] ", duration);
+    printf("[%*d/%d ", maxDigits, processedNodeCount, queue->m_Config.m_MaxNodes);
+    printf("%2ds] ", duration);
     EmitColor(RESET); 
     printf("%s\n", (const char*)node_data->m_Annotation);   
     if (verbose)
@@ -205,7 +208,7 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     last_progress_message_job = node_data;
 }
 
-int PrintNodeInProgress(const NodeData* node_data, time_t time_of_start)
+int PrintNodeInProgress(const NodeData* node_data, time_t time_of_start, const BuildQueue* queue)
 {
   time_t now = time(0);
   int seconds_job_has_been_running_for = int(now - time_of_start);
@@ -216,8 +219,10 @@ int PrintNodeInProgress(const NodeData* node_data, time_t time_of_start)
 
   if (seconds_since_last_progress_message_of_any_job > acceptable_time_since_last_message && seconds_job_has_been_running_for > only_print_if_slower_than)
   {
+    int maxDigits = ceil(log10(queue->m_Config.m_MaxNodes+1));
+
     EmitColor(YEL);
-    printf("[BUSY %ds] ", seconds_job_has_been_running_for);
+    printf("[BUSY %*ds] ", maxDigits*2-1, seconds_job_has_been_running_for);
     EmitColor(RESET);
     printf("%s\n", (const char*)node_data->m_Annotation);
     last_progress_message_of_any_job = now;

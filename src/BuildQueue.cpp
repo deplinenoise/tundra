@@ -402,13 +402,14 @@ namespace t2
     Mutex* queue_lock;
     const NodeData* node_data;
     time_t time_of_start;
+    const BuildQueue* build_queue;
   };
 
   static int SlowCallback(void* user_data)
   {
       SlowCallbackData* data = (SlowCallbackData*) user_data;
       MutexLock(data->queue_lock);
-      int sendNextCallbackIn = PrintNodeInProgress(data->node_data, data->time_of_start);
+      int sendNextCallbackIn = PrintNodeInProgress(data->node_data, data->time_of_start, data->build_queue);
       MutexUnlock(data->queue_lock);
       return sendNextCallbackIn;
   }
@@ -506,6 +507,7 @@ namespace t2
     slowCallbackData.node_data = node_data;
     slowCallbackData.time_of_start = time_of_start;
     slowCallbackData.queue_lock = queue_lock;
+    slowCallbackData.build_queue = thread_state->m_Queue;
 
     if (pre_cmd_line)
     {
