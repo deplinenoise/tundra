@@ -108,7 +108,7 @@ LIBTUNDRA_SOURCES = \
 	TargetSelect.cpp Thread.cpp \
 	ExecUnix.cpp ExecWin32.cpp DigestCache.cpp FileSign.cpp \
 	HashSha1.cpp HashFast.cpp ConditionVar.cpp ReadWriteLock.cpp \
-	Exec.cpp NodeResultPrinting.cpp OutputValidation.cpp
+	Exec.cpp NodeResultPrinting.cpp OutputValidation.cpp re.c
 
 T2LUA_SOURCES = LuaMain.cpp LuaInterface.cpp LuaInterpolate.cpp LuaJsonWriter.cpp \
 								LuaPath.cpp LuaProfiler.cpp

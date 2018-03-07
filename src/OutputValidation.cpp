@@ -1,5 +1,6 @@
 ﻿#include "Exec.hpp"
 #include "DagData.hpp"
+#include "re.h"
 
 namespace t2
 {
@@ -30,7 +31,8 @@ bool ValidateExecResultAgainstAllowedOutput(ExecResult* result, const NodeData* 
     for (int i=0; i!=node_data->m_AllowedOutputSubstrings.GetCount(); i++)
     {
         const char* allowedSubstring = node_data->m_AllowedOutputSubstrings[i];
-        if (strstr(buffer, allowedSubstring) != 0)
+
+        if (re_match(allowedSubstring, node_data->m_AllowedOutputSubstrings[i]) != 0)
             return true;
     }
     return false;
