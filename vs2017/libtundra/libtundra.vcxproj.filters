@@ -230,7 +230,7 @@
     <ClCompile Include="..\..\src\OutputValidation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\re.cpp">
+    <ClCompile Include="..\..\src\re.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
