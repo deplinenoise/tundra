@@ -181,6 +181,7 @@ static bool WriteNodes(
     BinarySegment* node_data_seg,
     BinarySegment* array2_seg,
     BinarySegment* str_seg,
+    BinarySegment* writetextfile_payloads_seg,
     BinaryLocator scanner_ptrs[],
     MemAllocHeap* heap,
     HashTable<CommonStringRecord, kFlagCaseSensitive>* shared_strings,
@@ -246,9 +247,13 @@ static bool WriteNodes(
     const int             scanner_index = (int) FindIntValue(node, "ScannerIndex", -1);
     const JsonArrayValue *frontend_rsps = FindArrayValue(node, "FrontendResponseFiles");
     const JsonArrayValue *allowedOutputSubstrings = FindArrayValue(node, "AllowedOutputSubstrings");
+    const char          *writetextfile_payload = FindStringValue(node, "WriteTextFilePayload");
 
+    if (writetextfile_payload == nullptr)
+      WriteStringPtr(node_data_seg, str_seg, action);
+    else
+      WriteStringPtr(node_data_seg, writetextfile_payloads_seg, writetextfile_payload);
 
-    WriteStringPtr(node_data_seg, str_seg, action);
     WriteStringPtr(node_data_seg, str_seg, preaction);
     WriteCommonStringPtr(node_data_seg, str_seg, annotation, shared_strings, scratch);
     BinarySegmentWriteInt32(node_data_seg, pass_index);
@@ -352,7 +357,9 @@ static bool WriteNodes(
     flags |= GetNodeFlag(node, "PreciousOutputs",  NodeData::kFlagPreciousOutputs);
     flags |= GetNodeFlag(node, "Expensive",        NodeData::kFlagExpensive);
     flags |= GetNodeFlag(node, "AllowUnexpectedOutput",  NodeData::kFlagAllowUnexpectedOutput, false);
-
+    if (writetextfile_payload != nullptr)
+      flags |= NodeData::kFlagIsWriteTextFileAction;
+    
     BinarySegmentWriteUint32(node_data_seg, flags);
   }
 
@@ -624,6 +631,8 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
   BinarySegment         *aux_seg       = BinaryWriterAddSegment(writer);
   BinarySegment         *aux2_seg      = BinaryWriterAddSegment(writer);
   BinarySegment         *str_seg       = BinaryWriterAddSegment(writer);
+  BinarySegment         *writetextfile_payloads_seg = BinaryWriterAddSegment(writer);
+
 
   const JsonArrayValue  *nodes         = FindArrayValue(root, "Nodes");
   const JsonArrayValue  *passes        = FindArrayValue(root, "Passes");
@@ -680,7 +689,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
   }
 
   // Write nodes.
-  if (!WriteNodes(nodes, main_seg, node_data_seg, aux_seg, str_seg, scanner_ptrs, heap, &shared_strings, scratch, guid_table, remap_table))
+  if (!WriteNodes(nodes, main_seg, node_data_seg, aux_seg, str_seg, writetextfile_payloads_seg, scanner_ptrs, heap, &shared_strings, scratch, guid_table, remap_table))
     return false;
 
   // Write passes

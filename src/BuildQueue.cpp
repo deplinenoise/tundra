@@ -413,13 +413,33 @@ namespace t2
       return sendNextCallbackIn;
   }
 
+  static ExecResult WriteTextFile(const char* payload, const char* target_file)
+  {
+    ExecResult result;
+    memset(&result, 0, sizeof(result));
+
+    FILE* f = fopen(target_file, "wb");
+    if (!f)
+    {
+      result.m_ReturnCode = 1;
+      return result;
+    }
+    int length = strlen(payload);
+    int written = fwrite(payload, sizeof(char), length, f);
+    fclose(f);
+
+    result.m_ReturnCode = length == written ? 0 : 1;
+    return result;
+  }
+
   static BuildProgress::Enum RunAction(BuildQueue* queue, ThreadState* thread_state, NodeState* node, Mutex* queue_lock)
   {
     const NodeData    *node_data    = node->m_MmapData;
+    const bool        isWriteFileAction = node->m_MmapData->m_Flags & NodeData::kFlagIsWriteTextFileAction;
     const char        *cmd_line     = node_data->m_Action;
     const char        *pre_cmd_line = node_data->m_PreAction;
 
-    if (!cmd_line || cmd_line[0] == '\0')
+    if (!isWriteFileAction && (!cmd_line || cmd_line[0] == '\0'))
     {
       queue->m_ProcessedNodeCount++;
       return BuildProgress::kSucceeded;
@@ -503,11 +523,14 @@ namespace t2
       Log(kSpam, "Launching process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope(annotation, job_id);
-      last_cmd_line = cmd_line;
-      result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, SlowCallback, &slowCallbackData);
-
-      passedOutputValidation = ValidateExecResultAgainstAllowedOutput(&result, node_data);
-
+      if (isWriteFileAction)
+        result = WriteTextFile(node_data->m_Action, node_data->m_OutputFiles[0].m_Filename);
+      else
+      {
+        last_cmd_line = cmd_line;
+        result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, SlowCallback, &slowCallbackData);
+        passedOutputValidation = ValidateExecResultAgainstAllowedOutput(&result, node_data);
+      }
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 

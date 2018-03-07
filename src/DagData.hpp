@@ -103,6 +103,8 @@ struct NodeData
 
     //if not set, we fail the build when a command prints anything unexpected to stdout or stderr
     kFlagAllowUnexpectedOutput = 1 << 3,
+    
+    kFlagIsWriteTextFileAction = 1 << 4,
   };
 
   FrozenString                    m_Action;
