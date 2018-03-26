@@ -28,6 +28,9 @@ struct FileInfo
 
 FileInfo GetFileInfo(const char* path);
 
+bool ShouldFilter(const char* name);
+bool ShouldFilter(const char* name, size_t len);
+
 void ListDirectory(
     const char* dir,
     void* user_data,

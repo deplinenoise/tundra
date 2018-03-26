@@ -308,7 +308,7 @@ static bool DriverCheckDagSignatures(Driver* self)
     qsort(ctx.m_Dirs.m_Storage, ctx.m_Dirs.m_Size, sizeof(const char*), IterContext::SortStringPtrs);
     qsort(ctx.m_Files.m_Storage, ctx.m_Files.m_Size, sizeof(const char*), IterContext::SortStringPtrs);
 
-    // Compute digest
+    // Compute digest - note that this has to match DagGenerator.cpp
     HashState h;
     HashInit(&h);
     for (const char* p : ctx.m_Dirs)

@@ -69,7 +69,12 @@ FileInfo GetFileInfo(const char* path)
   return result;
 }
 
-static bool ShouldFilter(const char* name, size_t len)
+bool ShouldFilter(const char* name)
+{
+  return ShouldFilter(name, strlen(name));
+}
+
+bool ShouldFilter(const char* name, size_t len)
 {
   // Filter out some common noise entries that only serve to cause DAG regeneration.
 
@@ -81,6 +86,12 @@ static bool ShouldFilter(const char* name, size_t len)
 
   // Vim .foo.swp files
   if (len >= 4 && name[0] == '.' && 0 == memcmp(name + len - 4, ".swp", 4))
+    return true;
+
+  // Weed out '.tundra2.*' files too, as the .json file gets removed in between
+  // regenerating, messing up glob signatures.
+  static const char t2_prefix[] = ".tundra2.";
+  if (len >= (sizeof t2_prefix) - 1 && 0 == memcmp(name, t2_prefix, (sizeof t2_prefix) - 1))
     return true;
 
   // Emacs foo~ files

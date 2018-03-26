@@ -855,14 +855,22 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 
         for (size_t i = 0, count = subdirs->m_Count; i < count; ++i)
         {
-          HashAddPath(&h, subdirs->m_Values[i]->GetString());
-          HashAddSeparator(&h);
+          const char* path = subdirs->m_Values[i]->GetString();
+          if (!ShouldFilter(path))
+          {
+            HashAddPath(&h, path);
+            HashAddSeparator(&h);
+          }
         }
 
         for (size_t i = 0, count = files->m_Count; i < count; ++i)
         {
-          HashAddPath(&h, files->m_Values[i]->GetString());
-          HashAddSeparator(&h);
+          const char* path = files->m_Values[i]->GetString();
+          if (!ShouldFilter(path))
+          {
+            HashAddPath(&h, path);
+            HashAddSeparator(&h);
+          }
         }
 
         HashDigest digest;
@@ -1018,10 +1026,10 @@ static bool RunExternalTool(const char* options, ...)
     char cmdline[1024];
     snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
     cmdline[sizeof(cmdline)-1] = '\0';
-    
+
     cmdline_to_use = cmdline;
   }
-  
+
   const bool echo = (GetLogFlags() & kDebug) ? true : false;
 
   ExecResult result = ExecuteProcess(cmdline_to_use, 1, &env_var, 0, echo, nullptr);
