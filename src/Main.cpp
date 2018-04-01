@@ -204,7 +204,7 @@ static bool InitOptions(t2::DriverOptions* options, int* argc, char*** argv)
 static void ShowHelp()
 {
   printf("\nTundra Build Processor 2.0\n");
-  printf("Copyright (C) 2013 Andreas Fredriksson\n\n");
+  printf("Copyright (C) 2010-2018 Andreas Fredriksson\n\n");
 
 #ifdef HAVE_GIT_INFO
   printf("Git branch: %s\n", g_GitBranch);
@@ -212,8 +212,6 @@ static void ShowHelp()
 #endif
 
   printf("This program comes with ABSOLUTELY NO WARRANTY.\n");
-  printf("This is free software, and you are welcome to redistribute it\n");
-  printf("under certain conditions; see the GNU GPL license for details.\n\n");
 
   printf("Usage: tundra2 [options...] [targets...]\n\n");
   printf("Options:\n");
