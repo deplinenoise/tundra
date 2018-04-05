@@ -620,8 +620,6 @@ bool ComputeNodeGuids(const JsonArrayValue* nodes, int32_t* remap_table, TempNod
 
 static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAllocHeap* heap, MemAllocLinear* scratch)
 {
-  printf("compiling mmapable DAG data..\n");
-
   HashTable<CommonStringRecord, kFlagCaseSensitive> shared_strings;
   HashTableInit(&shared_strings, heap);
 
