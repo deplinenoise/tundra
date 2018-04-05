@@ -361,7 +361,7 @@ static bool ScanCacheWriterFlush(ScanCacheWriter* self, const char* filename)
   BinarySegmentWritePointer(self->m_MainSeg, self->m_DigestPtr);
   BinarySegmentWritePointer(self->m_MainSeg, self->m_EntryPtr);
   BinarySegmentWritePointer(self->m_MainSeg, self->m_TimestampPtr);
-
+  BinarySegmentWriteUint32(self->m_MainSeg, ScanData::MagicNumber);
   return BinaryWriterFlush(&self->m_Writer, filename);
 }
 

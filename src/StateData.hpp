@@ -25,6 +25,8 @@ struct StateData
   int32_t                  m_NodeCount;
   FrozenPtr<HashDigest>    m_NodeGuids;
   FrozenPtr<NodeStateData> m_NodeStates;
+
+  uint32_t                   m_MagicNumberEnd;
 };
 
 }

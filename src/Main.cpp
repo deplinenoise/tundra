@@ -5,6 +5,7 @@
 #include "SignalHandler.hpp"
 #include "DagGenerator.hpp"
 #include "Profiler.hpp"
+#include "DagData.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -410,6 +411,8 @@ int main(int argc, char* argv[])
 
   ExecInit();
 
+  const char* buildTitle = "Tundra";
+
   // Initialize driver
   if (!DriverInit(&driver, &options))
     return 1;
@@ -423,6 +426,8 @@ int main(int argc, char* argv[])
 
   if (!DriverInitData(&driver))
     goto leave;
+
+  buildTitle = strdup(driver.m_DagData->m_BuildTitle.Get());    
 
   if (driver.m_Options.m_GenDagOnly)
   {
@@ -520,7 +525,7 @@ leave:
   double total_time = TimerDiffSeconds(start_time, TimerGet());
   if (total_time < 60.0)
   {
-    printf("*** Tundra %s (%.2f seconds), %d items updated\n", BuildResult::Names[build_result], total_time, g_Stats.m_ExecCount);
+    printf("*** %s %s (%.2f seconds), %d items updated\n", buildTitle, BuildResult::Names[build_result], total_time, g_Stats.m_ExecCount);
   }
   else
   {
@@ -528,7 +533,7 @@ leave:
     int h = t / 3600; t -= h * 3600;
     int m = t /   60; t -= m *   60;
     int s = t;
-    printf("*** Tundra %s (%.2f seconds - %d:%02d:%02d), %d items updated\n", BuildResult::Names[build_result], total_time, h, m, s, g_Stats.m_ExecCount);
+    printf("*** %s %s (%.2f seconds - %d:%02d:%02d), %d items updated\n", buildTitle, BuildResult::Names[build_result], total_time, h, m, s, g_Stats.m_ExecCount);
   }
 
   return build_result == BuildResult::kOk ? 0 : 1;

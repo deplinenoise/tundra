@@ -948,18 +948,13 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
 
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileName", ".tundra2.digestcache"));
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileNameTmp", ".tundra2.digestcache.tmp"));
-
-  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileName", ".tundra2.state"));
-  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileNameTmp", ".tundra2.state.tmp"));
-
-  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "ScanCacheFileName", ".tundra2.scancache"));
-  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "ScanCacheFileNameTmp", ".tundra2.scancache.tmp"));
-
-  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileName", ".tundra2.digestcache"));
-  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileNameTmp", ".tundra2.digestcache.tmp"));
-
+  
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "BuildTitle", "Tundra"));
+  
   HashTableDestroy(&shared_strings);
 
+  //write magic number again at the end to pretect against writing too much / too little data and not noticing.
+  BinarySegmentWriteUint32(main_seg, DagData::MagicNumber);
   return true;
 }
 

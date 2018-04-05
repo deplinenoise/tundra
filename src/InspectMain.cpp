@@ -175,6 +175,14 @@ static void DumpDag(const DagData* data)
     printf("digest          : %s\n", digest_str);
   }
 
+  printf("m_StateFileName : %s\n", data->m_StateFileName.Get());
+  printf("m_StateFileNameTmp : %s\n", data->m_StateFileNameTmp.Get());
+  printf("m_ScanCacheFileName : %s\n", data->m_ScanCacheFileName.Get());
+  printf("m_ScanCacheFileNameTmp : %s\n", data->m_ScanCacheFileNameTmp.Get());
+  printf("m_DigestCacheFileName : %s\n", data->m_DigestCacheFileName.Get());
+  printf("m_DigestCacheFileNameTmp : %s\n", data->m_DigestCacheFileNameTmp.Get());
+  printf("m_BuildTitle : %s\n", data->m_BuildTitle.Get());
+
   printf("\nSHA-1 signatures enabled for extension hashes:\n");
   for (const uint32_t ext : data->m_ShaExtensionHashes)
   {
@@ -182,6 +190,7 @@ static void DumpDag(const DagData* data)
   }
 
   printf("\nMax expensive jobs: %d\n", data->m_MaxExpensiveCount);
+  printf("Magic number at end: 0x%08x\n", data->m_MagicNumberEnd);
 }
 
 static void DumpState(const StateData* data)

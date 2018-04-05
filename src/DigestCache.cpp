@@ -100,6 +100,7 @@ bool DigestCacheSave(DigestCache* self, MemAllocHeap* serialization_heap, const 
   BinarySegmentWriteUint32(main_seg, DigestCacheState::MagicNumber);
   BinarySegmentWriteInt32(main_seg, (int) self->m_Table.m_RecordCount);
   BinarySegmentWritePointer(main_seg, array_ptr);
+  BinarySegmentWriteUint32(main_seg, DigestCacheState::MagicNumber);
 
   // Unmap old state to avoid sharing conflicts on Windows.
   MmapFileUnmap(&self->m_StateFile);

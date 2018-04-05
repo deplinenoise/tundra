@@ -22,6 +22,7 @@ namespace t2
     FrozenPtr<HashDigest>      m_Keys;
     FrozenPtr<ScanCacheEntry>  m_Data;
     FrozenPtr<uint64_t>        m_AccessTimes;
+    uint32_t                   m_MagicNumberEnd;
   };
 
 }

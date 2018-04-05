@@ -115,6 +115,12 @@ static bool LoadFrozenData(const char* fn, MemoryMappedFile* result, const Froze
       goto error;
     }
 
+    // Check magic number
+    if (data->m_MagicNumberEnd != FrozenType::MagicNumber)
+    {
+      CroakAbort("Did not find expected magic number marker at the end of %s. This most likely means data writing code for that file is writing too much or too little data", fn);
+    }
+
     // Move ownership of memory mapping to member variable.
     *result = mapping;
 
