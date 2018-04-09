@@ -501,7 +501,7 @@ namespace t2
       }
     }
 
-    time_t time_of_start = TimerGet();
+    uint64_t time_of_start = TimerGet();
 
     SlowCallbackData slowCallbackData;
     slowCallbackData.node_data = node_data;

@@ -133,6 +133,7 @@ uint32_t NextPowerOfTwo(uint32_t val);
 
 uint64_t TimerGet();
 double TimerToSeconds(uint64_t start);
+uint64_t TimerFromSeconds(double seconds);
 double TimerDiffSeconds(uint64_t start, uint64_t end);
 
 int GetCpuCount();

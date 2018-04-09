@@ -301,6 +301,15 @@ double TimerToSeconds(uint64_t t)
 #endif
 }
 
+uint64_t TimerFromSeconds(double seconds)
+{
+#if defined(TUNDRA_UNIX)
+  return seconds * 1000000.0;
+#else
+  return seconds * s_PerfFrequency;
+#endif  
+}
+
 double TimerDiffSeconds(uint64_t start, uint64_t end)
 {
   return TimerToSeconds(end - start);

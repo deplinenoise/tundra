@@ -202,8 +202,8 @@ ExecuteProcess(
 		
 //		int time_until_next_slow_callback = time_to_first_slow_callback;
 		
-		time_t now = time(0);
-		time_t next_callback_at = now + time_to_first_slow_callback;
+		uint64_t now = TimerGet();
+		uint64_t next_callback_at = now + TimerFromSeconds(time_to_first_slow_callback); 
 
 		for (;;)
 		{
@@ -229,8 +229,8 @@ ExecuteProcess(
 
 				++max_fd;
 
-				now = time(0);
-				timeout.tv_sec = next_callback_at - (int)now;
+				now = TimerGet();
+				timeout.tv_sec = (int)TimerDiffSeconds(now, next_callback_at);
 				if (timeout.tv_sec<0)
 					timeout.tv_sec = 0;
 				timeout.tv_usec = 0;
@@ -239,8 +239,8 @@ ExecuteProcess(
 
 				if (callback_on_slow != nullptr)
 				{
-					if (time(0) > next_callback_at)
-						next_callback_at = time(0) + (*callback_on_slow)(callback_on_slow_userdata);
+					if (TimerGet() > next_callback_at)
+						next_callback_at = TimerGet() + (*callback_on_slow)(callback_on_slow_userdata);
 				}
 				if (-1 == count) // happens in gdb due to syscall interruption
 					continue;

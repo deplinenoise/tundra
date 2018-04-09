@@ -18,7 +18,7 @@ namespace t2
 static bool EmitColors = false;
 
 
-static time_t last_progress_message_of_any_job;
+static uint64_t last_progress_message_of_any_job;
 static const NodeData* last_progress_message_job = nullptr;
 static int total_number_node_results_printed = 0;
 
@@ -129,7 +129,7 @@ static void PrintBufferTrimmed(OutputBufferData* buffer)
 }
 
 
-void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* cmd_line, BuildQueue* queue, bool always_verbose, time_t time_exec_started, ValidationResult validationResult)
+void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* cmd_line, BuildQueue* queue, bool always_verbose, uint64_t time_exec_started, ValidationResult validationResult)
 {
     int processedNodeCount = ++queue->m_ProcessedNodeCount;
     bool failed = result->m_ReturnCode != 0 || result->m_WasSignalled || validationResult == ValidationResult::Fail;
@@ -137,8 +137,8 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
 
     int maxDigits = ceil(log10(queue->m_Config.m_MaxNodes+1)); 
 
-    time_t now = time(0);
-    int duration = int(now - time_exec_started);
+    uint64_t now = TimerGet();
+    int duration = TimerDiffSeconds(time_exec_started, now);
     
     EmitColor(failed ? RED : GRN);
     printf("[%*d/%d ", maxDigits, processedNodeCount, queue->m_Config.m_MaxNodes);
@@ -214,7 +214,7 @@ int PrintNodeInProgress(const NodeData* node_data, uint64_t time_of_start, const
 {
   uint64_t now = TimerGet();
   int seconds_job_has_been_running_for = TimerDiffSeconds(time_of_start, now);
-  time_t seconds_since_last_progress_message_of_any_job = TimerDiffSeconds(last_progress_message_of_any_job, now);
+  double seconds_since_last_progress_message_of_any_job = TimerDiffSeconds(last_progress_message_of_any_job, now);
 
   int acceptable_time_since_last_message = last_progress_message_job == node_data ? 10 : (total_number_node_results_printed == 0 ? 0 : 5) ;
   int only_print_if_slower_than = seconds_since_last_progress_message_of_any_job > 30 ? 0 : 5;
