@@ -419,23 +419,6 @@ static bool WriteNodeArray(BinarySegment* top_seg, BinarySegment* data_seg, cons
   return true;
 }
 
-static bool SortJsonStrings(const JsonValue* l, const JsonValue* r)
-{
-  const char* ls = l->GetString();
-  const char* rs = r->GetString();
-
-  if (ls == rs)
-    return false;
-
-  if (nullptr == ls)
-    return true;
-
-  if (nullptr == rs)
-    return false;
-
-  return strcmp(ls, rs) < 0;
-}
-
 static bool GetBoolean(const JsonObjectValue* obj, const char* name)
 {
   if (const JsonValue* val = obj->Find(name))
