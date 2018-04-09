@@ -147,14 +147,20 @@ t2::HashDigest CalculateGlobSignatureFor(const char* path, t2::MemAllocHeap* hea
     HashInit(&h);
     for (const char* p : ctx.m_Dirs)
     {
-      HashAddPath(&h, p);
-      HashAddSeparator(&h);
+      if (!ShouldFilter(p))
+      {
+        HashAddPath(&h, p);
+        HashAddSeparator(&h);
+      }
     }
 
     for (const char* p : ctx.m_Files)
     {
-      HashAddPath(&h, p);
-      HashAddSeparator(&h);
+      if (!ShouldFilter(p))
+      {
+        HashAddPath(&h, p);
+        HashAddSeparator(&h);
+      }
     }
 
     HashDigest digest;

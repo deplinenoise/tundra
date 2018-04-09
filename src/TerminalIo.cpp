@@ -354,7 +354,7 @@ void TerminalIoJobExit(int job_id)
 
 void TerminalIoPrintf(int job_id, int sort_key, const char *format, ...)
 {
-	char buffer[2048];
+	char buffer[16384];
 	va_list a;
 	va_start(a, format);
 	vsnprintf(buffer, sizeof(buffer), format, a);

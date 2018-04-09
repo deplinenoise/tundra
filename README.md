@@ -31,17 +31,16 @@ macOS package is available via [Homebrew](http://brew.sh): `brew install tundra`
 License and Copyright
 -----------------------------------------------------------------------------
 
-Tundra is Copyright 2010-2013 Andreas Fredriksson.
+Tundra is Copyright 2010-2018 Andreas Fredriksson.
 
-Tundra is made available under the GNU GPL. See the file COPYING for the
-complete license text.
+Tundra is made available under the MIT license. See the file COPYING for the
+complete license text. (Tundra was previously made available under the GPL
+license, but this hindered commercial adoption and all contributors agreed to
+change the license to MIT.)
 
-Tundra uses Lua. See below for Lua's licensing terms which are compatible with
-those of the GNU GPL.
+Tundra uses Lua. See below for Lua's licensing terms.
 
 Tundra includes a public domain Lua Debugger, see below.
-
-Tundra includes the public domain dlmalloc by Doug Lea.
 
 Lua
 -----------------------------------------------------------------------------
