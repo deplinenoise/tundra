@@ -425,7 +425,11 @@ int main(int argc, char* argv[])
   if (!DriverInitData(&driver))
     goto leave;
 
+#if TUNDRA_WIN32
+  buildTitle = _strdup(driver.m_DagData->m_BuildTitle.Get());    
+#else
   buildTitle = strdup(driver.m_DagData->m_BuildTitle.Get());    
+#endif
 
   if (driver.m_Options.m_GenDagOnly)
   {
