@@ -9,6 +9,7 @@
 #include "BinaryWriter.hpp"
 #include "DagData.hpp"
 #include "HashTable.hpp"
+#include "FileSign.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -390,23 +391,6 @@ static bool WriteNodeArray(BinarySegment* top_seg, BinarySegment* data_seg, cons
   }
 
   return true;
-}
-
-static bool SortJsonStrings(const JsonValue* l, const JsonValue* r)
-{
-  const char* ls = l->GetString();
-  const char* rs = r->GetString();
-
-  if (ls == rs)
-    return false;
-
-  if (nullptr == ls)
-    return true;
-
-  if (nullptr == rs)
-    return false;
-
-  return strcmp(ls, rs) < 0;
 }
 
 static bool GetBoolean(const JsonObjectValue* obj, const char* name)
@@ -804,12 +788,14 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
       if (const JsonObjectValue* sig = file_sigs->m_Values[i]->AsObject())
       {
         const char* path = FindStringValue(sig, "File");
-        int64_t timestamp = FindIntValue(sig, "Timestamp", -1);
-        if (!path || -1 == timestamp)
+        
+        if (!path)
         {
           fprintf(stderr, "bad FileSignatures data\n");
           return false;
         }
+
+        int64_t timestamp = GetFileInfo(path).m_Timestamp;
         WriteStringPtr(aux_seg, str_seg, path);
         char padding[4] = { 0, 0, 0, 0 };
         BinarySegmentWrite(aux_seg, padding, 4);
@@ -838,43 +824,13 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
       if (const JsonObjectValue* sig = glob_sigs->m_Values[i]->AsObject())
       {
         const char* path = FindStringValue(sig, "Path");
-        const JsonArrayValue* files = FindArrayValue(sig, "Files");
-        const JsonArrayValue* subdirs = FindArrayValue(sig, "SubDirs");
-        if (!path || !files || !subdirs)
+        if (!path)
         {
           fprintf(stderr, "bad GlobSignatures data\n");
           return false;
         }
 
-        // Compute digest of dir query.
-        std::sort(files->m_Values, files->m_Values + files->m_Count, SortJsonStrings);
-        std::sort(subdirs->m_Values, subdirs->m_Values + subdirs->m_Count, SortJsonStrings);
-
-        HashState h;
-        HashInit(&h);
-
-        for (size_t i = 0, count = subdirs->m_Count; i < count; ++i)
-        {
-          const char* path = subdirs->m_Values[i]->GetString();
-          if (!ShouldFilter(path))
-          {
-            HashAddPath(&h, path);
-            HashAddSeparator(&h);
-          }
-        }
-
-        for (size_t i = 0, count = files->m_Count; i < count; ++i)
-        {
-          const char* path = files->m_Values[i]->GetString();
-          if (!ShouldFilter(path))
-          {
-            HashAddPath(&h, path);
-            HashAddSeparator(&h);
-          }
-        }
-
-        HashDigest digest;
-        HashFinalize(&h, &digest);
+        HashDigest digest = CalculateGlobSignatureFor(path, heap, scratch);
 
         WriteStringPtr(aux_seg, str_seg, path);
         BinarySegmentWrite(aux_seg, (char*) &digest, sizeof digest);

@@ -2,6 +2,7 @@
 #define FILESIGN_HPP
 
 #include "Common.hpp"
+#include "Hash.hpp"
 
 namespace t2
 {
@@ -9,6 +10,8 @@ namespace t2
 struct HashState;
 struct StatCache;
 struct DigestCache;
+struct MemAllocHeap;
+struct MemAllocLinear;
 
 void ComputeFileSignature(
   HashState*          out,                  // out
@@ -18,6 +21,10 @@ void ComputeFileSignature(
   uint32_t            fn_hash,
   const uint32_t      sha_extension_hashes[],
   int                 sha_extension_hash_count);
+
+  HashDigest CalculateGlobSignatureFor(const char* path, MemAllocHeap* heap, MemAllocLinear* scratch);
+
 }
+
 
 #endif

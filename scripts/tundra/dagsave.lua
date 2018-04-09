@@ -319,12 +319,7 @@ local function save_signatures(w, accessed_lua_files)
   w:begin_array("FileSignatures")
   for _, fn in ipairs(accessed_lua_files) do
     w:begin_object()
-    local stat = native.stat_file(fn)
-    if not stat.exists then
-      errorf("accessed file %s is gone: %s", fn, err)
-    end
     w:write_string(fn, "File")
-    w:write_number(stat.timestamp, "Timestamp")
     w:end_object()
   end
   w:end_array()
@@ -334,12 +329,6 @@ local function save_signatures(w, accessed_lua_files)
   for _, glob in ipairs(globs) do
     w:begin_object()
     w:write_string(glob.Path, "Path")
-    w:begin_array("Files")
-    for _, fn in ipairs(glob.Files) do w:write_string(fn) end
-    w:end_array()
-    w:begin_array("SubDirs")
-    for _, fn in ipairs(glob.SubDirs) do w:write_string(fn) end
-    w:end_array()
     w:end_object()
   end
   w:end_array()
