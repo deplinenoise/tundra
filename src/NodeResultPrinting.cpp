@@ -206,6 +206,8 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     total_number_node_results_printed++;
     last_progress_message_of_any_job = now;
     last_progress_message_job = node_data;
+
+    fflush(stdout);
 }
 
 int PrintNodeInProgress(const NodeData* node_data, uint64_t time_of_start, const BuildQueue* queue)
@@ -227,6 +229,8 @@ int PrintNodeInProgress(const NodeData* node_data, uint64_t time_of_start, const
     printf("%s\n", (const char*)node_data->m_Annotation);
     last_progress_message_of_any_job = now;
     last_progress_message_job = node_data;
+
+    fflush(stdout);
   }
 
   return 1;
