@@ -401,7 +401,7 @@ namespace t2
   {
     Mutex* queue_lock;
     const NodeData* node_data;
-    time_t time_of_start;
+    uint64_t time_of_start;
     const BuildQueue* build_queue;
   };
 
@@ -501,7 +501,7 @@ namespace t2
       }
     }
 
-    time_t time_of_start = time(0);
+    time_t time_of_start = TimerGet();
 
     SlowCallbackData slowCallbackData;
     slowCallbackData.node_data = node_data;

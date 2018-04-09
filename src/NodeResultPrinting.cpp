@@ -24,7 +24,7 @@ static int total_number_node_results_printed = 0;
 
 void InitNodeResultPrinting()
 {
-  last_progress_message_of_any_job = time(0) - 100;
+  last_progress_message_of_any_job = TimerGet() - 10000;
 
 #if TUNDRA_UNIX
     if (isatty(fileno(stdout)))
@@ -208,11 +208,11 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     last_progress_message_job = node_data;
 }
 
-int PrintNodeInProgress(const NodeData* node_data, time_t time_of_start, const BuildQueue* queue)
+int PrintNodeInProgress(const NodeData* node_data, uint64_t time_of_start, const BuildQueue* queue)
 {
-  time_t now = time(0);
-  int seconds_job_has_been_running_for = int(now - time_of_start);
-  time_t seconds_since_last_progress_message_of_any_job = int(now - last_progress_message_of_any_job);
+  uint64_t now = TimerGet();
+  int seconds_job_has_been_running_for = TimerDiffSeconds(time_of_start, now);
+  time_t seconds_since_last_progress_message_of_any_job = TimerDiffSeconds(last_progress_message_of_any_job, now);
 
   int acceptable_time_since_last_message = last_progress_message_job == node_data ? 10 : (total_number_node_results_printed == 0 ? 0 : 5) ;
   int only_print_if_slower_than = seconds_since_last_progress_message_of_any_job > 30 ? 0 : 5;
