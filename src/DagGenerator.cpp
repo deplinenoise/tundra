@@ -9,6 +9,7 @@
 #include "BinaryWriter.hpp"
 #include "DagData.hpp"
 #include "HashTable.hpp"
+#include "FileSign.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -830,12 +831,16 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
       if (const JsonObjectValue* sig = file_sigs->m_Values[i]->AsObject())
       {
         const char* path = FindStringValue(sig, "File");
-        int64_t timestamp = FindIntValue(sig, "Timestamp", -1);
-        if (!path || -1 == timestamp)
+        
+        if (!path)
         {
           fprintf(stderr, "bad FileSignatures data\n");
           return false;
         }
+        
+        FileInfo file_info = GetFileInfo(path);
+        int64_t timestamp = file_info.m_Timestamp;
+        
         WriteStringPtr(aux_seg, str_seg, path);
         char padding[4] = { 0, 0, 0, 0 };
         BinarySegmentWrite(aux_seg, padding, 4);
@@ -864,37 +869,13 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
       if (const JsonObjectValue* sig = glob_sigs->m_Values[i]->AsObject())
       {
         const char* path = FindStringValue(sig, "Path");
-        const JsonArrayValue* files = FindArrayValue(sig, "Files");
-        const JsonArrayValue* subdirs = FindArrayValue(sig, "SubDirs");
-        if (!path || !files || !subdirs)
+        if (!path)
         {
           fprintf(stderr, "bad GlobSignatures data\n");
           return false;
         }
-
-        // Compute digest of dir query.
-        std::sort(files->m_Values, files->m_Values + files->m_Count, SortJsonStrings);
-        std::sort(subdirs->m_Values, subdirs->m_Values + subdirs->m_Count, SortJsonStrings);
-
-        HashState h;
-        HashInit(&h);
-
-        for (size_t i = 0, count = subdirs->m_Count; i < count; ++i)
-        {
-          HashAddPath(&h, subdirs->m_Values[i]->GetString());
-          HashAddSeparator(&h);
-        }
-
-        for (size_t i = 0, count = files->m_Count; i < count; ++i)
-        {
-          HashAddPath(&h, files->m_Values[i]->GetString());
-          HashAddSeparator(&h);
-        }
-
-        HashDigest digest;
-        HashFinalize(&h, &digest);
-
         WriteStringPtr(aux_seg, str_seg, path);
+        HashDigest digest = CalculateGlobSignatureFor(path, heap, scratch);
         BinarySegmentWrite(aux_seg, (char*) &digest, sizeof digest);
       }
     }
