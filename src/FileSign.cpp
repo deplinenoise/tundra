@@ -3,7 +3,7 @@
 #include "StatCache.hpp"
 #include "Stats.hpp"
 #include "DigestCache.hpp"
-
+#include "Buffer.hpp"
 #include <stdio.h>
 
 namespace t2
@@ -86,6 +86,82 @@ void ComputeFileSignature(
   }
 
   ComputeFileSignatureTimestamp(out, stat_cache, filename, fn_hash);
+}
+
+t2::HashDigest CalculateGlobSignatureFor(const char* path, t2::MemAllocHeap* heap, t2::MemAllocLinear* scratch)
+{
+    // Helper for directory iteration + memory allocation of strings.  We need to
+    // buffer the filenames as we need them in sorted order to ensure the results
+    // are consistent between runs.
+    struct IterContext
+    {
+      MemAllocLinear       *m_Allocator;
+      MemAllocHeap         *m_Heap;
+      Buffer<const char *>  m_Dirs;
+      Buffer<const char *>  m_Files;
+
+      void Init(MemAllocHeap* heap, MemAllocLinear* linear)
+      {
+        m_Allocator = linear;
+        m_Heap      = heap;
+        BufferInit(&m_Dirs);
+        BufferInit(&m_Files);
+      }
+
+      void Destroy()
+      {
+        BufferDestroy(&m_Files, m_Heap);
+        BufferDestroy(&m_Dirs, m_Heap);
+      }
+
+      static void Callback(void* user_data, const FileInfo& info, const char* path)
+      {
+        IterContext* self = (IterContext*) user_data;
+        char* data = StrDup(self->m_Allocator, path);
+        Buffer<const char*>* target = info.IsDirectory() ? &self->m_Dirs : &self->m_Files;
+        BufferAppendOne(target, self->m_Heap, data);
+      }
+
+      static int SortStringPtrs(const void* l, const void* r)
+      {
+        return strcmp(*(const char**)l, *(const char**)r);
+      }
+    };
+
+    // Set up to rewind allocator for each loop iteration
+    MemAllocLinearScope mem_scope(scratch);
+
+    // Set up context
+    IterContext ctx;
+    ctx.Init(heap, scratch);
+
+    // Get directory data
+    ListDirectory(path, &ctx, IterContext::Callback);
+
+    // Sort data
+    qsort(ctx.m_Dirs.m_Storage, ctx.m_Dirs.m_Size, sizeof(const char*), IterContext::SortStringPtrs);
+    qsort(ctx.m_Files.m_Storage, ctx.m_Files.m_Size, sizeof(const char*), IterContext::SortStringPtrs);
+
+    // Compute digest
+    HashState h;
+    HashInit(&h);
+    for (const char* p : ctx.m_Dirs)
+    {
+      HashAddPath(&h, p);
+      HashAddSeparator(&h);
+    }
+
+    for (const char* p : ctx.m_Files)
+    {
+      HashAddPath(&h, p);
+      HashAddSeparator(&h);
+    }
+
+    HashDigest digest;
+    HashFinalize(&h, &digest);
+
+    ctx.Destroy();
+    return digest;
 }
 
 }
