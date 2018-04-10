@@ -13,7 +13,7 @@ namespace t2
 
   struct ScanData
   {
-    static const uint32_t MagicNumber = 0x1517000e ^ kTundraHashMagic;
+    static const uint32_t MagicNumber = 0x1517000f ^ kTundraHashMagic;
 
     uint32_t                   m_MagicNumber;
 
