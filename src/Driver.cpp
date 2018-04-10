@@ -119,7 +119,7 @@ static bool LoadFrozenData(const char* fn, MemoryMappedFile* result, const Froze
     // Check magic number
     if (data->m_MagicNumberEnd != FrozenType::MagicNumber)
     {
-      Log(kError, ("Did not find expected magic number marker at the end of %s. This most likely means data writing code for that file is writing too much or too little data", fn);
+      Log(kError, "Did not find expected magic number marker at the end of %s. This most likely means data writing code for that file is writing too much or too little data", fn);
       goto error;
     }
 
