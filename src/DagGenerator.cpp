@@ -820,10 +820,8 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
           fprintf(stderr, "bad FileSignatures data\n");
           return false;
         }
-        
-        FileInfo file_info = GetFileInfo(path);
-        int64_t timestamp = file_info.m_Timestamp;
-        
+
+        int64_t timestamp = GetFileInfo(path).m_Timestamp;
         WriteStringPtr(aux_seg, str_seg, path);
         char padding[4] = { 0, 0, 0, 0 };
         BinarySegmentWrite(aux_seg, padding, 4);
@@ -857,8 +855,10 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
           fprintf(stderr, "bad GlobSignatures data\n");
           return false;
         }
-        WriteStringPtr(aux_seg, str_seg, path);
+
         HashDigest digest = CalculateGlobSignatureFor(path, heap, scratch);
+
+        WriteStringPtr(aux_seg, str_seg, path);
         BinarySegmentWrite(aux_seg, (char*) &digest, sizeof digest);
       }
     }
