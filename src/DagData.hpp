@@ -130,7 +130,7 @@ struct PassData
 
 struct DagData
 {
-  static const uint32_t         MagicNumber   = 0x1589010e ^ kTundraHashMagic;
+  static const uint32_t         MagicNumber   = 0x1589010f ^ kTundraHashMagic;
 
   uint32_t                      m_MagicNumber;
 

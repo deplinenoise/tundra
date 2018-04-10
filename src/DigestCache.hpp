@@ -33,7 +33,7 @@ namespace t2
 
   struct DigestCacheState
   {
-    static const uint32_t           MagicNumber   = 0x12781fa6 ^ kTundraHashMagic;
+    static const uint32_t           MagicNumber   = 0x12781fa7 ^ kTundraHashMagic;
 
     uint32_t                        m_MagicNumber;
     FrozenArray<FrozenDigestRecord> m_Records;
