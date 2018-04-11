@@ -287,6 +287,10 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
   end
   local source_list = util.map(util.filter(accessed_lua_files, is_non_tundra_lua_file), make_src_node)
 
+  if native.stat_file('.editorconfig').exists then
+    source_list[#source_list + 1] = make_src_node('.editorconfig')
+  end
+
   local solution_hints = hints.MsvcSolutions
   if not solution_hints then
     print("No IdeGenerationHints.MsvcSolutions specified - using defaults")
