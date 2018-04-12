@@ -25,10 +25,10 @@ namespace t2
   {
     const char* Names[Enum::kCount] =
     {
-      "Build success",
-      "Build interrupted",
-      "Build failed",
-      "Build failed to setup error"
+      "build success",
+      "build interrupted",
+      "build failed",
+      "build failed to setup error"
     };
   }
 

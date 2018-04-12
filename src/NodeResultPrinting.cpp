@@ -116,6 +116,17 @@ static void PrintDiagnostic(const char* title, int content)
     PrintDiagnosticFormat(title, "%d", content);
 }
 
+void PrintConcludingMessage(bool success, const char* formatString, ...)
+{
+    EmitColor(success ? GRN : RED);
+    va_list args;
+    va_start(args, formatString);
+    vfprintf(stdout, formatString, args);
+    va_end(args);
+    EmitColor(RESET);
+    printf("\n");
+}
+
 static void PrintBufferTrimmed(OutputBufferData* buffer)
 {
   auto isNewLine = [](char c) {return c == 0x0A || c == 0x0D; };
