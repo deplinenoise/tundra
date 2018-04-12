@@ -360,6 +360,34 @@ static void FindNodesByName(
         break;
       }
     }
+    
+    if (found)
+      continue;
+
+    const uint32_t filename_hash = Djb2HashPath(name);
+    for (int node_index=0; node_index!=dag->m_NodeCount; node_index++)
+    {
+      const NodeData& node = dag->m_NodeData[node_index];
+      for (const FrozenFileAndHash& output : node.m_OutputFiles)
+      {
+        if (filename_hash == output.m_FilenameHash && 0 == PathCompare(output.m_Filename, name))
+        {
+          BufferAppendOne(out_nodes, heap, node_index);
+          Log(kDebug, "mapped %s to node %d (based on output file)", name, node_index);
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found)
+    {
+      Croak("unable to map %s to any named node or input/output file", name);
+    }
+  }
+}
+
+#if DISABLED_IN_OUR_FORK
 
     // Try to match against all input/output filenames
     if (!found)
@@ -443,10 +471,12 @@ static void FindNodesByName(
 
     if (!found)
     {
-      Log(kWarning, "unable to map %s to any named node or input/output file", name);
+      Croak("unable to map %s to any named node or input/output file", name);
     }
   }
 }
+
+#endif
 
 static void DriverSelectNodes(const DagData* dag, const char** targets, int target_count, Buffer<int32_t>* out_nodes, MemAllocHeap* heap)
 {
