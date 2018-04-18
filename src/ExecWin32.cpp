@@ -56,7 +56,7 @@ static HANDLE AllocFd(int job_id)
     char temp_dir[MAX_PATH + 1];
     DWORD access, sharemode, disp, flags;
 
-    _snprintf(temp_dir, MAX_PATH, "%stundra.%u.%d", s_TemporaryDir, s_TundraPid, job_id);
+    _snprintf(temp_dir, MAX_PATH, "%stundra.%u.%d", s_TemporaryDir, (uint32_t) s_TundraPid, job_id);
     temp_dir[MAX_PATH] = '\0';
 
     access    = GENERIC_WRITE | GENERIC_READ;
@@ -360,7 +360,7 @@ static int Win32Spawn(int job_id, const char *cmd_line, const EnvVariable *env_v
     return 1;
   }
 
-  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, env_block_length, env_block_wide, sizeof(env_block_wide)/sizeof(WCHAR)))
+  if (!MultiByteToWideChar(CP_UTF8, 0, env_block, (int) env_block_length, env_block_wide, int(sizeof(env_block_wide)/sizeof(WCHAR))))
   {
     fprintf(stderr, "%d: Failed converting environment block to wide char\n", job_id);
     return 1;

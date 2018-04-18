@@ -791,7 +791,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
         
         if (!path)
         {
-          fprintf(stderr, "bad FileSignatures data\n");
+          fprintf(stderr, "bad FileSignatures data (null path in File node)\n");
           return false;
         }
 
@@ -803,7 +803,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
       }
       else
       {
-        fprintf(stderr, "bad FileSignatures data\n");
+        fprintf(stderr, "bad FileSignatures data (FileSignatures must contain objects)\n");
         return false;
       }
     }
@@ -932,7 +932,7 @@ static bool CreateDagFromJsonData(char* json_memory, const char* dag_fn)
   LinearAllocDestroy(&scratch);
   LinearAllocDestroy(&alloc);
 
-  HeapDestroy(&heap);
+  t2::HeapDestroy(&heap);
   return result;
 }
 
@@ -1029,6 +1029,7 @@ bool GenerateDag(const char* script_fn, const char* dag_fn)
   FILE* f = fopen(json_filename, "rb");
   if (!f)
   {
+    free(json_memory);
     Log(kError, "couldn't open %s for reading", json_filename);
     return false;
   }
@@ -1085,7 +1086,7 @@ bool GenerateIdeIntegrationFiles(const char* build_file, int argc, const char** 
   bool result = RunExternalTool("generate-ide-files %s %s", build_file, args.m_Storage);
 
   BufferDestroy(&args, &heap);
-  HeapDestroy(&heap);
+  t2::HeapDestroy(&heap);
 
   return result;
 }

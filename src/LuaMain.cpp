@@ -108,7 +108,7 @@ int main(int argc, char** argv)
 
   DestroyLuaState(L);
 
-  HeapDestroy(&heap);
+  t2::HeapDestroy(&heap);
 
 	return success ? 0 : 1;
 }
