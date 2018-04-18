@@ -219,7 +219,7 @@ void PathInit(PathBuffer* buffer, const char* path, PathType::Enum type)
 
 bool PathStripLast(PathBuffer* buffer)
 {
-  uint16_t min_seg_count = buffer->m_Flags & PathBuffer::kFlagWindowsDevicePath ? 1 : 0;
+  uint16_t min_seg_count = (buffer->m_Flags & PathBuffer::kFlagWindowsDevicePath) ? 1 : 0;
   uint16_t seg_count = buffer->m_SegCount;
   if (seg_count > min_seg_count)
   {
@@ -237,7 +237,7 @@ static void PathConcatImpl(PathBuffer* buffer, const T* other)
 
   int seg_count = buffer->m_SegCount;
 
-  int min_seg_count = buffer->m_Flags & PathBuffer::kFlagWindowsDevicePath ? 1 : 0;
+  int min_seg_count = (buffer->m_Flags & PathBuffer::kFlagWindowsDevicePath) ? 1 : 0;
 
   // Start by throwing away .. from the other path
   for (int i = 0, count = other->m_LeadingDotDots; i < count; ++i)

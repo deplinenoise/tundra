@@ -16,7 +16,7 @@ static void DumpDag(const DagData* data)
 {
   int node_count = data->m_NodeCount;
   printf("magic number: 0x%08x\n", data->m_MagicNumber);
-  printf("node count: %u\n", node_count);
+  printf("node count: %d\n", node_count);
   for (int i = 0; i < node_count; ++i)
   {
     printf("node %d:\n", i);
@@ -33,16 +33,16 @@ static void DumpDag(const DagData* data)
     printf("\n  action: %s\n", node.m_Action.Get());
     printf("  preaction: %s\n", node.m_PreAction.Get() ? node.m_PreAction.Get() : "(null)");
     printf("  annotation: %s\n", node.m_Annotation.Get());
-    printf("  pass index: %u\n", node.m_PassIndex);
+    printf("  pass index: %d\n", node.m_PassIndex);
 
     printf("  dependencies:");
     for (int32_t dep : node.m_Dependencies)
-      printf(" %u", dep);
+      printf(" %d", dep);
     printf("\n");
 
     printf("  backlinks:");
     for (int32_t link : node.m_BackLinks)
-      printf(" %u", link);
+      printf(" %d", link);
     printf("\n");
 
     printf("  inputs:\n");
@@ -118,19 +118,19 @@ static void DumpDag(const DagData* data)
     printf("  pass: %s\n", pass.m_PassName.Get());
   }
 
-  printf("\nconfig count: %u\n", data->m_ConfigCount);
+  printf("\nconfig count: %d\n", data->m_ConfigCount);
   for (int i = 0; i < data->m_ConfigCount; ++i)
   {
     printf("  %d: name=\"%s\" hash=0x%08x\n", i, data->m_ConfigNames[i].Get(), data->m_ConfigNameHashes[i]);
   }
 
-  printf("\nvariant count: %u\n", data->m_VariantCount);
+  printf("\nvariant count: %d\n", data->m_VariantCount);
   for (int i = 0; i < data->m_VariantCount; ++i)
   {
     printf("  %d: name=\"%s\" hash=0x%08x\n", i, data->m_VariantNames[i].Get(), data->m_VariantNameHashes[i]);
   }
 
-  printf("\nsubvariant count: %u\n", data->m_SubVariantCount);
+  printf("\nsubvariant count: %d\n", data->m_SubVariantCount);
   for (int i = 0; i < data->m_SubVariantCount; ++i)
   {
     printf("  %d: name=\"%s\" hash=0x%08x\n", i, data->m_SubVariantNames[i].Get(), data->m_SubVariantNameHashes[i]);
@@ -188,7 +188,7 @@ static void DumpState(const StateData* data)
 {
   int node_count = data->m_NodeCount;
   printf("magic number: 0x%08x\n", data->m_MagicNumber);
-  printf("node count: %u\n", node_count);
+  printf("node count: %d\n", node_count);
   for (int i = 0; i < node_count; ++i)
   {
     printf("node %d:\n", i);

@@ -388,7 +388,6 @@ static void PushWin32Error(lua_State *L, DWORD err, const char *context)
 static int LuaWin32RegisterQuery(lua_State *L)
 {
   HKEY regkey, root_key;
-  LONG result = 0;
   const char *key_name, *subkey_name, *value_name = NULL;
   static const REGSAM sams[] = { KEY_READ, KEY_READ|KEY_WOW64_32KEY, KEY_READ|KEY_WOW64_64KEY };
 
@@ -408,7 +407,7 @@ static int LuaWin32RegisterQuery(lua_State *L)
 
   for (size_t i = 0; i < ARRAY_SIZE(sams); ++i)
   {
-    result = RegOpenKeyExA(root_key, subkey_name, 0, sams[i], &regkey);
+    LONG result = RegOpenKeyExA(root_key, subkey_name, 0, sams[i], &regkey);
 
     if (ERROR_SUCCESS == result)
     {
