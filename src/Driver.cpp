@@ -197,7 +197,7 @@ bool DriverInitData(Driver* self)
 static bool DriverPrepareDag(Driver* self, const char* dag_fn)
 {
   // Try to use an existing DAG
-  if (!self->m_Options.m_ForceDagRegen && LoadFrozenData<DagData>(dag_fn, &self->m_DagFile, &self->m_DagData))
+  if (!self->m_Options.m_ForceDagRegen && LoadFrozenData<DagData>(dag_fn, &self->m_DagFile, &self->m_DagData ) && self->m_DagData->m_ForceDagRebuild == 0)
   {
     if (DriverCheckDagSignatures(self))
     {

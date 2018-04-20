@@ -625,7 +625,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
     fprintf(stderr, "invalid Passes data\n");
     return false;
   }
-
+  
   // Write scanners, store pointers
   BinaryLocator* scanner_ptrs = nullptr;
 
@@ -906,7 +906,8 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileNameTmp", ".tundra2.digestcache.tmp"));
   
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "BuildTitle", "Tundra"));
-  
+  BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "ForceDagRebuild", 0));
+
   HashTableDestroy(&shared_strings);
 
   //write magic number again at the end to pretect against writing too much / too little data and not noticing.
