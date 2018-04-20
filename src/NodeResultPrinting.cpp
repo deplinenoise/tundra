@@ -187,6 +187,14 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
             HeapFree(queue->m_Config.m_Heap, content_buffer);
         }
 
+
+        if (node_data->m_EnvVars.GetCount() > 0)
+          PrintDiagnosticPrefix("Custom Environment Variables");
+        for (int i=0; i!=node_data->m_EnvVars.GetCount(); i++)
+        {
+           auto& entry = node_data->m_EnvVars[i];
+           printf("%s=%s\n", entry.m_Name.Get(), entry.m_Value.Get() );
+        }
         if (validationResult == ValidationResult::Fail && result->m_ReturnCode == 0 && !result->m_WasSignalled)
         {
           PrintDiagnosticPrefix("Failed because this command wrote something to the output that wasnt expected. We were expecting any of the following strings:", RED);
