@@ -620,12 +620,6 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
   const JsonArrayValue  *passes        = FindArrayValue(root, "Passes");
   const JsonArrayValue  *scanners      = FindArrayValue(root, "Scanners");
 
-  if (EmptyArray(nodes))
-  {
-    fprintf(stderr, "invalid Nodes data\n");
-    return false;
-  }
-
   if (EmptyArray(passes))
   {
     fprintf(stderr, "invalid Passes data\n");
