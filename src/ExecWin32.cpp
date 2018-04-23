@@ -429,16 +429,36 @@ ExecResult ExecuteProcess(
   int                 time_until_first_callback
   )
 {
-  STARTUPINFO sinfo;
-  ZeroMemory(&sinfo, sizeof(STARTUPINFO));
+  STARTUPINFOEXW sinfo;
+  ZeroMemory(&sinfo, sizeof(STARTUPINFOEXW));
 
-  sinfo.cb = sizeof(STARTUPINFO);
+  sinfo.StartupInfo.cb = sizeof(STARTUPINFOEXW);
+  DWORD creationFlags = CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT;
 
+  bool enherit_handles = !stream_to_stdout;
+  void* attributeListAllocation = nullptr;
   if (!stream_to_stdout)
   {
-    sinfo.hStdOutput = sinfo.hStdError = GetOrCreateTempFileFor(job_id);
-    sinfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-    sinfo.dwFlags |= STARTF_USESTDHANDLES;
+    HANDLE handles_to_enherit[2] = { 0,0 };
+    sinfo.StartupInfo.hStdOutput = sinfo.StartupInfo.hStdError = handles_to_enherit[0] = GetOrCreateTempFileFor(job_id);
+    sinfo.StartupInfo.hStdInput = handles_to_enherit[1] = GetStdHandle(STD_INPUT_HANDLE);
+    sinfo.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+    creationFlags != EXTENDED_STARTUPINFO_PRESENT;
+
+    SIZE_T attributeListSize = 0;
+
+    //this is pretty crazy, but this call is _supposed_ to fail, and give us the correct attributeListSize, so we verify the returncode !=0
+    if (InitializeProcThreadAttributeList(NULL, 1, 0, &attributeListSize))
+      CroakAbort("InitializeProcThreadAttributeList failed");
+
+    attributeListAllocation = HeapAllocate(heap, attributeListSize);
+    sinfo.lpAttributeList = static_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attributeListAllocation);
+
+    //but this call is supposed to succeed, so here we check it for returning ==0
+    if (!InitializeProcThreadAttributeList(sinfo.lpAttributeList, 1, 0, &attributeListSize))
+      CroakErrno("InitializeProcThreadAttributeList failed (2)");
+    if (!UpdateProcThreadAttribute(sinfo.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles_to_enherit, sizeof(handles_to_enherit), NULL, NULL))
+      CroakErrno("UpdateProcThreadAttribute failed");
   }
 
   char buffer[8192];
@@ -469,10 +489,20 @@ ExecResult ExecuteProcess(
   if (!job_object)
     CroakErrno("ERROR: Couldn't create job object.");
   
+  WCHAR buffer_wide[sizeof(buffer) * 2];
+  if (!MultiByteToWideChar(CP_UTF8, 0, buffer, (int)sizeof(buffer), buffer_wide, sizeof(buffer_wide) / sizeof(WCHAR)))
+    CroakAbort("Failed converting buffer block to wide char\n");
+
   PROCESS_INFORMATION pinfo;
 
-  if (!CreateProcessA(NULL, buffer, NULL, NULL, TRUE, CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT, env_block_wide, NULL, &sinfo, &pinfo))
+  if (!CreateProcessW(NULL, buffer_wide, NULL, NULL, enherit_handles, creationFlags, env_block_wide, NULL, &sinfo.StartupInfo, &pinfo))
     CroakAbort("ERROR: Couldn't launch process. Win32 error = %d", (int)GetLastError());
+
+  if (!stream_to_stdout)
+  {
+    DeleteProcThreadAttributeList(sinfo.lpAttributeList);
+    HeapFree(heap, attributeListAllocation);
+  }
 
   AssignProcessToJobObject(job_object, pinfo.hProcess);
   ResumeThread(pinfo.hThread);
