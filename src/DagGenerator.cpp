@@ -894,7 +894,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
   }
 
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "MaxExpensiveCount", -1));
-  BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "DaysToKeepUnreferencedNodesAround", 0));
+  BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "DaysToKeepUnreferencedNodesAround", -1));
 
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileName", ".tundra2.state"));
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StateFileNameTmp", ".tundra2.state.tmp"));
