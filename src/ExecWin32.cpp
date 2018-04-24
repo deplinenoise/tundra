@@ -443,7 +443,7 @@ ExecResult ExecuteProcess(
     sinfo.StartupInfo.hStdOutput = sinfo.StartupInfo.hStdError = handles_to_enherit[0] = GetOrCreateTempFileFor(job_id);
     sinfo.StartupInfo.hStdInput = handles_to_enherit[1] = GetStdHandle(STD_INPUT_HANDLE);
     sinfo.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
-    creationFlags != EXTENDED_STARTUPINFO_PRESENT;
+    creationFlags |= EXTENDED_STARTUPINFO_PRESENT;
 
     SIZE_T attributeListSize = 0;
 
