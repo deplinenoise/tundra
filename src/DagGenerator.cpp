@@ -544,31 +544,56 @@ bool ComputeNodeGuids(const JsonArrayValue* nodes, int32_t* remap_table, TempNod
     HashState h;
     HashInit(&h);
 
-    const char           *action     = FindStringValue(nobj, "Action");
-    const JsonArrayValue *inputs     = FindArrayValue(nobj, "Inputs");
-
-    if (action && action[0])
-      HashAddString(&h, action);
-
-    if (inputs)
+    const JsonArrayValue *outputs    = FindArrayValue(nobj, "Outputs");
+    bool didHashAnyOutputs = false;
+    if (outputs)
     {
-      for (size_t fi = 0, fi_count = inputs->m_Count; fi < fi_count; ++fi)
+      for (size_t fi = 0, fi_count = outputs->m_Count; fi < fi_count; ++fi)
       {
-        if (const JsonStringValue* str = inputs->m_Values[fi]->AsString())
+        if (const JsonStringValue* str = outputs->m_Values[fi]->AsString())
         {
           HashAddString(&h, str->m_String);
+          didHashAnyOutputs = true;
         }
       }
     }
 
-    const char *annotation = FindStringValue(nobj, "Annotation");
-
-    if (annotation)
-      HashAddString(&h, annotation);
-
-    if ((!action || action[0] == '\0') && !inputs && !annotation)
+    if (didHashAnyOutputs)
     {
-        return false;
+        HashAddString(&h, "salt for outputs");
+    }
+    else
+    {
+      // For nodes with no outputs, preserve the legacy behaviour
+
+      const char           *action     = FindStringValue(nobj, "Action");
+      const JsonArrayValue *inputs     = FindArrayValue(nobj, "Inputs");
+
+      if (action && action[0])
+        HashAddString(&h, action);
+
+      if (inputs)
+      {
+        for (size_t fi = 0, fi_count = inputs->m_Count; fi < fi_count; ++fi)
+        {
+          if (const JsonStringValue* str = inputs->m_Values[fi]->AsString())
+          {
+            HashAddString(&h, str->m_String);
+          }
+        }
+      }
+
+      const char *annotation = FindStringValue(nobj, "Annotation");
+
+      if (annotation)
+        HashAddString(&h, annotation);
+
+      if ((!action || action[0] == '\0') && !inputs && !annotation)
+      {
+          return false;
+      }
+
+      HashAddString(&h, "salt for legacy");
     }
 
     HashFinalize(&h, &guid_table[i].m_Digest);
