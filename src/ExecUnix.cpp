@@ -231,8 +231,8 @@ ExecuteProcess(
 
 				now = TimerGet();
 				timeout.tv_sec = (int)TimerDiffSeconds(now, next_callback_at);
-				if (timeout.tv_sec<0)
-					timeout.tv_sec = 0;
+				if (timeout.tv_sec < 1)
+					timeout.tv_sec = 1;
 				timeout.tv_usec = 0;
 
 				count = select(max_fd, &read_fds, NULL, NULL, &timeout);
