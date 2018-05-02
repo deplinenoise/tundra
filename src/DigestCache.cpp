@@ -9,7 +9,7 @@
 namespace t2
 {
 
-void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
+void DigestCacheInit(DigestCache* self, size_t heap_size)
 {
   ReadWriteLockInit(&self->m_Lock);
 
@@ -21,7 +21,10 @@ void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename)
   HashTableInit(&self->m_Table, &self->m_Heap);
 
   self->m_AccessTime = time(nullptr);
+}
 
+void DigestCacheOpen(DigestCache* self, const char* filename)
+{
   MmapFileMap(&self->m_StateFile, filename);
   if (MmapFileValid(&self->m_StateFile))
   {
