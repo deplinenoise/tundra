@@ -58,7 +58,8 @@ namespace t2
     uint64_t                m_AccessTime;
   };
 
-  void DigestCacheInit(DigestCache* self, size_t heap_size, const char* filename);
+  void DigestCacheInit(DigestCache* self, size_t heap_size);
+  void DigestCacheOpen(DigestCache* self, const char* filename);
 
   void DigestCacheDestroy(DigestCache* self);
 

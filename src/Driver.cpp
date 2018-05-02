@@ -169,10 +169,12 @@ bool DriverInitData(Driver* self)
 {
   ProfilerScope prof_scope("Tundra InitData", 0);
 
+  DigestCacheInit(&self->m_DigestCache, MB(128));
+
   if (!DriverPrepareDag(self, s_DagFileName))
     return false;
 
-  DigestCacheInit(&self->m_DigestCache, MB(128), self->m_DagData->m_DigestCacheFileName);
+  DigestCacheOpen(&self->m_DigestCache, self->m_DagData->m_DigestCacheFileName);
 
   LoadFrozenData<StateData>(self->m_DagData->m_StateFileName, &self->m_StateFile, &self->m_StateData);
 
