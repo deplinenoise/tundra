@@ -80,7 +80,9 @@ static const struct OptionTemplate
   { 'U', "unprotected", OptionType::kBool, offsetof(t2::DriverOptions, m_RunUnprotected), "Run unprotected (same process group - for debugging)" },
 #endif
   { 'g', "ide-gen", OptionType::kBool, offsetof(t2::DriverOptions, m_IdeGen),
-    "Run IDE file generator and quit" }
+    "Run IDE file generator and quit" },
+  { 'Q', "quickstart", OptionType::kBool, offsetof(t2::DriverOptions, m_QuickstartGen),
+    "Generate tundra.lua file for a new project" }
 };
 
 static int AssignOptionValue(char* option_base, const OptionTemplate* templ, const char* value, bool is_short)
@@ -360,8 +362,13 @@ int main(int argc, char* argv[])
   if (options.m_IdeGen)
   {
     // FIXME: How to detect build file for other type of generators?
-    // FIXME: Wire up remaining arguments on command line to go onto this commmand line
     GenerateIdeIntegrationFiles("tundra.lua", argc, (const char**) argv);
+    return 0;
+  }
+
+  if (options.m_QuickstartGen)
+  {
+    GenerateTemplateFiles(argc, (const char**) argv);
     return 0;
   }
 

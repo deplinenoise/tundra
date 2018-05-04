@@ -1,6 +1,7 @@
 require "strict"
 
-local boot    = require "tundra.boot"
+local boot = require "tundra.boot"
+local gent = require "tundra.gen_template"
 
 local actions = {
   ['generate-dag'] = function(build_script, json_file)
@@ -13,6 +14,8 @@ local actions = {
     assert(ide_script, "need a generator name")
     boot.generate_ide_files(build_script, ide_script)
   end,
+
+  ['create-template-file'] = gent.generate_template_file,
 
   ['selftest'] = function()
     require "tundra.selftest"
