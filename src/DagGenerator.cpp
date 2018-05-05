@@ -788,7 +788,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
       if (const JsonObjectValue* sig = file_sigs->m_Values[i]->AsObject())
       {
         const char* path = FindStringValue(sig, "File");
-        
+
         if (!path)
         {
           fprintf(stderr, "bad FileSignatures data (null path in File node)\n");
@@ -1055,6 +1055,28 @@ bool GenerateDag(const char* script_fn, const char* dag_fn)
   return success;
 }
 
+static void CreateCommandLine(MemAllocHeap* heap, Buffer<char>* args, int argc, const char** argv)
+{
+  for (int i = 0; i < argc; ++i)
+  {
+    if (i > 0)
+      BufferAppendOne(args, heap, ' ');
+
+    const size_t arglen = strlen(argv[i]);
+    const bool has_spaces = nullptr != strchr(argv[i], ' ');
+
+    if (has_spaces)
+      BufferAppendOne(args, heap, '"');
+
+    BufferAppend(args, heap, argv[i], arglen);
+
+    if (has_spaces)
+      BufferAppendOne(args, heap, '"');
+  }
+
+  BufferAppendOne(args, heap, '\0');
+}
+
 bool GenerateIdeIntegrationFiles(const char* build_file, int argc, const char** argv)
 {
   MemAllocHeap heap;
@@ -1062,28 +1084,28 @@ bool GenerateIdeIntegrationFiles(const char* build_file, int argc, const char** 
 
   Buffer<char> args;
   BufferInit(&args);
-
-  for (int i = 0; i < argc; ++i)
-  {
-    if (i > 0)
-      BufferAppendOne(&args, &heap, ' ');
-
-    const size_t arglen = strlen(argv[i]);
-    const bool has_spaces = nullptr != strchr(argv[i], ' ');
-
-    if (has_spaces)
-      BufferAppendOne(&args, &heap, '"');
-
-    BufferAppend(&args, &heap, argv[i], arglen);
-
-    if (has_spaces)
-      BufferAppendOne(&args, &heap, '"');
-  }
-
-  BufferAppendOne(&args, &heap, '\0');
+  CreateCommandLine(&heap, &args, argc, argv);
 
   // Run DAG generator.
   bool result = RunExternalTool("generate-ide-files %s %s", build_file, args.m_Storage);
+
+  BufferDestroy(&args, &heap);
+  t2::HeapDestroy(&heap);
+
+  return result;
+}
+
+bool GenerateTemplateFiles(int argc, const char** argv)
+{
+  MemAllocHeap heap;
+  HeapInit(&heap);
+
+  Buffer<char> args;
+  BufferInit(&args);
+  CreateCommandLine(&heap, &args, argc, argv);
+
+  // Run DAG generator.
+  bool result = RunExternalTool("create-template-file %s", args.m_Storage);
 
   BufferDestroy(&args, &heap);
   t2::HeapDestroy(&heap);
