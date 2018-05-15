@@ -414,14 +414,21 @@ namespace t2
       return sendNextCallbackIn;
   }
 
-  static ExecResult WriteTextFile(const char* payload, const char* target_file)
+  static ExecResult WriteTextFile(const char* payload, const char* target_file, MemAllocHeap* heap)
   {
     ExecResult result;
+    char tmpBuffer[1024];
+    
     memset(&result, 0, sizeof(result));
-
+    
     FILE* f = fopen(target_file, "wb");
     if (!f)
     {
+      InitOutputBuffer(&result.m_OutputBuffer, heap);
+      
+      snprintf(tmpBuffer, sizeof(tmpBuffer), "Error opening for writing the file: %s, error: %s", target_file, strerror( errno ));
+      EmitOutputBytesToDestination(&result, tmpBuffer, strlen(tmpBuffer));
+
       result.m_ReturnCode = 1;
       return result;
     }
@@ -429,7 +436,15 @@ namespace t2
     int written = fwrite(payload, sizeof(char), length, f);
     fclose(f);
 
-    result.m_ReturnCode = length == written ? 0 : 1;
+    if (written == length)
+      return result;
+
+    InitOutputBuffer(&result.m_OutputBuffer, heap);
+
+    snprintf(tmpBuffer, sizeof(tmpBuffer), "fwrite was supposed to write %d bytes to %s, but wrote %d bytes", length, target_file, written);
+    EmitOutputBytesToDestination(&result, tmpBuffer, strlen(tmpBuffer));
+
+    result.m_ReturnCode = 1;
     return result;
   }
 
@@ -526,7 +541,7 @@ namespace t2
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope(annotation, job_id);
       if (isWriteFileAction)
-        result = WriteTextFile(node_data->m_Action, node_data->m_OutputFiles[0].m_Filename);
+        result = WriteTextFile(node_data->m_Action, node_data->m_OutputFiles[0].m_Filename, thread_state->m_Queue->m_Config.m_Heap);
       else
       {
         last_cmd_line = cmd_line;

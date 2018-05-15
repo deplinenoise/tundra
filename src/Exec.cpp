@@ -32,4 +32,35 @@ void ExecResultFreeMemory(ExecResult* result)
     DestroyOutputBuffer(&result->m_OutputBuffer);
 }
 
+
+void EmitOutputBytesToDestination(ExecResult* execResult, const char* text, size_t count)
+{
+	OutputBufferData* data = &execResult->m_OutputBuffer;
+
+	if (data->buffer == nullptr)
+	{
+		//if there's no buffer to buffer into, we'll output straight to stdout.
+		fwrite(text, sizeof(char), count, stdout);
+		return;
+	}
+
+	if (data->cursor + count > data->buffer_size)
+	{
+		int newSize = data->buffer_size * 2;
+		if (newSize < data->cursor + count)
+			newSize = data->cursor+count;
+		char* newBuffer = static_cast<char*>(HeapReallocate(data->heap, static_cast<void*>(data->buffer), newSize));
+		if (newBuffer == nullptr)
+		{
+			CroakAbort("out of memory allocating %d bytes for output buffer", newSize);
+			return;
+		}
+		data->buffer = newBuffer;
+		data->buffer_size = newSize;
+	}
+
+	memcpy(data->buffer+data->cursor, text, count);
+	data->cursor += count;
+}
+
 }

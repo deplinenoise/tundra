@@ -38,42 +38,13 @@ static void SetFdNonBlocking(int fd)
 		CroakErrno("couldn't unblock fd %d", fd);
 }
 
-static void EmitOutputBytesToDestination(ExecResult* execResult, int is_stderr, const char* text, size_t count)
-{
-	OutputBufferData* data = &execResult->m_OutputBuffer;
-
-	if (data->buffer == nullptr)
-	{
-		//if there's no buffer to buffer into, we'll output straight to stdout.
-		fwrite(text, sizeof(char), count, stdout);
-		return;
-	}
-
-	if (data->cursor + count > data->buffer_size)
-	{
-		int newSize = data->buffer_size * 2;
-		if (newSize < data->cursor + count)
-			newSize = data->cursor+count;
-		char* newBuffer = static_cast<char*>(HeapReallocate(data->heap, static_cast<void*>(data->buffer), newSize));
-		if (newBuffer == nullptr)
-		{
-			CroakAbort("out of memory allocating %d bytes for output buffer", newSize);
-			return;
-		}
-		data->buffer = newBuffer;
-		data->buffer_size = newSize;
-	}
-
-	memcpy(data->buffer+data->cursor, text, count);
-	data->cursor += count;
-}
 
 void ExecInit()
 {
 }
 
 static int
-EmitData(ExecResult* execResult, int is_stderr, int fd)
+EmitData(ExecResult* execResult, int fd)
 {
 	char text[8192];
 	ssize_t count;
@@ -90,7 +61,7 @@ EmitData(ExecResult* execResult, int is_stderr, int fd)
 
 	text[count] = '\0';
 
-	EmitOutputBytesToDestination(execResult, is_stderr, text, count);
+	EmitOutputBytesToDestination(execResult, text, count);
 
 	return 0;
 }
@@ -249,7 +220,7 @@ ExecuteProcess(
 				{
 					if (0 != rfds[fd] && FD_ISSET(rfds[fd], &read_fds))
 					{
-						if (0 != EmitData(&result, /*is_stderr:*/ 1 == fd, rfds[fd]))
+						if (0 != EmitData(&result, rfds[fd]))
 						{
 							/* Done with this FD. */
 							rfds[fd] = 0;

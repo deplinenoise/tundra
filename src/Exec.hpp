@@ -36,6 +36,7 @@ namespace t2
   void InitOutputBuffer(OutputBufferData* data, MemAllocHeap* heap);
   void ExecResultFreeMemory(ExecResult* result);
   void ExecInit();
+  void EmitOutputBytesToDestination(ExecResult* execResult, const char* text, size_t count);
 
   ExecResult ExecuteProcess(
         const char*         cmd_line,
