@@ -15,6 +15,7 @@ if ($^O eq "MSWin32")
 } else
 {
     system("make") eq 0 or die("failed make");
+    system("build/t2-unittest") eq 0 or die("running unit tests failed");
     system("cp build/tundra2 artifacts/$^O/") eq 0 or die("failed copy");
 }
 
