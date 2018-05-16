@@ -14,5 +14,6 @@ void InitNodeResultPrinting();
 void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* cmd_line, BuildQueue* queue, bool always_verbose, uint64_t exec_start_time, ValidationResult validationResult);
 int PrintNodeInProgress(const NodeData* node_data, uint64_t time_of_start, const BuildQueue* queue);
 void PrintConcludingMessage(bool success, const char* formatString, ...);
+void StripAnsiColors(char* buffer);
 }
 #endif

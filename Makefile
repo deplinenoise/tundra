@@ -118,7 +118,7 @@ T2INSPECT_SOURCES = InspectMain.cpp
 UNITTEST_SOURCES = \
 	TestHarness.cpp Test_BitFuncs.cpp Test_Buffer.cpp Test_Djb2.cpp Test_Hash.cpp \
 	Test_IncludeScanner.cpp Test_Json.cpp Test_MemAllocLinear.cpp Test_Pow2.cpp \
-	Test_TargetSelect.cpp test_PathUtil.cpp Test_HashTable.cpp
+	Test_TargetSelect.cpp test_PathUtil.cpp Test_HashTable.cpp Test_StripAnsiColors.cpp
 
 TUNDRA_SOURCES = Main.cpp
 

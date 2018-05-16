@@ -17,10 +17,60 @@ namespace t2
 
 static bool EmitColors = false;
 
-
 static uint64_t last_progress_message_of_any_job;
 static const NodeData* last_progress_message_job = nullptr;
 static int total_number_node_results_printed = 0;
+
+
+static bool isTerminatingChar(char c)
+{
+    return c >= 0x40 && c <= 0x7E;
+}
+
+static bool IsEscapeCode(char c)
+{
+    return c == 0x1B;
+}
+
+static char* DetectEscapeCode(char* ptr)
+{
+    if (!IsEscapeCode(ptr[0]))
+        return ptr;
+    if (ptr[1] == 0)
+        return ptr;
+
+    //there are other characters valid than [ here, but for now we'll only support stripping ones that have [, as all color sequences have that.
+    if (ptr[1] != '[')
+        return ptr;
+
+    char* endOfCode = ptr+2;
+
+    while(true) {
+        char c = *endOfCode;
+        if (c == 0)
+            return ptr;
+        if (isTerminatingChar(c))
+            return endOfCode+1;
+        endOfCode++;
+    }
+}
+
+void StripAnsiColors(char* buffer)
+{
+   char* writeCursor = buffer;
+   char* readCursor = buffer;
+   while(*readCursor)
+   {
+       char* adjusted = DetectEscapeCode(readCursor);
+       if (adjusted != readCursor)
+       {
+           readCursor = adjusted;
+           continue;
+       }
+       *writeCursor++ = *readCursor++;
+   }
+    *writeCursor++ = 0;
+}
 
 void InitNodeResultPrinting()
 {
@@ -135,7 +185,14 @@ static void PrintBufferTrimmed(OutputBufferData* buffer)
   while (isNewLine(*(buffer->buffer + trimmedCursor -1)) && trimmedCursor > 0)
     trimmedCursor--;
 
-  fwrite(buffer->buffer, 1, trimmedCursor, stdout);
+  if (EmitColors)
+  {
+    fwrite(buffer->buffer, 1, trimmedCursor, stdout);
+  } else {
+    buffer->buffer[trimmedCursor] = 0;
+    StripAnsiColors(buffer->buffer);
+    fwrite(buffer->buffer, 1, strlen(buffer->buffer), stdout);
+  }
   printf("\n");
 }
 
@@ -152,7 +209,10 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
     int duration = TimerDiffSeconds(time_exec_started, now);
     
     EmitColor(failed ? RED : GRN);
-    printf("[%*d/%d ", maxDigits, processedNodeCount, queue->m_Config.m_MaxNodes);
+    printf("[");
+    if (failed && !EmitColors)
+      printf("!FAILED! ");
+    printf("%*d/%d ", maxDigits, processedNodeCount, queue->m_Config.m_MaxNodes);
     printf("%2ds] ", duration);
     EmitColor(RESET); 
     printf("%s\n", (const char*)node_data->m_Annotation);   
