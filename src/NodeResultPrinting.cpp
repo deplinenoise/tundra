@@ -242,6 +242,7 @@ void PrintNodeResult(ExecResult* result, const NodeData* node_data, const char* 
               
               size_t read = fread(content_buffer, 1, size, f);
               content_buffer[read] = '\0';
+              fclose(f);
             }
             PrintDiagnostic(titleBuffer, content_buffer);
             HeapFree(queue->m_Config.m_Heap, content_buffer);
