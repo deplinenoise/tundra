@@ -364,13 +364,20 @@ static void FindNodesByName(
     if (found)
       continue;
 
-    const uint32_t filename_hash = Djb2HashPath(name);
+    //since outputs in the dag are "cleaned paths", with forward slashes converted to backward ones,
+    //make sure we convert our searchstring in the same way
+    PathBuffer pathbuf;
+    PathInit(&pathbuf, name);
+    char cleaned_path[kMaxPathLength];
+    PathFormat(cleaned_path, &pathbuf);
+
+    const uint32_t filename_hash = Djb2HashPath(cleaned_path);
     for (int node_index=0; node_index!=dag->m_NodeCount; node_index++)
     {
       const NodeData& node = dag->m_NodeData[node_index];
       for (const FrozenFileAndHash& output : node.m_OutputFiles)
       {
-        if (filename_hash == output.m_FilenameHash && 0 == PathCompare(output.m_Filename, name))
+        if (filename_hash == output.m_FilenameHash && 0 == PathCompare(output.m_Filename, cleaned_path))
         {
           BufferAppendOne(out_nodes, heap, node_index);
           Log(kDebug, "mapped %s to node %d (based on output file)", name, node_index);
