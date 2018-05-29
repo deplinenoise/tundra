@@ -646,6 +646,7 @@ bool DriverPrepareNodes(Driver* self, const char** targets, int target_count)
 
 bool DriverInit(Driver* self, const DriverOptions* options)
 {
+  memset(self, 0, sizeof(Driver));
   HeapInit(&self->m_Heap);
   LinearAllocInit(&self->m_Allocator, &self->m_Heap, MB(64), "Driver Linear Allocator");
 
