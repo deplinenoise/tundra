@@ -112,8 +112,8 @@ static void EnsureConsoleCanHandleColors()
   DWORD dwMode = 0;
   if (GetConsoleMode(hOut, &dwMode))
   {
-    const int ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
-    DWORD newMode = dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    const int ENABLE_VIRTUAL_TERMINAL_PROCESSING_impl = 0x0004;
+    DWORD newMode = dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING_impl;
     if (newMode != dwMode)
       SetConsoleMode(hOut, newMode);
   }
@@ -158,7 +158,8 @@ static void PrintDiagnosticFormat(const char* title, const char* formatString, .
 
 static void PrintDiagnostic(const char* title, const char* contents)
 {
-    PrintDiagnosticFormat(title, "%s", contents);
+    if (contents != nullptr)
+        PrintDiagnosticFormat(title, "%s", contents);
 }
 
 static void PrintDiagnostic(const char* title, int content)
