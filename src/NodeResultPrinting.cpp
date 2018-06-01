@@ -158,7 +158,8 @@ static void PrintDiagnosticFormat(const char* title, const char* formatString, .
 
 static void PrintDiagnostic(const char* title, const char* contents)
 {
-    PrintDiagnosticFormat(title, "%s", contents);
+    if (contents != nullptr)
+        PrintDiagnosticFormat(title, "%s", contents);
 }
 
 static void PrintDiagnostic(const char* title, int content)
