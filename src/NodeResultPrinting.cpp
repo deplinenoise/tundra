@@ -112,8 +112,8 @@ static void EnsureConsoleCanHandleColors()
   DWORD dwMode = 0;
   if (GetConsoleMode(hOut, &dwMode))
   {
-    const int ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
-    DWORD newMode = dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    const int ENABLE_VIRTUAL_TERMINAL_PROCESSING_impl = 0x0004;
+    DWORD newMode = dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING_impl;
     if (newMode != dwMode)
       SetConsoleMode(hOut, newMode);
   }
