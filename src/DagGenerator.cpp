@@ -231,6 +231,12 @@ static bool WriteNodes(
     }
   }
 
+  uint32_t* reverse_remap = (uint32_t*)HeapAllocate(heap, node_count * sizeof(uint32_t));
+  for (uint32_t i = 0; i < node_count; ++i)
+  {
+    reverse_remap[remap_table[i]] = i;
+  }
+
   for (size_t ni = 0; ni < node_count; ++ni)
   {
     const int32_t i = order[ni].m_Node;
@@ -362,6 +368,7 @@ static bool WriteNodes(
       flags |= NodeData::kFlagIsWriteTextFileAction;
     
     BinarySegmentWriteUint32(node_data_seg, flags);
+    BinarySegmentWriteUint32(node_data_seg, reverse_remap[ni]);
   }
 
   for (size_t i = 0; i < node_count; ++i)
@@ -369,6 +376,7 @@ static bool WriteNodes(
     BufferDestroy(&links[i].m_Links, heap);
   }
 
+  HeapFree(heap, reverse_remap);
   HeapFree(heap, links);
 
   return true;

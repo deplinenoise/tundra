@@ -121,6 +121,7 @@ struct NodeData
   FrozenArray<EnvVarData>         m_EnvVars;
   FrozenPtr<ScannerData>          m_Scanner;
   uint32_t                        m_Flags;
+  uint32_t                        m_OriginalIndex;
 };
 
 struct PassData

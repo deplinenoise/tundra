@@ -484,6 +484,9 @@ namespace t2
         JsonWriteKeyName(msg, "annotation");
         JsonWriteValueString(msg, node_data->m_Annotation);
 
+        JsonWriteKeyName(msg, "index");
+        JsonWriteValueInteger(msg, node_data->m_OriginalIndex);
+
         JsonWriteEndObject(msg);
         LogStructured(msg);
       }
@@ -512,6 +515,9 @@ namespace t2
 
         JsonWriteKeyName(msg, "annotation");
         JsonWriteValueString(msg, node_data->m_Annotation);
+
+        JsonWriteKeyName(msg, "index");
+        JsonWriteValueInteger(msg, node_data->m_OriginalIndex);
 
         JsonWriteKeyName(msg, "changes");
         JsonWriteStartArray(msg);
