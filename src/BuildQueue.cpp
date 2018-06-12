@@ -449,13 +449,14 @@ namespace t2
 
         JsonWriteKeyName(msg, "value");
         JsonWriteStartArray(msg);
-        for (const FrozenFileAndHash& input : node_data->m_InputFiles)
-          JsonWriteValueString(msg, input.m_Filename);
+        HashTableWalk(&implicitDependencies, [=](int32_t index, uint32_t hash, const char* filename, bool visited) {
+          JsonWriteValueString(msg, filename);
+        });
         JsonWriteEndArray(msg);
 
         JsonWriteKeyName(msg, "oldvalue");
         JsonWriteStartArray(msg);
-        for (const NodeInputFileData& input : prev_state->m_InputFiles)
+        for (const NodeInputFileData& input : prev_state->m_ImplicitInputFiles)
           JsonWriteValueString(msg, input.m_Filename);
         JsonWriteEndArray(msg);
 
