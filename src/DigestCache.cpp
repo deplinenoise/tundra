@@ -168,4 +168,32 @@ void DigestCacheSet(DigestCache* self, const char* filename, uint32_t hash, uint
   ReadWriteUnlockWrite(&self->m_Lock);
 }
 
+bool DigestCacheHasChanged(DigestCache* self, const char* filename, uint32_t hash)
+{
+  const FrozenDigestRecord* prevDigest = nullptr;
+  for (const FrozenDigestRecord& frozenRecord : self->m_State->m_Records)
+  {
+    if (frozenRecord.m_FilenameHash != hash)
+      continue;
+
+    if (strcmp(frozenRecord.m_Filename, filename) != 0)
+      continue;
+
+    prevDigest = &frozenRecord;
+    break;
+  }
+
+  ReadWriteLockRead(&self->m_Lock);
+  DigestCacheRecord* r = (DigestCacheRecord*)HashTableLookup(&self->m_Table, hash, filename);
+  ReadWriteUnlockRead(&self->m_Lock);
+
+  if (prevDigest == nullptr && r == nullptr)
+    return false;
+
+  if (prevDigest == nullptr || r == nullptr)
+    return true;
+
+  return prevDigest->m_ContentDigest != r->m_ContentDigest;
+}
+
 }
