@@ -7,14 +7,15 @@
 namespace t2
 {
 
+#pragma pack(push, 4)
 struct NodeInputFileData
 {
   uint64_t     m_Timestamp;
   FrozenString m_Filename;
-  uint8_t      m_Padding[4];
 };
+#pragma pack(pop)
 
-static_assert(sizeof(NodeInputFileData) == 16, "struct layout");
+static_assert(sizeof(NodeInputFileData) == 12, "struct layout");
 
 
 struct NodeStateData
