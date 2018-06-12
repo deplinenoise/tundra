@@ -7,13 +7,26 @@
 namespace t2
 {
 
+struct NodeInputFileData
+{
+  uint64_t     m_Timestamp;
+  FrozenString m_Filename;
+  uint8_t      m_Padding[4];
+};
+
+static_assert(sizeof(NodeInputFileData) == 16, "struct layout");
+
+
 struct NodeStateData
 {
-  int32_t                   m_BuildResult;
-  HashDigest                m_InputSignature;
-  FrozenArray<FrozenString> m_OutputFiles;
-  FrozenArray<FrozenString> m_AuxOutputFiles;
-  uint32_t                  m_TimeStampOfLastUseInDays;
+  int32_t                        m_BuildResult;
+  HashDigest                     m_InputSignature;
+  FrozenArray<FrozenString>      m_OutputFiles;
+  FrozenArray<FrozenString>      m_AuxOutputFiles;
+  uint32_t                       m_TimeStampOfLastUseInDays;
+  FrozenString                   m_Action;
+  FrozenString                   m_PreAction;
+  FrozenArray<NodeInputFileData> m_InputFiles;
 };
 
 struct StateData

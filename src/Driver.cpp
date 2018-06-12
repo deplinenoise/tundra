@@ -992,6 +992,35 @@ bool DriverSaveBuildState(Driver* self)
     }
 
     BinarySegmentWriteUint32(state_seg, (uint32_t)now/millisecondsInADay);
+
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(string_seg));
+    BinarySegmentWriteStringData(string_seg, src_node->m_Action);
+
+    if (src_node->m_PreAction)
+    {
+      BinarySegmentWritePointer(state_seg, BinarySegmentPosition(string_seg));
+      BinarySegmentWriteStringData(string_seg, src_node->m_PreAction);
+    }
+    else
+    {
+      BinarySegmentWriteNullPointer(state_seg);
+    }
+
+    file_count = src_node->m_InputFiles.GetCount();
+    BinarySegmentWriteInt32(state_seg, file_count);
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+    for (int32_t i = 0; i < file_count; ++i)
+    {
+      uint64_t timestamp = 0;
+      FileInfo fileInfo = StatCacheStat(&self->m_StatCache, src_node->m_InputFiles[i].m_Filename, src_node->m_InputFiles[i].m_FilenameHash);
+      if (fileInfo.Exists())
+        timestamp = fileInfo.m_Timestamp;
+
+      BinarySegmentWriteUint64(array_seg, timestamp);
+
+      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+      BinarySegmentWriteStringData(string_seg, src_node->m_InputFiles[i].m_Filename);
+    }
   };
 
   auto save_node_state_old = [=](int build_result, const HashDigest* input_signature, const NodeStateData* src_node, const HashDigest* guid) -> void
@@ -1020,6 +1049,29 @@ bool DriverSaveBuildState(Driver* self)
     }
 
     BinarySegmentWriteUint32(state_seg, src_node->m_TimeStampOfLastUseInDays);
+
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(string_seg));
+    BinarySegmentWriteStringData(string_seg, src_node->m_Action);
+
+    if (src_node->m_PreAction)
+    {
+      BinarySegmentWritePointer(state_seg, BinarySegmentPosition(string_seg));
+      BinarySegmentWriteStringData(string_seg, src_node->m_PreAction);
+    }
+    else
+    {
+      BinarySegmentWriteNullPointer(state_seg);
+    }
+
+    file_count = src_node->m_InputFiles.GetCount();
+    BinarySegmentWriteInt32(state_seg, file_count);
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+    for (int32_t i = 0; i < file_count; ++i)
+    {
+      BinarySegmentWriteUint64(array_seg, src_node->m_InputFiles[i].m_Timestamp);
+      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+      BinarySegmentWriteStringData(string_seg, src_node->m_InputFiles[i].m_Filename);
+    }
   };
 
   auto save_new = [=, &entry_count](size_t index) {

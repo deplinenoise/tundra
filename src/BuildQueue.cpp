@@ -16,6 +16,7 @@
 #include "Profiler.hpp"
 #include "NodeResultPrinting.hpp"
 #include "OutputValidation.hpp"
+#include "DigestCache.hpp"
 
 #include <stdio.h>
 
@@ -257,6 +258,120 @@ namespace t2
     return MakeDirectoriesRecursive(stat_cache, path);
   }
 
+  static void ReportInputSignatureChanges(JsonWriter* msg, NodeState* node, const NodeData* node_data, const NodeStateData* prev_state, StatCache* stat_cache, DigestCache* digest_cache, ScanCache* scan_cache, const uint32_t sha_extension_hashes[], int sha_extension_hash_count)
+  {
+    if (strcmp(node_data->m_Action, prev_state->m_Action) != 0)
+    {
+      JsonWriteStartObject(msg);
+
+      JsonWriteKeyName(msg, "key");
+      JsonWriteValueString(msg, "Action");
+
+      JsonWriteKeyName(msg, "value");
+      JsonWriteValueString(msg, node_data->m_Action);
+
+      JsonWriteKeyName(msg, "oldvalue");
+      JsonWriteValueString(msg, prev_state->m_Action);
+
+      JsonWriteEndObject(msg);
+    }
+
+    if (node_data->m_PreAction.Get() || prev_state->m_PreAction.Get())
+    {
+      if (!node_data->m_PreAction.Get() || !prev_state->m_PreAction.Get() || strcmp(node_data->m_PreAction, prev_state->m_PreAction) != 0)
+      {
+        JsonWriteStartObject(msg);
+
+        JsonWriteKeyName(msg, "key");
+        JsonWriteValueString(msg, "PreAction");
+
+        JsonWriteKeyName(msg, "value");
+        JsonWriteValueString(msg, node_data->m_PreAction);
+
+        JsonWriteKeyName(msg, "oldvalue");
+        JsonWriteValueString(msg, prev_state->m_PreAction);
+
+        JsonWriteEndObject(msg);
+      }
+    }
+
+    bool explicitInputFilesListChanged = node_data->m_InputFiles.GetCount() != prev_state->m_InputFiles.GetCount();
+    for (uint32_t i = 0; i < node_data->m_InputFiles.GetCount() && !explicitInputFilesListChanged; ++i)
+    {
+      const char* filename = node_data->m_InputFiles[i].m_Filename;
+      const char* oldFilename = prev_state->m_InputFiles[i].m_Filename;
+      explicitInputFilesListChanged |= (strcmp(filename, oldFilename) != 0);
+    }
+
+    if (explicitInputFilesListChanged)
+    {
+      JsonWriteStartObject(msg);
+
+      JsonWriteKeyName(msg, "key");
+      JsonWriteValueString(msg, "InputFileList");
+
+      JsonWriteKeyName(msg, "value");
+      JsonWriteStartArray(msg);
+      for (const FrozenFileAndHash& input : node_data->m_InputFiles)
+        JsonWriteValueString(msg, input.m_Filename);
+      JsonWriteEndArray(msg);
+
+      JsonWriteKeyName(msg, "oldvalue");
+      JsonWriteStartArray(msg);
+      for (const NodeInputFileData& input : prev_state->m_InputFiles)
+        JsonWriteValueString(msg, input.m_Filename);
+      JsonWriteEndArray(msg);
+
+      JsonWriteEndObject(msg);
+    }
+    else
+    {
+      for (int32_t i = 0; i < node_data->m_InputFiles.GetCount(); ++i)
+      {
+        const FrozenFileAndHash& input = node_data->m_InputFiles[i];
+        if (ShouldUseSHA1SignatureFor(input.m_Filename, sha_extension_hashes, sha_extension_hash_count))
+        {
+          // The file signature was computed from SHA1 digest, so look in the digest cache to see if we computed a new
+          // hash for it that doesn't match the frozen data
+          if (DigestCacheHasChanged(digest_cache, input.m_Filename, input.m_FilenameHash))
+          {
+            JsonWriteStartObject(msg);
+
+            JsonWriteKeyName(msg, "key");
+            JsonWriteValueString(msg, "InputFileDigest");
+
+            JsonWriteKeyName(msg, "path");
+            JsonWriteValueString(msg, input.m_Filename);
+
+            JsonWriteEndObject(msg);
+          }
+        }
+        else
+        {
+          // The file signature was computed from timestamp alone, so we only need to examine the stat cache
+          FileInfo fileInfo = StatCacheStat(stat_cache, input.m_Filename, input.m_FilenameHash);
+
+          uint64_t timestamp = 0;
+          if (fileInfo.Exists())
+            timestamp = fileInfo.m_Timestamp;
+
+          if (timestamp != prev_state->m_InputFiles[i].m_Timestamp)
+          {
+            JsonWriteStartObject(msg);
+
+            JsonWriteKeyName(msg, "key");
+            JsonWriteValueString(msg, "InputFileTimestamp");
+
+            JsonWriteKeyName(msg, "path");
+            JsonWriteValueString(msg, input.m_Filename);
+
+            JsonWriteEndObject(msg);
+          }
+        }
+      }
+    }
+  }
+
   static BuildProgress::Enum CheckInputSignature(BuildQueue* queue, ThreadState* thread_state, NodeState* node, Mutex* queue_lock)
   {
     CHECK(AllDependenciesReady(queue, node));
@@ -295,6 +410,9 @@ namespace t2
 
     const ScannerData* scanner = node_data->m_Scanner;
 
+    // TODO: The input files are not guaranteed to be in a stably sorted order. If the order changes then the input
+    // signature might change, giving us a false-positive for the node needing to be rebuilt. We should look into
+    // enforcing a stable ordering, probably when we compile the DAG.
     for (const FrozenFileAndHash& input : node_data->m_InputFiles)
     {
       // Add path and timestamp of every direct input file.
@@ -382,6 +500,29 @@ namespace t2
       DigestToString(newDigest, node->m_InputSignature);
 
       Log(kSpam, "T=%d: building %s - input signature changed. was:%s now:%s", thread_state->m_ThreadIndex, node_data->m_Annotation.Get(), oldDigest, newDigest);
+
+      if (IsStructuredLogActive())
+      {
+        JsonWriter* msg = &thread_state->m_StructuredMsg;
+        JsonWriteReset(msg);
+        JsonWriteStartObject(msg);
+
+        JsonWriteKeyName(msg, "msg");
+        JsonWriteValueString(msg, "inputSignatureChanged");
+
+        JsonWriteKeyName(msg, "annotation");
+        JsonWriteValueString(msg, node_data->m_Annotation);
+
+        JsonWriteKeyName(msg, "changes");
+        JsonWriteStartArray(msg);
+
+        ReportInputSignatureChanges(msg, node, node_data, prev_state, stat_cache, digest_cache, queue->m_Config.m_ScanCache, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
+
+        JsonWriteEndArray(msg);
+        JsonWriteEndObject(msg);
+        LogStructured(msg);
+      }
+
       next_state = BuildProgress::kRunAction;
     }
     else if (prev_state->m_BuildResult != 0)

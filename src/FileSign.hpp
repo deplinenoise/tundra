@@ -24,6 +24,8 @@ void ComputeFileSignature(
 
   HashDigest CalculateGlobSignatureFor(const char* path, MemAllocHeap* heap, MemAllocLinear* scratch);
 
+  bool ShouldUseSHA1SignatureFor(const char* filename, const uint32_t sha_extension_hashes[], int sha_extension_hash_count);
+
 }
 
 
