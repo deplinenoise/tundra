@@ -1,4 +1,4 @@
-﻿#include "BuildQueue.hpp"
+#include "BuildQueue.hpp"
 #include "DagData.hpp"
 #include "MemAllocHeap.hpp"
 #include "MemAllocLinear.hpp"
@@ -258,7 +258,61 @@ namespace t2
     return MakeDirectoriesRecursive(stat_cache, path);
   }
 
-  static void ReportInputSignatureChanges(JsonWriter* msg, NodeState* node, const NodeData* node_data, const NodeStateData* prev_state, StatCache* stat_cache, DigestCache* digest_cache, ScanCache* scan_cache, const uint32_t sha_extension_hashes[], int sha_extension_hash_count)
+  static void ReportChangedInputFiles(JsonWriter* msg, const FrozenArray<NodeInputFileData>& files, const char* dependencyType, DigestCache* digest_cache, StatCache* stat_cache, const uint32_t sha_extension_hashes[], uint32_t sha_extension_hash_count)
+  {
+    for (const NodeInputFileData& input : files)
+    {
+      uint32_t filenameHash = Djb2HashPath(input.m_Filename);
+
+      if (ShouldUseSHA1SignatureFor(input.m_Filename, sha_extension_hashes, sha_extension_hash_count))
+      {
+        // The file signature was computed from SHA1 digest, so look in the digest cache to see if we computed a new
+        // hash for it that doesn't match the frozen data
+        if (DigestCacheHasChanged(digest_cache, input.m_Filename, filenameHash))
+        {
+          JsonWriteStartObject(msg);
+
+          JsonWriteKeyName(msg, "key");
+          JsonWriteValueString(msg, "InputFileDigest");
+
+          JsonWriteKeyName(msg, "path");
+          JsonWriteValueString(msg, input.m_Filename);
+
+          JsonWriteKeyName(msg, "dependency");
+          JsonWriteValueString(msg, dependencyType);
+
+          JsonWriteEndObject(msg);
+        }
+      }
+      else
+      {
+        // The file signature was computed from timestamp alone, so we only need to examine the stat cache
+        FileInfo fileInfo = StatCacheStat(stat_cache, input.m_Filename, filenameHash);
+
+        uint64_t timestamp = 0;
+        if (fileInfo.Exists())
+          timestamp = fileInfo.m_Timestamp;
+
+        if (timestamp != input.m_Timestamp)
+        {
+          JsonWriteStartObject(msg);
+
+          JsonWriteKeyName(msg, "key");
+          JsonWriteValueString(msg, "InputFileTimestamp");
+
+          JsonWriteKeyName(msg, "path");
+          JsonWriteValueString(msg, input.m_Filename);
+
+          JsonWriteKeyName(msg, "dependency");
+          JsonWriteValueString(msg, dependencyType);
+
+          JsonWriteEndObject(msg);
+        }
+      }
+    }
+  }
+
+  static void ReportInputSignatureChanges(JsonWriter* msg, NodeState* node, const NodeData* node_data, const NodeStateData* prev_state, StatCache* stat_cache, DigestCache* digest_cache, ScanCache* scan_cache, const uint32_t sha_extension_hashes[], int sha_extension_hash_count, ThreadState* thread_state)
   {
     if (strcmp(node_data->m_Action, prev_state->m_Action) != 0)
     {
@@ -296,7 +350,7 @@ namespace t2
     }
 
     bool explicitInputFilesListChanged = node_data->m_InputFiles.GetCount() != prev_state->m_InputFiles.GetCount();
-    for (uint32_t i = 0; i < node_data->m_InputFiles.GetCount() && !explicitInputFilesListChanged; ++i)
+    for (int32_t i = 0; i < node_data->m_InputFiles.GetCount() && !explicitInputFilesListChanged; ++i)
     {
       const char* filename = node_data->m_InputFiles[i].m_Filename;
       const char* oldFilename = prev_state->m_InputFiles[i].m_Filename;
@@ -322,53 +376,100 @@ namespace t2
         JsonWriteValueString(msg, input.m_Filename);
       JsonWriteEndArray(msg);
 
+      JsonWriteKeyName(msg, "dependency");
+      JsonWriteValueString(msg, "explicit");
+
       JsonWriteEndObject(msg);
+
+      // Don't do any further checking for changes, it's going to be a lot of work figuring out which bits of old state
+      // correspond to which bits of new state, for very little benefit
+      return;
     }
-    else
+
+    ReportChangedInputFiles(msg, prev_state->m_InputFiles, "explicit", digest_cache, stat_cache, sha_extension_hashes, sha_extension_hash_count);
+
+    if (node_data->m_Scanner)
     {
-      for (int32_t i = 0; i < node_data->m_InputFiles.GetCount(); ++i)
+      HashTable<bool, kFlagPathStrings> implicitDependencies;
+      HashTableInit(&implicitDependencies, &thread_state->m_LocalHeap);
+
+      for (const FrozenFileAndHash& input : node_data->m_InputFiles)
       {
-        const FrozenFileAndHash& input = node_data->m_InputFiles[i];
-        if (ShouldUseSHA1SignatureFor(input.m_Filename, sha_extension_hashes, sha_extension_hash_count))
+        // Roll back scratch allocator between scans
+        MemAllocLinearScope alloc_scope(&thread_state->m_ScratchAlloc);
+
+        ScanInput scan_input;
+        scan_input.m_ScannerConfig = node_data->m_Scanner;
+        scan_input.m_ScratchAlloc = &thread_state->m_ScratchAlloc;
+        scan_input.m_ScratchHeap = &thread_state->m_LocalHeap;
+        scan_input.m_FileName = input.m_Filename;
+        scan_input.m_ScanCache = scan_cache;
+
+        ScanOutput scan_output;
+
+        if (ScanImplicitDeps(stat_cache, &scan_input, &scan_output))
         {
-          // The file signature was computed from SHA1 digest, so look in the digest cache to see if we computed a new
-          // hash for it that doesn't match the frozen data
-          if (DigestCacheHasChanged(digest_cache, input.m_Filename, input.m_FilenameHash))
+          for (int i = 0, count = scan_output.m_IncludedFileCount; i < count; ++i)
           {
-            JsonWriteStartObject(msg);
-
-            JsonWriteKeyName(msg, "key");
-            JsonWriteValueString(msg, "InputFileDigest");
-
-            JsonWriteKeyName(msg, "path");
-            JsonWriteValueString(msg, input.m_Filename);
-
-            JsonWriteEndObject(msg);
-          }
-        }
-        else
-        {
-          // The file signature was computed from timestamp alone, so we only need to examine the stat cache
-          FileInfo fileInfo = StatCacheStat(stat_cache, input.m_Filename, input.m_FilenameHash);
-
-          uint64_t timestamp = 0;
-          if (fileInfo.Exists())
-            timestamp = fileInfo.m_Timestamp;
-
-          if (timestamp != prev_state->m_InputFiles[i].m_Timestamp)
-          {
-            JsonWriteStartObject(msg);
-
-            JsonWriteKeyName(msg, "key");
-            JsonWriteValueString(msg, "InputFileTimestamp");
-
-            JsonWriteKeyName(msg, "path");
-            JsonWriteValueString(msg, input.m_Filename);
-
-            JsonWriteEndObject(msg);
+            const FileAndHash& path = scan_output.m_IncludedFiles[i];
+            if (HashTableLookup(&implicitDependencies, path.m_FilenameHash, path.m_Filename) == nullptr)
+              HashTableInsert(&implicitDependencies, path.m_FilenameHash, path.m_Filename, false);
           }
         }
       }
+
+      bool implicitFilesListChanged = implicitDependencies.m_RecordCount != prev_state->m_ImplicitInputFiles.GetCount();
+      if (!implicitFilesListChanged)
+      {
+        for (const NodeInputFileData& implicitInput : prev_state->m_ImplicitInputFiles)
+        {
+          bool* visited = HashTableLookup(&implicitDependencies, Djb2HashPath(implicitInput.m_Filename), implicitInput.m_Filename);
+          if (!visited)
+          {
+            implicitFilesListChanged = true;
+            break;
+          }
+
+          *visited = true;
+        }
+
+        HashTableWalk(&implicitDependencies, [&](int32_t index, uint32_t hash, const char* filename, bool visited)
+        {
+          if (!visited)
+            implicitFilesListChanged = true;
+        });
+      }
+
+      if (implicitFilesListChanged)
+      {
+        JsonWriteStartObject(msg);
+
+        JsonWriteKeyName(msg, "key");
+        JsonWriteValueString(msg, "InputFileList");
+
+        JsonWriteKeyName(msg, "value");
+        JsonWriteStartArray(msg);
+        for (const FrozenFileAndHash& input : node_data->m_InputFiles)
+          JsonWriteValueString(msg, input.m_Filename);
+        JsonWriteEndArray(msg);
+
+        JsonWriteKeyName(msg, "oldvalue");
+        JsonWriteStartArray(msg);
+        for (const NodeInputFileData& input : prev_state->m_InputFiles)
+          JsonWriteValueString(msg, input.m_Filename);
+        JsonWriteEndArray(msg);
+
+        JsonWriteKeyName(msg, "dependency");
+        JsonWriteValueString(msg, "implicit");
+
+        JsonWriteEndObject(msg);
+      }
+
+      HashTableDestroy(&implicitDependencies);
+      if (implicitFilesListChanged)
+        return;
+
+      ReportChangedInputFiles(msg, prev_state->m_ImplicitInputFiles, "implicit", digest_cache, stat_cache, sha_extension_hashes, sha_extension_hash_count);
     }
   }
 
@@ -522,7 +623,7 @@ namespace t2
         JsonWriteKeyName(msg, "changes");
         JsonWriteStartArray(msg);
 
-        ReportInputSignatureChanges(msg, node, node_data, prev_state, stat_cache, digest_cache, queue->m_Config.m_ScanCache, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
+        ReportInputSignatureChanges(msg, node, node_data, prev_state, stat_cache, digest_cache, queue->m_Config.m_ScanCache, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount, thread_state);
 
         JsonWriteEndArray(msg);
         JsonWriteEndObject(msg);

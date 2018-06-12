@@ -10,6 +10,7 @@
 #include "MemoryMappedFile.hpp"
 #include "NodeState.hpp"
 #include "ScanData.hpp"
+#include "Scanner.hpp"
 #include "SortedArrayUtil.hpp"
 #include "StateData.hpp"
 #include "Stats.hpp"
@@ -1030,6 +1031,10 @@ bool DriverSaveBuildState(Driver* self)
       BinarySegmentWriteNullPointer(state_seg);
     }
 
+    HashSet<kFlagPathStrings> implicitDependencies;
+    if (src_node->m_Scanner)
+      HashSetInit(&implicitDependencies, &self->m_Heap);
+
     file_count = src_node->m_InputFiles.GetCount();
     BinarySegmentWriteInt32(state_seg, file_count);
     BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
@@ -1044,6 +1049,56 @@ bool DriverSaveBuildState(Driver* self)
 
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
       BinarySegmentWriteStringData(string_seg, src_node->m_InputFiles[i].m_Filename);
+
+      if (src_node->m_Scanner)
+      {
+        MemAllocLinearScope alloc_scope(scratch);
+
+        ScanInput scan_input;
+        scan_input.m_ScannerConfig = src_node->m_Scanner;
+        scan_input.m_ScratchAlloc = scratch;
+        scan_input.m_ScratchHeap = &self->m_Heap;
+        scan_input.m_FileName = src_node->m_InputFiles[i].m_Filename;
+        scan_input.m_ScanCache = &self->m_ScanCache;
+
+        ScanOutput scan_output;
+
+        // It looks like we're re-running the scanner here, but the scan results should all be cached already, so it
+        // should be fast.
+        if (ScanImplicitDeps(&self->m_StatCache, &scan_input, &scan_output))
+        {
+          for (int i = 0, count = scan_output.m_IncludedFileCount; i < count; ++i)
+          {
+            const FileAndHash& path = scan_output.m_IncludedFiles[i];
+            HashSetInsert(&implicitDependencies, path.m_FilenameHash, path.m_Filename);
+          }
+        }
+      }
+    }
+
+    if (src_node->m_Scanner)
+    {
+      BinarySegmentWriteInt32(state_seg, implicitDependencies.m_RecordCount);
+      BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+
+      HashSetWalk(&implicitDependencies, [=](uint32_t index, uint32_t hash, const char* filename) {
+        uint64_t timestamp = 0;
+        FileInfo fileInfo = StatCacheStat(&self->m_StatCache, filename, hash);
+        if (fileInfo.Exists())
+          timestamp = fileInfo.m_Timestamp;
+
+        BinarySegmentWriteUint64(array_seg, timestamp);
+
+        BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+        BinarySegmentWriteStringData(string_seg, filename);
+      });
+
+      HashSetDestroy(&implicitDependencies);
+    }
+    else
+    {
+      BinarySegmentWriteInt32(state_seg, 0);
+      BinarySegmentWriteNullPointer(state_seg);
     }
   };
 
@@ -1095,6 +1150,16 @@ bool DriverSaveBuildState(Driver* self)
       BinarySegmentWriteUint64(array_seg, src_node->m_InputFiles[i].m_Timestamp);
       BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
       BinarySegmentWriteStringData(string_seg, src_node->m_InputFiles[i].m_Filename);
+    }
+
+    file_count = src_node->m_ImplicitInputFiles.GetCount();
+    BinarySegmentWriteInt32(state_seg, file_count);
+    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+    for (int32_t i = 0; i < file_count; ++i)
+    {
+      BinarySegmentWriteUint64(array_seg, src_node->m_ImplicitInputFiles[i].m_Timestamp);
+      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+      BinarySegmentWriteStringData(string_seg, src_node->m_ImplicitInputFiles[i].m_Filename);
     }
   };
 
