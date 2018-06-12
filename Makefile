@@ -102,7 +102,7 @@ LUA_SOURCES = \
 LIBTUNDRA_SOURCES = \
 	BinaryWriter.cpp BuildQueue.cpp Common.cpp DagGenerator.cpp \
 	Driver.cpp FileInfo.cpp Hash.cpp HashTable.cpp \
-	IncludeScanner.cpp JsonParse.cpp MemAllocHeap.cpp \
+	IncludeScanner.cpp JsonParse.cpp JsonWriter.cpp MemAllocHeap.cpp \
 	MemAllocLinear.cpp MemoryMappedFile.cpp PathUtil.cpp Profiler.cpp \
 	ScanCache.cpp Scanner.cpp SignalHandler.cpp StatCache.cpp \
 	TargetSelect.cpp Thread.cpp \
