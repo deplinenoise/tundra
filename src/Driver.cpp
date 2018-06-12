@@ -183,6 +183,8 @@ bool DriverInitData(Driver* self)
   if (!DriverPrepareDag(self, s_DagFileName))
     return false;
 
+  SetStructuredLogFileName(self->m_DagData->m_StructuredLogFileName);
+
   DigestCacheInit(&self->m_DigestCache, MB(128), self->m_DagData->m_DigestCacheFileName);
 
   LoadFrozenData<StateData>(self->m_DagData->m_StateFileName, &self->m_StateFile, &self->m_StateData);

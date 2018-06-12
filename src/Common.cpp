@@ -1,6 +1,8 @@
 #include "Common.hpp"
 #include "PathUtil.hpp"
 #include "FileInfo.hpp"
+#include "Mutex.hpp"
+#include "JsonWriter.hpp"
 
 #include <cstdio>
 #include <cstdarg>
@@ -199,6 +201,40 @@ void Log(LogLevel level, const char* fmt, ...)
 
     fprintf(stderr, "\n");
   }
+}
+
+static FILE* s_StructuredLog = nullptr;
+static Mutex s_StructuredLogMutex;
+
+void SetStructuredLogFileName(const char* path)
+{
+  if (s_StructuredLog != nullptr)
+  {
+    fclose(s_StructuredLog);
+    MutexDestroy(&s_StructuredLogMutex);
+    s_StructuredLog = nullptr;
+  }
+
+  if (path != nullptr)
+  {
+    s_StructuredLog = fopen(path, "w");
+    MutexInit(&s_StructuredLogMutex);
+  }
+}
+
+void LogStructured(JsonWriter* writer)
+{
+  if (s_StructuredLog == nullptr)
+    return;
+
+  MutexLock(&s_StructuredLogMutex);
+
+  fwrite(writer->m_Buffer.m_Storage, 1, writer->m_Buffer.m_Size, s_StructuredLog);
+  fputc('\n', s_StructuredLog);
+
+  MutexUnlock(&s_StructuredLogMutex);
+
+  fflush(s_StructuredLog);
 }
 
 void GetCwd(char* buffer, size_t buffer_size)

@@ -542,6 +542,8 @@ leave:
     }
   }
 
+  SetStructuredLogFileName(nullptr);
+
   return build_result == BuildResult::kOk ? 0 : 1;
 
   // Match up nodes to nodes in the build state
