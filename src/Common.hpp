@@ -74,7 +74,7 @@ void Log(LogLevel level, const char* fmt, ...);
 struct JsonWriter;
 
 void SetStructuredLogFileName(const char* path);
-
+bool IsStructuredLogActive();
 void LogStructured(JsonWriter* writer);
 
 //-----------------------------------------------------------------------------

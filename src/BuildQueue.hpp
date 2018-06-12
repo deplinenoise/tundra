@@ -7,6 +7,7 @@
 #include "Thread.hpp"
 #include "MemAllocLinear.hpp"
 #include "MemAllocHeap.hpp"
+#include "JsonWriter.hpp"
 
 namespace t2
 {
@@ -59,6 +60,7 @@ namespace t2
     MemAllocLinear    m_ScratchAlloc;
     int               m_ThreadIndex;
     BuildQueue*       m_Queue;
+    JsonWriter        m_StructuredMsg;
   };
 
   struct BuildQueue

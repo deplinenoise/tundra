@@ -222,6 +222,11 @@ void SetStructuredLogFileName(const char* path)
   }
 }
 
+bool IsStructuredLogActive()
+{
+  return s_StructuredLog != nullptr;
+}
+
 void LogStructured(JsonWriter* writer)
 {
   if (s_StructuredLog == nullptr)

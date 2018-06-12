@@ -39,10 +39,12 @@ namespace t2
     LinearAllocInit(&self->m_ScratchAlloc, &self->m_LocalHeap, scratch_size, "thread-local scratch");
     self->m_ThreadIndex = index;
     self->m_Queue       = queue;
+    JsonWriteInit(&self->m_StructuredMsg, &self->m_LocalHeap);
   }
 
   static void ThreadStateDestroy(ThreadState* self)
   {
+    JsonWriteDestroy(&self->m_StructuredMsg);
     LinearAllocDestroy(&self->m_ScratchAlloc);
     HeapDestroy(&self->m_LocalHeap);
   }
@@ -351,6 +353,23 @@ namespace t2
     {
       // This is a new node - we must built it
       Log(kSpam, "T=%d: building %s - new node", thread_state->m_ThreadIndex, node_data->m_Annotation.Get());
+
+      if (IsStructuredLogActive())
+      {
+        JsonWriter* msg = &thread_state->m_StructuredMsg;
+        JsonWriteReset(msg);
+        JsonWriteStartObject(msg);
+
+        JsonWriteKeyName(msg, "msg");
+        JsonWriteValueString(msg, "newNode");
+
+        JsonWriteKeyName(msg, "annotation");
+        JsonWriteValueString(msg, node_data->m_Annotation);
+
+        JsonWriteEndObject(msg);
+        LogStructured(msg);
+      }
+
       next_state = BuildProgress::kRunAction;
     }
     else if (prev_state->m_InputSignature != node->m_InputSignature)
