@@ -176,6 +176,30 @@ void DriverShowTargets(Driver* self)
   }
 }
 
+void DriverReportStartup(Driver* self, const char** targets, int target_count)
+{
+  JsonWriter msg;
+  JsonWriteInit(&msg, &self->m_Heap);
+  JsonWriteStartObject(&msg);
+
+  JsonWriteKeyName(&msg, "msg");
+  JsonWriteValueString(&msg, "init");
+
+  JsonWriteKeyName(&msg, "dagFile");
+  JsonWriteValueString(&msg, self->m_Options.m_DAGFileName);
+
+  JsonWriteKeyName(&msg, "targets");
+  JsonWriteStartArray(&msg);
+  for (int i = 0; i < target_count; ++i)
+    JsonWriteValueString(&msg, targets[i]);
+  JsonWriteEndArray(&msg);
+
+  JsonWriteEndObject(&msg);
+
+  LogStructured(&msg);
+  JsonWriteDestroy(&msg);
+}
+
 bool DriverInitData(Driver* self)
 {
   ProfilerScope prof_scope("Tundra InitData", 0);

@@ -447,6 +447,8 @@ int main(int argc, char* argv[])
     goto leave;
   }
 
+  DriverReportStartup(&driver, (const char**) argv, argc);
+
   if (driver.m_DagData->m_DaysToKeepUnreferencedNodesAround == -1)
     DriverRemoveStaleOutputs(&driver);
 
