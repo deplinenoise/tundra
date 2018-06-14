@@ -179,8 +179,10 @@ void DriverShowTargets(Driver* self)
 
 void DriverReportStartup(Driver* self, const char** targets, int target_count)
 {
+  MemAllocLinearScope allocScope(&self->m_Allocator);
+
   JsonWriter msg;
-  JsonWriteInit(&msg, &self->m_Heap);
+  JsonWriteInit(&msg, &self->m_Allocator);
   JsonWriteStartObject(&msg);
 
   JsonWriteKeyName(&msg, "msg");
@@ -198,7 +200,6 @@ void DriverReportStartup(Driver* self, const char** targets, int target_count)
   JsonWriteEndObject(&msg);
 
   LogStructured(&msg);
-  JsonWriteDestroy(&msg);
 }
 
 bool DriverInitData(Driver* self)

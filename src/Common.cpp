@@ -234,7 +234,7 @@ void LogStructured(JsonWriter* writer)
 
   MutexLock(&s_StructuredLogMutex);
 
-  fwrite(writer->m_Buffer.m_Storage, 1, writer->m_Buffer.m_Size, s_StructuredLog);
+  JsonWriteToFile(writer, s_StructuredLog);
   fputc('\n', s_StructuredLog);
 
   MutexUnlock(&s_StructuredLogMutex);

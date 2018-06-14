@@ -40,12 +40,10 @@ namespace t2
     LinearAllocInit(&self->m_ScratchAlloc, &self->m_LocalHeap, scratch_size, "thread-local scratch");
     self->m_ThreadIndex = index;
     self->m_Queue       = queue;
-    JsonWriteInit(&self->m_StructuredMsg, &self->m_LocalHeap);
   }
 
   static void ThreadStateDestroy(ThreadState* self)
   {
-    JsonWriteDestroy(&self->m_StructuredMsg);
     LinearAllocDestroy(&self->m_ScratchAlloc);
     HeapDestroy(&self->m_LocalHeap);
   }
@@ -576,21 +574,23 @@ namespace t2
 
       if (IsStructuredLogActive())
       {
-        JsonWriter* msg = &thread_state->m_StructuredMsg;
-        JsonWriteReset(msg);
-        JsonWriteStartObject(msg);
+        MemAllocLinearScope allocScope(&thread_state->m_ScratchAlloc);
 
-        JsonWriteKeyName(msg, "msg");
-        JsonWriteValueString(msg, "newNode");
+        JsonWriter msg;
+        JsonWriteInit(&msg, &thread_state->m_ScratchAlloc);
+        JsonWriteStartObject(&msg);
 
-        JsonWriteKeyName(msg, "annotation");
-        JsonWriteValueString(msg, node_data->m_Annotation);
+        JsonWriteKeyName(&msg, "msg");
+        JsonWriteValueString(&msg, "newNode");
 
-        JsonWriteKeyName(msg, "index");
-        JsonWriteValueInteger(msg, node_data->m_OriginalIndex);
+        JsonWriteKeyName(&msg, "annotation");
+        JsonWriteValueString(&msg, node_data->m_Annotation);
 
-        JsonWriteEndObject(msg);
-        LogStructured(msg);
+        JsonWriteKeyName(&msg, "index");
+        JsonWriteValueInteger(&msg, node_data->m_OriginalIndex);
+
+        JsonWriteEndObject(&msg);
+        LogStructured(&msg);
       }
 
       next_state = BuildProgress::kRunAction;
@@ -608,27 +608,29 @@ namespace t2
 
       if (IsStructuredLogActive())
       {
-        JsonWriter* msg = &thread_state->m_StructuredMsg;
-        JsonWriteReset(msg);
-        JsonWriteStartObject(msg);
+        MemAllocLinearScope allocScope(&thread_state->m_ScratchAlloc);
 
-        JsonWriteKeyName(msg, "msg");
-        JsonWriteValueString(msg, "inputSignatureChanged");
+        JsonWriter msg;
+        JsonWriteInit(&msg, &thread_state->m_ScratchAlloc);
+        JsonWriteStartObject(&msg);
 
-        JsonWriteKeyName(msg, "annotation");
-        JsonWriteValueString(msg, node_data->m_Annotation);
+        JsonWriteKeyName(&msg, "msg");
+        JsonWriteValueString(&msg, "inputSignatureChanged");
 
-        JsonWriteKeyName(msg, "index");
-        JsonWriteValueInteger(msg, node_data->m_OriginalIndex);
+        JsonWriteKeyName(&msg, "annotation");
+        JsonWriteValueString(&msg, node_data->m_Annotation);
 
-        JsonWriteKeyName(msg, "changes");
-        JsonWriteStartArray(msg);
+        JsonWriteKeyName(&msg, "index");
+        JsonWriteValueInteger(&msg, node_data->m_OriginalIndex);
 
-        ReportInputSignatureChanges(msg, node, node_data, prev_state, stat_cache, digest_cache, queue->m_Config.m_ScanCache, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount, thread_state);
+        JsonWriteKeyName(&msg, "changes");
+        JsonWriteStartArray(&msg);
 
-        JsonWriteEndArray(msg);
-        JsonWriteEndObject(msg);
-        LogStructured(msg);
+        ReportInputSignatureChanges(&msg, node, node_data, prev_state, stat_cache, digest_cache, queue->m_Config.m_ScanCache, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount, thread_state);
+
+        JsonWriteEndArray(&msg);
+        JsonWriteEndObject(&msg);
+        LogStructured(&msg);
       }
 
       next_state = BuildProgress::kRunAction;
