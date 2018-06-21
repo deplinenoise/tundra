@@ -231,6 +231,12 @@ static bool WriteNodes(
     }
   }
 
+  uint32_t* reverse_remap = (uint32_t*)HeapAllocate(heap, node_count * sizeof(uint32_t));
+  for (uint32_t i = 0; i < node_count; ++i)
+  {
+    reverse_remap[remap_table[i]] = i;
+  }
+
   for (size_t ni = 0; ni < node_count; ++ni)
   {
     const int32_t i = order[ni].m_Node;
@@ -362,6 +368,7 @@ static bool WriteNodes(
       flags |= NodeData::kFlagIsWriteTextFileAction;
     
     BinarySegmentWriteUint32(node_data_seg, flags);
+    BinarySegmentWriteUint32(node_data_seg, reverse_remap[ni]);
   }
 
   for (size_t i = 0; i < node_count; ++i)
@@ -369,6 +376,7 @@ static bool WriteNodes(
     BufferDestroy(&links[i].m_Links, heap);
   }
 
+  HeapFree(heap, reverse_remap);
   HeapFree(heap, links);
 
   return true;
@@ -544,31 +552,56 @@ bool ComputeNodeGuids(const JsonArrayValue* nodes, int32_t* remap_table, TempNod
     HashState h;
     HashInit(&h);
 
-    const char           *action     = FindStringValue(nobj, "Action");
-    const JsonArrayValue *inputs     = FindArrayValue(nobj, "Inputs");
-
-    if (action && action[0])
-      HashAddString(&h, action);
-
-    if (inputs)
+    const JsonArrayValue *outputs    = FindArrayValue(nobj, "Outputs");
+    bool didHashAnyOutputs = false;
+    if (outputs)
     {
-      for (size_t fi = 0, fi_count = inputs->m_Count; fi < fi_count; ++fi)
+      for (size_t fi = 0, fi_count = outputs->m_Count; fi < fi_count; ++fi)
       {
-        if (const JsonStringValue* str = inputs->m_Values[fi]->AsString())
+        if (const JsonStringValue* str = outputs->m_Values[fi]->AsString())
         {
           HashAddString(&h, str->m_String);
+          didHashAnyOutputs = true;
         }
       }
     }
 
-    const char *annotation = FindStringValue(nobj, "Annotation");
-
-    if (annotation)
-      HashAddString(&h, annotation);
-
-    if ((!action || action[0] == '\0') && !inputs && !annotation)
+    if (didHashAnyOutputs)
     {
-        return false;
+        HashAddString(&h, "salt for outputs");
+    }
+    else
+    {
+      // For nodes with no outputs, preserve the legacy behaviour
+
+      const char           *action     = FindStringValue(nobj, "Action");
+      const JsonArrayValue *inputs     = FindArrayValue(nobj, "Inputs");
+
+      if (action && action[0])
+        HashAddString(&h, action);
+
+      if (inputs)
+      {
+        for (size_t fi = 0, fi_count = inputs->m_Count; fi < fi_count; ++fi)
+        {
+          if (const JsonStringValue* str = inputs->m_Values[fi]->AsString())
+          {
+            HashAddString(&h, str->m_String);
+          }
+        }
+      }
+
+      const char *annotation = FindStringValue(nobj, "Annotation");
+
+      if (annotation)
+        HashAddString(&h, annotation);
+
+      if ((!action || action[0] == '\0') && !inputs && !annotation)
+      {
+          return false;
+      }
+
+      HashAddString(&h, "salt for legacy");
     }
 
     HashFinalize(&h, &guid_table[i].m_Digest);
@@ -906,6 +939,8 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "DigestCacheFileNameTmp", ".tundra2.digestcache.tmp"));
   
   WriteStringPtr(main_seg, str_seg, FindStringValue(root, "BuildTitle", "Tundra"));
+  WriteStringPtr(main_seg, str_seg, FindStringValue(root, "StructuredLogFileName"));
+
   BinarySegmentWriteInt32(main_seg, (int) FindIntValue(root, "ForceDagRebuild", 0));
 
   HashTableDestroy(&shared_strings);

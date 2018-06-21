@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="t2::FrozenPtr&lt;*&gt;">
+    <SmartPointer Usage="Minimal">m_Offset == 0 ? nullptr : (const $T1*)(((uintptr_t)this) + m_Offset)</SmartPointer>
+  </Type>
+  <Type Name="t2::FrozenArray&lt;*&gt;">
+    <Expand>
+      <ArrayItems>
+        <Size>m_Count</Size>
+        <ValuePointer>m_Pointer.m_Offset == 0 ?  nullptr : (const $T1*)(((uintptr_t)&amp;m_Pointer) + m_Pointer.m_Offset)</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>

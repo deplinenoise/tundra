@@ -7,6 +7,7 @@
 #include "Thread.hpp"
 #include "MemAllocLinear.hpp"
 #include "MemAllocHeap.hpp"
+#include "JsonWriter.hpp"
 
 namespace t2
 {

@@ -447,6 +447,8 @@ int main(int argc, char* argv[])
     goto leave;
   }
 
+  DriverReportStartup(&driver, (const char**) argv, argc);
+
   if (driver.m_DagData->m_DaysToKeepUnreferencedNodesAround == -1)
     DriverRemoveStaleOutputs(&driver);
 
@@ -541,6 +543,8 @@ leave:
       PrintConcludingMessage(build_result == 0, "*** %s %s (%.2f seconds - %d:%02d:%02d), %d items updated", buildTitle, BuildResult::Names[build_result], total_time, h, m, s, g_Stats.m_ExecCount);
     }
   }
+
+  SetStructuredLogFileName(nullptr);
 
   return build_result == BuildResult::kOk ? 0 : 1;
 

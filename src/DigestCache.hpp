@@ -68,6 +68,8 @@ namespace t2
   bool DigestCacheGet(DigestCache* self, const char* filename, uint32_t hash, uint64_t timestamp, HashDigest* digest_out);
 
   void DigestCacheSet(DigestCache* self, const char* filename, uint32_t hash, uint64_t timestamp, const HashDigest& digest);
+
+  bool DigestCacheHasChanged(DigestCache* self, const char* filename, uint32_t hash);
 }
 
 #endif

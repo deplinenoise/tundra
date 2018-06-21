@@ -63,6 +63,22 @@ static bool ComputeFileSignatureTimestamp(HashState* out, StatCache* stat_cache,
   return false;
 }
 
+bool ShouldUseSHA1SignatureFor(const char* filename, const uint32_t sha_extension_hashes[], int sha_extension_hash_count)
+{
+  const char* ext = strrchr(filename, '.');
+  if (!ext)
+    return false;
+
+  uint32_t ext_hash = Djb2Hash(ext);
+  for (int i = 0; i < sha_extension_hash_count; ++i)
+  {
+    if (sha_extension_hashes[i] == ext_hash)
+      return true;
+  }
+
+  return false;
+}
+
 void ComputeFileSignature(
   HashState*          out,
   StatCache*          stat_cache,
@@ -72,20 +88,10 @@ void ComputeFileSignature(
   const uint32_t      sha_extension_hashes[],
   int                 sha_extension_hash_count)
 {
-  if (const char* ext = strrchr(filename, '.'))
-  {
-    uint32_t ext_hash = Djb2Hash(ext);
-    for (int i  = 0; i < sha_extension_hash_count; ++i)
-    {
-      if (sha_extension_hashes[i] == ext_hash)
-      {
-        ComputeFileSignatureSha1(out, stat_cache, digest_cache, filename, fn_hash);
-        return;
-      }
-    }
-  }
-
-  ComputeFileSignatureTimestamp(out, stat_cache, filename, fn_hash);
+  if (ShouldUseSHA1SignatureFor(filename, sha_extension_hashes, sha_extension_hash_count))
+    ComputeFileSignatureSha1(out, stat_cache, digest_cache, filename, fn_hash);
+  else
+    ComputeFileSignatureTimestamp(out, stat_cache, filename, fn_hash);
 }
 
 t2::HashDigest CalculateGlobSignatureFor(const char* path, t2::MemAllocHeap* heap, t2::MemAllocLinear* scratch)

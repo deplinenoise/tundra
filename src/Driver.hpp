@@ -99,6 +99,8 @@ void DriverShowHelp(Driver* self);
 
 void DriverShowTargets(Driver* self);
 
+void DriverReportStartup(Driver* self, const char** targets, int target_count);
+
 void DriverRemoveStaleOutputs(Driver* self);
 
 void DriverCleanOutputs(Driver* self);
