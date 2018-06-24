@@ -1017,7 +1017,7 @@ void DriverRemoveStaleOutputs(Driver* self)
   HashSetInit(&file_table, &self->m_Heap);
 
   // Insert all current regular and aux output files into the hash table.
-  auto add_file = [&file_table, scratch](const FrozenFileAndHash& p) -> void
+  auto add_file = [&file_table](const FrozenFileAndHash& p) -> void
   {
     const uint32_t hash = p.m_FilenameHash;
 
