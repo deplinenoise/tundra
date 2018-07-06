@@ -170,6 +170,12 @@ void DigestCacheSet(DigestCache* self, const char* filename, uint32_t hash, uint
 
 bool DigestCacheHasChanged(DigestCache* self, const char* filename, uint32_t hash)
 {
+  if (self->m_State == NULL)
+  {
+      // No previous state, so we can't conclude that the hash changed
+      return false;
+  }
+    
   const FrozenDigestRecord* prevDigest = nullptr;
   for (const FrozenDigestRecord& frozenRecord : self->m_State->m_Records)
   {
