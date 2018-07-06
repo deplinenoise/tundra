@@ -107,6 +107,26 @@ void JsonWriteValueString(JsonWriter* writer, const char* value)
         {
             JsonWrite(writer, "\\\\", 2);
         }
+        else if (ch == 0x0A)
+        {
+            JsonWrite(writer, "\\n", 2);
+        }
+        else if (ch == 0x0D)
+        {
+            JsonWrite(writer, "\\r", 2);
+        }
+        else if (ch == 0x09)
+        {
+            JsonWrite(writer, "\\t", 2);
+        }
+        else if (ch == 0x0C)
+        {
+            JsonWrite(writer, "\\f", 2);
+        }
+        else if (ch == 0x08)
+        {
+            JsonWrite(writer, "\\b", 2);
+        }
         else
         {
             JsonWriteChar(writer, ch);
