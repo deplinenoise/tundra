@@ -256,17 +256,13 @@ namespace t2
     return MakeDirectoriesRecursive(stat_cache, path);
   }
 
-  static void ReportChangedInputFiles(JsonWriter* msg, const FrozenArray<NodeInputFileData>& files, const char* dependencyType, DigestCache* digest_cache, StatCache* stat_cache, const uint32_t sha_extension_hashes[], uint32_t sha_extension_hash_count)
+  static void CheckAndReportChangedInputFile(JsonWriter* msg, const char* filename, uint32_t filenameHash, uint64_t lastTimestamp, const char* dependencyType, DigestCache* digest_cache, StatCache* stat_cache, const uint32_t sha_extension_hashes[], uint32_t sha_extension_hash_count)
   {
-    for (const NodeInputFileData& input : files)
+    if (ShouldUseSHA1SignatureFor(filename, sha_extension_hashes, sha_extension_hash_count))
     {
-      uint32_t filenameHash = Djb2HashPath(input.m_Filename);
-
-      if (ShouldUseSHA1SignatureFor(input.m_Filename, sha_extension_hashes, sha_extension_hash_count))
-      {
         // The file signature was computed from SHA1 digest, so look in the digest cache to see if we computed a new
         // hash for it that doesn't match the frozen data
-        if (DigestCacheHasChanged(digest_cache, input.m_Filename, filenameHash))
+        if (DigestCacheHasChanged(digest_cache, filename, filenameHash))
         {
           JsonWriteStartObject(msg);
 
@@ -274,7 +270,7 @@ namespace t2
           JsonWriteValueString(msg, "InputFileDigest");
 
           JsonWriteKeyName(msg, "path");
-          JsonWriteValueString(msg, input.m_Filename);
+          JsonWriteValueString(msg, filename);
 
           JsonWriteKeyName(msg, "dependency");
           JsonWriteValueString(msg, dependencyType);
@@ -285,13 +281,13 @@ namespace t2
       else
       {
         // The file signature was computed from timestamp alone, so we only need to examine the stat cache
-        FileInfo fileInfo = StatCacheStat(stat_cache, input.m_Filename, filenameHash);
+        FileInfo fileInfo = StatCacheStat(stat_cache, filename, filenameHash);
 
         uint64_t timestamp = 0;
         if (fileInfo.Exists())
           timestamp = fileInfo.m_Timestamp;
 
-        if (timestamp != input.m_Timestamp)
+        if (timestamp != lastTimestamp)
         {
           JsonWriteStartObject(msg);
 
@@ -299,7 +295,7 @@ namespace t2
           JsonWriteValueString(msg, "InputFileTimestamp");
 
           JsonWriteKeyName(msg, "path");
-          JsonWriteValueString(msg, input.m_Filename);
+          JsonWriteValueString(msg, filename);
 
           JsonWriteKeyName(msg, "dependency");
           JsonWriteValueString(msg, dependencyType);
@@ -307,6 +303,23 @@ namespace t2
           JsonWriteEndObject(msg);
         }
       }
+  }
+
+  static void ReportChangedInputFiles(JsonWriter* msg, const FrozenArray<NodeInputFileData>& files, const char* dependencyType, DigestCache* digest_cache, StatCache* stat_cache, const uint32_t sha_extension_hashes[], uint32_t sha_extension_hash_count)
+  {
+    for (const NodeInputFileData& input : files)
+    {
+      uint32_t filenameHash = Djb2HashPath(input.m_Filename);
+
+      CheckAndReportChangedInputFile(msg,
+        input.m_Filename,
+        filenameHash,
+        input.m_Timestamp,
+        dependencyType,
+        digest_cache,
+        stat_cache,
+        sha_extension_hashes,
+        sha_extension_hash_count);
     }
   }
 
@@ -379,8 +392,34 @@ namespace t2
 
       JsonWriteEndObject(msg);
 
-      // Don't do any further checking for changes, it's going to be a lot of work figuring out which bits of old state
-      // correspond to which bits of new state, for very little benefit
+      // We also want to catch if any of the input files (common to both old + new lists) have changed themselves,
+      // because a common reason for the input list changing is the command changing, and the part of the
+      // command that is different may be in response file(s).
+      for (const NodeInputFileData& oldInput : prev_state->m_InputFiles)
+      {
+        const FrozenFileAndHash* newInput;
+        for (newInput = node_data->m_InputFiles.begin(); newInput != node_data->m_InputFiles.end(); ++newInput)
+        {
+          if (strcmp(newInput->m_Filename, oldInput.m_Filename) == 0)
+            break;
+        }
+
+        if (newInput == node_data->m_InputFiles.end())
+          continue;
+
+        CheckAndReportChangedInputFile(msg,
+          oldInput.m_Filename,
+          newInput->m_FilenameHash,
+          oldInput.m_Timestamp,
+          "explicit",
+          digest_cache,
+          stat_cache,
+          sha_extension_hashes,
+          sha_extension_hash_count
+        );
+      }
+
+      // Don't do any further checking for changes, there's little point scanning implicit dependencies
       return;
     }
 
