@@ -958,7 +958,7 @@ static bool CreateDagFromJsonData(char* json_memory, const char* dag_fn)
   MemAllocLinear alloc;
   MemAllocLinear scratch;
 
-  LinearAllocInit(&alloc, &heap, MB(128), "json alloc");
+  LinearAllocInit(&alloc, &heap, MB(256), "json alloc");
   LinearAllocInit(&scratch, &heap, MB(64), "json scratch");
 
   char error_msg[1024];
