@@ -678,6 +678,28 @@ namespace t2
     {
       // The build progress failed the last time around - we need to retry it.
       Log(kSpam, "T=%d: building %s - previous build failed", thread_state->m_ThreadIndex, node_data->m_Annotation.Get());
+
+      if (IsStructuredLogActive())
+      {
+        MemAllocLinearScope allocScope(&thread_state->m_ScratchAlloc);
+
+        JsonWriter msg;
+        JsonWriteInit(&msg, &thread_state->m_ScratchAlloc);
+        JsonWriteStartObject(&msg);
+
+        JsonWriteKeyName(&msg, "msg");
+        JsonWriteValueString(&msg, "nodeRetryBuild");
+
+        JsonWriteKeyName(&msg, "annotation");
+        JsonWriteValueString(&msg, node_data->m_Annotation);
+
+        JsonWriteKeyName(&msg, "index");
+        JsonWriteValueInteger(&msg, node_data->m_OriginalIndex);
+
+        JsonWriteEndObject(&msg);
+        LogStructured(&msg);
+      }
+
       next_state = BuildProgress::kRunAction;
     }
     else if (OutputFilesDiffer(node_data, prev_state))
@@ -690,6 +712,38 @@ namespace t2
     {
       // One or more output files are missing - need to rebuild.
       Log(kSpam, "T=%d: building %s - output files are missing", thread_state->m_ThreadIndex, node_data->m_Annotation.Get());
+
+      if (IsStructuredLogActive())
+      {
+        MemAllocLinearScope allocScope(&thread_state->m_ScratchAlloc);
+
+        JsonWriter msg;
+        JsonWriteInit(&msg, &thread_state->m_ScratchAlloc);
+        JsonWriteStartObject(&msg);
+
+        JsonWriteKeyName(&msg, "msg");
+        JsonWriteValueString(&msg, "nodeOutputsMissing");
+
+        JsonWriteKeyName(&msg, "annotation");
+        JsonWriteValueString(&msg, node_data->m_Annotation);
+
+        JsonWriteKeyName(&msg, "index");
+        JsonWriteValueInteger(&msg, node_data->m_OriginalIndex);
+
+        JsonWriteKeyName(&msg, "files");
+        JsonWriteStartArray(&msg);
+        for (auto& f : node_data->m_OutputFiles)
+        {
+          FileInfo i = StatCacheStat(stat_cache, f.m_Filename, f.m_FilenameHash);
+          if (!i.Exists())
+            JsonWriteValueString(&msg, f.m_Filename);
+        }
+        JsonWriteEndArray(&msg);
+
+        JsonWriteEndObject(&msg);
+        LogStructured(&msg);
+      }
+
       next_state = BuildProgress::kRunAction;
     }
     else
