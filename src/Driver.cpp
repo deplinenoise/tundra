@@ -60,27 +60,28 @@ void DriverInitializeTundraFilePaths(DriverOptions* driverOptions)
 // Set default options.
 void DriverOptionsInit(DriverOptions* self)
 {
-  self->m_ShowHelp        = false;
-  self->m_DryRun          = false;
-  self->m_ForceDagRegen   = false;
-  self->m_ShowTargets     = false;
-  self->m_DebugMessages   = false;
-  self->m_Verbose         = false;
-  self->m_SpammyVerbose   = false;
-  self->m_DisplayStats    = false;
-  self->m_GenDagOnly      = false;
-  self->m_Quiet           = false;
-  self->m_Clean           = false;
-  self->m_Rebuild         = false;
-  self->m_IdeGen          = false;
-  self->m_DebugSigning    = false;
-  self->m_ContinueOnError = false;
-  self->m_ThreadCount     = GetCpuCount();
-  self->m_WorkingDir      = nullptr;
-  self->m_DAGFileName     = ".tundra2.dag";
-  self->m_ProfileOutput   = nullptr;
+  self->m_ShowHelp          = false;
+  self->m_DryRun            = false;
+  self->m_ForceDagRegen     = false;
+  self->m_ShowTargets       = false;
+  self->m_DebugMessages     = false;
+  self->m_Verbose           = false;
+  self->m_SpammyVerbose     = false;
+  self->m_DisplayStats      = false;
+  self->m_GenDagOnly        = false;
+  self->m_Quiet             = false;
+  self->m_SilenceIfPossible = false;
+  self->m_Clean             = false;
+  self->m_Rebuild           = false;
+  self->m_IdeGen            = false;
+  self->m_DebugSigning      = false;
+  self->m_ContinueOnError   = false;
+  self->m_ThreadCount       = GetCpuCount();
+  self->m_WorkingDir        = nullptr;
+  self->m_DAGFileName       = ".tundra2.dag";
+  self->m_ProfileOutput     = nullptr;
   #if defined(TUNDRA_WIN32)
-  self->m_RunUnprotected  = false;
+  self->m_RunUnprotected    = false;
 #endif
 }
 

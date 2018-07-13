@@ -56,6 +56,8 @@ static const struct OptionTemplate
     "Enable verbose build messages" },
   { 'q', "quiet", OptionType::kBool, offsetof(t2::DriverOptions, m_Quiet),
     "Be quiet" },
+  { 'Q', "silence-if-possible", OptionType::kBool, offsetof(t2::DriverOptions, m_SilenceIfPossible),
+    "If no actions taken, don't display a conclusion message" },
   { 'c', "clean", OptionType::kBool, offsetof(t2::DriverOptions, m_Clean),
     "Clean targets (remove output files)" },
   { 'l', "rebuild", OptionType::kBool, offsetof(t2::DriverOptions, m_Rebuild),
@@ -528,7 +530,7 @@ leave:
 
   double total_time = TimerDiffSeconds(start_time, TimerGet());
   bool haveTitle = strlen(buildTitle) > 0;
-  if (haveTitle)
+  if (haveTitle && (build_result != 0 || g_Stats.m_ExecCount > 0 || !options.m_SilenceIfPossible))
   {
     if (total_time < 60.0)
     {
