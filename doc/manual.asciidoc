@@ -503,7 +503,7 @@ Variants = {
 
 ==== Variant Options
 
-Previously, the only currently recognized option was `GeneratePdb', 
+Previously, the only currently recognized option was `GeneratePdb',
 which caused the MSVC toolset to generate debugging files in PDB format.
 
 This option has however been superseded by the environment variable GENERATE_PDB.
@@ -837,24 +837,27 @@ fn main() {
 }
 -------------------------------------------------------------------------------
 
-It is also possible to override the Cargo command line 
+It is also possible to override the Cargo command line and add flags to rustc
 
 [source,lua]
 -------------------------------------------------------------------------------
 Env = {
-	RUST_CARGO_OPTS = { 
+	-- Extra cargo options
+	RUST_CARGO_OPTS = {
 		{ "..."; Config = "..." },
 	},
+	-- Extra flags for rustc, this shows how to prefer-dynamic linking
+	RUST_OPTS = "-C prefer-dynamic"
 }
 -------------------------------------------------------------------------------
 
-This can be useful for using Cargo's built-in support for testing or enabling 
+This can be useful for using Cargo's built-in support for testing or enabling
 more verbose output for example.
 
 In the examples/rust directory in the Tundra distribution there is examples
 that shows how this is used in practice.
 
-Notice about Windows: Due to a bug that was detected in Cargo when implementing 
+Notice about Windows: Due to a bug that was detected in Cargo when implementing
 this feature Rust 1.7+ (Beta) is required on Windows.
 
 === Syntax Extensions
@@ -951,15 +954,15 @@ Program {
 -------------------------------------------------------------------------------
 
 If you wish to exclude files based on a pattern you can specify a configuration
-that doesn't exist. In the above example the pattern `[/\\]_[^/\\]*$` will ignore all 
+that doesn't exist. In the above example the pattern `[/\\]_[^/\\]*$` will ignore all
 files where the file name starts with `_`.
 
-The initial seperator is necessary as tundra passes the full path before 
-applying the filter (note: we need a character class that matches both POSIX and 
+The initial seperator is necessary as tundra passes the full path before
+applying the filter (note: we need a character class that matches both POSIX and
 Win32 style paths if we want this to work on all platforms).
 
-Lua patterns are not regular expressions but they are closely related. Instead 
-of using backslash, `%` is used to reference predefined character classes or 
+Lua patterns are not regular expressions but they are closely related. Instead
+of using backslash, `%` is used to reference predefined character classes or
 escape reserved characters but there's no support for repetitions of captures
 or alternations.
 
@@ -1283,7 +1286,7 @@ the following toolset types can be created:
 
 [width="90%",cols="2,4,5,3",options="header"]
 |=============================================================================
-|Language     |Base toolset         |Unit driver                | Examples     
+|Language     |Base toolset         |Unit driver                | Examples
 |Assembly     |`generic-asm.lua`    |`tundra.nodegen.native`    | `yasm`
 |C and C++    |`generic-cpp.lua`    |`tundra.nodegen.native`    | `gcc`, `msvc`
 |.NET         |`generic-dotnet.lua` |`tundra.nodegen.dotnet`    | `mono`, `dotnet`
@@ -1479,7 +1482,7 @@ local _native_mt = nodegen.create_eval_subclass {
         Frameworks = "FRAMEWORKS",
         LibPaths = "LIBPATH",
     },
-} 
+}
 -------------------------------------------------------------------------------
 
 The blueprint mechanism saves you from having to validate user input in your
