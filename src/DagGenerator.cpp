@@ -844,7 +844,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
         
         if (!path)
         {
-          fprintf(stderr, "bad FileSignatures data\n");
+          fprintf(stderr, "bad FileSignatures data: could not get 'File' member for object at index %zu\n", i);
           return false;
         }
 
@@ -856,7 +856,7 @@ static bool CompileDag(const JsonObjectValue* root, BinaryWriter* writer, MemAll
       }
       else
       {
-        fprintf(stderr, "bad FileSignatures data\n");
+        fprintf(stderr, "bad FileSignatures data: array entry at index %zu was not an Object\n", i);
         return false;
       }
     }
