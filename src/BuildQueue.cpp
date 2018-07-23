@@ -32,7 +32,7 @@ namespace t2
       "build failed to setup error"
     };
   }
-
+  const int MAX_OUTPUT_NODES = 1024;
 
   static void ThreadStateInit(ThreadState* self, BuildQueue* queue, size_t scratch_size, int index)
   {
@@ -903,6 +903,15 @@ namespace t2
       Log(kSpam, "Launching process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope(annotation, job_id);
+
+      const FrozenArray<FrozenFileAndHash>& outputFiles = node_data->m_OutputFiles;
+      HashState pre_hashstate[MAX_OUTPUT_NODES];
+      for (int i = 0; i < outputFiles.GetCount(); i++)
+      {
+        HashInit(&(pre_hashstate[i]));
+        ComputeFileSignatureTimestamp(&(pre_hashstate[i]), queue->m_Config.m_StatCache, outputFiles[i].m_Filename, outputFiles[i].m_FilenameHash);
+      }
+
       if (isWriteFileAction)
         result = WriteTextFile(node_data->m_Action, node_data->m_OutputFiles[0].m_Filename, thread_state->m_Queue->m_Config.m_Heap);
       else
@@ -910,6 +919,29 @@ namespace t2
         last_cmd_line = cmd_line;
         result = ExecuteProcess(cmd_line, env_count, env_vars, thread_state->m_Queue->m_Config.m_Heap, job_id, false, SlowCallback, &slowCallbackData);
         passedOutputValidation = ValidateExecResultAgainstAllowedOutput(&result, node_data);
+      }
+
+      HashState post_hashstate[MAX_OUTPUT_NODES];
+      HashDigest pre_hashdigest[MAX_OUTPUT_NODES];
+      HashDigest post_hashdigest[MAX_OUTPUT_NODES];
+      bool bad = false;
+
+      for (int i = 0; i < outputFiles.GetCount(); i++)
+      {
+        HashInit(&(post_hashstate[i]));
+        ComputeFileSignatureTimestamp(&(post_hashstate[i]), queue->m_Config.m_StatCache, outputFiles[i].m_Filename, outputFiles[i].m_FilenameHash);
+        HashFinalize(&(pre_hashstate[i]), &(pre_hashdigest[i]));
+        HashFinalize(&(post_hashstate[i]), &(post_hashdigest[i]));
+        if (pre_hashdigest[i] == post_hashdigest[i])
+        {
+          Log(kError, "Error: the %d'th output (which was %s) of %s did not change. Every action must touch all its outputs.",
+            i, outputFiles[i].m_Filename.Get(), node_data->m_Annotation.Get());
+          bad = true;
+        }
+      }
+      if (bad)
+      {
+        return BuildProgress::kFailed;
       }
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
