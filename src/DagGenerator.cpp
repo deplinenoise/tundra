@@ -959,6 +959,7 @@ static bool RunExternalTool(const char* options, ...)
   const char* cmdline_to_use;
 
   char option_str[1024];
+  char cmdline[1024];
   va_list args;
   va_start(args, options);
   vsnprintf(option_str, sizeof option_str, options, args);
@@ -979,7 +980,6 @@ static bool RunExternalTool(const char* options, ...)
     if (strchr(dag_gen_path, ' '))
       quotes = "\"";
 
-    char cmdline[1024];
     snprintf(cmdline, sizeof cmdline, "%s%s%s %s", quotes, dag_gen_path, quotes, option_str);
     cmdline[sizeof(cmdline)-1] = '\0';
 
