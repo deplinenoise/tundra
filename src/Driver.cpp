@@ -70,6 +70,7 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_IdeGen          = false;
   self->m_DebugSigning    = false;
   self->m_ContinueOnError = false;
+  self->m_QuickstartGen   = false;
   self->m_ThreadCount     = GetCpuCount();
   self->m_WorkingDir      = nullptr;
   self->m_DAGFileName     = ".tundra2.dag";
