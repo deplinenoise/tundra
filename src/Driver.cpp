@@ -65,16 +65,17 @@ void DriverOptionsInit(DriverOptions* self)
   self->m_DisplayStats    = false;
   self->m_GenDagOnly      = false;
   self->m_Quiet           = false;
+  self->m_IdeGen          = false;
   self->m_Clean           = false;
   self->m_Rebuild         = false;
-  self->m_IdeGen          = false;
   self->m_DebugSigning    = false;
   self->m_ContinueOnError = false;
+  self->m_QuickstartGen   = false;
   self->m_ThreadCount     = GetCpuCount();
   self->m_WorkingDir      = nullptr;
   self->m_DAGFileName     = ".tundra2.dag";
   self->m_ProfileOutput   = nullptr;
-  #if defined(TUNDRA_WIN32)
+#if defined(TUNDRA_WIN32)
   self->m_RunUnprotected  = false;
 #endif
 }
