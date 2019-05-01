@@ -288,6 +288,9 @@ namespace t2
       HashAddSeparator(&sighash);
     }
 
+    // Roll back scratch allocator after scanning only - filenames are being retained between scans
+    MemAllocLinearScope alloc_scope(&thread_state->m_ScratchAlloc);
+
     const ScannerData* scanner = node_data->m_Scanner;
 
     for (const FrozenFileAndHash& input : node_data->m_InputFiles)
@@ -298,9 +301,6 @@ namespace t2
 
       if (scanner)
       {
-        // Roll back scratch allocator between scans
-        MemAllocLinearScope alloc_scope(&thread_state->m_ScratchAlloc);
-
         ScanInput scan_input;
         scan_input.m_ScannerConfig = scanner;
         scan_input.m_ScratchAlloc  = &thread_state->m_ScratchAlloc;
