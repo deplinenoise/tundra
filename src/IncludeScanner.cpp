@@ -201,6 +201,9 @@ ScanLineGeneric(MemAllocLinear* allocator, const char *start_in, const GenericSc
 				return 0;
 		}
 
+    // start is pointing to the character after the closing separator, so wind it back one
+    start--;
+
     dest->m_IsSystemInclude = '>' == closing_separator;
 	}
 	else
@@ -217,7 +220,7 @@ ScanLineGeneric(MemAllocLinear* allocator, const char *start_in, const GenericSc
     dest->m_IsSystemInclude = bare_is_system;
 	}
 
-	dest->m_StringLen    = (unsigned short) (start - str_start - 1);
+	dest->m_StringLen    = (unsigned short) (start - str_start);
 	dest->m_String       = StrDupN(allocator, str_start, dest->m_StringLen);
 	dest->m_ShouldFollow = keyword->m_ShouldFollow ? true : false;
 	dest->m_Next         = nullptr;
