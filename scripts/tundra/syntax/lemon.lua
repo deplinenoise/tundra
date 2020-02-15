@@ -20,7 +20,7 @@ DefRule {
     env:set('OUTDIR', data.OutputDir or '.')
     local gen_c = '$(OUTDIR)$(SEP)' .. base_name .. '.c'
     local gen_h = '$(OUTDIR)$(SEP)' .. base_name .. '.h'
-    local gen_out = base_name .. '.out'
+    local gen_out = '$(OUTDIR)$(SEP)' .. base_name .. '.out'
     return {
       InputFiles = { src },
       OutputFiles = { gen_c, gen_h, gen_out },
