@@ -105,7 +105,8 @@ static void FreeFd(int job_id, HANDLE h)
         { ".cpp\r\n", 6 },
         { ".c++\r\n", 6 },
         { ".c\r\n",   4 },
-        { ".CC\r\n",  5 }
+        { ".CC\r\n",  5 },
+        { ".cc\r\n",  5 }
       };
 
       int ext_index = -1;
