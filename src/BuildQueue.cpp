@@ -413,6 +413,7 @@ namespace t2
     StatCache         *stat_cache   = queue->m_Config.m_StatCache;
     const char        *annotation   = node_data->m_Annotation;
     int                job_id       = thread_state->m_ThreadIndex;
+    int                echo_annotations = 0 != (queue->m_Config.m_Flags & BuildQueueConfig::kFlagEchoAnnotations);
     int                echo_cmdline = 0 != (queue->m_Config.m_Flags & BuildQueueConfig::kFlagEchoCommandLines);
 
     // Repack frozen env to pointers on the stack.
@@ -455,7 +456,7 @@ namespace t2
       Log(kSpam, "Launching pre-action process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope("Pre-build", job_id);
-      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, job_id, echo_cmdline, "(pre-build command)");
+      result = ExecuteProcess(pre_cmd_line, env_count, env_vars, job_id, echo_cmdline, echo_annotations ? "(pre-build command)" : nullptr);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
@@ -464,7 +465,7 @@ namespace t2
       Log(kSpam, "Launching process");
       TimingScope timing_scope(&g_Stats.m_ExecCount, &g_Stats.m_ExecTimeCycles);
       ProfilerScope prof_scope(annotation, job_id);
-      result = ExecuteProcess(cmd_line, env_count, env_vars, job_id, echo_cmdline, annotation);
+      result = ExecuteProcess(cmd_line, env_count, env_vars, job_id, echo_cmdline, echo_annotations ? annotation : nullptr);
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
