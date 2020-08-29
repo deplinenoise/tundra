@@ -3,8 +3,14 @@ MKDIR = mkdir -p
 INSTALL_X = install -m 0755
 INSTALL_F = install -m 0644
 
+# standard Debian/Ubuntu location for googletest
+# GTESTDIR ?= /usr/src
+
+# other location
+GTESTDIR ?= unittest
+
 CFLAGS ?= -Wall
-CPPFLAGS = -Ilua/src -Isrc -Iunittest/googletest/googletest/include -Iunittest/googletest/googletest -MMD -MP -DHAVE_GIT_INFO
+CPPFLAGS = -Ilua/src -Isrc -I$(GTESTDIR)/googletest/googletest/include -I$(GTESTDIR)/googletest/googletest -I$(GTESTDIR) -MMD -MP -DHAVE_GIT_INFO
 CXXFLAGS ?= $(CFLAGS) -fno-exceptions
 
 CXXLIBFLAGS ?=
