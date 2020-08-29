@@ -33,6 +33,7 @@ Build
 Have a look at GTESTDIR in `Makefile`.
 
 Prerequisites on Ubuntu 20.04 (probably OK for other Debian/Ubuntu too): 
+
 `sudo apt-get install build-essential clang googletest libgtest-dev`
 
 Then `make`.
