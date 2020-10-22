@@ -345,7 +345,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
       FriendlyName       = "Build This Solution",
       BuildByDefault     = true,
       Sources            = source_list,
-      BuildProjects      = util.clone_array(sln_projects),
+      BuildProjects      = {}, -- util.clone_array(sln_projects),
       Env                = env,
     })
 
