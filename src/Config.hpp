@@ -36,7 +36,7 @@
 
 #if defined(__powerpc__)
 #define USE_LITTLE_ENDIAN NO
-#elif defined(_WIN32) || defined(__x86__) || defined(__x86_64__) || defined(i386) || defined(__i386__)
+#elif defined(_WIN32) || defined(__x86__) || defined(__x86_64__) || defined(i386) || defined(__i386__) || defined(__aarch64__)
 #define USE_LITTLE_ENDIAN YES
 #else
 #error add endian detection here
