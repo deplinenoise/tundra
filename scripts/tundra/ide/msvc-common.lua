@@ -4,6 +4,7 @@ local native  = require "tundra.native"
 local nodegen = require "tundra.nodegen"
 local path    = require "tundra.path"
 local util    = require "tundra.util"
+local ide_com = require "tundra.ide.ide-common"
 
 LF = '\r\n'
 local UTF_HEADER = '\239\187\191' -- byte mark EF BB BF 
@@ -15,95 +16,19 @@ local HOOKS          = {}
 local msvc_generator = {}
 msvc_generator.__index = msvc_generator
 
-local project_types = util.make_lookup_table {
-  "Program", "SharedLibrary", "StaticLibrary", "CSharpExe", "CSharpLib", "ObjGroup",
-}
+local project_types = ide_com.project_types
+local binary_extension = ide_com.binary_extension
+local header_exts = ide_com.header_exts
 
 local toplevel_stuff = util.make_lookup_table {
   ".exe", ".lib", ".dll",
 }
-
-local binary_extension = util.make_lookup_table {
-  ".exe", ".lib", ".dll", ".pdb", ".res", ".obj", ".o", ".a",
-}
-
-local header_exts = util.make_lookup_table {
-  ".h", ".hpp", ".hh", ".inl",
-}
-
--- Scan for sources, following dependencies until those dependencies seem to be
--- a different top-level unit
-local function get_sources(dag, sources, generated, level, dag_lut)
-  for _, output in util.nil_ipairs(dag.outputs) do
-    local ext = path.get_extension(output)
-    if not binary_extension[ext] then
-      generated[output] = true
-      sources[output] = true -- pick up generated headers
-    end
-  end
-
-  for _, input in util.nil_ipairs(dag.inputs) do
-    local ext = path.get_extension(input)
-    if not binary_extension[ext] then
-      sources[input] = true
-    end
-  end
-
-  for _, dep in util.nil_ipairs(dag.deps) do
-    if not dag_lut[dep] then -- don't go into other top-level DAGs
-      get_sources(dep, sources, generated, level + 1, dag_lut)
-    end
-  end
-end
 
 function get_guid_string(data)
   local sha1 = native.digest_guid(data)
   local guid = sha1:sub(1, 8) .. '-' .. sha1:sub(9,12) .. '-' .. sha1:sub(13,16) .. '-' .. sha1:sub(17,20) .. '-' .. sha1:sub(21, 32)
   assert(#guid == 36) 
   return guid:upper()
-end
-
-local function get_headers(unit, source_lut, dag_lut, name_to_dags)
-  local src_dir = ''
-
-  if not unit.Decl then
-    -- Ignore ExternalLibrary and similar that have no data.
-    return
-  end
-
-  if unit.Decl.SourceDir then
-    src_dir = unit.Decl.SourceDir .. '/'
-  end
-  for _, src in util.nil_ipairs(nodegen.flatten_list('*-*-*-*', unit.Decl.Sources)) do
-    if type(src) == "string" then
-      local ext = path.get_extension(src)
-      if header_exts[ext] then
-        local full_path = path.normalize(src_dir .. src)
-        source_lut[full_path] = true
-      end
-    end
-  end
-
-  local function toplevel(u)
-    if type(u) == "string" then
-      return type(name_to_dags[u]) ~= "nil"
-    end
-
-    for _, dag in pairs(u.Decl.__DagNodes) do
-      if dag_lut[dag] then
-        return true
-      end
-    end
-    return false
-  end
-
-  -- Repeat for dependencies ObjGroups
-  for _, dep in util.nil_ipairs(nodegen.flatten_list('*-*-*-*', unit.Decl.Depends)) do
-
-    if not toplevel(dep) then
-      get_headers(dep, source_lut, dag_lut)
-    end
-  end
 end
 
 local function make_meta_project(base_dir, data)
@@ -121,10 +46,6 @@ end
 local function tundra_cmdline(args)
   local root_dir    = native.getcwd()
   return "\"" .. TundraExePath .. "\" -C \"" .. root_dir .. "\" " .. args
-end
-
-local function project_regen_commandline(ide_script)
-  return tundra_cmdline("-g " .. ide_script)
 end
 
 local function make_project_data(units_raw, env, proj_extension, hints, ide_script)
@@ -212,12 +133,12 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
     local source_lut = {}
     local generated_lut = {}
     for build_id, dag_node in pairs(decl.__DagNodes) do
-      get_sources(dag_node, source_lut, generated_lut, 0, dag_node_lut)
+      ide_com.get_sources(dag_node, source_lut, generated_lut, 0, dag_node_lut)
     end
 
     -- Explicitly add all header files too as they are not picked up from the DAG
     -- Also pick up headers from non-toplevel DAGs we're depending on
-    get_headers(unit, source_lut, dag_node_lut, name_to_dags)
+    ide_com.get_headers(unit, source_lut, dag_node_lut, name_to_dags)
 
     -- Figure out which project should get this data.
     local filterRoot
@@ -335,7 +256,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
     local regen_meta_proj = make_meta_project(meta_dir, {
       Name               = "00-tundra-idegen-" .. path.drop_suffix(name),
       FriendlyName       = "Regenerate Solutions and Projects",
-      BuildCommand       = project_regen_commandline(ide_script),
+      BuildCommand       = ide_com.project_regen_commandline(ide_script),
       Env                = env,
     })
     
@@ -371,28 +292,6 @@ local cl_tags = {
   ['.hpp'] = 'ClInclude',
   ['.inl'] = 'ClInclude',
 }
-
-local function slurp_file(fn)
-  local fh, err = io.open(fn, 'rb')
-  if fh then
-    local data = fh:read("*all")
-    fh:close()
-    return data
-  end
-  return ''
-end
-
-local function replace_if_changed(new_fn, old_fn)
-  local old_data = slurp_file(old_fn)
-  local new_data = slurp_file(new_fn)
-  if old_data == new_data then
-    os.remove(new_fn)
-    return
-  end
-  printf("Updating %s", old_fn)
-  os.remove(old_fn)
-  os.rename(new_fn, old_fn)
-end
 
 function msvc_generator:generate_solution(fn, projects, ext_projects, solution)
   local sln = io.open(fn .. '.tmp', 'wb')
@@ -491,21 +390,7 @@ function msvc_generator:generate_solution(fn, projects, ext_projects, solution)
   sln:write("EndGlobal", LF)
   sln:close()
 
-  replace_if_changed(fn .. ".tmp", fn)
-end
-
-local function find_dag_node_for_config(project, tuple)
-  local build_id = string.format("%s-%s-%s", tuple.Config.Name, tuple.Variant.Name, tuple.SubVariant)
-  local nodes = project.DagNodes
-  if not nodes then
-    return nil
-  end
-
-  if nodes[build_id] then
-    return nodes[build_id]
-  end
-  errorf("couldn't find config %s for project %s (%d dag nodes) - available: %s",
-    build_id, project.Name, #nodes, table.concat(util.table_keys(nodes), ", "))
+  ide_com.replace_if_changed(fn .. ".tmp", fn)
 end
 
 function msvc_generator:generate_project(project, all_projects)
@@ -604,7 +489,7 @@ function msvc_generator:generate_project(project, all_projects)
   for _, tuple in ipairs(self.config_tuples) do
     p:write('\t<PropertyGroup Condition="\'$(Configuration)|$(Platform)\'==\'', tuple.MsvcName, '\'">', LF)
 
-    local dag_node = find_dag_node_for_config(project, tuple)
+    local dag_node = ide_com.find_dag_node_for_config(project, tuple)
     local include_paths, defines
     if dag_node then
       local env = dag_node.src_env
@@ -720,7 +605,7 @@ function msvc_generator:generate_project(project, all_projects)
   p:write('</Project>', LF)
   p:close()
 
-  replace_if_changed(fn .. ".tmp", fn)
+  ide_com.replace_if_changed(fn .. ".tmp", fn)
 end
 
 local function get_common_dir(sources)
@@ -850,7 +735,7 @@ function msvc_generator:generate_project_filters(project)
 
   p:close()
 
-  replace_if_changed(fn .. ".tmp", fn)
+  ide_com.replace_if_changed(fn .. ".tmp", fn)
 end
 
 function msvc_generator:generate_project_user(project)
@@ -872,7 +757,7 @@ function msvc_generator:generate_project_user(project)
   p:write('>', LF)
 
   for _, tuple in ipairs(self.config_tuples) do
-    local dag_node = find_dag_node_for_config(project, tuple)
+    local dag_node = ide_com.find_dag_node_for_config(project, tuple)
     if dag_node then
       local exe = nil
       for _, output in util.nil_ipairs(dag_node.outputs) do
