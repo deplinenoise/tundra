@@ -273,7 +273,7 @@ local function make_project_data(units_raw, env, proj_extension, hints, ide_scri
   end
   local source_list = util.map(util.filter(accessed_lua_files, is_non_tundra_lua_file), make_src_node)
 
-    local solution_hints = hints.CodeliteWorkspace
+  local solution_hints = hints.CodeliteWorkspace
   if not solution_hints then
     print("No IdeGenerationHints.CodeliteWorkspace specified - using defaults")
     solution_hints = {
@@ -359,7 +359,7 @@ function codelite_generator:generate_workspace(fn, projects, ext_projects, works
   local sln_folders = {}
   for _, proj in ipairs(projects) do
     local hints = proj.IdeGenerationHints
-    local codelite_hints = hints and hints.CodeLite or nil
+    local codelite_hints = hints and hints.Codelite or nil
     local folder = codelite_hints and codelite_hints.SolutionFolder or nil
     if folder then
       local projects = sln_folders[folder] or {}
@@ -494,7 +494,6 @@ function codelite_generator:generate_project(project, all_projects)
   if needs_folder then
     p:write(indent, "</VirtualDirectory>", LF)
   end
-
 
   p:write("  <Settings Type=\"", project_type, "\">", LF)
 
