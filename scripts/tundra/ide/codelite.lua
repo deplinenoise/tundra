@@ -487,8 +487,15 @@ function codelite_generator:generate_project(project, all_projects)
     end
   end
 
+  local vfolder_name = "src"
+  local hints = project.IdeGenerationHints
+  local codelite_hints = hints and hints.Codelite or nil
+  if codelite_hints and codelite_hints.VFolder and (#codelite_hints.VFolder > 0) then
+    vfolder_name = codelite_hints.VFolder
+  end
+
   if needs_folder then
-    p:write(indent, "<VirtualDirectory Name=\"src\">", LF) -- TODO: specify name in IdeGenerationHints
+    p:write(indent, "<VirtualDirectory Name=\"" .. vfolder_name .. "\">", LF)
   end
   add_files_to_virtual_folders(p, src_files, indent .. "  ")
   if needs_folder then
