@@ -291,6 +291,7 @@ local cl_tags = {
   ['.hh']  = 'ClInclude',
   ['.hpp'] = 'ClInclude',
   ['.inl'] = 'ClInclude',
+  ['.natvis'] = 'Natvis',
 }
 
 function msvc_generator:generate_solution(fn, projects, ext_projects, solution)
