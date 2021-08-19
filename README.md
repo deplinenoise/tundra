@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/deplinenoise/tundra.svg?branch=master)](https://travis-ci.org/deplinenoise/tundra)
+![Build Status](https://github.com/deplinenoise/tundra/actions/workflows/build.yml/badge.svg)
 
 Tundra, a build system
 =============================================================================
