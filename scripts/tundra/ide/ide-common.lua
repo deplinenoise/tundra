@@ -15,7 +15,7 @@ binary_extension = util.make_lookup_table {
 }
 
 header_exts = util.make_lookup_table {
-  ".h", ".hpp", ".hh", ".inl",
+  ".h", ".hpp", ".hh", ".inl", ".natvis",
 }
 
 
