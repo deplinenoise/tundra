@@ -158,10 +158,10 @@ all: $(BUILDDIR)/tundra2$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-unittest$(EXESUFFIX)
 
-ifdef TRAVIS_COMMIT
+ifdef GITHUB_SHA
 $(BUILDDIR)/git_version_$(GIT_BRANCH).c:
-	echo "const char g_GitVersion[] = \"$(TRAVIS_COMMIT)\";" > $@ && \
-	echo "const char g_GitBranch[] = \"$(TRAVIS_BRANCH)\";" >> $@
+	echo "const char g_GitVersion[] = \"$(GITHUB_SHA)\";" > $@ && \
+	echo "const char g_GitBranch[] = \"$(GITHUB_REF)\";" >> $@
 else
 $(BUILDDIR)/git_version_$(GIT_BRANCH).c: $(GIT_FILE)
 	sed 's/^\(.*\)/const char g_GitVersion[] = "\1";/' < $^ > $@ && \
