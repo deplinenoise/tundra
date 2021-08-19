@@ -24,4 +24,4 @@ jobs:
           prerelease: false
           files: |
             build.mingw/Tundra-Binaries.zip
-            build.mingw/Tundra-Setup.zip
+            build.mingw/Tundra-Setup.exe
