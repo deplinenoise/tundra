@@ -13,8 +13,8 @@ LDFLAGS += -L$(BUILDDIR) -ltundra
 PREFIX ?= /usr/local
 
 # Handle travis builds specially - just trust what the CI tells us.
-ifdef TRAVIS_BRANCH
-GIT_BRANCH := $(TRAVIS_BRANCH)
+ifdef GITHUB_SHA
+GIT_BRANCH := "releases"
 else
 GIT_BRANCH := $(shell (git branch --no-color 2>/dev/null) | sed -n '/^\*/s/^\* //p')
 ifeq ($(GIT_BRANCH),)
