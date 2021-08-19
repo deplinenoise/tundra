@@ -13,8 +13,8 @@ LDFLAGS += -L$(BUILDDIR) -ltundra
 PREFIX ?= /usr/local
 
 # Handle travis builds specially - just trust what the CI tells us.
-ifdef TRAVIS_BRANCH
-GIT_BRANCH := $(TRAVIS_BRANCH)
+ifdef GITHUB_SHA
+GIT_BRANCH := "releases"
 else
 GIT_BRANCH := $(shell (git branch --no-color 2>/dev/null) | sed -n '/^\*/s/^\* //p')
 ifeq ($(GIT_BRANCH),)
@@ -158,10 +158,10 @@ all: $(BUILDDIR)/tundra2$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-inspect$(EXESUFFIX) \
 		 $(BUILDDIR)/t2-unittest$(EXESUFFIX)
 
-ifdef TRAVIS_COMMIT
+ifdef GITHUB_SHA
 $(BUILDDIR)/git_version_$(GIT_BRANCH).c:
-	echo "const char g_GitVersion[] = \"$(TRAVIS_COMMIT)\";" > $@ && \
-	echo "const char g_GitBranch[] = \"$(TRAVIS_BRANCH)\";" >> $@
+	echo "const char g_GitVersion[] = \"$(GITHUB_SHA)\";" > $@ && \
+	echo "const char g_GitBranch[] = \"$(GITHUB_REF)\";" >> $@
 else
 $(BUILDDIR)/git_version_$(GIT_BRANCH).c: $(GIT_FILE)
 	sed 's/^\(.*\)/const char g_GitVersion[] = "\1";/' < $^ > $@ && \

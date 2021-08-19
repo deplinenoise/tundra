@@ -1,0 +1,27 @@
+# dummy
+name: Build
+on: [pull_request]
+jobs:
+  build-test-linux:
+    strategy:
+      matrix:
+        checked: [no, yes]
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: egor-tensin/setup-mingw@v2
+      - run: sudo apt-get install valgrind yasm cpanminus nsis asciidoc source-highlight
+      - run: sudo cpanm File::Slurp Digest::MD5
+      - run: make CHECKED=${{ matrix.checked }} all run-all-tests
+  build-windows:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: egor-tensin/setup-mingw@v2
+      - run: sudo apt-get install valgrind yasm cpanminus nsis asciidoc source-highlight
+      - run: sudo cpanm File::Slurp Digest::MD5
+      - run: make CROSSMINGW=yes all installer windows-zip
