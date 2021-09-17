@@ -82,6 +82,15 @@ void NORETURN CroakErrno(const char* fmt, ...)
   va_end(args);
   fprintf(stderr, "\n");
   fprintf(stderr, "errno: %d (%s)\n", errno, strerror(errno));
+#if defined(TUNDRA_WIN32)
+  DWORD gle = GetLastError();
+
+  char* message = nullptr;
+  size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                 NULL, gle, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*)&message, 0, NULL);
+    
+  fprintf(stderr, "Win32 GLE: %u (%s)\n", gle, message);
+#endif
   if (DebuggerAttached())
     abort();
   else
