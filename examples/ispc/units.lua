@@ -5,9 +5,10 @@ Program {
 	Sources = {
 		"main.c",
 		ISPC {
-      Pass   = "IspcGen",
-      Source = "lanes.ispc"
-    },
+			Pass   = "IspcGen",
+			Source = "lanes.ispc",
+			Targets = "sse4,avx2"
+    	},
 	},
 }
 
