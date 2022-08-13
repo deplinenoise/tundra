@@ -2,9 +2,8 @@
 local common = {
   Env = {
     ISPCOPTS = {
-      "--target=sse4 --cpu=corei7",
       { "--arch=x86"; Config = "win32-*" },
-      { "--arch=x86-64";	Config = { "win64-*", "macosx-*" } },
+      { "--arch=x86-64"; Config = { "win64-*", "macosx-*" } },
     },
     CPPPATH = {
       -- Pick up generated ISPC headers from the object directory
@@ -26,13 +25,19 @@ Build {
 			Name = "win32-msvc",
 			DefaultOnHost = "windows",
 			Tools = { "msvc-vs2010", "ispc" },
-      Inherit = common,
+      		Inherit = common,
 		},
-    Config {
+		Config {
+			Name = "linucx-gcc",
+			DefaultOnHost = "linux",
+			Tools = { "gcc", "ispc" },
+      		Inherit = common,
+		},
+    	Config {
 			Name = "macosx-clang",
 			DefaultOnHost = "macosx",
 			Tools = { "clang-osx", "ispc" },
-      Inherit = common,
+      		Inherit = common,
     },
 	},
 }
