@@ -1,6 +1,6 @@
 # dummy
 name: Build
-on: [pull_request, push]
+on: [pull_request]
 jobs:
   build-test-linux:
     strategy:
