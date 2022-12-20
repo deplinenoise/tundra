@@ -24,6 +24,10 @@
 #include <sys/sysctl.h>
 #endif
 
+#if defined(TUNDRA_LINUX)
+#include <thread>
+#endif
+
 #if defined(TUNDRA_WIN32)
 #include <windows.h>
 #include <ctype.h>
@@ -341,6 +345,8 @@ int GetCpuCount()
   SYSTEM_INFO si;
   GetSystemInfo(&si);
   return (int) si.dwNumberOfProcessors;
+#elif defined(TUNDRA_LINUX)
+  return (int)std::thread::hardware_concurrency();
 #else
   long nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
   if (nprocs_max < 0)
