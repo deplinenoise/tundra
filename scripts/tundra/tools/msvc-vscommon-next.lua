@@ -102,6 +102,11 @@ function apply_msvc_visual_studio(version, env, options)
   local platform_type = options.PlatformType --default empty ({empty} | store | uwp)
   local sdk_version = options.SdkVersion --default from vcvarsall.bat (otherwise request a specific version through this option)
   local installation_path = options.InstallationPath or "C:\\Program Files (x86)\\Microsoft Visual Studio"
+  -- VS2022 is 64-bit and gets installed into Program Files.
+  if not options.InstallationPath and (version == "2022") then
+    installation_path = "C:\\Program Files\\Microsoft Visual Studio"
+  end
+
   local vs_product = options.Product
   local vcvarsall_bat = options.VCVarsPath --override the search strategy and use a specific 'vcvars' bat file
   local search_set = {}
