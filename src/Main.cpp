@@ -206,7 +206,7 @@ static bool InitOptions(t2::DriverOptions* options, int* argc, char*** argv)
 static void ShowHelp()
 {
   printf("\nTundra Build Processor 2.0\n");
-  printf("Copyright (C) 2010-2018 Andreas Fredriksson\n\n");
+  printf("Copyright (C) 2010-2023 Andreas Fredriksson\n\n");
 
 #ifdef HAVE_GIT_INFO
   printf("Git branch: %s\n", g_GitBranch);
