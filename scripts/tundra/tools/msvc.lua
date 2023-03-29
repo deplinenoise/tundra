@@ -43,7 +43,7 @@ function apply(env, options)
     ["PROGOPTS"] = "",
     ["PROGCOM"] = "$(LD) /nologo @RESPONSE|@|$(_USE_PDB_LINK) $(PROGOPTS) $(LIBPATH:b:q:p/LIBPATH\\:) $(_USE_MODDEF) $(LIBS:q) /out:$(@:b:q) $(<:b:q:p\n)",
     ["LIBOPTS"] = "",
-    ["LIBCOM"] = "$(LIB) /nologo @RESPONSE|@|$(LIBOPTS) /out:$(@:b:q) $(<:b:q:p\n)",
+    ["LIBCOM"] = "$(LIB) /nologo @RESPONSE|@|$(LIBOPTS) /out:$(@:b:q) $(_USE_MODDEF) $(<:b:q:p\n)",
     ["PROGPREFIX"] = "",
     ["SHLIBLINKSUFFIX"] = ".lib",
     ["SHLIBPREFIX"] = "",
