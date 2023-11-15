@@ -1262,6 +1262,89 @@ architecture:
     }
 -------------------------------------------------------------------------------
 
+=== msvc-latest
+
+This toolset is for use with the more recent versions of Visual Studio starting
+with Visual Studio 2017. It is similar to the existing `msvc` toolsets but
+because of how these new versions are installed this toolset can be customized
+to select a particular version and product to use. You don't have to specify
+anything but you have control over it. 
+
+The behaviour outlined here should be very similar to the Developer Command
+Prompt for VS (`VsDevCmd.bat`):
+
+- Starting with Visual Studio 2017 `msvc-vs20xx` is just an alias for 
+`{"msvc-latest", Version = "20xx" }`. If you use `msvc-latest` directly without
+specifying a version it will fallback to the most recently tested version of
+Visual Studio which is (as of writing) 2022.
+
+- If you don't specify product it will try all of them, in this order:
+`BuildTools`, `Community`, `Professional`, `Enterprise` and use the first one
+which has the *Desktop development with C++* workload installed.
+
+- If you don't specify Windows SDK version you will get the one installed with
+the highest version number.
+
+- If you don't specify MSVC tools version you will get the default (as given by
+`<Path>\<Version>\<Product>` followed by
+`VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt`).
+
+- Path is just for completness and will default to either `C:\Program Files (x86)` or 
+ `C:\Program Files` depending on `Version`.
+
+Here's a complete example of how this toolset can be configured:
+
+[source,lua]
+-------------------------------------------------------------------------------
+    Tools = {
+        {
+          "msvc-latest",
+          Path = "C:\\Program Files (x86)\\Microsoft Visual Studio",
+          Version = "2019",
+          Product = "BuildTools",
+          HostArch = "x64", -- "x64" (default), "x86", "arm" or "arm64"
+          TargetArch = "x64", -- "x64" (default), "x86", "arm" or "arm64"
+          WindowsSdkVersion = "10.0.22621.0",
+          VcToolsVersion = "14.29.30133",
+          AppPlatform = "Desktop", -- "Desktop" (default), "UWP" or "OneCore"
+          AtlMfc = false
+        }
+    }
+-------------------------------------------------------------------------------
+
+When you are not being explicit about the Windows SDK version or MSVC tools
+version it will tell you what it ended up chosing during DAG generation. This is
+done so that you can more easily lock your configuration to a specific version,
+if you want to.
+
+[source,lua]
+-------------------------------------------------------------------------------
+    > tundra2 -f -G
+    3 valid build tuples
+    Generating DAG for win64-msvc-release-default
+      WindowsSdkVersion : 10.0.22621.0
+      VcToolsVersion    : 14.29.30133
+    Generating DAG for win64-msvc-debug-default
+      WindowsSdkVersion : 10.0.22621.0
+      VcToolsVersion    : 14.29.30133
+    Generating DAG for win64-msvc-production-default
+      WindowsSdkVersion : 10.0.22621.0
+      VcToolsVersion    : 14.29.30133
+    save_dag_data: 3 bindings, 29 accessed files
+    compiling mmapable DAG data..
+    *** Build success (0.05 seconds)
+-------------------------------------------------------------------------------
+
+In Visual Studio 2017 and later, MFC and ATL are optional sub-components under
+the Desktop development with C++ workload in the Visual Studio Installer
+program. If you want to use MFC and ATL you have to install them and opt-in via
+`AtlMfc = true`.
+
+The idea behind this toolset is that it will be compatible with future Visual
+Studio releases and in the rare case that it isn't, it can be made to work by
+simply changing the `Path`, `Version` and `Product` options to whatever you
+need.
+
 == Extending Tundra
 
 Tundra can be extended in three ways:

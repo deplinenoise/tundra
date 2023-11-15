@@ -1,8 +1,10 @@
-
 module(..., package.seeall)
 
-local vscommon = require "tundra.tools.msvc-vscommon-next"
+local vslatest = require "tundra.tools.msvc-latest"
 
 function apply(env, options)
-  vscommon.apply_msvc_visual_studio("2019", env, options)
+  local extra = {
+    Version = "2019"
+  }
+  vslatest.apply(env, options, extra)
 end
