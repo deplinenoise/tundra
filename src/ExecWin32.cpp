@@ -125,7 +125,7 @@ static void FreeFd(int job_id, HANDLE h)
         is_src_file = true;
         for (DWORD i = 0; i < rb - exts[ext_index].len; ++i)
         {
-          if (!isalnum(buf[i]))
+          if (!isalnum(buf[i]) && buf[i] != '_' && buf[i] != '-')
           {
             is_src_file = false;
             break;
