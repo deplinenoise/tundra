@@ -326,6 +326,19 @@ function apply(env, options, extra)
     env_lib[#env_lib + 1] = native_path.join(vc_tools_dir, "lib\\onecore\\" .. target_arch)
   end
 
+  if extra.Clang then
+    -- file:///C:/Program%20Files%20(x86)/Microsoft%20Visual%20Studio/2022/BuildTools/VC/Tools/Llvm
+    if target_arch == "x64" then
+      env_path[#env_path + 1] = native_path.join(vs_install_dir, "VC\\Tools\\Llvm\\x64\\bin")
+    elseif target_arch == "arm64" then
+      env_path[#env_path + 1] = native_path.join(vs_install_dir, "VC\\Tools\\Llvm\\ARM64\\bin")
+    elseif target_arch == "x86" then
+      env_path[#env_path + 1] = native_path.join(vs_install_dir, "VC\\Tools\\Llvm\\bin")
+    else
+      error("msvc-clang: target architecutre '" .. target_arch .. "' not supported")
+    end
+  end
+
   -- Force MSPDBSRV.EXE (fix for issue with cl.exe running in parallel and otherwise corrupting PDB files)
   -- These options where added to Visual C++ in Visual Studio 2013. They do not exist in older versions.
   env:set("CCOPTS", "/FS")
