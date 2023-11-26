@@ -1,0 +1,54 @@
+RM = del /f
+RMDIR = rmdir /s/q
+MKDIR = mkdir
+OBJSUFFIX := .obj
+LIBPREFIX :=
+LIBSUFFIX := .lib
+EXESUFFIX = .exe
+BUILDDIR = build
+LIBCMD = lib /nologo /out:
+LINKCMD = link /nologo /out:
+
+include Makefile.setup
+
+CC = cl
+CXX = cl
+CFLAGS = /nologo /W4 /wd4624 /wd4127
+CPPFLAGS = \
+					 /Ilua\src /Isrc /Iunittest\googletest\googletest\include /Iunittest\googletest\googletest \
+					 /D_CRT_SECURE_NO_WARNINGS /DNOMINMAX
+CXXFLAGS ?= $(CFLAGS) /EHsc- /GR-
+CXXLIBFLAGS ?=
+LDFLAGS += /LIBPATH:$(BUILDDIR) tundra.lib
+
+ifeq ($(CHECKED), no)
+	CFLAGS += /Z7 /O2
+else
+	CFLAGS += /Z7
+endif
+
+Q ?= 
+E ?= @echo
+
+all: build-dir-exists common-all
+
+$(BUILDDIR)/.dummy:
+	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
+	echo blah > $(BUILDDIR)/.dummy
+
+build-dir-exists: $(BUILDDIR)/.dummy
+
+$(BUILDDIR)/%.obj: %.c
+	$(E) CC $<
+	$(Q) $(CC) /c /Fo$@ $(CPPFLAGS) $(CFLAGS) $<
+
+$(BUILDDIR)/%.obj: $(BUILDDIR)/%.c
+	$(E) CC $<
+	$(Q) $(CC) /c /Fo$@ $(CPPFLAGS) $(CFLAGS) $<
+
+$(BUILDDIR)/%.obj: %.cpp
+	$(E) CXX $<
+	$(Q) $(CXX) /c /Fo$@ $(CPPFLAGS) $(CXXFLAGS) $<
+
+include Makefile.common
+

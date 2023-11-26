@@ -1,0 +1,7 @@
+CHECKED ?= no
+
+ifeq ($(CHECKED), no)
+BUILDDIR := build
+else
+BUILDDIR := build.checked
+endif

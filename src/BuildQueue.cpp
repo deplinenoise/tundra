@@ -74,11 +74,11 @@ namespace t2
 
     for (int32_t dep_index : src_node->m_Dependencies)
     {
-      NodeState* state = GetStateForNode(queue, dep_index);
+      NodeState* nstate = GetStateForNode(queue, dep_index);
 
-      CHECK(state != nullptr);
+      CHECK(nstate != nullptr);
 
-      if (!NodeStateIsCompleted(state))
+      if (!NodeStateIsCompleted(nstate))
       {
         return false;
       }

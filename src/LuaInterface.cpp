@@ -20,6 +20,7 @@ extern "C"
 
 #if defined(TUNDRA_WIN32)
 #include <windows.h>
+#pragma comment(lib, "advapi32.lib")
 
 // Mingw has ancient headers
 #ifndef KEY_WOW64_64KEY
