@@ -154,7 +154,13 @@ void DriverShowTargets(Driver* self)
     {
       temp[i] = tuple.m_NamedNodes[i].m_Name.Get();
     }
-    std::sort(temp, temp + count, [](const char *a, const char *b) { return strcmp(a, b) < 0; });
+    struct {
+        bool operator()(const char *a, const char *b)
+        {
+            return strcmp(a, b) < 0; 
+        }
+    } strcmp_less;
+    std::sort(temp, temp + count, strcmp_less);
 
     for (int i = 0; i < count; ++i)
     {
@@ -1188,9 +1194,15 @@ void DriverRemoveStaleOutputs(Driver* self)
 
   HashSetWalk(&nuke_table, path_assign);
 
-  std::sort(paths, paths + nuke_table.m_RecordCount, [](const char* l, const char* r) {
-    return strlen(r) < strlen(l);
-  });
+  struct StrlenCompare
+  {
+      bool operator()(const char* l, const char* r)
+      {
+          return strlen(r) < strlen(l);
+      }
+  };
+
+  std::sort(paths, paths + nuke_table.m_RecordCount, StrlenCompare());
 
   for (uint32_t i = 0, nuke_count = nuke_table.m_RecordCount; i < nuke_count; ++i)
   {
