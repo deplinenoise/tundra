@@ -76,8 +76,10 @@ static void BinarySegmentFixupPointers(BinarySegment* self, BinarySegment** segs
 {
   int64_t my_seg_base = self->m_GlobalOffset;
 
-  for (auto const& fixup : self->m_Fixups)
+  for (BinaryFixup* b = self->m_Fixups.begin(), *e = self->m_Fixups.end(); b != e; ++b)
   {
+    BinaryFixup& fixup = *b;
+
     int64_t  target_seg_base = segs[fixup.m_Target.m_SegIndex]->m_GlobalOffset;
 
     int64_t  source_pos      = my_seg_base + fixup.m_PointerOffset;

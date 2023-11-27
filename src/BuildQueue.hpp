@@ -92,7 +92,7 @@ namespace t2
       kCount
     };
 
-    extern const char* Names[Enum::kCount];
+    extern const char* Names[kCount];
   }
 
   void BuildQueueInit(BuildQueue* queue, const BuildQueueConfig* config);
