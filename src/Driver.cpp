@@ -563,14 +563,16 @@ bool DriverPrepareNodes(Driver* self, const char** targets, int target_count)
     }
   }
 
-
-  // Sort the node state array based on which pass the nodes are in.
-  auto compare_node_passes = [](const NodeState& l, const NodeState& r) -> bool
+  struct NodePassCompare
   {
-    return l.m_PassIndex < r.m_PassIndex;
+      bool operator()(const NodeState& l, const NodeState& r)
+      {
+          return l.m_PassIndex < r.m_PassIndex;
+      }
   };
 
-  std::sort(out_nodes, out_nodes + node_count, compare_node_passes);
+  // Sort the node state array based on which pass the nodes are in.
+  std::sort(out_nodes, out_nodes + node_count, NodePassCompare());
 
   // Now that our local order is established (sorted for pass purposes),
   // initialize a remapping table from global (dag) index to local (state)
@@ -813,7 +815,6 @@ bool DriverSaveDigestCache(Driver* self)
   return DigestCacheSave(&self->m_DigestCache, &self->m_Heap, self->m_DagData->m_DigestCacheFileName, self->m_DagData->m_DigestCacheFileNameTmp);
 }
 
-
 bool DriverSaveBuildState(Driver* self)
 {
   TimingScope timing_scope(nullptr, &g_Stats.m_StateSaveTimeCycles);
@@ -821,17 +822,90 @@ bool DriverSaveBuildState(Driver* self)
 
   MemAllocLinearScope alloc_scope(&self->m_Allocator);
 
-  BinaryWriter writer;
-  BinaryWriterInit(&writer, &self->m_Heap);
+  struct Writer
+  {
+      BinaryWriter writer;
+      BinarySegment *main_seg;
+      BinarySegment *guid_seg;
+      BinarySegment *state_seg;
+      BinarySegment *array_seg;
+      BinarySegment *string_seg;
 
-  BinarySegment *main_seg   = BinaryWriterAddSegment(&writer);
-  BinarySegment *guid_seg   = BinaryWriterAddSegment(&writer);
-  BinarySegment *state_seg  = BinaryWriterAddSegment(&writer);
-  BinarySegment *array_seg  = BinaryWriterAddSegment(&writer);
-  BinarySegment *string_seg = BinaryWriterAddSegment(&writer);
+      BinaryLocator guid_ptr;
+      BinaryLocator state_ptr;
 
-  BinaryLocator guid_ptr  = BinarySegmentPosition(guid_seg);
-  BinaryLocator state_ptr = BinarySegmentPosition(state_seg);
+      explicit Writer(MemAllocHeap* heap)
+      {
+          BinaryWriterInit(&writer, heap);
+
+          main_seg   = BinaryWriterAddSegment(&writer);
+          guid_seg   = BinaryWriterAddSegment(&writer);
+          state_seg  = BinaryWriterAddSegment(&writer);
+          array_seg  = BinaryWriterAddSegment(&writer);
+          string_seg = BinaryWriterAddSegment(&writer);
+          guid_ptr = BinarySegmentPosition(guid_seg);
+          state_ptr = BinarySegmentPosition(state_seg);
+      }
+
+      ~Writer()
+      {
+          BinaryWriterDestroy(&writer);
+      }
+
+      void SaveNodeState(int build_result, const HashDigest* input_signature, const NodeData* src_node, const HashDigest* guid)
+      {
+          BinarySegmentWrite(guid_seg, (const char*) guid, sizeof(HashDigest));
+
+          BinarySegmentWriteInt32(state_seg, build_result);
+          BinarySegmentWrite(state_seg, (const char*) input_signature, sizeof(HashDigest));
+
+          int32_t file_count = src_node->m_OutputFiles.GetCount();
+          BinarySegmentWriteInt32(state_seg, file_count);
+          BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+          for (int32_t i = 0; i < file_count; ++i)
+          {
+              BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+              BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i].m_Filename);
+          }
+
+          file_count = src_node->m_AuxOutputFiles.GetCount();
+          BinarySegmentWriteInt32(state_seg, file_count);
+          BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+          for (int32_t i = 0; i < file_count; ++i)
+          {
+              BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+              BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i].m_Filename);
+          }
+      }
+
+      void SaveNodeStateOld(int build_result, const HashDigest* input_signature, const NodeStateData* src_node, const HashDigest* guid)
+      {
+          BinarySegmentWrite(guid_seg, (const char*) guid, sizeof(HashDigest));
+
+          BinarySegmentWriteInt32(state_seg, build_result);
+          BinarySegmentWrite(state_seg, (const char*) input_signature, sizeof(HashDigest));
+
+          int32_t file_count = src_node->m_OutputFiles.GetCount();
+          BinarySegmentWriteInt32(state_seg, file_count);
+          BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+          for (int32_t i = 0; i < file_count; ++i)
+          {
+              BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+              BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i]);
+          }
+
+          file_count = src_node->m_AuxOutputFiles.GetCount();
+          BinarySegmentWriteInt32(state_seg, file_count);
+          BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
+          for (int32_t i = 0; i < file_count; ++i)
+          {
+              BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
+              BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i]);
+          }
+      }
+  };
+
+  Writer writer(&self->m_Heap);
 
   uint32_t             src_count       = self->m_DagData->m_NodeCount;
   const HashDigest    *src_guids       = self->m_DagData->m_NodeGuids;
@@ -839,10 +913,16 @@ bool DriverSaveBuildState(Driver* self)
   NodeState           *new_state       = self->m_Nodes.m_Storage;
   const size_t         new_state_count = self->m_Nodes.m_Size;
 
-  std::sort(new_state, new_state + new_state_count, [=](const NodeState& l, const NodeState& r) {
-    // We know guids are sorted, so all we need to do is compare pointers into that table.
-    return l.m_MmapData < r.m_MmapData;
-  });
+  struct NodeStateCompare
+  {
+      bool operator()(const NodeState& l, const NodeState& r)
+      {
+          // We know guids are sorted, so all we need to do is compare pointers into that table.
+          return l.m_MmapData < r.m_MmapData;
+      }
+  };
+
+  std::sort(new_state, new_state + new_state_count, NodeStateCompare());
 
   const HashDigest    *old_guids       = nullptr;
   const NodeStateData *old_state       = nullptr;
@@ -857,130 +937,117 @@ bool DriverSaveBuildState(Driver* self)
 
   int entry_count = 0;
 
-  auto save_node_state = [=](int build_result, const HashDigest* input_signature, const NodeData* src_node, const HashDigest* guid) -> void
-  {
-    BinarySegmentWrite(guid_seg, (const char*) guid, sizeof(HashDigest));
+  struct {
+      int                 *entry_count;
+      NodeState           *new_state;
+      const NodeData      *src_data;
+      const HashDigest    *src_guids;
+      const HashDigest    *old_guids;
+      const NodeStateData *old_state;
+      uint32_t             old_count;
+      Writer              *writer;
 
-    BinarySegmentWriteInt32(state_seg, build_result);
-    BinarySegmentWrite(state_seg, (const char*) input_signature, sizeof(HashDigest));
-
-    int32_t file_count = src_node->m_OutputFiles.GetCount();
-    BinarySegmentWriteInt32(state_seg, file_count);
-    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
-    for (int32_t i = 0; i < file_count; ++i)
-    {
-      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-      BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i].m_Filename);
-    }
-
-    file_count = src_node->m_AuxOutputFiles.GetCount();
-    BinarySegmentWriteInt32(state_seg, file_count);
-    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
-    for (int32_t i = 0; i < file_count; ++i)
-    {
-      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-      BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i].m_Filename);
-    }
-  };
-
-  auto save_node_state_old = [=](int build_result, const HashDigest* input_signature, const NodeStateData* src_node, const HashDigest* guid) -> void
-  {
-    BinarySegmentWrite(guid_seg, (const char*) guid, sizeof(HashDigest));
-
-    BinarySegmentWriteInt32(state_seg, build_result);
-    BinarySegmentWrite(state_seg, (const char*) input_signature, sizeof(HashDigest));
-
-    int32_t file_count = src_node->m_OutputFiles.GetCount();
-    BinarySegmentWriteInt32(state_seg, file_count);
-    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
-    for (int32_t i = 0; i < file_count; ++i)
-    {
-      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-      BinarySegmentWriteStringData(string_seg, src_node->m_OutputFiles[i]);
-    }
-
-    file_count = src_node->m_AuxOutputFiles.GetCount();
-    BinarySegmentWriteInt32(state_seg, file_count);
-    BinarySegmentWritePointer(state_seg, BinarySegmentPosition(array_seg));
-    for (int32_t i = 0; i < file_count; ++i)
-    {
-      BinarySegmentWritePointer(array_seg, BinarySegmentPosition(string_seg));
-      BinarySegmentWriteStringData(string_seg, src_node->m_AuxOutputFiles[i]);
-    }
-  };
-
-  auto save_new = [=, &entry_count](size_t index) {
-    const NodeState  *elem      = new_state + index;
-    const NodeData   *src_elem  = elem->m_MmapData;
-    const int         src_index = int(src_elem - src_data);
-    const HashDigest *guid      = src_guids + src_index;
-
-    // If this node never computed an input signature (due to an error, or build cancellation), copy the old build progress over to retain the history.
-    // Only do this if the output files and aux output files agree with the previously stored build state.
-    if (elem->m_Progress < BuildProgress::kUnblocked)
-    {
-      if (const HashDigest* old_guid = BinarySearch(old_guids, old_count, *guid))
+      void operator()(size_t index)
       {
-        size_t old_index = old_guid - old_guids;
-        const NodeStateData* old_state_data = old_state + old_index;
-        save_node_state_old(old_state_data->m_BuildResult, &old_state_data->m_InputSignature, old_state_data, guid);
-        ++entry_count;
-        ++g_Stats.m_StateSaveNew;
+          const NodeState  *elem      = new_state + index;
+          const NodeData   *src_elem  = elem->m_MmapData;
+          const int         src_index = int(src_elem - src_data);
+          const HashDigest *guid      = src_guids + src_index;
+
+          // If this node never computed an input signature (due to an error, or build cancellation), copy the old build progress over to retain the history.
+          // Only do this if the output files and aux output files agree with the previously stored build state.
+          if (elem->m_Progress < BuildProgress::kUnblocked)
+          {
+              if (const HashDigest* old_guid = BinarySearch(old_guids, old_count, *guid))
+              {
+                  size_t old_index = old_guid - old_guids;
+                  const NodeStateData* old_state_data = old_state + old_index;
+                  writer->SaveNodeStateOld(old_state_data->m_BuildResult, &old_state_data->m_InputSignature, old_state_data, guid);
+                  ++*entry_count;
+                  ++g_Stats.m_StateSaveNew;
+              }
+          }
+          else
+          {
+              writer->SaveNodeState(elem->m_BuildResult, &elem->m_InputSignature, src_elem, guid);
+              ++*entry_count;
+              ++g_Stats.m_StateSaveNew;
+          }
       }
-    }
-    else
-    {
-      save_node_state(elem->m_BuildResult, &elem->m_InputSignature, src_elem, guid);
-      ++entry_count;
-      ++g_Stats.m_StateSaveNew;
-    }
-  };
+  } save_new { &entry_count, new_state, src_data, src_guids, old_guids, old_state, old_count, &writer };
 
-  auto save_old = [=, &entry_count](size_t index) {
-    const HashDigest    *guid = old_guids + index;
+  struct {
+      int* entry_count;
+      NodeState           *new_state;
+      const NodeData      *src_data;
+      const HashDigest    *src_guids;
+      uint32_t             src_count;
+      const HashDigest    *old_guids;
+      const NodeStateData *old_state;
+      uint32_t             old_count;
+      Writer              *writer;
 
-    // Make sure this node is still relevant before saving.
-    if (const HashDigest* new_version = BinarySearch(src_guids, src_count, *guid))
-    {
-      size_t src_index = (new_version - src_guids);
-      const NodeData* src_elem = src_data + src_index;
-      const NodeStateData *data = old_state + index;
+      void operator()(size_t index)
+      {
+          const HashDigest    *guid = old_guids + index;
 
-      save_node_state(data->m_BuildResult, &data->m_InputSignature, src_elem, guid);
-      ++entry_count;
-      ++g_Stats.m_StateSaveOld;
-    }
-    else
-    {
-      // Drop this node.
-      ++g_Stats.m_StateSaveDropped;
-    }
-  };
+          // Make sure this node is still relevant before saving.
+          if (const HashDigest* new_version = BinarySearch(src_guids, src_count, *guid))
+          {
+              size_t src_index = (new_version - src_guids);
+              const NodeData* src_elem = src_data + src_index;
+              const NodeStateData *data = old_state + index;
 
-  auto key_new = [=](size_t index) -> const HashDigest* {
-    int dag_index = int(new_state[index].m_MmapData - src_data);
-    return src_guids + dag_index;
-  };
+              writer->SaveNodeState(data->m_BuildResult, &data->m_InputSignature, src_elem, guid);
+              ++*entry_count;
+              ++g_Stats.m_StateSaveOld;
+          }
+          else
+          {
+              // Drop this node.
+              ++g_Stats.m_StateSaveDropped;
+          }
+      }
+  } save_old { &entry_count, new_state, src_data, src_guids, src_count, old_guids, old_state, old_count, &writer };
 
-  auto key_old = [=](size_t index) {
-    return old_guids + index;
-  };
+  struct
+  { 
+      NodeState           *new_state;
+      const NodeData      *src_data;
+      const HashDigest    *src_guids;
+
+      const HashDigest* operator()(size_t index)
+      {
+          int dag_index = int(new_state[index].m_MmapData - src_data);
+          return src_guids + dag_index;
+      }
+  } key_new { new_state, src_data, src_guids };
+
+  struct
+  {
+      const HashDigest    *old_guids;
+
+      const HashDigest* operator()(size_t index)
+      {
+          return old_guids + index;
+      }
+  } key_old { old_guids };
 
   TraverseSortedArrays(
       new_state_count, save_new, key_new,
       old_count, save_old, key_old);
 
   // Complete main data structure.
-  BinarySegmentWriteUint32(main_seg, StateData::MagicNumber);
-  BinarySegmentWriteInt32(main_seg, entry_count);
-  BinarySegmentWritePointer(main_seg, guid_ptr);
-  BinarySegmentWritePointer(main_seg, state_ptr);
+  BinarySegmentWriteUint32(writer.main_seg, StateData::MagicNumber);
+  BinarySegmentWriteInt32(writer.main_seg, entry_count);
+  BinarySegmentWritePointer(writer.main_seg, writer.guid_ptr);
+  BinarySegmentWritePointer(writer.main_seg, writer.state_ptr);
 
   // Unmap old state data.
   MmapFileUnmap(&self->m_StateFile);
   self->m_StateData = nullptr;
 
-  bool success = BinaryWriterFlush(&writer, self->m_DagData->m_StateFileNameTmp);
+  bool success = BinaryWriterFlush(&writer.writer, self->m_DagData->m_StateFileNameTmp);
 
   if (success)
   {
@@ -991,8 +1058,6 @@ bool DriverSaveBuildState(Driver* self)
   {
     remove(self->m_DagData->m_StateFileNameTmp);
   }
-
-  BinaryWriterDestroy(&writer);
 
   return success;
 }
@@ -1017,16 +1082,22 @@ void DriverRemoveStaleOutputs(Driver* self)
   HashSet<kFlagPathStrings> file_table;
   HashSetInit(&file_table, &self->m_Heap);
 
-  // Insert all current regular and aux output files into the hash table.
-  auto add_file = [&file_table](const FrozenFileAndHash& p) -> void
+  struct 
   {
-    const uint32_t hash = p.m_FilenameHash;
+      HashSet<kFlagPathStrings> *file_table;
 
-    if (!HashSetLookup(&file_table, hash, p.m_Filename))
-    {
-      HashSetInsert(&file_table, hash, p.m_Filename);
-    }
-  };
+      void operator()(const FrozenFileAndHash& p)
+      {
+          const uint32_t hash = p.m_FilenameHash;
+
+          if (!HashSetLookup(file_table, hash, p.m_Filename))
+          {
+              HashSetInsert(file_table, hash, p.m_Filename);
+          }
+      }
+  } add_file { &file_table };
+
+  // Insert all current regular and aux output files into the hash table.
 
   for (int i = 0, node_count = dag->m_NodeCount; i < node_count; ++i)
   {
@@ -1049,36 +1120,43 @@ void DriverRemoveStaleOutputs(Driver* self)
   // Check all output files in the state if they're still around.
   // Otherwise schedule them (and all their parent dirs) for nuking.
   // We will rely on the fact that we can't rmdir() non-empty directories.
-  auto check_file = [&file_table, &nuke_table, scratch](const char* path)
+  struct
   {
-    uint32_t path_hash = Djb2HashPath(path);
+      HashSet<kFlagPathStrings> *file_table;
+      HashSet<kFlagPathStrings> *nuke_table;
+      MemAllocLinear* scratch;
 
-    if (!HashSetLookup(&file_table, path_hash, path))
-    {
-      if (!HashSetLookup(&nuke_table, path_hash, path))
+      void operator()(const char* path)
       {
-        HashSetInsert(&nuke_table, path_hash, path);
+          uint32_t path_hash = Djb2HashPath(path);
+
+          if (!HashSetLookup(file_table, path_hash, path))
+          {
+              if (!HashSetLookup(nuke_table, path_hash, path))
+              {
+                  HashSetInsert(nuke_table, path_hash, path);
+              }
+
+              PathBuffer buffer;
+              PathInit(&buffer, path);
+
+              while (PathStripLast(&buffer))
+              {
+                  if (buffer.m_SegCount == 0)
+                      break;
+
+                  char dir[kMaxPathLength];
+                  PathFormat(dir, &buffer);
+                  uint32_t dir_hash = Djb2HashPath(dir);
+
+                  if (!HashSetLookup(nuke_table, dir_hash, dir))
+                  {
+                      HashSetInsert(nuke_table, dir_hash, StrDup(scratch, dir));
+                  }
+              }
+          }
       }
-
-      PathBuffer buffer;
-      PathInit(&buffer, path);
-
-      while (PathStripLast(&buffer))
-      {
-        if (buffer.m_SegCount == 0)
-          break;
-
-        char dir[kMaxPathLength];
-        PathFormat(dir, &buffer);
-        uint32_t dir_hash = Djb2HashPath(dir);
-
-        if (!HashSetLookup(&nuke_table, dir_hash, dir))
-        {
-          HashSetInsert(&nuke_table, dir_hash, StrDup(scratch, dir));
-        }
-      }
-    }
-  };
+  } check_file { &file_table, &nuke_table, scratch };
 
   for (int i = 0, state_count = state->m_NodeCount; i < state_count; ++i)
   {
@@ -1098,9 +1176,17 @@ void DriverRemoveStaleOutputs(Driver* self)
   // Create list of files and dirs, sort descending by path length. This sorts
   // files and subdirectories before their parent directories.
   const char** paths = LinearAllocateArray<const char*>(scratch, nuke_table.m_RecordCount);
-  HashSetWalk(&nuke_table, [paths](uint32_t index, uint32_t hash, const char* str) {
-    paths[index] = str;
-  });
+
+  struct {
+      const char** paths;
+      void operator()(uint32_t index, uint32_t hash, const char* str)
+      {
+          (void) (hash);
+          paths[index] = str;
+      }
+  } path_assign = { paths };
+
+  HashSetWalk(&nuke_table, path_assign);
 
   std::sort(paths, paths + nuke_table.m_RecordCount, [](const char* l, const char* r) {
     return strlen(r) < strlen(l);
