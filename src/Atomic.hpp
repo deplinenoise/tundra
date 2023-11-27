@@ -17,11 +17,14 @@ namespace t2
 
   inline uint64_t AtomicAdd(uint64_t* ptr, uint64_t value)
   {
-#if defined(TUNDRA_WIN32_MINGW)
+#if defined(TUNDRA_WIN32_MINGW) || defined(_M_IX86)
     // Crappy mingw doesn't have InterlockedExchangeAdd64
     // This is not really atomic (we update the 32-bit words separately), but
     // at least it will not lose values. The only use case we have for this
     // bullshit is the tracking of stats anyway, so it's not mission critical.
+    // Correction from the future: this is in fact going to lose values,
+    // because carries from the low 32 bits won't carry over to the top 32
+    // bits. El suck.
     union Atomic64
     {
       struct

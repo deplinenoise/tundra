@@ -135,24 +135,24 @@ void DriverShowTargets(Driver* self)
   printf("%-20s %-20s %-20s\n", "Config", "Variant", "SubVariant");
   printf("----------------------------------------------------------------\n");
 
-  for (const BuildTupleData& tuple : dag->m_BuildTuples)
+  for (const BuildTupleData* tuple = dag->m_BuildTuples.begin(), *tuple_end = dag->m_BuildTuples.end(); tuple != tuple_end; ++tuple)
   {
-    const char* config_name = dag->m_ConfigNames[tuple.m_ConfigIndex];
-    const char* variant_name = dag->m_VariantNames[tuple.m_VariantIndex];
-    const char* subvariant_name = dag->m_SubVariantNames[tuple.m_SubVariantIndex];
+    const char* config_name = dag->m_ConfigNames[tuple->m_ConfigIndex];
+    const char* variant_name = dag->m_VariantNames[tuple->m_VariantIndex];
+    const char* subvariant_name = dag->m_SubVariantNames[tuple->m_SubVariantIndex];
     printf("%-20s %-20s %-20s\n", config_name, variant_name, subvariant_name);
   }
 
   printf("\nNamed nodes and aliases:\n");
   printf("----------------------------------------------------------------\n");
 
-  for (const BuildTupleData& tuple : dag->m_BuildTuples)
+  for (const BuildTupleData* tuple = dag->m_BuildTuples.begin(), *tuple_end = dag->m_BuildTuples.end(); tuple != tuple_end; ++tuple)
   {
-    int32_t count = tuple.m_NamedNodes.GetCount();
+    int32_t count = tuple->m_NamedNodes.GetCount();
     const char** temp = (const char**)alloca(sizeof(const char*) * count);
     for (int i = 0; i < count; ++i)
     {
-      temp[i] = tuple.m_NamedNodes[i].m_Name.Get();
+      temp[i] = tuple->m_NamedNodes[i].m_Name.Get();
     }
     struct {
         bool operator()(const char *a, const char *b)
@@ -245,11 +245,11 @@ static bool DriverCheckDagSignatures(Driver* self)
   }
 
   // Check timestamps of lua files used to produce the DAG
-  for (const DagFileSignature& sig : dag_data->m_FileSignatures)
+  for (const DagFileSignature* sig = dag_data->m_FileSignatures.begin(), *sig_end = dag_data->m_FileSignatures.end(); sig != sig_end; ++sig)
   {
-    const char* path = sig.m_Path;
+    const char* path = sig->m_Path;
 
-    uint64_t timestamp = sig.m_Timestamp;
+    uint64_t timestamp = sig->m_Timestamp;
     FileInfo info      = GetFileInfo(path);
 
     if (info.m_Timestamp != timestamp)
@@ -262,17 +262,17 @@ static bool DriverCheckDagSignatures(Driver* self)
   // Check directory listing fingerprints
   // Note that the digest computation in here must match the one in LuaListDirectory
   // The digests computed there are stored in the signature block by Lua code.
-  for (const DagGlobSignature& sig : dag_data->m_GlobSignatures)
+  for (const DagGlobSignature* sig = dag_data->m_GlobSignatures.begin(), *sig_end = dag_data->m_GlobSignatures.end(); sig != sig_end; ++sig)
   {
-    HashDigest digest = CalculateGlobSignatureFor(sig.m_Path, &self->m_Heap, &self->m_Allocator);
+    HashDigest digest = CalculateGlobSignatureFor(sig->m_Path, &self->m_Heap, &self->m_Allocator);
 
     // Compare digest with the one stored in the signature block
-    if (0 != memcmp(&digest, &sig.m_Digest, sizeof digest))
+    if (0 != memcmp(&digest, &sig->m_Digest, sizeof digest))
     {
       char stored[kDigestStringSize], actual[kDigestStringSize];
-      DigestToString(stored, sig.m_Digest);
+      DigestToString(stored, sig->m_Digest);
       DigestToString(actual, digest);
-      Log(kInfo, "DAG out of date: file glob change for %s (%s => %s)", sig.m_Path.Get(), stored, actual);
+      Log(kInfo, "DAG out of date: file glob change for %s (%s => %s)", sig->m_Path.Get(), stored, actual);
       return false;
     }
   }
@@ -282,13 +282,13 @@ static bool DriverCheckDagSignatures(Driver* self)
 
 static const BuildTupleData* FindBuildTuple(const DagData* dag, const TargetSpec spec)
 {
-  for (const BuildTupleData& tuple : dag->m_BuildTuples)
+  for (const BuildTupleData* tuple = dag->m_BuildTuples.begin(), *tuple_end = dag->m_BuildTuples.end(); tuple != tuple_end; ++tuple)
   {
-    if (tuple.m_ConfigIndex == spec.m_ConfigIndex &&
-        tuple.m_VariantIndex == spec.m_VariantIndex &&
-        tuple.m_SubVariantIndex == spec.m_SubVariantIndex)
+    if (tuple->m_ConfigIndex == spec.m_ConfigIndex &&
+        tuple->m_VariantIndex == spec.m_VariantIndex &&
+        tuple->m_SubVariantIndex == spec.m_SubVariantIndex)
     {
-      return &tuple;
+      return tuple;
     }
   }
 
@@ -307,17 +307,17 @@ static void FindReachable(uint32_t* node_bits, const DagData* dag, int index)
 
   const NodeData* node = dag->m_NodeData + index;
 
-  for (int dep : node->m_Dependencies)
+  for (const int *dep = node->m_Dependencies.begin(), *dep_end = node->m_Dependencies.end(); dep != dep_end; ++dep)
   {
-    FindReachable(node_bits, dag, dep);
+    FindReachable(node_bits, dag, *dep);
   }
 }
 
 static void FindReachableNodes(uint32_t* node_bits, const DagData* dag, const BuildTupleData* tuple)
 {
-  for (const NamedNodeData& named_node : tuple->m_NamedNodes)
+  for (const NamedNodeData* named_node = tuple->m_NamedNodes.begin(), *named_node_end = tuple->m_NamedNodes.end(); named_node != named_node_end; ++named_node)
   {
-    FindReachable(node_bits, dag, named_node.m_NodeIndex);
+    FindReachable(node_bits, dag, named_node->m_NodeIndex);
   }
 }
 
@@ -343,12 +343,12 @@ static void FindNodesByName(
     bool found = false;
 
     // Try all named nodes first
-    for (const NamedNodeData& named_node : tuple->m_NamedNodes)
+    for (const NamedNodeData* named_node = tuple->m_NamedNodes.begin(), *named_node_end = tuple->m_NamedNodes.end(); named_node != named_node_end; ++named_node)
     {
-      if (0 == strcmp(named_node.m_Name, name))
+      if (0 == strcmp(named_node->m_Name, name))
       {
-        BufferAppendOne(out_nodes, heap, named_node.m_NodeIndex);
-        Log(kDebug, "mapped %s to node %d", name, named_node.m_NodeIndex);
+        BufferAppendOne(out_nodes, heap, named_node->m_NodeIndex);
+        Log(kDebug, "mapped %s to node %d", name, named_node->m_NodeIndex);
         found = true;
         break;
       }
@@ -396,9 +396,9 @@ static void FindNodesByName(
           size_t node_index = base_index + bit;
           const NodeData* node = dag->m_NodeData + node_index;
 
-          for (const FrozenFileAndHash& input : node->m_InputFiles)
+          for (const FrozenFileAndHash* input = node->m_InputFiles.begin(), *input_end = node->m_InputFiles.end(); input != input_end; ++input)
           {
-            if (filename_hash == input.m_FilenameHash && 0 == PathCompare(input.m_Filename, filename))
+            if (filename_hash == input->m_FilenameHash && 0 == PathCompare(input->m_Filename, filename))
             {
               BufferAppendOne(out_nodes, heap, node_index);
               Log(kDebug, "mapped %s to node %d (based on input file)", name, node_index);
@@ -410,9 +410,9 @@ static void FindNodesByName(
           if (found)
             break;
 
-          for (const FrozenFileAndHash& output : node->m_OutputFiles)
+          for (const FrozenFileAndHash* output = node->m_OutputFiles.begin(), *output_end = node->m_OutputFiles.end(); output != output_end; ++output)
           {
-            if (filename_hash == output.m_FilenameHash && 0 == PathCompare(output.m_Filename, filename))
+            if (filename_hash == output->m_FilenameHash && 0 == PathCompare(output->m_Filename, filename))
             {
               BufferAppendOne(out_nodes, heap, node_index);
               Log(kDebug, "mapped %s to node %d (based on output file)", name, node_index);
@@ -459,9 +459,9 @@ static void DriverSelectNodes(const DagData* dag, const char** targets, int targ
 
   SelectTargets(tsel, heap, &target_specs, &named_targets);
 
-  for (const TargetSpec& spec : target_specs)
+  T_FOREACH(const TargetSpec*, spec, target_specs)
   {
-    const BuildTupleData* tuple = FindBuildTuple(dag, spec);
+    const BuildTupleData* tuple = FindBuildTuple(dag, *spec);
     if (!tuple)
       Croak("couldn't find build tuple in DAG");
 
@@ -943,7 +943,7 @@ bool DriverSaveBuildState(Driver* self)
 
   int entry_count = 0;
 
-  struct {
+  struct SaveNewFunc {
       int                 *entry_count;
       NodeState           *new_state;
       const NodeData      *src_data;
@@ -980,7 +980,7 @@ bool DriverSaveBuildState(Driver* self)
               ++g_Stats.m_StateSaveNew;
           }
       }
-  } save_new { &entry_count, new_state, src_data, src_guids, old_guids, old_state, old_count, &writer };
+  } save_new = { &entry_count, new_state, src_data, src_guids, old_guids, old_state, old_count, &writer };
 
   struct {
       int* entry_count;
@@ -1014,7 +1014,7 @@ bool DriverSaveBuildState(Driver* self)
               ++g_Stats.m_StateSaveDropped;
           }
       }
-  } save_old { &entry_count, new_state, src_data, src_guids, src_count, old_guids, old_state, old_count, &writer };
+  } save_old = { &entry_count, new_state, src_data, src_guids, src_count, old_guids, old_state, old_count, &writer };
 
   struct
   { 
@@ -1027,7 +1027,7 @@ bool DriverSaveBuildState(Driver* self)
           int dag_index = int(new_state[index].m_MmapData - src_data);
           return src_guids + dag_index;
       }
-  } key_new { new_state, src_data, src_guids };
+  } key_new = { new_state, src_data, src_guids };
 
   struct
   {
@@ -1037,7 +1037,7 @@ bool DriverSaveBuildState(Driver* self)
       {
           return old_guids + index;
       }
-  } key_old { old_guids };
+  } key_old = { old_guids };
 
   TraverseSortedArrays(
       new_state_count, save_new, key_new,
@@ -1101,7 +1101,7 @@ void DriverRemoveStaleOutputs(Driver* self)
               HashSetInsert(file_table, hash, p.m_Filename);
           }
       }
-  } add_file { &file_table };
+  } add_file = { &file_table };
 
   // Insert all current regular and aux output files into the hash table.
 
@@ -1109,14 +1109,14 @@ void DriverRemoveStaleOutputs(Driver* self)
   {
     const NodeData* node = dag->m_NodeData + i;
 
-    for (const FrozenFileAndHash& p : node->m_OutputFiles)
+    T_FOREACH (const FrozenFileAndHash*, p, node->m_OutputFiles)
     {
-      add_file(p);
+      add_file(*p);
     }
 
-    for (const FrozenFileAndHash& p : node->m_AuxOutputFiles)
+    T_FOREACH (const FrozenFileAndHash*, p, node->m_AuxOutputFiles)
     {
-      add_file(p);
+      add_file(*p);
     }
   }
 
@@ -1162,20 +1162,20 @@ void DriverRemoveStaleOutputs(Driver* self)
               }
           }
       }
-  } check_file { &file_table, &nuke_table, scratch };
+  } check_file = { &file_table, &nuke_table, scratch };
 
   for (int i = 0, state_count = state->m_NodeCount; i < state_count; ++i)
   {
     const NodeStateData* node = state->m_NodeStates + i;
 
-    for (const char* path : node->m_OutputFiles)
+    T_FOREACH (const FrozenString*, path, node->m_OutputFiles)
     {
-      check_file(path);
+      check_file(path->Get());
     }
 
-    for (const char* path : node->m_AuxOutputFiles)
+    T_FOREACH (const FrozenString*, path, node->m_AuxOutputFiles)
     {
-      check_file(path);
+      check_file(path->Get());
     }
   }
 
@@ -1218,11 +1218,11 @@ void DriverCleanOutputs(Driver* self)
 {
   ProfilerScope prof_scope("Tundra Clean", 0);
   int count = 0;
-  for (NodeState& state : self->m_Nodes)
+  T_FOREACH (NodeState*, state, self->m_Nodes)
   {
-    for (const FrozenFileAndHash& fh : state.m_MmapData->m_OutputFiles)
+    T_FOREACH (const FrozenFileAndHash*, fh, state->m_MmapData->m_OutputFiles)
     {
-      if (0 == RemoveFileOrDir(fh.m_Filename))
+      if (0 == RemoveFileOrDir(fh->m_Filename))
         ++count;
     }
   }

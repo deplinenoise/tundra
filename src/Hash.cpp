@@ -65,7 +65,7 @@ void HashAddStringFoldCase(HashState* self, const char* path)
     char c = *path++;
     if (c == 0)
       return;
-      c = FoldCase(c);
+      c = (char) FoldCase(c);
       HashUpdate(self, &c, 1);
   }
 }

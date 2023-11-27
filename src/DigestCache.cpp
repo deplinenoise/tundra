@@ -40,16 +40,16 @@ void DigestCacheOpen(DigestCache* self, const char* filename)
 
       //HashTablePrepareBulkInsert(&self->m_Table, state->m_Records.GetCount());
 
-      for (const FrozenDigestRecord& record : state->m_Records)
+      T_FOREACH (const FrozenDigestRecord*, record, state->m_Records)
       {
-        if (record.m_AccessTime < cutoff_time)
+        if (record->m_AccessTime < cutoff_time)
           continue;
 
         DigestCacheRecord r;
-        r.m_ContentDigest = record.m_ContentDigest;
-        r.m_Timestamp     = record.m_Timestamp;
-        r.m_AccessTime    = record.m_AccessTime;
-        HashTableInsert(&self->m_Table, record.m_FilenameHash, record.m_Filename.Get(), r);
+        r.m_ContentDigest = record->m_ContentDigest;
+        r.m_Timestamp     = record->m_Timestamp;
+        r.m_AccessTime    = record->m_AccessTime;
+        HashTableInsert(&self->m_Table, record->m_FilenameHash, record->m_Filename.Get(), r);
       }
       Log(kDebug, "digest cache initialized -- %d entries", state->m_Records.GetCount());
     }

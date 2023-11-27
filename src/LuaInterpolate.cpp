@@ -30,6 +30,8 @@ private:
 public:
   explicit LuaEnvLookupScope(LuaEnvLookup& lookup, const char* key, size_t len)
   {
+    (void) len;
+
     m_LuaState = lookup.m_LuaState;
     m_Valid    = false;
 

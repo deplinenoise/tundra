@@ -85,9 +85,9 @@ static bool FindFile(
       return true;
   }
 
-  for (const char* include_path : scanner_config->m_IncludePaths)
+  T_FOREACH (const FrozenString*, include_path, scanner_config->m_IncludePaths)
   {
-    PathInit(buffer, include_path);
+    PathInit(buffer, *include_path);
     PathConcat(buffer, &include_buf);
     PathFormat(path_buf, buffer);
 
@@ -233,12 +233,12 @@ bool ScanImplicitDeps(StatCache* stat_cache, const ScanInput* input, ScanOutput*
       // Insert result into scan cache
       ScanCacheInsert(scan_cache, scan_key, info.m_Timestamp, found_includes.m_Storage, (int) found_includes.m_Size);
 
-      for (const char* file : found_includes)
+      T_FOREACH_P (const char**, file, found_includes)
       {
-        if (IncludeSetAddDuplicateString(&incset, file, Djb2HashPath(file)))
+        if (IncludeSetAddDuplicateString(&incset, *file, Djb2HashPath(*file)))
         {
           // This was a new file, schedule it for scanning as well. 
-          BufferAppendOne(&filename_stack, scratch_heap, file);
+          BufferAppendOne(&filename_stack, scratch_heap, *file);
         }
       }
 

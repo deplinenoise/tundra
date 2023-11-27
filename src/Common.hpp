@@ -187,4 +187,10 @@ struct FileAndHash
 
 }
 
+#define T_FOREACH(ty, var, container) \
+  for (ty var = container.begin(), *var ## end = container.end(); var != var ## end; ++var)
+
+#define T_FOREACH_P(ty, var, container) \
+  for (ty var = container.begin(), **var ## end = container.end(); var != var ## end; ++var)
+
 #endif

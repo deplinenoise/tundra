@@ -20,7 +20,7 @@ namespace t2
 {
   namespace BuildResult
   {
-    const char* Names[Enum::kCount] =
+    const char* Names[kCount] =
     {
       "Build success",
       "Build interrupted",
@@ -72,9 +72,9 @@ namespace t2
   {
     const NodeData *src_node      = state->m_MmapData;
 
-    for (int32_t dep_index : src_node->m_Dependencies)
+    T_FOREACH (const int32_t*, dep_index, src_node->m_Dependencies)
     {
-      NodeState* nstate = GetStateForNode(queue, dep_index);
+      NodeState* nstate = GetStateForNode(queue, *dep_index);
 
       CHECK(nstate != nullptr);
 
@@ -154,9 +154,9 @@ namespace t2
     // Go through all dependencies and see how those nodes are doing.  If any
     // of them are not finished, we'll have to wait before this node can continue
     // to advance its state machine.
-    for (int32_t dep_index : src_node->m_Dependencies)
+    T_FOREACH (const int32_t*, dep_index, src_node->m_Dependencies)
     {
-      NodeState* state = GetStateForNode(queue, dep_index);
+      NodeState* state = GetStateForNode(queue, *dep_index);
 
       CHECK(state != nullptr);
 
@@ -202,9 +202,9 @@ namespace t2
 
   static bool OutputFilesMissing(StatCache* stat_cache, const NodeData* node)
   {
-    for (const FrozenFileAndHash& f : node->m_OutputFiles)
+    T_FOREACH (const FrozenFileAndHash*, f, node->m_OutputFiles)
     {
-      FileInfo i = StatCacheStat(stat_cache, f.m_Filename, f.m_FilenameHash);
+      FileInfo i = StatCacheStat(stat_cache, f->m_Filename, f->m_FilenameHash);
 
       if (!i.Exists())
         return true;
@@ -293,11 +293,11 @@ namespace t2
 
     const ScannerData* scanner = node_data->m_Scanner;
 
-    for (const FrozenFileAndHash& input : node_data->m_InputFiles)
+    T_FOREACH (const FrozenFileAndHash*, input, node_data->m_InputFiles)
     {
       // Add path and timestamp of every direct input file.
-      HashAddPath(&sighash, input.m_Filename);
-      ComputeFileSignature(&sighash, stat_cache, digest_cache, input.m_Filename, input.m_FilenameHash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
+      HashAddPath(&sighash, input->m_Filename);
+      ComputeFileSignature(&sighash, stat_cache, digest_cache, input->m_Filename, input->m_FilenameHash, config.m_ShaDigestExtensions, config.m_ShaDigestExtensionCount);
 
       if (scanner)
       {
@@ -305,7 +305,7 @@ namespace t2
         scan_input.m_ScannerConfig = scanner;
         scan_input.m_ScratchAlloc  = &thread_state->m_ScratchAlloc;
         scan_input.m_ScratchHeap   = &thread_state->m_LocalHeap;
-        scan_input.m_FileName      = input.m_Filename;
+        scan_input.m_FileName      = input->m_Filename;
         scan_input.m_ScanCache     = queue->m_Config.m_ScanCache;
 
         ScanOutput scan_output;
@@ -425,14 +425,14 @@ namespace t2
       env_vars[i].m_Value = node_data->m_EnvVars[i].m_Value;
     }
 
-    for (const FrozenFileAndHash& output_file : node_data->m_OutputFiles)
+    T_FOREACH (const FrozenFileAndHash*, output_file, node_data->m_OutputFiles)
     {
       PathBuffer output;
-      PathInit(&output, output_file.m_Filename);
+      PathInit(&output, output_file->m_Filename);
 
       if (!MakeDirectoriesForFile(stat_cache, output))
       {
-        Log(kError, "failed to create output directories for %s", output_file.m_Filename.Get());
+        Log(kError, "failed to create output directories for %s", output_file->m_Filename.Get());
         MutexLock(queue_lock);
         return BuildProgress::kFailed;
       }
@@ -443,11 +443,11 @@ namespace t2
     // See if we need to remove the output files before running anything.
     if (0 == (node_data->m_Flags & NodeData::kFlagOverwriteOutputs))
     {
-      for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
+      T_FOREACH (const FrozenFileAndHash*, output, node_data->m_OutputFiles)
       {
-        Log(kDebug, "Removing output file %s before running action", output.m_Filename.Get());
-        remove(output.m_Filename);
-        StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_FilenameHash);
+        Log(kDebug, "Removing output file %s before running action", output->m_Filename.Get());
+        remove(output->m_Filename);
+        StatCacheMarkDirty(stat_cache, output->m_Filename, output->m_FilenameHash);
       }
     }
 
@@ -469,9 +469,9 @@ namespace t2
       Log(kSpam, "Process return code %d", result.m_ReturnCode);
     }
 
-    for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
+    T_FOREACH (const FrozenFileAndHash*, output, node_data->m_OutputFiles)
     {
-      StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_FilenameHash);
+      StatCacheMarkDirty(stat_cache, output->m_Filename, output->m_FilenameHash);
     }
 
     MutexLock(queue_lock);
@@ -490,11 +490,11 @@ namespace t2
       // Clean up output files after a failed build unless they are precious.
       if (0 == (NodeData::kFlagPreciousOutputs & node_data->m_Flags))
       {
-        for (const FrozenFileAndHash& output : node_data->m_OutputFiles)
+        T_FOREACH (const FrozenFileAndHash*, output, node_data->m_OutputFiles)
         {
-          Log(kDebug, "Removing output file %s from failed build", output.m_Filename.Get());
-          remove(output.m_Filename);
-          StatCacheMarkDirty(stat_cache, output.m_Filename, output.m_FilenameHash);
+          Log(kDebug, "Removing output file %s from failed build", output->m_Filename.Get());
+          remove(output->m_Filename);
+          StatCacheMarkDirty(stat_cache, output->m_Filename, output->m_FilenameHash);
         }
       }
 
@@ -507,9 +507,9 @@ namespace t2
     const NodeData *src_node       = node->m_MmapData;
     int             enqueue_count  = 0;
 
-    for (int32_t link : src_node->m_BackLinks)
+    T_FOREACH (const int32_t*, link, src_node->m_BackLinks)
     {
-      if (NodeState* waiter = GetStateForNode(queue, link))
+      if (NodeState* waiter = GetStateForNode(queue, *link))
       {
         // Only wake nodes in our current pass
         if (waiter->m_MmapData->m_PassIndex != queue->m_CurrentPassIndex)

@@ -36,31 +36,31 @@ static void DumpDag(const DagData* data)
     printf("  pass index: %d\n", node.m_PassIndex);
 
     printf("  dependencies:");
-    for (int32_t dep : node.m_Dependencies)
-      printf(" %d", dep);
+    T_FOREACH (const int32_t*, dep, node.m_Dependencies)
+      printf(" %d", *dep);
     printf("\n");
 
     printf("  backlinks:");
-    for (int32_t link : node.m_BackLinks)
-      printf(" %d", link);
+    T_FOREACH (const int32_t*, link, node.m_BackLinks)
+      printf(" %d", *link);
     printf("\n");
 
     printf("  inputs:\n");
-    for (const FrozenFileAndHash& f : node.m_InputFiles)
-      printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_FilenameHash);
+    T_FOREACH (const FrozenFileAndHash*, f, node.m_InputFiles)
+      printf("    %s (0x%08x)\n", f->m_Filename.Get(), f->m_FilenameHash);
 
     printf("  outputs:\n");
-    for (const FrozenFileAndHash& f : node.m_OutputFiles)
-      printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_FilenameHash);
+    T_FOREACH (const FrozenFileAndHash*, f, node.m_OutputFiles)
+      printf("    %s (0x%08x)\n", f->m_Filename.Get(), f->m_FilenameHash);
 
     printf("  aux_outputs:\n");
-    for (const FrozenFileAndHash& f : node.m_AuxOutputFiles)
-      printf("    %s (0x%08x)\n", f.m_Filename.Get(), f.m_FilenameHash);
+    T_FOREACH (const FrozenFileAndHash*, f, node.m_AuxOutputFiles)
+      printf("    %s (0x%08x)\n", f->m_Filename.Get(), f->m_FilenameHash);
 
     printf("  environment:\n");
-    for (const EnvVarData& env : node.m_EnvVars)
+    T_FOREACH (const EnvVarData*, env, node.m_EnvVars)
     {
-      printf("    %s = %s\n", env.m_Name.Get(), env.m_Value.Get());
+      printf("    %s = %s\n", env->m_Name.Get(), env->m_Value.Get());
     }
 
     if (const ScannerData* s = node.m_Scanner)
@@ -80,9 +80,9 @@ static void DumpDag(const DagData* data)
       }
 
       printf("    include paths:\n");
-      for (const char* path : s->m_IncludePaths)
+      T_FOREACH (const FrozenString*, path, s->m_IncludePaths)
       {
-        printf("      %s\n", path);
+        printf("      %s\n", path->Get());
       }
       DigestToString(digest_str, s->m_ScannerGuid);
       printf("    scanner guid: %s\n", digest_str);
@@ -101,10 +101,10 @@ static void DumpDag(const DagData* data)
         printf("\n");
 
         printf("    keywords:\n");
-        for (const KeywordData& kw : gs->m_Keywords)
+        T_FOREACH (const KeywordData*, kw, gs->m_Keywords)
         {
           printf("      \"%s\" (%d bytes) follow: %s\n",
-              kw.m_String.Get(), kw.m_StringLength, kw.m_ShouldFollow ? "yes" : "no");
+              kw->m_String.Get(), kw->m_StringLength, kw->m_ShouldFollow ? "yes" : "no");
         }
       }
     }
@@ -113,9 +113,9 @@ static void DumpDag(const DagData* data)
   }
 
   printf("\npass count: %u\n", data->m_Passes.GetCount());
-  for (const PassData& pass : data->m_Passes)
+  T_FOREACH (const PassData*, pass, data->m_Passes)
   {
-    printf("  pass: %s\n", pass.m_PassName.Get());
+    printf("  pass: %s\n", pass->m_PassName.Get());
   }
 
   printf("\nconfig count: %d\n", data->m_ConfigCount);
@@ -141,44 +141,44 @@ static void DumpDag(const DagData* data)
   printf("default subvariant index: %d\n", data->m_DefaultSubVariantIndex);
 
   printf("\nbuild tuples:\n");
-  for (const BuildTupleData& tuple : data->m_BuildTuples)
+  T_FOREACH (const BuildTupleData*, tuple, data->m_BuildTuples)
   {
-    printf("config index    : %d\n", tuple.m_ConfigIndex);
-    printf("variant index   : %d\n", tuple.m_VariantIndex);
-    printf("subvariant index: %d\n", tuple.m_SubVariantIndex);
+    printf("config index    : %d\n", tuple->m_ConfigIndex);
+    printf("variant index   : %d\n", tuple->m_VariantIndex);
+    printf("subvariant index: %d\n", tuple->m_SubVariantIndex);
     printf("always nodes    :");
-    for (int node : tuple.m_AlwaysNodes)
-      printf(" %d", node);
+    T_FOREACH (const int32_t *, node, tuple->m_AlwaysNodes)
+      printf(" %d", *node);
     printf("\n");
     printf("default nodes   :");
-    for (int node : tuple.m_DefaultNodes)
-      printf(" %d", node);
+    T_FOREACH (const int32_t *, node, tuple->m_DefaultNodes)
+      printf(" %d", *node);
     printf("\n");
     printf("named nodes:\n");
-    for (const NamedNodeData& nn : tuple.m_NamedNodes)
-      printf("  %s - node %d\n", nn.m_Name.Get(), nn.m_NodeIndex);
+    T_FOREACH (const NamedNodeData*, nn, tuple->m_NamedNodes)
+      printf("  %s - node %d\n", nn->m_Name.Get(), nn->m_NodeIndex);
     printf("\n");
   }
 
   printf("\nfile signatures:\n");
-  for (const DagFileSignature& sig : data->m_FileSignatures)
+  T_FOREACH (const DagFileSignature*, sig, data->m_FileSignatures)
   {
-    printf("file            : %s\n", sig.m_Path.Get());
-    printf("timestamp       : %u\n", (unsigned int) sig.m_Timestamp);
+    printf("file            : %s\n", sig->m_Path.Get());
+    printf("timestamp       : %u\n", (unsigned int) sig->m_Timestamp);
   }
   printf("\nglob signatures:\n");
-  for (const DagGlobSignature& sig : data->m_GlobSignatures)
+  T_FOREACH (const DagGlobSignature*, sig, data->m_GlobSignatures)
   {
     char digest_str[kDigestStringSize];
-    DigestToString(digest_str, sig.m_Digest);
-    printf("path            : %s\n", sig.m_Path.Get());
+    DigestToString(digest_str, sig->m_Digest);
+    printf("path            : %s\n", sig->m_Path.Get());
     printf("digest          : %s\n", digest_str);
   }
 
   printf("\nSHA-1 signatures enabled for extension hashes:\n");
-  for (const uint32_t ext : data->m_ShaExtensionHashes)
+  T_FOREACH (const uint32_t*, ext, data->m_ShaExtensionHashes)
   {
-    printf("hash            : 0x%08x\n", ext);
+    printf("hash            : 0x%08x\n", *ext);
   }
 
   printf("\nMax expensive jobs: %d\n", data->m_MaxExpensiveCount);
@@ -202,11 +202,11 @@ static void DumpState(const StateData* data)
     DigestToString(digest_str, node.m_InputSignature);
     printf("  input_signature: %s\n", digest_str);
     printf("  outputs:\n");
-    for (const char* path : node.m_OutputFiles)
-      printf("    %s\n", path);
+    T_FOREACH (const FrozenString*, path, node.m_OutputFiles)
+      printf("    %s\n", path->Get());
     printf("  aux outputs:\n");
-    for (const char* path : node.m_AuxOutputFiles)
-      printf("    %s\n", path);
+    T_FOREACH (const FrozenString*, path, node.m_AuxOutputFiles)
+      printf("    %s\n", path->Get());
     printf("\n");
   }
 }
@@ -228,8 +228,8 @@ static void DumpScanCache(const ScanData* data)
     printf("  access time stamp: %llu\n", (long long unsigned int) data->m_AccessTimes[i]);
     printf("  file time stamp: %llu\n", (long long unsigned int) entry.m_FileTimestamp);
     printf("  included files:\n");
-    for (const FrozenFileAndHash& path : entry.m_IncludedFiles)
-      printf("    %s (0x%08x)\n", path.m_Filename.Get(), path.m_FilenameHash);
+    T_FOREACH (const FrozenFileAndHash*, path, entry.m_IncludedFiles)
+      printf("    %s (0x%08x)\n", path->m_Filename.Get(), path->m_FilenameHash);
   }
 }
 
@@ -244,15 +244,15 @@ static const char* FmtTime(uint64_t t)
 static void DumpDigestCache(const DigestCacheState* data)
 {
   printf("record count: %d\n", data->m_Records.GetCount());
-  for (const FrozenDigestRecord& r : data->m_Records)
+  T_FOREACH (const FrozenDigestRecord*, r, data->m_Records)
   {
     char digest_str[kDigestStringSize];
-    printf("  filename     : %s\n", r.m_Filename.Get());
-    printf("  filename hash: %08x\n", r.m_FilenameHash);
-    DigestToString(digest_str, r.m_ContentDigest);
+    printf("  filename     : %s\n", r->m_Filename.Get());
+    printf("  filename hash: %08x\n", r->m_FilenameHash);
+    DigestToString(digest_str, r->m_ContentDigest);
     printf("  digest SHA1  : %s\n", digest_str);
-    printf("  access time  : %s\n", FmtTime(r.m_AccessTime));
-    printf("  timestamp    : %s\n", FmtTime(r.m_Timestamp));
+    printf("  access time  : %s\n", FmtTime(r->m_AccessTime));
+    printf("  timestamp    : %s\n", FmtTime(r->m_Timestamp));
     printf("\n");
   }
 }

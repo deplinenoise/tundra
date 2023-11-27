@@ -92,6 +92,7 @@ void NORETURN CroakErrno(const char* fmt, ...)
   char* message = nullptr;
   size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                                  NULL, gle, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*)&message, 0, NULL);
+  (void) size;
     
   fprintf(stderr, "Win32 GLE: %u (%s)\n", gle, message);
 #endif

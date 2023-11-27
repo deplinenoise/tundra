@@ -144,6 +144,8 @@ struct CommonStringRecord
 
 void WriteCommonStringPtr(BinarySegment* segment, BinarySegment* str_seg, const char* ptr, HashTable<CommonStringRecord, 0>* table, MemAllocLinear* scratch)
 {
+  (void) scratch;
+
   uint32_t hash = Djb2Hash(ptr);
   CommonStringRecord* r;
   if (nullptr == (r = HashTableLookup(table, hash, ptr)))
@@ -281,9 +283,9 @@ static bool WriteNodes(
     {
       BinarySegmentWriteInt32(node_data_seg, (int) backlinks.m_Size);
       BinarySegmentWritePointer(node_data_seg, BinarySegmentPosition(array2_seg));
-      for (int32_t index : backlinks)
+      T_FOREACH (const int32_t*, index, backlinks)
       {
-        BinarySegmentWriteInt32(array2_seg, remap_table[index]);
+        BinarySegmentWriteInt32(array2_seg, remap_table[*index]);
       }
     }
     else

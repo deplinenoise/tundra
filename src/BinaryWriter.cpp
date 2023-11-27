@@ -113,10 +113,10 @@ void BinaryWriterInit(BinaryWriter* w, MemAllocHeap* heap)
 
 void BinaryWriterDestroy(BinaryWriter* self)
 {
-  for (BinarySegment* seg : self->m_Segments)
+  for (BinarySegment** seg = self->m_Segments.begin(), **seg_end = self->m_Segments.end(); seg != seg_end; ++seg)
   {
-    BinarySegmentDestroy(seg);
-    HeapFree(self->m_Heap, seg);
+    BinarySegmentDestroy(*seg);
+    HeapFree(self->m_Heap, *seg);
   }
 
   BufferDestroy(&self->m_Segments, self->m_Heap);

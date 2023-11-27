@@ -82,6 +82,8 @@ static HANDLE AllocFd(int job_id)
 
 static void FreeFd(int job_id, HANDLE h)
 {
+  (void) job_id;
+
   char buf[1024];
   HANDLE target = GetStdHandle(STD_OUTPUT_HANDLE);
 

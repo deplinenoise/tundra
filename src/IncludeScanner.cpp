@@ -149,11 +149,11 @@ ScanLineGeneric(MemAllocLinear* allocator, const char *start_in, const GenericSc
 
   const KeywordData* keyword = nullptr;
 
-  for (const KeywordData& kwdata : config.m_Keywords)
+  T_FOREACH (const KeywordData*, kwdata, config.m_Keywords)
   {
-    if (0 == strncmp(kwdata.m_String, start, kwdata.m_StringLength))
+    if (0 == strncmp(kwdata->m_String, start, kwdata->m_StringLength))
     {
-      keyword = &kwdata;
+      keyword = kwdata;
       break;
 		}
 	}
