@@ -37,7 +37,7 @@ static void SetFdNonBlocking(int fd)
 		CroakErrno("couldn't unblock fd %d", fd);
 }
 
-void ExecInit(void)
+void ExecInit(int thread_count)
 {
 	TerminalIoInit();
 }

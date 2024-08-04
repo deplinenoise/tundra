@@ -15,7 +15,7 @@ namespace t2
     bool    m_WasSignalled;
   };
 
-  void ExecInit(void);
+  void ExecInit(int thread_count);
 
   ExecResult ExecuteProcess(
         const char*         cmd_line,

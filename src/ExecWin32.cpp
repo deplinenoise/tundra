@@ -45,7 +45,7 @@ static char              s_TemporaryDir[MAX_PATH];
 static DWORD             s_TundraPid;
 static Mutex             s_FdMutex;
 
-static HANDLE s_TempFiles[kMaxBuildThreads];
+static HANDLE           *s_TempFiles;
 
 static HANDLE AllocFd(int job_id)
 {
@@ -176,8 +176,9 @@ static char UTF8_WindowsEnvironment[128*1024];
 
 static size_t g_Win32EnvCount;
 
-void ExecInit(void)
+void ExecInit(int thread_count)
 {
+  s_TempFiles = (HANDLE*) calloc(thread_count, sizeof s_TempFiles[0]);
   s_TundraPid = GetCurrentProcessId();
 
   if (0 == GetTempPathA(sizeof(s_TemporaryDir), s_TemporaryDir))
