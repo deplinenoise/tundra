@@ -17,11 +17,6 @@ namespace t2
   struct StatCache;
   struct DigestCache;
 
-  enum
-  {
-    kMaxBuildThreads = 64
-  };
-
   struct BuildQueueConfig
   {
     enum
@@ -73,8 +68,8 @@ namespace t2
     int32_t            m_PendingNodeCount;
     int32_t            m_FailedNodeCount;
     int32_t            m_CurrentPassIndex;
-    ThreadId           m_Threads[kMaxBuildThreads];
-    ThreadState        m_ThreadState[kMaxBuildThreads];
+    ThreadId          *m_Threads;
+    ThreadState       *m_ThreadState;
     int32_t            m_ExpensiveRunning;
     int32_t            m_ExpensiveWaitCount;
     NodeState        **m_ExpensiveWaitList;
