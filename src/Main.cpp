@@ -334,7 +334,7 @@ int main(int argc, char* argv[])
 
   uint64_t start_time = TimerGet();
 
-  ExecInit();
+  ExecInit(options.m_ThreadCount);
 
   if (options.m_WorkingDir)
   {

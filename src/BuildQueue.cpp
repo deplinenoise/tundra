@@ -735,15 +735,10 @@ namespace t2
     queue->m_ExpensiveWaitCount = 0;
     queue->m_ExpensiveWaitList  = HeapAllocateArray<NodeState*>(heap, capacity);
 
+    queue->m_Threads = HeapAllocateArrayZeroed<ThreadId>(config->m_Heap, config->m_ThreadCount);
+    queue->m_ThreadState = HeapAllocateArrayZeroed<ThreadState>(config->m_Heap, config->m_ThreadCount);
+
     CHECK(queue->m_Queue);
-
-    if (queue->m_Config.m_ThreadCount > kMaxBuildThreads)
-    {
-      Log(kWarning, "too many build threads (%d) - clamping to %d",
-          queue->m_Config.m_ThreadCount, kMaxBuildThreads);
-
-      queue->m_Config.m_ThreadCount = kMaxBuildThreads;
-    }
 
     Log(kDebug, "build queue initialized; ring buffer capacity = %u", queue->m_QueueCapacity);
 
@@ -796,6 +791,9 @@ namespace t2
 
     CondDestroy(&queue->m_WorkAvailable);
     MutexDestroy(&queue->m_Lock);
+
+    HeapFree(config->m_Heap, queue->m_ThreadState);
+    HeapFree(config->m_Heap, queue->m_Threads);
 
     // Unblock all signals on the main thread.
     SignalHandlerSetCondition(nullptr);
