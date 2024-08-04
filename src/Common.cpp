@@ -24,10 +24,6 @@
 #include <sys/sysctl.h>
 #endif
 
-#if defined(TUNDRA_LINUX)
-#include <thread>
-#endif
-
 #if defined(TUNDRA_WIN32)
 #include <windows.h>
 #include <ctype.h>
@@ -346,9 +342,7 @@ int GetCpuCount()
   GetSystemInfo(&si);
   return (int) si.dwNumberOfProcessors;
 #elif defined(TUNDRA_LINUX)
-  return (int)std::thread::hardware_concurrency();
-#else
-  long nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
+  long nprocs_max = sysconf(_SC_NPROCESSORS_ONLN);
   if (nprocs_max < 0)
     CroakErrno("couldn't get CPU count");
   return (int) nprocs_max;
