@@ -73,7 +73,7 @@ local function make_default_env(build_data, add_unfiltered_vars)
     mod.apply_host(default_env)
   end
 
-  -- Add any unfiltered entries from the build data's Env and ReplaceEnv to the
+  -- Add any unfiltered entries from the build data's Env and ReplaceEnv to the 
   -- default environment. For config environments, this will be false, because we
   -- want to wait until the config's tools have run before adding any user
   -- customizations.
