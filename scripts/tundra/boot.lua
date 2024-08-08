@@ -35,7 +35,7 @@ end
 --
 -- Usage:
 --   foo = bench("foo", foo) -- benchmark function foo
-function _G.bench(name, fn) 
+function _G.bench(name, fn)
   return function (...)
     local t1 = native.get_timer()
     local result = { fn(...) }
@@ -73,12 +73,12 @@ local function make_default_env(build_data, add_unfiltered_vars)
     mod.apply_host(default_env)
   end
 
-  -- Add any unfiltered entries from the build data's Env and ReplaceEnv to the 
+  -- Add any unfiltered entries from the build data's Env and ReplaceEnv to the
   -- default environment. For config environments, this will be false, because we
   -- want to wait until the config's tools have run before adding any user
   -- customizations.
   if add_unfiltered_vars then
-    if build_data.Env then 
+    if build_data.Env then
       nodegen.append_filtered_env_vars(default_env, build_data.Env, nil, true)
     end
     if build_data.ReplaceEnv then
@@ -137,7 +137,17 @@ function generate_ide_files(build_script_fn, ide_script)
     build_data.Configs,
     env)
 
+  -- Lookup table for default nodes
+  local default_nodes = {}
+  for _, v in ipairs(node_bindings) do
+    if v.DefaultNodes then
+      for _, default_node in pairs(v.DefaultNodes) do
+        default_nodes[default_node] = true
+      end
+    end
+  end
+
   -- Pass the build tuples directly to the generator and let it write
   -- files.
-  nodegen.generate_ide_files(build_tuples, build_data.DefaultNodes, raw_nodes, env, raw_data.IdeGenerationHints, ide_script)
+  nodegen.generate_ide_files(build_tuples, default_nodes, raw_nodes, env, raw_data.IdeGenerationHints, ide_script)
 end
