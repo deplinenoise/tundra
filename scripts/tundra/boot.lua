@@ -35,7 +35,7 @@ end
 --
 -- Usage:
 --   foo = bench("foo", foo) -- benchmark function foo
-function _G.bench(name, fn)
+function _G.bench(name, fn) 
   return function (...)
     local t1 = native.get_timer()
     local result = { fn(...) }
@@ -78,7 +78,7 @@ local function make_default_env(build_data, add_unfiltered_vars)
   -- want to wait until the config's tools have run before adding any user
   -- customizations.
   if add_unfiltered_vars then
-    if build_data.Env then
+    if build_data.Env then 
       nodegen.append_filtered_env_vars(default_env, build_data.Env, nil, true)
     end
     if build_data.ReplaceEnv then
