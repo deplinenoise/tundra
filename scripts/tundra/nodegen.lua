@@ -813,12 +813,12 @@ function replace_filtered_env_vars(env, values_to_replace, build_id, exclusive)
   end
 end
 
-function generate_ide_files(config_tuples, default_names, raw_nodes, env, hints, ide_script)
+function generate_ide_files(config_tuples, default_nodes, raw_nodes, env, hints, ide_script)
   local state = new_generator { default_env = env }
   assert(state.default_env)
   create_unit_map(state, raw_nodes)
   local backend_fn = assert(ide_backend)
-  backend_fn(state, config_tuples, raw_nodes, env, default_names, hints, ide_script)
+  backend_fn(state, config_tuples, raw_nodes, env, default_nodes, hints, ide_script)
 end
 
 function set_ide_backend(backend_fn)
