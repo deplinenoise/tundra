@@ -785,7 +785,7 @@ function msvc_generator:generate_project_user(project)
   p:close()
 end
   
-function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints, ide_script)
+function msvc_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_nodes, hints, ide_script)
   assert(config_tuples and #config_tuples > 0)
 
   if not hints then

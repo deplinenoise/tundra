@@ -833,7 +833,7 @@ local function make_meta_projects(ide_script)
   }
 end
 
-function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names, hints, ide_script)
+function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_nodes, hints, ide_script)
   assert(config_tuples and #config_tuples > 0)
 
   hints = hints or {}

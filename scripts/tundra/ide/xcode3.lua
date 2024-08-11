@@ -699,7 +699,7 @@ local function generate_shellscript(env)
   os.execute("chmod +x " .. filename)
 end
 
-function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_names)
+function xcode_generator:generate_files(ngen, config_tuples, raw_nodes, env, default_nodes)
   assert(config_tuples and #config_tuples > 0)
 
   -- TODO: Set the first default config as default

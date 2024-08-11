@@ -137,7 +137,17 @@ function generate_ide_files(build_script_fn, ide_script)
     build_data.Configs,
     env)
 
+  -- Lookup table for default nodes
+  local default_nodes = {}
+  for _, v in ipairs(node_bindings) do
+    if v.DefaultNodes then
+      for _, default_node in pairs(v.DefaultNodes) do
+        default_nodes[default_node] = true
+      end
+    end
+  end
+
   -- Pass the build tuples directly to the generator and let it write
   -- files.
-  nodegen.generate_ide_files(build_tuples, build_data.DefaultNodes, raw_nodes, env, raw_data.IdeGenerationHints, ide_script)
+  nodegen.generate_ide_files(build_tuples, default_nodes, raw_nodes, env, raw_data.IdeGenerationHints, ide_script)
 end
