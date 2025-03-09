@@ -339,6 +339,8 @@ function apply(env, options, extra)
     end
   end
 
+  env_path[#env_path + 1] = env:get_external_env_var('PATH')
+
   -- Force MSPDBSRV.EXE (fix for issue with cl.exe running in parallel and otherwise corrupting PDB files)
   -- These options where added to Visual C++ in Visual Studio 2013. They do not exist in older versions.
   env:set("CCOPTS", "/FS")
