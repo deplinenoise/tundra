@@ -6,7 +6,7 @@ jobs:
     strategy:
       matrix:
         checked: [no, yes]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
@@ -16,7 +16,7 @@ jobs:
       - run: sudo cpanm File::Slurp Digest::MD5
       - run: make CHECKED=${{ matrix.checked }} all run-all-tests
   build-windows:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
