@@ -559,7 +559,7 @@ function msvc_generator:generate_project(project, all_projects)
     else
       env = project.Env
     end
-    local out_dir = path.join(env:interpolate('$(OBJECTROOT)'), build_id)
+    local out_dir = path.make_absolute(env, path.join(env:interpolate('$(OBJECTROOT)'), build_id))
     p:write('\t\t<OutDir>', out_dir, '</OutDir>', LF)
     p:write('\t\t<IntDir>$(OutDir)\\__', project_name, '</IntDir>', LF)
     p:write('\t</PropertyGroup>', LF)

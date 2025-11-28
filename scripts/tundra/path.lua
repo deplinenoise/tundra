@@ -51,3 +51,11 @@ function make_object_filename(env, src_fn, suffix)
 
   return object_fn
 end
+
+function make_absolute(env, fn)
+  if is_absolute(fn) then
+    return fn
+  else
+    return native.getcwd() .. env:get("SEP") .. fn
+  end
+end
